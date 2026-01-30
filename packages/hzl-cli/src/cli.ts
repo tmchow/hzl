@@ -11,6 +11,8 @@ import * as searchCommands from './commands/search.js';
 import * as validateCommands from './commands/validate.js';
 import { createInitCommand } from './commands/init.js';
 import { createWhichDbCommand } from './commands/which-db.js';
+import { createProjectsCommand } from './commands/projects.js';
+import { createRenameProjectCommand } from './commands/rename-project.js';
 
 const program = new Command();
 
@@ -35,6 +37,8 @@ function withDb<T>(fn: (services: Services) => T): T {
 // Basic commands
 program.addCommand(createInitCommand());
 program.addCommand(createWhichDbCommand());
+program.addCommand(createProjectsCommand());
+program.addCommand(createRenameProjectCommand());
 
 // Task commands
 const task = program.command('task').description('Task management commands');
