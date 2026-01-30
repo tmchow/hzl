@@ -31,6 +31,14 @@ export interface ClaimTaskOptions extends EventContext {
   lease_until?: string;
 }
 
+export interface ClaimNextOptions {
+  author?: string;
+  agent_id?: string;
+  project?: string;
+  tags?: string[];
+  lease_until?: string;
+}
+
 export interface Task {
   task_id: string;
   title: string;
@@ -199,6 +207,71 @@ export class TaskService {
 
       this.projectionEngine.applyEvent(event);
       return this.getTaskById(taskId)!;
+    });
+  }
+
+  claimNext(opts: ClaimNextOptions = {}): Task | null {
+    return withWriteTransaction(this.db, () => {
+      let candidate: any;
+
+      if (opts.tags && opts.tags.length > 0) {
+        const tagPlaceholders = opts.tags.map(() => '?').join(', ');
+        const tagCount = opts.tags.length;
+
+        let query = `
+          SELECT tc.task_id FROM tasks_current tc
+          WHERE tc.status = 'ready'
+            AND NOT EXISTS (
+              SELECT 1 FROM task_dependencies td
+              JOIN tasks_current dep ON td.depends_on_id = dep.task_id
+              WHERE td.task_id = tc.task_id AND dep.status != 'done'
+            )
+            AND (SELECT COUNT(DISTINCT tag) FROM task_tags WHERE task_id = tc.task_id AND tag IN (${tagPlaceholders})) = ?
+        `;
+        const params: any[] = [...opts.tags, tagCount];
+
+        if (opts.project) {
+          query += ' AND tc.project = ?';
+          params.push(opts.project);
+        }
+        query += ' ORDER BY tc.priority DESC, tc.created_at ASC, tc.task_id ASC LIMIT 1';
+        candidate = this.db.prepare(query).get(...params);
+      } else if (opts.project) {
+        candidate = this.db.prepare(`
+          SELECT tc.task_id FROM tasks_current tc
+          WHERE tc.status = 'ready' AND tc.project = ?
+            AND NOT EXISTS (
+              SELECT 1 FROM task_dependencies td
+              JOIN tasks_current dep ON td.depends_on_id = dep.task_id
+              WHERE td.task_id = tc.task_id AND dep.status != 'done'
+            )
+          ORDER BY tc.priority DESC, tc.created_at ASC, tc.task_id ASC LIMIT 1
+        `).get(opts.project);
+      } else {
+        candidate = this.db.prepare(`
+          SELECT tc.task_id FROM tasks_current tc
+          WHERE tc.status = 'ready'
+            AND NOT EXISTS (
+              SELECT 1 FROM task_dependencies td
+              JOIN tasks_current dep ON td.depends_on_id = dep.task_id
+              WHERE td.task_id = tc.task_id AND dep.status != 'done'
+            )
+          ORDER BY tc.priority DESC, tc.created_at ASC, tc.task_id ASC LIMIT 1
+        `).get();
+      }
+
+      if (!candidate) return null;
+
+      const event = this.eventStore.append({
+        task_id: candidate.task_id,
+        type: EventType.StatusChanged,
+        data: { from: TaskStatus.Ready, to: TaskStatus.InProgress, lease_until: opts.lease_until },
+        author: opts.author,
+        agent_id: opts.agent_id,
+      });
+
+      this.projectionEngine.applyEvent(event);
+      return this.getTaskById(candidate.task_id);
     });
   }
 

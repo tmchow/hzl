@@ -186,4 +186,61 @@ describe('TaskService', () => {
       expect(() => taskService.claimTask(task.task_id)).toThrow(/dependencies not done/i);
     });
   });
+
+  describe('claimNext', () => {
+    it('claims highest priority ready task with all deps done', () => {
+      taskService.createTask({ title: 'Low priority', project: 'inbox', priority: 0 });
+      const highPriorityTask = taskService.createTask({ title: 'High priority', project: 'inbox', priority: 2 });
+      taskService.createTask({ title: 'Medium priority', project: 'inbox', priority: 1 });
+
+      // Move all to ready
+      const tasks = db.prepare('SELECT task_id FROM tasks_current').all() as any[];
+      for (const t of tasks) {
+        taskService.setStatus(t.task_id, TaskStatus.Ready);
+      }
+
+      const claimed = taskService.claimNext({ author: 'agent-1' });
+
+      expect(claimed).not.toBeNull();
+      expect(claimed!.task_id).toBe(highPriorityTask.task_id);
+      expect(claimed!.status).toBe(TaskStatus.InProgress);
+    });
+
+    it('returns null when no tasks are claimable', () => {
+      taskService.createTask({ title: 'Backlog task', project: 'inbox' });
+      const claimed = taskService.claimNext({ author: 'agent-1' });
+      expect(claimed).toBeNull();
+    });
+
+    it('filters by project when provided', () => {
+      const projectATask = taskService.createTask({ title: 'Project A', project: 'project-a' });
+      taskService.createTask({ title: 'Project B', project: 'project-b', priority: 2 });
+
+      taskService.setStatus(projectATask.task_id, TaskStatus.Ready);
+      db.prepare("UPDATE tasks_current SET status = 'ready' WHERE project = 'project-b'").run();
+
+      const claimed = taskService.claimNext({ author: 'agent-1', project: 'project-a' });
+
+      expect(claimed).not.toBeNull();
+      expect(claimed!.project).toBe('project-a');
+    });
+
+    it('filters by tags when provided', () => {
+      const urgentTask = taskService.createTask({
+        title: 'Urgent task',
+        project: 'inbox',
+        priority: 1,
+        tags: ['urgent', 'backend'],
+      });
+      taskService.createTask({ title: 'Normal task', project: 'inbox', priority: 2, tags: ['frontend'] });
+
+      taskService.setStatus(urgentTask.task_id, TaskStatus.Ready);
+      db.prepare("UPDATE tasks_current SET status = 'ready'").run();
+
+      const claimed = taskService.claimNext({ author: 'agent-1', tags: ['urgent'] });
+
+      expect(claimed).not.toBeNull();
+      expect(claimed!.task_id).toBe(urgentTask.task_id);
+    });
+  });
 });
