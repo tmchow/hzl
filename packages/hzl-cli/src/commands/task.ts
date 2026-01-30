@@ -1,5 +1,6 @@
 // packages/hzl-cli/src/commands/task.ts
 import { TaskStatus } from 'hzl-core/events/types.js';
+import type { AvailableTask } from 'hzl-core/services/task-service.js';
 import type { Services } from '../db.js';
 import type { OutputFormatter } from '../output.js';
 import { CLIError, ExitCode } from '../errors.js';
@@ -79,8 +80,9 @@ export function getTask(services: Services, taskId: string, out: OutputFormatter
 }
 
 export function listTasks(services: Services, opts: { project?: string; status?: TaskStatus; limit?: number }, out: OutputFormatter): void {
-  const tasks = services.taskService.getAvailableTasks({ project: opts.project, limit: opts.limit ?? 50 })
-    .filter(t => !opts.status || t.status === opts.status);
+  const tasks = services.taskService
+    .getAvailableTasks({ project: opts.project, limit: opts.limit ?? 50 })
+    .filter((t: AvailableTask) => !opts.status || t.status === opts.status);
   out.table(tasks as unknown as Record<string, unknown>[], ['task_id', 'title', 'project', 'status', 'priority']);
 }
 

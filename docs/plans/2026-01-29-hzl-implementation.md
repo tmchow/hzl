@@ -5471,7 +5471,7 @@ Options: --project, --json
 
 ## Phase 6: Testing & QA
 
-### Task 35: CLI Integration Tests
+### Task 35: CLI Integration Tests ✅
 
 **Files:**
 - Create: `packages/hzl-cli/src/__tests__/integration/cli-integration.test.ts`
@@ -5847,7 +5847,7 @@ git commit -m "test(cli): add CLI integration tests with round-trip scenarios"
 
 ---
 
-### Task 36: Cross-Process Concurrency Stress Tests
+### Task 36: Cross-Process Concurrency Stress Tests ✅
 
 **Files:**
 - Create: `packages/hzl-core/src/__tests__/concurrency/stress.test.ts`
@@ -6313,7 +6313,7 @@ git commit -m "test(core): add cross-process concurrency stress tests for claim,
 
 ---
 
-### Task 37: Migration Upgrade Tests
+### Task 37: Migration Upgrade Tests ✅
 
 **Files:**
 - Create: `packages/hzl-core/src/__tests__/migrations/upgrade.test.ts`
@@ -6747,7 +6747,7 @@ git commit -m "test(core): add migration upgrade tests with v1 fixtures"
 
 ---
 
-### Task 38: Import/Export Idempotency Tests + Backup/Restore Round-Trip Tests
+### Task 38: Import/Export Idempotency Tests + Backup/Restore Round-Trip Tests ✅
 
 **Files:**
 - Create: `packages/hzl-core/src/__tests__/backup/backup-restore.test.ts`
@@ -7469,7 +7469,7 @@ git commit -m "test(core): add import/export idempotency and backup/restore roun
 
 ---
 
-### Task 39: Projection Rebuild Equivalence Tests
+### Task 39: Projection Rebuild Equivalence Tests ✅
 
 **Files:**
 - Create: `packages/hzl-core/src/__tests__/projections/rebuild-equivalence.test.ts`
@@ -7822,7 +7822,7 @@ git commit -m "test(core): add projection rebuild equivalence tests"
 
 ---
 
-### Task 40: Property-Based Tests
+### Task 40: Property-Based Tests ✅
 
 **Files:**
 - Create: `packages/hzl-core/src/__tests__/properties/invariants.test.ts`

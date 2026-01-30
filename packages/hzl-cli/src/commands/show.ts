@@ -4,6 +4,7 @@ import { resolveDbPath } from '../config.js';
 import { initializeDb, closeDb, type Services } from '../db.js';
 import { handleError } from '../errors.js';
 import type { GlobalOptions } from '../types.js';
+import type { Comment, Checkpoint } from 'hzl-core/services/task-service.js';
 
 export interface ShowResult {
   task: {
@@ -53,8 +54,16 @@ export function runShow(options: { services: Services; taskId: string; json: boo
       claimed_by_author: task.claimed_by_author,
       claimed_by_agent_id: task.claimed_by_agent_id,
     },
-    comments: comments.map(c => ({ text: c.text, author: c.author, timestamp: c.timestamp })),
-    checkpoints: checkpoints.map(cp => ({ name: cp.name, data: cp.data, timestamp: cp.timestamp })),
+    comments: comments.map((c: Comment) => ({
+      text: c.text,
+      author: c.author,
+      timestamp: c.timestamp,
+    })),
+    checkpoints: checkpoints.map((cp: Checkpoint) => ({
+      name: cp.name,
+      data: cp.data,
+      timestamp: cp.timestamp,
+    })),
   };
 
   if (json) {

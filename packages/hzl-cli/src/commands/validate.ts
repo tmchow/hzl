@@ -4,7 +4,11 @@ import { resolveDbPath } from '../config.js';
 import { initializeDb, closeDb, type Services } from '../db.js';
 import { handleError } from '../errors.js';
 import type { GlobalOptions } from '../types.js';
-import type { ValidationResult, ValidationIssue, CycleNode, MissingDep } from 'hzl-core/services/validation-service.js';
+import type {
+  ValidationResult,
+  CycleNode,
+  MissingDep,
+} from 'hzl-core/services/validation-service.js';
 
 export function runValidate(options: {
   services: Services;
@@ -28,13 +32,13 @@ export function runValidate(options: {
       if (result.cycles.length > 0) {
         console.log(`\nCycles (${result.cycles.length}):`);
         for (const cycle of result.cycles) {
-          const path = cycle.map(c => c.taskId.slice(0, 8)).join(' → ');
+          const path = cycle.map((c: CycleNode) => c.taskId.slice(0, 8)).join(' → ');
           console.log(`  ${path} → (cycle)`);
         }
       }
       if (result.missingDeps.length > 0) {
         console.log(`\nMissing dependencies (${result.missingDeps.length}):`);
-        for (const missing of result.missingDeps) {
+        for (const missing of result.missingDeps as MissingDep[]) {
           console.log(`  ${missing.taskId.slice(0, 8)} → ${missing.missingDepId.slice(0, 8)} (missing)`);
         }
       }
