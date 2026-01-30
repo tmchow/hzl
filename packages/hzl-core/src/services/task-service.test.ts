@@ -243,4 +243,70 @@ describe('TaskService', () => {
       expect(claimed!.task_id).toBe(urgentTask.task_id);
     });
   });
+
+  describe('release', () => {
+    it('transitions from in_progress to ready', () => {
+      const task = taskService.createTask({ title: 'Test', project: 'inbox' });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+      taskService.claimTask(task.task_id, { author: 'agent-1' });
+
+      const released = taskService.releaseTask(task.task_id);
+
+      expect(released.status).toBe(TaskStatus.Ready);
+      expect(released.claimed_at).toBeNull();
+    });
+
+    it('accepts optional reason', () => {
+      const task = taskService.createTask({ title: 'Test', project: 'inbox' });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+      taskService.claimTask(task.task_id);
+
+      taskService.releaseTask(task.task_id, { reason: 'Blocked on external dependency' });
+
+      const events = eventStore.getByTaskId(task.task_id);
+      const releaseEvent = events.find(e => (e.data as any).to === TaskStatus.Ready && (e.data as any).from === TaskStatus.InProgress);
+      expect((releaseEvent!.data as any).reason).toBe('Blocked on external dependency');
+    });
+  });
+
+  describe('archive', () => {
+    it('transitions from any status to archived', () => {
+      const task = taskService.createTask({ title: 'Test', project: 'inbox' });
+      const archived = taskService.archiveTask(task.task_id);
+      expect(archived.status).toBe(TaskStatus.Archived);
+    });
+
+    it('throws if task is already archived', () => {
+      const task = taskService.createTask({ title: 'Test', project: 'inbox' });
+      taskService.archiveTask(task.task_id);
+      expect(() => taskService.archiveTask(task.task_id)).toThrow('already archived');
+    });
+  });
+
+  describe('reopen', () => {
+    it('transitions from done to ready by default', () => {
+      const task = taskService.createTask({ title: 'Test', project: 'inbox' });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+      taskService.claimTask(task.task_id);
+      taskService.completeTask(task.task_id);
+
+      const reopened = taskService.reopenTask(task.task_id);
+      expect(reopened.status).toBe(TaskStatus.Ready);
+    });
+
+    it('transitions from done to backlog when specified', () => {
+      const task = taskService.createTask({ title: 'Test', project: 'inbox' });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+      taskService.claimTask(task.task_id);
+      taskService.completeTask(task.task_id);
+
+      const reopened = taskService.reopenTask(task.task_id, { to_status: TaskStatus.Backlog });
+      expect(reopened.status).toBe(TaskStatus.Backlog);
+    });
+
+    it('throws if task is not done', () => {
+      const task = taskService.createTask({ title: 'Test', project: 'inbox' });
+      expect(() => taskService.reopenTask(task.task_id)).toThrow('expected done');
+    });
+  });
 });

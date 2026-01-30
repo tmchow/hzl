@@ -275,6 +275,71 @@ export class TaskService {
     });
   }
 
+  releaseTask(taskId: string, opts?: { reason?: string } & EventContext): Task {
+    return withWriteTransaction(this.db, () => {
+      const task = this.getTaskById(taskId);
+      if (!task) throw new TaskNotFoundError(taskId);
+      if (task.status !== TaskStatus.InProgress) {
+        throw new Error(`Cannot release: status is ${task.status}, expected in_progress`);
+      }
+
+      const event = this.eventStore.append({
+        task_id: taskId,
+        type: EventType.StatusChanged,
+        data: { from: TaskStatus.InProgress, to: TaskStatus.Ready, reason: opts?.reason },
+        author: opts?.author,
+        agent_id: opts?.agent_id,
+      });
+
+      this.projectionEngine.applyEvent(event);
+      return this.getTaskById(taskId)!;
+    });
+  }
+
+  archiveTask(taskId: string, opts?: { reason?: string } & EventContext): Task {
+    return withWriteTransaction(this.db, () => {
+      const task = this.getTaskById(taskId);
+      if (!task) throw new TaskNotFoundError(taskId);
+      if (task.status === TaskStatus.Archived) {
+        throw new Error('Task is already archived');
+      }
+
+      const event = this.eventStore.append({
+        task_id: taskId,
+        type: EventType.TaskArchived,
+        data: { reason: opts?.reason },
+        author: opts?.author,
+        agent_id: opts?.agent_id,
+      });
+
+      this.projectionEngine.applyEvent(event);
+      return this.getTaskById(taskId)!;
+    });
+  }
+
+  reopenTask(taskId: string, opts?: { to_status?: TaskStatus.Ready | TaskStatus.Backlog; reason?: string } & EventContext): Task {
+    return withWriteTransaction(this.db, () => {
+      const task = this.getTaskById(taskId);
+      if (!task) throw new TaskNotFoundError(taskId);
+      if (task.status !== TaskStatus.Done) {
+        throw new Error(`Cannot reopen: status is ${task.status}, expected done`);
+      }
+
+      const toStatus = opts?.to_status ?? TaskStatus.Ready;
+
+      const event = this.eventStore.append({
+        task_id: taskId,
+        type: EventType.StatusChanged,
+        data: { from: TaskStatus.Done, to: toStatus, reason: opts?.reason },
+        author: opts?.author,
+        agent_id: opts?.agent_id,
+      });
+
+      this.projectionEngine.applyEvent(event);
+      return this.getTaskById(taskId)!;
+    });
+  }
+
   getTaskById(taskId: string): Task | null {
     const row = this.db.prepare(
       'SELECT * FROM tasks_current WHERE task_id = ?'
