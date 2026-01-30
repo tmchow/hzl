@@ -46,3 +46,23 @@ export function createFormatter(jsonMode: boolean): OutputFormatter {
     },
   };
 }
+
+export function formatOutput(jsonMode: boolean, data: unknown): void {
+  createFormatter(jsonMode).json(data);
+}
+
+export function printSuccess(message: string, jsonMode = false): void {
+  createFormatter(jsonMode).success(message);
+}
+
+export function printError(message: string, jsonMode = false): void {
+  createFormatter(jsonMode).error(message);
+}
+
+export function printTable(
+  data: Record<string, unknown>[],
+  columns?: string[],
+  jsonMode = false
+): void {
+  createFormatter(jsonMode).table(data, columns);
+}
