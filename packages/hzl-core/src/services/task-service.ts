@@ -39,6 +39,29 @@ export interface ClaimNextOptions {
   lease_until?: string;
 }
 
+export interface StealOptions {
+  ifExpired?: boolean;
+  force?: boolean;
+  author?: string;
+  agent_id?: string;
+  lease_until?: string;
+}
+
+export interface StealResult {
+  success: boolean;
+  error?: string;
+}
+
+export interface StuckTask {
+  task_id: string;
+  title: string;
+  project: string;
+  claimed_at: string;
+  claimed_by_author: string | null;
+  claimed_by_agent_id: string | null;
+  lease_until: string | null;
+}
+
 export interface Task {
   task_id: string;
   title: string;
@@ -338,6 +361,64 @@ export class TaskService {
       this.projectionEngine.applyEvent(event);
       return this.getTaskById(taskId)!;
     });
+  }
+
+  stealTask(taskId: string, opts: StealOptions): StealResult {
+    return withWriteTransaction(this.db, () => {
+      const task = this.getTaskById(taskId);
+      if (!task) return { success: false, error: `Task ${taskId} not found` };
+      if (task.status !== TaskStatus.InProgress) {
+        return { success: false, error: `Task ${taskId} is not in_progress` };
+      }
+
+      if (!opts.force) {
+        if (opts.ifExpired) {
+          const now = new Date().toISOString();
+          if (task.lease_until && task.lease_until >= now) {
+            return { success: false, error: `Task ${taskId} lease has not expired` };
+          }
+        } else {
+          return { success: false, error: 'Must specify either force=true or ifExpired=true' };
+        }
+      }
+
+      const event = this.eventStore.append({
+        task_id: taskId,
+        type: EventType.StatusChanged,
+        data: { from: TaskStatus.InProgress, to: TaskStatus.InProgress, reason: 'stolen', lease_until: opts.lease_until },
+        author: opts.author,
+        agent_id: opts.agent_id,
+      });
+
+      this.projectionEngine.applyEvent(event);
+
+      // Update claim info
+      this.db.prepare(`
+        UPDATE tasks_current SET
+          claimed_at = ?, claimed_by_author = ?, claimed_by_agent_id = ?, lease_until = ?, updated_at = ?, last_event_id = ?
+        WHERE task_id = ?
+      `).run(new Date().toISOString(), opts.author ?? null, opts.agent_id ?? null, opts.lease_until ?? null, new Date().toISOString(), event.rowid, taskId);
+
+      return { success: true };
+    });
+  }
+
+  getStuckTasks(opts: { project?: string; olderThan: number }): StuckTask[] {
+    const cutoffTime = new Date(Date.now() - opts.olderThan).toISOString();
+
+    let query = `
+      SELECT task_id, title, project, claimed_at, claimed_by_author, claimed_by_agent_id, lease_until
+      FROM tasks_current WHERE status = 'in_progress' AND claimed_at < ?
+    `;
+    const params: any[] = [cutoffTime];
+
+    if (opts.project) {
+      query += ' AND project = ?';
+      params.push(opts.project);
+    }
+    query += ' ORDER BY claimed_at ASC';
+
+    return this.db.prepare(query).all(...params) as StuckTask[];
   }
 
   getTaskById(taskId: string): Task | null {

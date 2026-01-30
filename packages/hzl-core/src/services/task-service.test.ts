@@ -309,4 +309,76 @@ describe('TaskService', () => {
       expect(() => taskService.reopenTask(task.task_id)).toThrow('expected done');
     });
   });
+
+  describe('steal', () => {
+    it('steals task with force=true regardless of lease', () => {
+      const task = taskService.createTask({ title: 'Test', project: 'inbox' });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+      taskService.claimTask(task.task_id, {
+        author: 'agent-1',
+        lease_until: new Date(Date.now() + 3600000).toISOString()
+      });
+
+      const result = taskService.stealTask(task.task_id, { force: true, author: 'agent-2' });
+
+      expect(result.success).toBe(true);
+      const stolen = taskService.getTaskById(task.task_id);
+      expect(stolen!.claimed_by_author).toBe('agent-2');
+    });
+
+    it('steals task with ifExpired=true only when lease is expired', () => {
+      const task = taskService.createTask({ title: 'Test', project: 'inbox' });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+      taskService.claimTask(task.task_id, {
+        author: 'agent-1',
+        lease_until: new Date(Date.now() - 1000).toISOString() // expired
+      });
+
+      const result = taskService.stealTask(task.task_id, { ifExpired: true, author: 'agent-2' });
+      expect(result.success).toBe(true);
+    });
+
+    it('rejects steal with ifExpired=true when lease is not expired', () => {
+      const task = taskService.createTask({ title: 'Test', project: 'inbox' });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+      taskService.claimTask(task.task_id, {
+        author: 'agent-1',
+        lease_until: new Date(Date.now() + 3600000).toISOString()
+      });
+
+      const result = taskService.stealTask(task.task_id, { ifExpired: true, author: 'agent-2' });
+      expect(result.success).toBe(false);
+    });
+  });
+
+  describe('getStuckTasks', () => {
+    it('returns tasks in_progress older than specified duration', () => {
+      const task = taskService.createTask({ title: 'Old task', project: 'inbox' });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+
+      // Manually backdate the claim
+      db.prepare(`
+        UPDATE tasks_current SET claimed_at = ?, status = 'in_progress'
+        WHERE task_id = ?
+      `).run(new Date(Date.now() - 2 * 3600000).toISOString(), task.task_id);
+
+      const stuck = taskService.getStuckTasks({ olderThan: 3600000 });
+
+      expect(stuck).toHaveLength(1);
+      expect(stuck[0].task_id).toBe(task.task_id);
+    });
+
+    it('filters by project', () => {
+      const taskA = taskService.createTask({ title: 'Task A', project: 'project-a' });
+      const taskB = taskService.createTask({ title: 'Task B', project: 'project-b' });
+
+      const oldTime = new Date(Date.now() - 2 * 3600000).toISOString();
+      db.prepare("UPDATE tasks_current SET claimed_at = ?, status = 'in_progress'").run(oldTime);
+
+      const stuck = taskService.getStuckTasks({ project: 'project-a', olderThan: 3600000 });
+
+      expect(stuck).toHaveLength(1);
+      expect(stuck[0].project).toBe('project-a');
+    });
+  });
 });
