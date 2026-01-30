@@ -3,12 +3,17 @@ import { execSync, ExecSyncOptions } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
+import { fileURLToPath } from 'url';
 
 export interface TestContext {
   tempDir: string;
   dbPath: string;
   cleanup: () => void;
 }
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const cliPath = path.resolve(__dirname, '../../../dist/cli.js');
 
 export function createTestContext(): TestContext {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hzl-integration-'));
@@ -27,7 +32,6 @@ export function createTestContext(): TestContext {
 }
 
 export function hzl(ctx: TestContext, args: string, options?: ExecSyncOptions): string {
-  const cliPath = path.resolve(__dirname, '../../../dist/cli.js');
   const cmd = `node "${cliPath}" --db "${ctx.dbPath}" ${args}`;
   const result = execSync(cmd, { encoding: 'utf-8', ...options });
   return (result as string).trim();

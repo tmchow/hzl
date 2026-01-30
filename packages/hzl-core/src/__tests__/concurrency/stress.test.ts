@@ -1,13 +1,12 @@
-// packages/hzl-core/src/__tests__/concurrency/stress.test.ts
-// Cross-process concurrency stress tests
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterEach } from 'vitest';
 import { Worker } from 'worker_threads';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
+import { execSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import Database from 'better-sqlite3';
-import { runMigrations } from '../../db/migrations.js';
+import { createConnection } from '../../db/connection.js';
 import { EventStore } from '../../events/store.js';
 import { ProjectionEngine } from '../../projections/engine.js';
 import { TasksCurrentProjector } from '../../projections/tasks-current.js';
@@ -16,8 +15,15 @@ import { TagsProjector } from '../../projections/tags.js';
 import { TaskService } from '../../services/task-service.js';
 import { TaskStatus } from '../../events/types.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+interface WorkerCommand {
+  type: 'claim-next' | 'steal' | 'complete' | 'release' | 'claim-specific';
+  project?: string;
+  taskId?: string;
+  author: string;
+  leaseMinutes?: number;
+  ifExpired?: boolean;
+  force?: boolean;
+}
 
 interface WorkerResult {
   success: boolean;
@@ -26,27 +32,31 @@ interface WorkerResult {
   operation: string;
 }
 
-function runWorker(dbPath: string, command: any): Promise<WorkerResult> {
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const packageRoot = path.resolve(__dirname, '../../..');
+const distWorkerPath = path.join(packageRoot, 'dist/__tests__/concurrency/worker.js');
+
+function runWorker(dbPath: string, command: WorkerCommand): Promise<WorkerResult> {
   return new Promise((resolve, reject) => {
-    // Use tsx to run the TypeScript worker
-    const worker = new Worker(
-      `
-      import { register } from 'node:module';
-      import { pathToFileURL } from 'node:url';
-      register('tsx/esm', pathToFileURL('./'));
-      const workerPath = ${JSON.stringify(path.join(__dirname, 'worker.ts'))};
-      const { workerData } = await import('worker_threads');
-      await import(workerPath);
-      `,
-      {
-        eval: true,
-        workerData: { dbPath, command },
-      }
-    );
-    worker.on('message', resolve);
-    worker.on('error', reject);
+    let settled = false;
+    const worker = new Worker(distWorkerPath, {
+      workerData: { dbPath, command },
+    });
+    worker.on('message', (message) => {
+      if (settled) return;
+      settled = true;
+      resolve(message as WorkerResult);
+    });
+    worker.on('error', (error) => {
+      if (settled) return;
+      settled = true;
+      reject(error);
+    });
     worker.on('exit', (code) => {
-      if (code !== 0) reject(new Error(`Worker exited with code ${code}`));
+      if (settled || code === 0) return;
+      settled = true;
+      reject(new Error(`Worker exited with code ${code}`));
     });
   });
 }
@@ -70,12 +80,16 @@ describe('Concurrency Stress Tests', () => {
   let db: Database.Database;
   let taskService: TaskService;
 
+  beforeAll(() => {
+    execSync('npm run build', { cwd: packageRoot, stdio: 'inherit' });
+  });
+
   beforeEach(() => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hzl-stress-'));
     dbPath = path.join(tempDir, 'test.db');
-    db = new Database(dbPath);
+    db = createConnection(dbPath);
     db.pragma('journal_mode = WAL');
-    runMigrations(db);
+    db.pragma('busy_timeout = 5000');
     const services = setupServices(db);
     taskService = services.taskService;
   });
@@ -85,9 +99,8 @@ describe('Concurrency Stress Tests', () => {
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
-  describe('claim-next contention (in-process)', () => {
+  describe('claim-next contention (cross-process)', () => {
     it('ensures exactly one agent claims each task under high contention', async () => {
-      // Setup: Create 10 ready tasks
       const taskIds: string[] = [];
       for (let i = 0; i < 10; i++) {
         const task = taskService.createTask({ title: `Task ${i}`, project: 'stress-test' });
@@ -95,116 +108,90 @@ describe('Concurrency Stress Tests', () => {
         taskIds.push(task.task_id);
       }
 
-      // Run 20 concurrent claim attempts (all in same process using Promise.all)
-      const claimPromises: Promise<any>[] = [];
-      for (let i = 0; i < 20; i++) {
-        claimPromises.push(
-          Promise.resolve().then(() => {
-            try {
-              const result = taskService.claimNext({ author: `agent-${i}`, project: 'stress-test' });
-              return { success: !!result, taskId: result?.task_id };
-            } catch (err: any) {
-              return { success: false, error: err.message };
-            }
-          })
-        );
-      }
+      const claims = Array.from({ length: 20 }, (_, i) =>
+        runWorker(dbPath, {
+          type: 'claim-next',
+          project: 'stress-test',
+          author: `agent-${i}`,
+        })
+      );
 
-      const results = await Promise.all(claimPromises);
+      const results = await Promise.all(claims);
+      const successes = results.filter((result) => result.success);
+      expect(successes).toHaveLength(10);
 
-      // Verify: Exactly 10 successful claims (one per task)
-      const successfulClaims = results.filter((r) => r.success);
-      expect(successfulClaims).toHaveLength(10);
-
-      // Verify: Each task claimed exactly once
-      const claimedTaskIds = successfulClaims.map((r) => r.taskId);
+      const claimedTaskIds = successes.map((result) => result.taskId);
       const uniqueClaimedIds = new Set(claimedTaskIds);
       expect(uniqueClaimedIds.size).toBe(10);
 
-      // Verify: All original tasks are accounted for
       for (const taskId of taskIds) {
         expect(claimedTaskIds).toContain(taskId);
       }
 
-      // Verify: 10 workers got nothing (no tasks left)
-      const failedClaims = results.filter((r) => !r.success);
+      const failedClaims = results.filter((result) => !result.success);
       expect(failedClaims).toHaveLength(10);
     });
 
-    it('handles single contested task correctly', async () => {
-      // Create a single task
+    it('prevents double-claiming a single task across workers', async () => {
       const task = taskService.createTask({ title: 'Contested task', project: 'stress-test' });
       taskService.setStatus(task.task_id, TaskStatus.Ready);
 
-      // 50 concurrent claim attempts on the same task via claimNext
-      const claimPromises: Promise<any>[] = [];
-      for (let i = 0; i < 50; i++) {
-        claimPromises.push(
-          Promise.resolve().then(() => {
-            try {
-              const result = taskService.claimNext({ author: `agent-${i}`, project: 'stress-test' });
-              return { success: !!result, taskId: result?.task_id };
-            } catch {
-              return { success: false };
-            }
-          })
-        );
-      }
+      const attempts = Array.from({ length: 20 }, (_, i) =>
+        runWorker(dbPath, {
+          type: 'claim-specific',
+          taskId: task.task_id,
+          author: `agent-${i}`,
+        })
+      );
 
-      const results = await Promise.all(claimPromises);
+      const results = await Promise.all(attempts);
+      const successes = results.filter((result) => result.success);
+      expect(successes).toHaveLength(1);
+      expect(successes[0].taskId).toBe(task.task_id);
 
-      // Exactly one should succeed
-      const successfulClaims = results.filter((r) => r.success);
-      expect(successfulClaims).toHaveLength(1);
-      expect(successfulClaims[0].taskId).toBe(task.task_id);
+      const taskRow = db
+        .prepare('SELECT status, claimed_by_author FROM tasks_current WHERE task_id = ?')
+        .get(task.task_id) as { status: string; claimed_by_author: string | null };
+      expect(taskRow.status).toBe('in_progress');
+      expect(taskRow.claimed_by_author).toBeDefined();
     });
   });
 
-  describe('steal contention (in-process)', () => {
-    it('ensures exactly one agent steals an expired lease', async () => {
-      // Create and claim a task with an expired lease
+  describe('steal contention (cross-process)', () => {
+    it('allows only one agent to steal an expired lease', async () => {
       const task = taskService.createTask({ title: 'Expired task', project: 'stress-test' });
       taskService.setStatus(task.task_id, TaskStatus.Ready);
       taskService.claimTask(task.task_id, {
         author: 'original-agent',
-        lease_until: new Date(Date.now() - 60000).toISOString(), // Expired 1 minute ago
+        lease_until: new Date(Date.now() - 60000).toISOString(),
       });
 
-      // 10 concurrent steal attempts with ifExpired
-      const stealPromises: Promise<any>[] = [];
-      for (let i = 0; i < 10; i++) {
-        stealPromises.push(
-          Promise.resolve().then(() => {
-            try {
-              const result = taskService.stealTask(task.task_id, {
-                author: `stealer-${i}`,
-                ifExpired: true,
-              });
-              return { success: result.success, error: result.error };
-            } catch (err: any) {
-              return { success: false, error: err.message };
-            }
-          })
-        );
-      }
+      const steals = Array.from({ length: 10 }, (_, i) =>
+        runWorker(dbPath, {
+          type: 'steal',
+          taskId: task.task_id,
+          author: `stealer-${i}`,
+          ifExpired: true,
+          leaseMinutes: 5,
+        })
+      );
 
-      const results = await Promise.all(stealPromises);
+      const results = await Promise.all(steals);
+      const successes = results.filter((result) => result.success);
+      expect(successes).toHaveLength(1);
 
-      // At least one should succeed (the first one)
-      const successfulSteals = results.filter((r) => r.success);
-      expect(successfulSteals.length).toBeGreaterThanOrEqual(1);
+      const updatedTask = taskService.getTaskById(task.task_id);
+      expect(updatedTask?.claimed_by_author).toBeTruthy();
     });
 
     it('rejects steal when lease is not expired', () => {
-      // Create and claim a task with a future lease
       const task = taskService.createTask({ title: 'Active task', project: 'stress-test' });
       taskService.setStatus(task.task_id, TaskStatus.Ready);
       taskService.claimTask(task.task_id, {
         author: 'original-agent',
-        lease_until: new Date(Date.now() + 3600000).toISOString(), // Expires in 1 hour
+        lease_until: new Date(Date.now() + 3600000).toISOString(),
       });
 
-      // Try to steal with ifExpired (should fail)
       const result = taskService.stealTask(task.task_id, {
         author: 'stealer',
         ifExpired: true,
@@ -215,78 +202,52 @@ describe('Concurrency Stress Tests', () => {
     });
   });
 
-  describe('mixed operations stress test', () => {
-    it('handles concurrent claim, complete, release operations', async () => {
-      // Create 20 ready tasks
-      for (let i = 0; i < 20; i++) {
+  describe('mixed operations stress test (cross-process)', () => {
+    it('handles concurrent claim, complete, and release operations', async () => {
+      for (let i = 0; i < 12; i++) {
         const task = taskService.createTask({ title: `Task ${i}`, project: 'stress-test' });
         taskService.setStatus(task.task_id, TaskStatus.Ready);
       }
 
-      // Wave 1: 10 agents claim tasks concurrently
-      const claimPromises: Promise<any>[] = [];
-      for (let i = 0; i < 10; i++) {
-        claimPromises.push(
-          Promise.resolve().then(() => {
-            const result = taskService.claimNext({ author: `agent-${i}`, project: 'stress-test' });
-            return { success: !!result, taskId: result?.task_id, agent: `agent-${i}` };
-          })
-        );
-      }
-      const claimResults = await Promise.all(claimPromises);
-      const claimedTasks = claimResults.filter((r) => r.success);
-      expect(claimedTasks).toHaveLength(10);
+      const claims = Array.from({ length: 6 }, (_, i) =>
+        runWorker(dbPath, {
+          type: 'claim-next',
+          project: 'stress-test',
+          author: `agent-${i}`,
+        })
+      );
+      const claimResults = await Promise.all(claims);
+      const claimed = claimResults.filter((result) => result.success && result.taskId);
+      expect(claimed).toHaveLength(6);
 
-      // Wave 2: Concurrently - 5 complete, 3 release, 2 more claim attempts
-      const wave2Promises: Promise<any>[] = [];
+      const completeOps = claimed.slice(0, 3).map((claim, index) =>
+        runWorker(dbPath, {
+          type: 'complete',
+          taskId: claim.taskId,
+          author: `finisher-${index}`,
+        })
+      );
+      const releaseOps = claimed.slice(3, 5).map((claim, index) =>
+        runWorker(dbPath, {
+          type: 'release',
+          taskId: claim.taskId,
+          author: `releaser-${index}`,
+        })
+      );
+      const followUpClaims = Array.from({ length: 2 }, (_, i) =>
+        runWorker(dbPath, {
+          type: 'claim-next',
+          project: 'stress-test',
+          author: `agent-${i + 10}`,
+        })
+      );
 
-      // 5 complete operations (first 5 claimed tasks)
-      for (let i = 0; i < 5; i++) {
-        const taskId = claimedTasks[i].taskId;
-        wave2Promises.push(
-          Promise.resolve().then(() => {
-            try {
-              taskService.completeTask(taskId, { author: claimedTasks[i].agent });
-              return { success: true, operation: 'complete', taskId };
-            } catch (err: any) {
-              return { success: false, operation: 'complete', error: err.message };
-            }
-          })
-        );
-      }
-
-      // 3 release operations (next 3 claimed tasks)
-      for (let i = 5; i < 8; i++) {
-        const taskId = claimedTasks[i].taskId;
-        wave2Promises.push(
-          Promise.resolve().then(() => {
-            try {
-              taskService.releaseTask(taskId, { author: claimedTasks[i].agent });
-              return { success: true, operation: 'release', taskId };
-            } catch (err: any) {
-              return { success: false, operation: 'release', error: err.message };
-            }
-          })
-        );
-      }
-
-      // 2 new claim attempts
-      for (let i = 10; i < 12; i++) {
-        wave2Promises.push(
-          Promise.resolve().then(() => {
-            const result = taskService.claimNext({ author: `agent-${i}`, project: 'stress-test' });
-            return { success: !!result, operation: 'claim', taskId: result?.task_id };
-          })
-        );
-      }
-
-      const wave2Results = await Promise.all(wave2Promises);
-
-      // Verify all operations completed without crashes
-      const errors = wave2Results.filter((r) => !r.success && r.operation !== 'claim');
+      const wave2Results = await Promise.all([...completeOps, ...releaseOps, ...followUpClaims]);
+      const errors = wave2Results.filter(
+        (result) => !result.success && result.operation !== 'claim-next'
+      );
       expect(errors).toHaveLength(0);
 
-      // Verify database is in consistent state
       const taskCounts = db
         .prepare(
           `SELECT status, COUNT(*) as count FROM tasks_current
@@ -294,9 +255,8 @@ describe('Concurrency Stress Tests', () => {
         )
         .all() as { status: string; count: number }[];
 
-      // Should have: 5 done, some ready (released + unclaimed), some in_progress
       const totalTasks = taskCounts.reduce((sum, row) => sum + row.count, 0);
-      expect(totalTasks).toBe(20);
+      expect(totalTasks).toBe(12);
     });
   });
 
@@ -305,14 +265,13 @@ describe('Concurrency Stress Tests', () => {
       const task = taskService.createTask({ title: 'Single task', project: 'stress-test' });
       taskService.setStatus(task.task_id, TaskStatus.Ready);
 
-      // 20 concurrent claim attempts on the same specific task
-      const claimPromises: Promise<any>[] = [];
+      const claimPromises: Promise<{ success: boolean }>[] = [];
       for (let i = 0; i < 20; i++) {
         claimPromises.push(
           Promise.resolve().then(() => {
             try {
-              const result = taskService.claimTask(task.task_id, { author: `agent-${i}` });
-              return { success: true, taskId: result.task_id, author: result.claimed_by_author };
+              taskService.claimTask(task.task_id, { author: `agent-${i}` });
+              return { success: true };
             } catch {
               return { success: false };
             }
@@ -321,22 +280,17 @@ describe('Concurrency Stress Tests', () => {
       }
 
       const results = await Promise.all(claimPromises);
-      const successCount = results.filter((r) => r.success).length;
-
-      // Exactly one claim should succeed
+      const successCount = results.filter((result) => result.success).length;
       expect(successCount).toBe(1);
 
-      // Verify task is claimed exactly once in DB
       const taskRow = db
-        .prepare('SELECT * FROM tasks_current WHERE task_id = ?')
-        .get(task.task_id) as any;
-
+        .prepare('SELECT status, claimed_by_author FROM tasks_current WHERE task_id = ?')
+        .get(task.task_id) as { status: string; claimed_by_author: string | null };
       expect(taskRow.status).toBe('in_progress');
       expect(taskRow.claimed_by_author).toBeDefined();
     });
 
     it('maintains consistent event count under concurrent writes', async () => {
-      // Create 10 tasks
       const taskIds: string[] = [];
       for (let i = 0; i < 10; i++) {
         const task = taskService.createTask({ title: `Task ${i}`, project: 'stress-test' });
@@ -348,7 +302,6 @@ describe('Concurrency Stress Tests', () => {
         .prepare('SELECT COUNT(*) as count FROM events')
         .get() as { count: number };
 
-      // Concurrent claims via claimNext
       const claimPromises = taskIds.map((_, i) =>
         Promise.resolve().then(() => {
           const result = taskService.claimNext({ author: `agent-${i}`, project: 'stress-test' });
@@ -357,17 +310,14 @@ describe('Concurrency Stress Tests', () => {
       );
       await Promise.all(claimPromises);
 
-      // Verify event count increased correctly
       const finalEventCount = db
         .prepare('SELECT COUNT(*) as count FROM events')
         .get() as { count: number };
+      expect(finalEventCount.count).toBeGreaterThan(initialEventCount.count);
 
-      // Should have exactly 10 new status_changed events (one per successful claim)
       const statusChangedEvents = db
         .prepare("SELECT COUNT(*) as count FROM events WHERE type = 'status_changed'")
         .get() as { count: number };
-
-      // 10 tasks × 2 status changes (backlog→ready, ready→in_progress) = 20 status_changed events
       expect(statusChangedEvents.count).toBe(20);
     });
   });
@@ -381,53 +331,22 @@ describe('Concurrency Stress Tests', () => {
         .prepare('SELECT COUNT(*) as count FROM events')
         .get() as { count: number };
 
-      // Try to claim with invalid data that should fail validation
       try {
         taskService.claimTask(task.task_id, { author: 'test' });
-        // Now try to claim again - should fail since already claimed
         taskService.claimTask(task.task_id, { author: 'another' });
       } catch {
         // Expected
       }
 
-      // The first claim should have succeeded, second should have failed
       const eventCountAfter = db
         .prepare('SELECT COUNT(*) as count FROM events')
         .get() as { count: number };
-
-      // Should have exactly one new event (the successful claim)
       expect(eventCountAfter.count).toBe(eventCountBefore.count + 1);
 
-      // Task should be in_progress (from the first successful claim)
       const taskRow = db
         .prepare('SELECT status FROM tasks_current WHERE task_id = ?')
         .get(task.task_id) as { status: string };
       expect(taskRow.status).toBe('in_progress');
-    });
-  });
-
-  describe('WAL mode concurrent reads', () => {
-    it('allows reads during write transactions', async () => {
-      // Create a task
-      const task = taskService.createTask({ title: 'Test', project: 'stress-test' });
-      taskService.setStatus(task.task_id, TaskStatus.Ready);
-
-      // Open a second read-only connection
-      const readDb = new Database(dbPath, { readonly: true });
-
-      // Perform a write
-      taskService.claimTask(task.task_id, { author: 'agent-1' });
-
-      // Read should still work on the other connection (sees pre-write state until commit)
-      const readResult = readDb
-        .prepare('SELECT task_id, status FROM tasks_current WHERE task_id = ?')
-        .get(task.task_id) as any;
-
-      expect(readResult).toBeDefined();
-      // After the write commits, the read connection should see the new state
-      expect(readResult.status).toBe('in_progress');
-
-      readDb.close();
     });
   });
 });

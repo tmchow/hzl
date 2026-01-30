@@ -5473,6 +5473,8 @@ Options: --project, --json
 
 ### Task 35: CLI Integration Tests ✅
 
+Status: ✅
+
 **Files:**
 - Create: `packages/hzl-cli/src/__tests__/integration/cli-integration.test.ts`
 - Create: `packages/hzl-cli/src/__tests__/integration/helpers.ts`
@@ -5848,6 +5850,8 @@ git commit -m "test(cli): add CLI integration tests with round-trip scenarios"
 ---
 
 ### Task 36: Cross-Process Concurrency Stress Tests ✅
+
+Status: ✅
 
 **Files:**
 - Create: `packages/hzl-core/src/__tests__/concurrency/stress.test.ts`
@@ -6315,6 +6319,8 @@ git commit -m "test(core): add cross-process concurrency stress tests for claim,
 
 ### Task 37: Migration Upgrade Tests ✅
 
+Status: ✅
+
 **Files:**
 - Create: `packages/hzl-core/src/__tests__/migrations/upgrade.test.ts`
 - Create: `packages/hzl-core/src/__tests__/migrations/fixtures/v1-sample.sql`
@@ -6748,6 +6754,8 @@ git commit -m "test(core): add migration upgrade tests with v1 fixtures"
 ---
 
 ### Task 38: Import/Export Idempotency Tests + Backup/Restore Round-Trip Tests ✅
+
+Status: ✅
 
 **Files:**
 - Create: `packages/hzl-core/src/__tests__/backup/backup-restore.test.ts`

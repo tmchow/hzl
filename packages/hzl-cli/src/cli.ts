@@ -7,8 +7,6 @@ import { initializeDb, closeDb, type Services } from './db.js';
 import { createFormatter } from './output.js';
 import { handleError, ExitCode } from './errors.js';
 import * as taskCommands from './commands/task.js';
-import { runSearch } from './commands/search.js';
-import { runValidate } from './commands/validate.js';
 import { createInitCommand } from './commands/init.js';
 import { createWhichDbCommand } from './commands/which-db.js';
 import { createProjectsCommand } from './commands/projects.js';
@@ -233,43 +231,6 @@ task
         const data = opts.data ? JSON.parse(opts.data) : undefined;
         taskCommands.addCheckpoint(services, taskId, name, data, opts.author, out);
       });
-    } catch (e) { handleError(e, program.opts().json); }
-  });
-
-// Search command
-program
-  .command('search <query>')
-  .description('Search tasks')
-  .option('-p, --project <project>', 'Filter by project')
-  .option('-l, --limit <n>', 'Limit results', '50')
-  .option('-o, --offset <n>', 'Offset for pagination', '0')
-  .action((query, opts) => {
-    try {
-      withDb((services) => {
-        const out = createFormatter(program.opts().json);
-        runSearch({
-          services,
-          query,
-          project: opts.project,
-          limit: parseInt(opts.limit, 10),
-          offset: parseInt(opts.offset, 10),
-          json: program.opts().json,
-        });
-      });
-    } catch (e) { handleError(e, program.opts().json); }
-  });
-
-// Validate command
-program
-  .command('validate')
-  .description('Validate database integrity')
-  .action(() => {
-    try {
-      const isValid = withDb((services) => {
-        const out = createFormatter(program.opts().json);
-        return runValidate({ services, json: program.opts().json });
-      });
-      process.exit(isValid ? ExitCode.Success : ExitCode.ValidationError);
     } catch (e) { handleError(e, program.opts().json); }
   });
 
