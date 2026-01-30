@@ -6313,7 +6313,7 @@ git commit -m "test(core): add cross-process concurrency stress tests for claim,
 
 ---
 
-### Task 37: Migration Upgrade Tests
+### Task 37: Migration Upgrade Tests ✅
 
 **Files:**
 - Create: `packages/hzl-core/src/__tests__/migrations/upgrade.test.ts`

@@ -7,10 +7,17 @@ const MIGRATIONS: Record<number, string> = {
 
 export function getCurrentVersion(db: Database.Database): number {
   try {
-    const row = db.prepare(
-      'SELECT MAX(version) as version FROM schema_migrations'
-    ).get() as { version: number | null } | undefined;
-    return row?.version ?? 0;
+    const rows = db
+      .prepare('SELECT version FROM schema_migrations')
+      .all() as { version: number | string | null }[];
+    let maxVersion = 0;
+    for (const row of rows) {
+      const parsed = Number(row.version);
+      if (Number.isFinite(parsed) && parsed > maxVersion) {
+        maxVersion = parsed;
+      }
+    }
+    return maxVersion;
   } catch {
     return 0;
   }
@@ -41,4 +48,6 @@ export function runMigrations(db: Database.Database): void {
       })();
     }
   }
+
+  db.exec(SCHEMA_V1);
 }
