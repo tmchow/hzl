@@ -13,7 +13,15 @@
       "types": "./dist/db/*.d.ts",
       "import": "./dist/db/*.js"
     },
+    "./db/*.js": {
+      "types": "./dist/db/*.d.ts",
+      "import": "./dist/db/*.js"
+    },
     "./events/*": {
+      "types": "./dist/events/*.d.ts",
+      "import": "./dist/events/*.js"
+    },
+    "./events/*.js": {
       "types": "./dist/events/*.d.ts",
       "import": "./dist/events/*.js"
     },
@@ -21,11 +29,23 @@
       "types": "./dist/projections/*.d.ts",
       "import": "./dist/projections/*.js"
     },
+    "./projections/*.js": {
+      "types": "./dist/projections/*.d.ts",
+      "import": "./dist/projections/*.js"
+    },
     "./services/*": {
       "types": "./dist/services/*.d.ts",
       "import": "./dist/services/*.js"
     },
+    "./services/*.js": {
+      "types": "./dist/services/*.d.ts",
+      "import": "./dist/services/*.js"
+    },
     "./utils/*": {
+      "types": "./dist/utils/*.d.ts",
+      "import": "./dist/utils/*.js"
+    },
+    "./utils/*.js": {
       "types": "./dist/utils/*.d.ts",
       "import": "./dist/utils/*.js"
     }
