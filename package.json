@@ -1,0 +1,26 @@
+{
+  "name": "hzl-workspace",
+  "private": true,
+  "workspaces": ["packages/*"],
+  "engines": { "node": ">=20.0.0" },
+  "packageManager": "npm@10.0.0",
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "test:ci": "npm run test --workspaces --if-present -- --run",
+    "typecheck": "tsc -b packages/*/tsconfig.json",
+    "lint": "eslint \"packages/*/src/**/*.ts\"",
+    "lint:fix": "eslint \"packages/*/src/**/*.ts\" --fix",
+    "format": "prettier -w .",
+    "format:check": "prettier -c ."
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.0",
+    "eslint": "^8.56.0",
+    "@typescript-eslint/parser": "^6.19.0",
+    "@typescript-eslint/eslint-plugin": "^6.19.0",
+    "prettier": "^3.2.0"
+  }
+}

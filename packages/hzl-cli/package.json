@@ -1,0 +1,16 @@
+{
+  "name": "hzl-cli",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "hzl": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "hzl-core": "*",
+    "commander": "^12.0.0"
+  }
+}
