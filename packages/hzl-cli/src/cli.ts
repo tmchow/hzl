@@ -9,6 +9,8 @@ import { handleError, ExitCode } from './errors.js';
 import * as taskCommands from './commands/task.js';
 import * as searchCommands from './commands/search.js';
 import * as validateCommands from './commands/validate.js';
+import { createInitCommand } from './commands/init.js';
+import { createWhichDbCommand } from './commands/which-db.js';
 
 const program = new Command();
 
@@ -29,6 +31,10 @@ function withDb<T>(fn: (services: Services) => T): T {
     closeDb(services);
   }
 }
+
+// Basic commands
+program.addCommand(createInitCommand());
+program.addCommand(createWhichDbCommand());
 
 // Task commands
 const task = program.command('task').description('Task management commands');

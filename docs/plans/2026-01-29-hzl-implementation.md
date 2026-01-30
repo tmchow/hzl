@@ -20,7 +20,7 @@
 
 ## Phase 1: Project Setup & Core Infrastructure
 
-### Task 1: Initialize TypeScript Monorepo (Core + CLI)
+### Task 1: Initialize TypeScript Monorepo (Core + CLI) ✅
 
 **Files:**
 - Create: `package.json`
@@ -188,7 +188,7 @@ git commit -m "chore: initialize TypeScript monorepo with core and cli"
 
 ---
 
-### Task 2: Database Schema & Migrations
+### Task 2: Database Schema & Migrations ✅
 
 **Files:**
 - Create: `packages/hzl-core/src/db/schema.ts`
@@ -493,7 +493,7 @@ git commit -m "feat(core): add database schema with projections, leases, tags, c
 
 ---
 
-### Task 3: Database Connection Manager & Write Transaction Helper
+### Task 3: Database Connection Manager & Write Transaction Helper ✅
 
 **Files:**
 - Create: `packages/hzl-core/src/db/connection.ts`
@@ -656,7 +656,7 @@ git commit -m "feat(core): add database connection manager with write transactio
 
 ---
 
-### Task 4: ULID Generation
+### Task 4: ULID Generation ✅
 
 **Files:**
 - Create: `packages/hzl-core/src/utils/id.ts`
@@ -736,7 +736,7 @@ git commit -m "feat(core): add ULID generation and validation"
 
 ## Phase 2: Event System
 
-### Task 5: Event Types & Zod Validation Schemas
+### Task 5: Event Types & Zod Validation Schemas ✅
 
 **Files:**
 - Create: `packages/hzl-core/src/events/types.ts`
@@ -985,7 +985,7 @@ git commit -m "feat(core): add event types with Zod validation schemas"
 
 ---
 
-### Task 6: Event Store with Canonical Timestamps & Pagination
+### Task 6: Event Store with Canonical Timestamps & Pagination ✅
 
 **Files:**
 - Create: `packages/hzl-core/src/events/store.ts`
@@ -1322,7 +1322,7 @@ git commit -m "feat(core): add event store with canonical timestamps and paginat
 
 All projections apply events in the same transaction as event writes to ensure immediate consistency.
 
-### Task 7: ProjectionEngine + Projector Interface
+### Task 7: ProjectionEngine + Projector Interface ✅
 
 **Files:**
 - Create: `packages/hzl-core/src/projections/types.ts`
@@ -1558,7 +1558,7 @@ git commit -m "feat(core): add projection engine with projector interface"
 
 ---
 
-### Task 8: TasksCurrentProjector
+### Task 8: TasksCurrentProjector ✅
 
 **Files:**
 - Create: `packages/hzl-core/src/projections/tasks-current.ts`
@@ -1987,7 +1987,7 @@ git commit -m "feat(core): add tasks current projector with claim/lease support"
 
 ---
 
-### Task 9: DependenciesProjector
+### Task 9: DependenciesProjector ✅
 
 **Files:**
 - Create: `packages/hzl-core/src/projections/dependencies.ts`
@@ -2198,7 +2198,7 @@ git commit -m "feat(core): add dependencies projector"
 
 ---
 
-### Task 10: TagsProjector
+### Task 10: TagsProjector ✅
 
 **Files:**
 - Create: `packages/hzl-core/src/projections/tags.ts`
@@ -2369,7 +2369,7 @@ git commit -m "feat(core): add tags projector for fast tag filtering"
 
 ---
 
-### Task 11: CommentsAndCheckpointsProjector
+### Task 11: CommentsAndCheckpointsProjector ✅
 
 **Files:**
 - Create: `packages/hzl-core/src/projections/comments-checkpoints.ts`
@@ -2546,7 +2546,7 @@ git commit -m "feat(core): add comments and checkpoints projector"
 
 ---
 
-### Task 12: SearchProjector (FTS5)
+### Task 12: SearchProjector (FTS5) ✅
 
 **Files:**
 - Create: `packages/hzl-core/src/projections/search.ts`
@@ -2727,7 +2727,7 @@ git commit -m "feat(core): add FTS5 search projector"
 
 ---
 
-### Task 13: Rebuild API
+### Task 13: Rebuild API ✅
 
 **Files:**
 - Create: `packages/hzl-core/src/projections/rebuild.ts`
@@ -2870,7 +2870,7 @@ git commit -m "feat(core): add projection rebuild API"
 
 All writes use BEGIN IMMEDIATE + append event(s) + apply projections in one transaction.
 
-### Task 14: TaskService - Create Task
+### Task 14: TaskService - Create Task ✅
 
 **Files:**
 - Create: `packages/hzl-core/src/services/task-service.ts`
@@ -3160,7 +3160,7 @@ git commit -m "feat(core): add TaskService with createTask"
 
 ---
 
-### Task 15: TaskService - Claim Task
+### Task 15: TaskService - Claim Task ✅
 
 **Files:**
 - Modify: `packages/hzl-core/src/services/task-service.ts`
@@ -3368,7 +3368,7 @@ git commit -m "feat(core): add TaskService claimTask with dependency validation"
 
 ---
 
-### Task 16: TaskService - Claim Next
+### Task 16: TaskService - Claim Next ✅
 
 **Files:**
 - Modify: `packages/hzl-core/src/services/task-service.ts`
@@ -3533,7 +3533,7 @@ git commit -m "feat(core): add TaskService claimNext with priority-based selecti
 
 ---
 
-### Task 17: TaskService - Status Transitions (complete, release, archive, reopen)
+### Task 17: TaskService - Status Transitions (complete, release, archive, reopen) ✅
 
 **Files:**
 - Modify: `packages/hzl-core/src/services/task-service.ts`
@@ -3699,7 +3699,7 @@ git commit -m "feat(core): add TaskService status transitions (complete, release
 
 ---
 
-### Task 18: Lease Support - Steal and Stuck Detection
+### Task 18: Lease Support - Steal and Stuck Detection ✅
 
 **Files:**
 - Modify: `packages/hzl-core/src/services/task-service.ts`
@@ -3887,7 +3887,7 @@ git commit -m "feat(core): add lease support with steal and stuck detection"
 
 ---
 
-### Task 19: Availability Checker + Tag-aware Next Query
+### Task 19: Availability Checker + Tag-aware Next Query ✅
 
 **Files:**
 - Modify: `packages/hzl-core/src/services/task-service.ts`
@@ -4062,7 +4062,7 @@ git commit -m "feat(core): add availability checker and tag-aware task queries"
 
 ---
 
-### Task 20: Validate API
+### Task 20: Validate API ✅
 
 **Files:**
 - Create: `packages/hzl-core/src/services/validation-service.ts`
@@ -4253,7 +4253,7 @@ git commit -m "feat(core): add validation service with cycle detection"
 
 ---
 
-### Task 21: TaskService - Comments and Checkpoints APIs
+### Task 21: TaskService - Comments and Checkpoints APIs ✅
 
 **Files:**
 - Modify: `packages/hzl-core/src/services/task-service.ts`
@@ -4392,7 +4392,7 @@ git commit -m "feat(core): add comments and checkpoints APIs to TaskService"
 
 ---
 
-### Task 22: SearchService - Full-text Search
+### Task 22: SearchService - Full-text Search ✅
 
 **Files:**
 - Create: `packages/hzl-core/src/services/search-service.ts`
@@ -4547,7 +4547,7 @@ git commit -m "feat(core): add SearchService with FTS5 full-text search"
 
 ## Phase 5: CLI (Full Command Surface)
 
-### Task 23: CLI Framework Setup
+### Task 23: CLI Framework Setup ✅
 
 #### 23.1 CLI Types
 

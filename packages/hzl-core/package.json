@@ -4,6 +4,32 @@
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./db/*": {
+      "types": "./dist/db/*.d.ts",
+      "import": "./dist/db/*.js"
+    },
+    "./events/*": {
+      "types": "./dist/events/*.d.ts",
+      "import": "./dist/events/*.js"
+    },
+    "./projections/*": {
+      "types": "./dist/projections/*.d.ts",
+      "import": "./dist/projections/*.js"
+    },
+    "./services/*": {
+      "types": "./dist/services/*.d.ts",
+      "import": "./dist/services/*.js"
+    },
+    "./utils/*": {
+      "types": "./dist/utils/*.d.ts",
+      "import": "./dist/utils/*.js"
+    }
+  },
   "scripts": {
     "build": "tsc",
     "test": "vitest run",
