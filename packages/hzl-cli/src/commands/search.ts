@@ -4,6 +4,7 @@ import { resolveDbPath } from '../config.js';
 import { initializeDb, closeDb, type Services } from '../db.js';
 import { handleError } from '../errors.js';
 import type { GlobalOptions } from '../types.js';
+import type { SearchTaskResult } from 'hzl-core/services/search-service.js';
 
 export interface SearchTask {
   task_id: string;
@@ -23,16 +24,17 @@ export function runSearch(options: {
   project?: string;
   status?: string;
   limit?: number;
+  offset?: number;
   json: boolean;
 }): SearchResult {
-  const { services, query, project, status, limit = 20, json } = options;
+  const { services, query, project, status, limit = 20, offset = 0, json } = options;
   
   // Use search service if available
   let tasks: SearchTask[];
   
   if (services.searchService) {
-    const searchResult = services.searchService.search(query, { project, limit });
-    tasks = searchResult.tasks.map(r => ({
+    const searchResult = services.searchService.search(query, { project, limit, offset });
+    tasks = searchResult.tasks.map((r: SearchTaskResult) => ({
       task_id: r.task_id,
       title: r.title,
       project: r.project,
@@ -56,8 +58,8 @@ export function runSearch(options: {
       sql += ' AND status = ?';
       params.push(status);
     }
-    sql += ` LIMIT ?`;
-    params.push(limit);
+    sql += ` LIMIT ? OFFSET ?`;
+    params.push(limit, offset);
     
     tasks = services.db.prepare(sql).all(...params) as SearchTask[];
   }

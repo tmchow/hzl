@@ -7,8 +7,8 @@ import { initializeDb, closeDb, type Services } from './db.js';
 import { createFormatter } from './output.js';
 import { handleError, ExitCode } from './errors.js';
 import * as taskCommands from './commands/task.js';
-import * as searchCommands from './commands/search.js';
-import * as validateCommands from './commands/validate.js';
+import { runSearch } from './commands/search.js';
+import { runValidate } from './commands/validate.js';
 import { createInitCommand } from './commands/init.js';
 import { createWhichDbCommand } from './commands/which-db.js';
 import { createProjectsCommand } from './commands/projects.js';
@@ -247,11 +247,14 @@ program
     try {
       withDb((services) => {
         const out = createFormatter(program.opts().json);
-        searchCommands.search(services, query, {
+        runSearch({
+          services,
+          query,
           project: opts.project,
           limit: parseInt(opts.limit, 10),
           offset: parseInt(opts.offset, 10),
-        }, out);
+          json: program.opts().json,
+        });
       });
     } catch (e) { handleError(e, program.opts().json); }
   });
@@ -264,7 +267,7 @@ program
     try {
       const isValid = withDb((services) => {
         const out = createFormatter(program.opts().json);
-        return validateCommands.validate(services, out);
+        return runValidate({ services, json: program.opts().json });
       });
       process.exit(isValid ? ExitCode.Success : ExitCode.ValidationError);
     } catch (e) { handleError(e, program.opts().json); }

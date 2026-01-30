@@ -31,6 +31,7 @@ import { runRelease } from '../../commands/release.js';
 import { runReopen } from '../../commands/reopen.js';
 import { runSteal } from '../../commands/steal.js';
 import { runStuck } from '../../commands/stuck.js';
+import { TaskStatus } from 'hzl-core/events/types.js';
 
 describe('CLI Integration Tests', () => {
   let tempDir: string;
@@ -98,7 +99,7 @@ describe('CLI Integration Tests', () => {
       expect(listResult.tasks[0].status).toBe('backlog');
 
       // Set to ready
-      runSetStatus({ services, taskId, status: 'ready', json: true });
+      runSetStatus({ services, taskId, status: TaskStatus.Ready, json: true });
       const afterReady = runShow({ services, taskId, json: true });
       expect(afterReady!.task.status).toBe('ready');
 
@@ -125,7 +126,7 @@ describe('CLI Integration Tests', () => {
       // Set all to ready
       const tasks = runList({ services, project: 'inbox', json: true });
       for (const task of tasks.tasks) {
-        runSetStatus({ services, taskId: task.task_id, status: 'ready', json: true });
+        runSetStatus({ services, taskId: task.task_id, status: TaskStatus.Ready, json: true });
       }
 
       // Next should get highest priority
@@ -138,8 +139,8 @@ describe('CLI Integration Tests', () => {
       const main = runAdd({ services, project: 'inbox', title: 'Main task', dependsOn: [dep.task_id], json: true });
 
       // Set both to ready
-      runSetStatus({ services, taskId: dep.task_id, status: 'ready', json: true });
-      runSetStatus({ services, taskId: main.task_id, status: 'ready', json: true });
+      runSetStatus({ services, taskId: dep.task_id, status: TaskStatus.Ready, json: true });
+      runSetStatus({ services, taskId: main.task_id, status: TaskStatus.Ready, json: true });
 
       // Next should skip main (has incomplete dep)
       const next1 = runNext({ services, project: 'inbox', json: true });
@@ -277,7 +278,7 @@ describe('CLI Integration Tests', () => {
   describe('history and event tracking', () => {
     it('shows full event history for a task', () => {
       const task = runAdd({ services, project: 'inbox', title: 'Test task', json: true });
-      runSetStatus({ services, taskId: task.task_id, status: 'ready', json: true });
+      runSetStatus({ services, taskId: task.task_id, status: TaskStatus.Ready, json: true });
       runClaim({ services, taskId: task.task_id, author: 'agent-1', json: true });
       runComment({ services, taskId: task.task_id, text: 'Working on it', json: true });
       runComplete({ services, taskId: task.task_id, json: true });
@@ -299,10 +300,10 @@ describe('CLI Integration Tests', () => {
       const t3 = runAdd({ services, project: 'inbox', title: 'In progress task', json: true });
       const t4 = runAdd({ services, project: 'inbox', title: 'Done task', json: true });
 
-      runSetStatus({ services, taskId: t2.task_id, status: 'ready', json: true });
-      runSetStatus({ services, taskId: t3.task_id, status: 'ready', json: true });
+      runSetStatus({ services, taskId: t2.task_id, status: TaskStatus.Ready, json: true });
+      runSetStatus({ services, taskId: t3.task_id, status: TaskStatus.Ready, json: true });
       runClaim({ services, taskId: t3.task_id, author: 'agent-1', json: true });
-      runSetStatus({ services, taskId: t4.task_id, status: 'ready', json: true });
+      runSetStatus({ services, taskId: t4.task_id, status: TaskStatus.Ready, json: true });
       runClaim({ services, taskId: t4.task_id, author: 'agent-1', json: true });
       runComplete({ services, taskId: t4.task_id, json: true });
 
@@ -351,7 +352,7 @@ describe('CLI Integration Tests', () => {
   describe('release and reopen commands', () => {
     it('releases a claimed task back to ready', () => {
       const task = runAdd({ services, project: 'inbox', title: 'Task to release', json: true });
-      runSetStatus({ services, taskId: task.task_id, status: 'ready', json: true });
+      runSetStatus({ services, taskId: task.task_id, status: TaskStatus.Ready, json: true });
       runClaim({ services, taskId: task.task_id, author: 'agent-1', json: true });
 
       const released = runRelease({ services, taskId: task.task_id, json: true });
@@ -361,7 +362,7 @@ describe('CLI Integration Tests', () => {
 
     it('reopens a done task', () => {
       const task = runAdd({ services, project: 'inbox', title: 'Task to reopen', json: true });
-      runSetStatus({ services, taskId: task.task_id, status: 'ready', json: true });
+      runSetStatus({ services, taskId: task.task_id, status: TaskStatus.Ready, json: true });
       runClaim({ services, taskId: task.task_id, author: 'agent-1', json: true });
       runComplete({ services, taskId: task.task_id, json: true });
 
@@ -373,7 +374,7 @@ describe('CLI Integration Tests', () => {
   describe('steal and stuck commands', () => {
     it('steals a task with force flag', () => {
       const task = runAdd({ services, project: 'inbox', title: 'Task to steal', json: true });
-      runSetStatus({ services, taskId: task.task_id, status: 'ready', json: true });
+      runSetStatus({ services, taskId: task.task_id, status: TaskStatus.Ready, json: true });
       runClaim({ services, taskId: task.task_id, author: 'agent-1', leaseMinutes: 60, json: true });
 
       const stolen = runSteal({ services, taskId: task.task_id, force: true, newOwner: 'agent-2', json: true });
@@ -382,7 +383,7 @@ describe('CLI Integration Tests', () => {
 
     it('lists stuck tasks with expired leases', () => {
       const task = runAdd({ services, project: 'inbox', title: 'Stuck task', json: true });
-      runSetStatus({ services, taskId: task.task_id, status: 'ready', json: true });
+      runSetStatus({ services, taskId: task.task_id, status: TaskStatus.Ready, json: true });
       // Use a lease that expires immediately (in the past)
       const pastLease = new Date(Date.now() - 60000).toISOString();
       services.taskService.claimTask(task.task_id, { author: 'stalled-agent', lease_until: pastLease });
