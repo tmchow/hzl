@@ -4,7 +4,7 @@
     "composite": true,
     "baseUrl": ".",
     "paths": {
-      "hzl-core/*": ["../hzl-core/dist/*"]
+      "hzl-core/*": ["../hzl-core/src/*"]
     },
     "types": ["node", "vitest"],
     "rootDir": "src",
