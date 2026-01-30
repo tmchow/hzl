@@ -34,11 +34,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-org/hzl.git"
+    "url": "https://github.com/tmchow/hzl.git"
   },
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/your-org/hzl/issues"
+    "url": "https://github.com/tmchow/hzl/issues"
   },
-  "homepage": "https://github.com/your-org/hzl#readme"
+  "homepage": "https://github.com/tmchow/hzl#readme"
 }
