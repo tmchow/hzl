@@ -76,10 +76,14 @@ async function run(): Promise<WorkerResult> {
       }
       
       case 'steal': {
+        const leaseUntil = command.leaseMinutes
+          ? new Date(Date.now() + command.leaseMinutes * 60000).toISOString()
+          : undefined;
         const result = taskService.stealTask(command.taskId!, {
           ifExpired: command.ifExpired,
           force: command.force,
           author: command.author,
+          lease_until: leaseUntil,
         });
         return { success: result.success, taskId: command.taskId, operation: 'steal', error: result.error };
       }

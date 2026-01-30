@@ -1,8 +1,10 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterEach } from 'vitest';
 import { Worker } from 'worker_threads';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
+import { execSync } from 'child_process';
+import { fileURLToPath } from 'url';
 import Database from 'better-sqlite3';
 import { createConnection } from '../../db/connection.js';
 import { EventStore } from '../../events/store.js';
@@ -30,12 +32,16 @@ interface WorkerResult {
   operation: string;
 }
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const packageRoot = path.resolve(__dirname, '../../..');
+const distWorkerPath = path.join(packageRoot, 'dist/__tests__/concurrency/worker.js');
+
 function runWorker(dbPath: string, command: WorkerCommand): Promise<WorkerResult> {
   return new Promise((resolve, reject) => {
     let settled = false;
-    const worker = new Worker(new URL('./worker.ts', import.meta.url), {
+    const worker = new Worker(distWorkerPath, {
       workerData: { dbPath, command },
-      execArgv: ['--import', 'tsx'],
     });
     worker.on('message', (message) => {
       if (settled) return;
@@ -73,6 +79,10 @@ describe('Concurrency Stress Tests', () => {
   let dbPath: string;
   let db: Database.Database;
   let taskService: TaskService;
+
+  beforeAll(() => {
+    execSync('npm run build', { cwd: packageRoot, stdio: 'inherit' });
+  });
 
   beforeEach(() => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hzl-stress-'));
@@ -162,6 +172,7 @@ describe('Concurrency Stress Tests', () => {
           taskId: task.task_id,
           author: `stealer-${i}`,
           ifExpired: true,
+          leaseMinutes: 5,
         })
       );
 
