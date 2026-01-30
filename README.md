@@ -18,13 +18,27 @@ Most project management tools assume teams of humans collaborating on shared rep
 
 ## Design Principles
 
-1. **The ledger is dumb.** HZL tracks state—it doesn't orchestrate, prioritize, or decide what agents should do. Intelligence lives in your agents and workflows.
+1. **Tracker, not orchestrator.** HZL is a dumb ledger. It tracks work state—it doesn't orchestrate, prioritize, or decide what agents should do. Orchestration belongs elsewhere: in your control agents, workflow tools, or the agents themselves. This separation is intentional. HZL stays simple and reliable because it does one thing well.
 
 2. **Events are truth.** Every change is an append-only event. Current state is a projection. Full audit trails, reconstructable history.
 
 3. **Local-first.** SQLite with WAL mode. No network dependency. Works offline.
 
 4. **Hierarchical but simple.** Projects contain tasks. Tasks can have subtasks and dependencies. That's it.
+
+## Non-Goals
+
+HZL intentionally does not do these things:
+
+- **Orchestration.** HZL doesn't spawn agents, manage their lifecycles, assign work, or decide what should happen next. If you need a control agent that spawns sub-agents, that logic lives in your agent—not in HZL.
+
+- **Task decomposition.** HZL won't break down "build the app" into subtasks. Humans or agents create the task hierarchy; HZL just tracks it.
+
+- **Smart scheduling.** `hzl next` uses simple, deterministic rules (priority, then FIFO). There's no learning, no load balancing, no routing based on agent capabilities. If you need smarter task selection, your orchestration layer decides and claims by ID.
+
+- **Team collaboration.** No permissions, roles, notifications, or multi-user features. HZL assumes a single developer working with their agents.
+
+- **Cloud sync.** Local SQLite by design. If you want sync, export/import or backup to your own storage.
 
 ## Installation
 
