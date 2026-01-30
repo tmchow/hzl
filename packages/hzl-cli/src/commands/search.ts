@@ -1,9 +1,112 @@
 // packages/hzl-cli/src/commands/search.ts
-import type { Services } from '../db.js';
-import type { OutputFormatter } from '../output.js';
+import { Command } from 'commander';
+import { resolveDbPath } from '../config.js';
+import { initializeDb, closeDb, type Services } from '../db.js';
+import { handleError } from '../errors.js';
+import type { GlobalOptions } from '../types.js';
 
-export function search(services: Services, query: string, opts: { project?: string; limit?: number; offset?: number }, out: OutputFormatter): void {
-  const result = services.searchService.search(query, opts);
-  out.table(result.tasks as unknown as Record<string, unknown>[], ['task_id', 'title', 'project', 'status', 'priority']);
-  out.text(`Showing ${result.tasks.length} of ${result.total} results`);
+export interface SearchTask {
+  task_id: string;
+  title: string;
+  project: string;
+  status: string;
+}
+
+export interface SearchResult {
+  tasks: SearchTask[];
+  total: number;
+}
+
+export function runSearch(options: {
+  services: Services;
+  query: string;
+  project?: string;
+  status?: string;
+  limit?: number;
+  json: boolean;
+}): SearchResult {
+  const { services, query, project, status, limit = 20, json } = options;
+  
+  // Use search service if available
+  let tasks: SearchTask[];
+  
+  if (services.searchService) {
+    const searchResult = services.searchService.search(query, { project, limit });
+    tasks = searchResult.tasks.map(r => ({
+      task_id: r.task_id,
+      title: r.title,
+      project: r.project,
+      status: r.status,
+    }));
+  } else {
+    // Fallback: basic LIKE search on title, project, description
+    const searchPattern = `%${query}%`;
+    let sql = `
+      SELECT task_id, title, project, status 
+      FROM tasks_current 
+      WHERE (title LIKE ? OR project LIKE ? OR description LIKE ?)
+    `;
+    const params: any[] = [searchPattern, searchPattern, searchPattern];
+    
+    if (project) {
+      sql += ' AND project = ?';
+      params.push(project);
+    }
+    if (status) {
+      sql += ' AND status = ?';
+      params.push(status);
+    }
+    sql += ` LIMIT ?`;
+    params.push(limit);
+    
+    tasks = services.db.prepare(sql).all(...params) as SearchTask[];
+  }
+
+  const result: SearchResult = {
+    tasks,
+    total: tasks.length,
+  };
+
+  if (json) {
+    console.log(JSON.stringify(result));
+  } else {
+    if (tasks.length === 0) {
+      console.log(`No tasks matching "${query}"`);
+    } else {
+      console.log(`Found ${tasks.length} task(s):`);
+      for (const task of tasks) {
+        console.log(`  [${task.task_id.slice(0, 8)}] ${task.title} (${task.project})`);
+      }
+    }
+  }
+
+  return result;
+}
+
+export function createSearchCommand(): Command {
+  return new Command('search')
+    .description('Search for tasks')
+    .argument('<query>', 'Search query')
+    .option('-p, --project <project>', 'Filter by project')
+    .option('-s, --status <status>', 'Filter by status')
+    .option('-l, --limit <n>', 'Max results', '20')
+    .action(function (this: Command, query: string, opts: any) {
+      const globalOpts = this.optsWithGlobals() as GlobalOptions;
+      const dbPath = resolveDbPath(globalOpts.db);
+      const services = initializeDb(dbPath);
+      try {
+        runSearch({
+          services,
+          query,
+          project: opts.project,
+          status: opts.status,
+          limit: parseInt(opts.limit, 10),
+          json: globalOpts.json ?? false,
+        });
+      } catch (e) {
+        handleError(e, globalOpts.json);
+      } finally {
+        closeDb(services);
+      }
+    });
 }

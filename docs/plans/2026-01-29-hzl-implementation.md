@@ -2369,7 +2369,7 @@ git commit -m "feat(core): add tags projector for fast tag filtering"
 
 ---
 
-### Task 11: CommentsAndCheckpointsProjector ✅
+### Task 30: Comment and Checkpoint Commands ✅Projector ✅
 
 **Files:**
 - Create: `packages/hzl-core/src/projections/comments-checkpoints.ts`
@@ -5209,7 +5209,7 @@ git commit -m "feat(cli): add 'hzl next' command for deterministic work selectio
 
 ---
 
-### Task 26: Task Display and Update Commands
+### Task 26: Task Display and Update Commands ✅
 
 #### 26.1-26.4 TaskService Methods
 
@@ -5232,7 +5232,7 @@ Add methods:
 
 ---
 
-### Task 27: Task Workflow Commands
+### Task 27: Task Workflow Commands ✅
 
 #### 27.1-27.7 TaskService Methods
 
@@ -5260,7 +5260,7 @@ Add methods:
 
 ---
 
-### Task 28: Steal and Stuck Commands
+### Task 28: Steal and Stuck Commands ✅
 
 #### 28.1-28.2 TaskService Methods
 
@@ -5278,7 +5278,7 @@ Add methods:
 
 ---
 
-### Task 29: Dependency Commands
+### Task 29: Dependency Commands ✅
 
 #### 29.1 DependencyService
 
