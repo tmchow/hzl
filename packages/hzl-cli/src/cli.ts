@@ -32,6 +32,8 @@ import { createAddDepCommand } from './commands/add-dep.js';
 import { createRemoveDepCommand } from './commands/remove-dep.js';
 import { createCommentCommand } from './commands/comment.js';
 import { createCheckpointCommand } from './commands/checkpoint.js';
+import { createValidateCommand } from './commands/validate.js';
+import { createSearchCommand } from './commands/search.js';
 
 const program = new Command();
 
@@ -77,6 +79,8 @@ program.addCommand(createAddDepCommand());
 program.addCommand(createRemoveDepCommand());
 program.addCommand(createCommentCommand());
 program.addCommand(createCheckpointCommand());
+program.addCommand(createValidateCommand());
+program.addCommand(createSearchCommand());
 
 // Task commands
 const task = program.command('task').description('Task management commands');

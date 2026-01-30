@@ -2369,7 +2369,7 @@ git commit -m "feat(core): add tags projector for fast tag filtering"
 
 ---
 
-### Task 11: CommentsAndCheckpointsProjector ✅
+### Task 30: Comment and Checkpoint Commands ✅Projector ✅
 
 **Files:**
 - Create: `packages/hzl-core/src/projections/comments-checkpoints.ts`
@@ -5278,7 +5278,7 @@ Add methods:
 
 ---
 
-### Task 29: Dependency Commands
+### Task 29: Dependency Commands ✅
 
 #### 29.1 DependencyService
 
