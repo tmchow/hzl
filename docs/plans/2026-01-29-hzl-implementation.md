@@ -5851,6 +5851,8 @@ git commit -m "test(cli): add CLI integration tests with round-trip scenarios"
 
 ### Task 36: Cross-Process Concurrency Stress Tests ✅
 
+Status: ✅
+
 **Files:**
 - Create: `packages/hzl-core/src/__tests__/concurrency/stress.test.ts`
 - Create: `packages/hzl-core/src/__tests__/concurrency/worker.ts`
