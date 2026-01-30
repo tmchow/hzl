@@ -13,6 +13,9 @@ import { createInitCommand } from './commands/init.js';
 import { createWhichDbCommand } from './commands/which-db.js';
 import { createProjectsCommand } from './commands/projects.js';
 import { createRenameProjectCommand } from './commands/rename-project.js';
+import { createAddCommand } from './commands/add.js';
+import { createListCommand } from './commands/list.js';
+import { createNextCommand } from './commands/next.js';
 
 const program = new Command();
 
@@ -39,6 +42,9 @@ program.addCommand(createInitCommand());
 program.addCommand(createWhichDbCommand());
 program.addCommand(createProjectsCommand());
 program.addCommand(createRenameProjectCommand());
+program.addCommand(createAddCommand());
+program.addCommand(createListCommand());
+program.addCommand(createNextCommand());
 
 // Task commands
 const task = program.command('task').description('Task management commands');
