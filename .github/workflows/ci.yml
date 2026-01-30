@@ -71,7 +71,7 @@ jobs:
 
       - name: Upload coverage (ubuntu, node 20 only)
         if: matrix.os == 'ubuntu-latest' && matrix.node == '20'
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
           files: ./packages/hzl-core/coverage/lcov.info,./packages/hzl-cli/coverage/lcov.info
           fail_ci_if_error: false
