@@ -8276,7 +8276,7 @@ git commit -m "test(core): add property-based tests for invariants and determini
 
 ---
 
-### Task 41: Sample Project Command
+### Task 41: Sample Project Command ✅
 
 **Files:**
 - Create: `packages/hzl-cli/src/commands/sample-project.ts`
