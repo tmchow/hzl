@@ -10,10 +10,12 @@
       "prepareCmd": "node scripts/sync-versions.js ${nextRelease.version}"
     }],
     ["@semantic-release/npm", {
-      "pkgRoot": "packages/hzl-core"
+      "pkgRoot": "packages/hzl-core",
+      "provenance": true
     }],
     ["@semantic-release/npm", {
-      "pkgRoot": "packages/hzl-cli"
+      "pkgRoot": "packages/hzl-cli",
+      "provenance": true
     }],
     ["@semantic-release/git", {
       "assets": [
