@@ -80,9 +80,7 @@ CREATE TABLE IF NOT EXISTS task_checkpoints (
 CREATE VIRTUAL TABLE IF NOT EXISTS task_search USING fts5(
     task_id UNINDEXED,
     title,
-    description,
-    content='tasks_current',
-    content_rowid='rowid'
+    description
 );
 
 -- Indexes for events
