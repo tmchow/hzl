@@ -48,6 +48,14 @@
     "./utils/*.js": {
       "types": "./dist/utils/*.d.ts",
       "import": "./dist/utils/*.js"
+    },
+    "./fixtures/*": {
+      "types": "./dist/fixtures/*.d.ts",
+      "import": "./dist/fixtures/*.js"
+    },
+    "./fixtures/*.js": {
+      "types": "./dist/fixtures/*.d.ts",
+      "import": "./dist/fixtures/*.js"
     }
   },
   "scripts": {
