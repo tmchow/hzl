@@ -95,3 +95,29 @@ Concurrency tests in `hzl-core/src/__tests__/concurrency/` spawn worker processe
 ```bash
 npm test -w hzl-core -- src/__tests__/concurrency/stress.test.ts
 ```
+
+## Commits and Releases
+
+This repo uses [Conventional Commits](https://www.conventionalcommits.org/) enforced by commitlint. Commits must follow the format:
+
+```
+type(scope): description
+
+# Examples:
+feat: add task search command
+fix: prevent race condition in claim-next
+feat!: change task status enum values    # Breaking change
+docs: update README
+chore: bump dependencies
+test: add concurrency stress tests
+```
+
+**Types:** `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `chore`, `ci`, `build`
+
+**Version bumps** (automated via semantic-release on merge to main):
+- `fix:` → patch (0.1.0 → 0.1.1)
+- `feat:` → minor (0.1.0 → 0.2.0)
+- `feat!:` or `BREAKING CHANGE:` in body → major (0.1.0 → 1.0.0)
+- `docs:`, `chore:`, `test:`, etc. → no release
+
+Both packages are versioned together (linked versions).
