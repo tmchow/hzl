@@ -9073,7 +9073,7 @@ git commit -m "ci: add GitHub Actions workflows for CI and release"
 
 ---
 
-### Task 43: Core Library Public API Export
+### Task 43: Core Library Public API Export ✅
 
 **Files:**
 - Create: `packages/hzl-core/src/index.ts`
