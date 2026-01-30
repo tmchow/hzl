@@ -1,0 +1,48 @@
+// packages/hzl-cli/src/db.ts
+import Database from 'better-sqlite3';
+import { runMigrations } from 'hzl-core/db/migrations.js';
+import { EventStore } from 'hzl-core/events/store.js';
+import { ProjectionEngine } from 'hzl-core/projections/engine.js';
+import { TasksCurrentProjector } from 'hzl-core/projections/tasks-current.js';
+import { DependenciesProjector } from 'hzl-core/projections/dependencies.js';
+import { TagsProjector } from 'hzl-core/projections/tags.js';
+import { CommentsCheckpointsProjector } from 'hzl-core/projections/comments-checkpoints.js';
+import { SearchProjector } from 'hzl-core/projections/search.js';
+import { TaskService } from 'hzl-core/services/task-service.js';
+import { SearchService } from 'hzl-core/services/search-service.js';
+import { ValidationService } from 'hzl-core/services/validation-service.js';
+import { ensureDbDirectory } from './config.js';
+
+export interface Services {
+  db: Database.Database;
+  eventStore: EventStore;
+  projectionEngine: ProjectionEngine;
+  taskService: TaskService;
+  searchService: SearchService;
+  validationService: ValidationService;
+}
+
+export function initializeDb(dbPath: string): Services {
+  ensureDbDirectory(dbPath);
+  const db = new Database(dbPath);
+  db.pragma('journal_mode = WAL');
+  runMigrations(db);
+
+  const eventStore = new EventStore(db);
+  const projectionEngine = new ProjectionEngine(db);
+  projectionEngine.register(new TasksCurrentProjector());
+  projectionEngine.register(new DependenciesProjector());
+  projectionEngine.register(new TagsProjector());
+  projectionEngine.register(new CommentsCheckpointsProjector());
+  projectionEngine.register(new SearchProjector());
+
+  const taskService = new TaskService(db, eventStore, projectionEngine);
+  const searchService = new SearchService(db);
+  const validationService = new ValidationService(db);
+
+  return { db, eventStore, projectionEngine, taskService, searchService, validationService };
+}
+
+export function closeDb(services: Services): void {
+  services.db.close();
+}
