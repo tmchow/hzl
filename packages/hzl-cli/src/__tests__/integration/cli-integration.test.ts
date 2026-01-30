@@ -1,240 +1,230 @@
-// packages/hzl-cli/src/__tests__/integration/cli-integration.test.ts
-// End-to-end integration tests for CLI commands using service layer directly
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
-import os from 'os';
-import { initializeDb, closeDb, type Services } from '../../db.js';
-import { runInit } from '../../commands/init.js';
-import { runWhichDb } from '../../commands/which-db.js';
-import { runAdd } from '../../commands/add.js';
-import { runList } from '../../commands/list.js';
-import { runShow } from '../../commands/show.js';
-import { runSetStatus } from '../../commands/set-status.js';
-import { runClaim } from '../../commands/claim.js';
-import { runComplete } from '../../commands/complete.js';
-import { runArchive } from '../../commands/archive.js';
-import { runNext } from '../../commands/next.js';
-import { runAddDep } from '../../commands/add-dep.js';
-import { runRemoveDep } from '../../commands/remove-dep.js';
-import { runComment } from '../../commands/comment.js';
-import { runCheckpoint } from '../../commands/checkpoint.js';
-import { runSearch } from '../../commands/search.js';
-import { runProjects } from '../../commands/projects.js';
-import { runMove } from '../../commands/move.js';
-import { runRenameProject } from '../../commands/rename-project.js';
-import { runHistory } from '../../commands/history.js';
-import { runStats } from '../../commands/stats.js';
-import { runValidate } from '../../commands/validate.js';
-import { runExportEvents } from '../../commands/export-events.js';
-import { runRelease } from '../../commands/release.js';
-import { runReopen } from '../../commands/reopen.js';
-import { runSteal } from '../../commands/steal.js';
-import { runStuck } from '../../commands/stuck.js';
-import { TaskStatus } from 'hzl-core/events/types.js';
+import { execSync } from 'child_process';
+import { fileURLToPath } from 'url';
+import Database from 'better-sqlite3';
+import { initializeDb, closeDb } from '../../db.js';
+import {
+  createTestContext,
+  hzlJson,
+  hzlMayFail,
+  type TestContext,
+} from './helpers.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const packageRoot = path.resolve(__dirname, '../../..');
+const cliBinaryPath = path.join(packageRoot, 'dist', 'cli.js');
+
+beforeAll(() => {
+  if (!fs.existsSync(cliBinaryPath)) {
+    execSync('npm run build', { cwd: packageRoot, stdio: 'inherit' });
+  }
+});
 
 describe('CLI Integration Tests', () => {
-  let tempDir: string;
-  let dbPath: string;
-  let services: Services;
+  let ctx: TestContext;
 
   beforeEach(() => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hzl-integration-'));
-    dbPath = path.join(tempDir, 'test.db');
-    services = initializeDb(dbPath);
+    ctx = createTestContext();
   });
 
   afterEach(() => {
-    closeDb(services);
-    fs.rmSync(tempDir, { recursive: true, force: true });
+    ctx.cleanup();
   });
 
+  const addTask = (project: string, title: string, extraArgs = '') => {
+    const args = extraArgs ? ` ${extraArgs}` : '';
+    return hzlJson<{ task_id: string; title: string; status: string }>(
+      ctx,
+      `add ${project} "${title}"${args}`
+    );
+  };
+
   describe('init command', () => {
-    it('creates database file', async () => {
-      const newDbPath = path.join(tempDir, 'new.db');
-      await runInit({ dbPath: newDbPath, json: false });
-      expect(fs.existsSync(newDbPath)).toBe(true);
+    it('creates database file', () => {
+      const result = hzlJson<{ path: string; created: boolean }>(ctx, 'init');
+      expect(result.created).toBe(true);
+      expect(result.path).toBe(ctx.dbPath);
+      expect(fs.existsSync(ctx.dbPath)).toBe(true);
     });
 
-    it('is idempotent', async () => {
-      const newDbPath = path.join(tempDir, 'new.db');
-      await runInit({ dbPath: newDbPath, json: false });
-      await runInit({ dbPath: newDbPath, json: false });
-      expect(fs.existsSync(newDbPath)).toBe(true);
+    it('is idempotent', () => {
+      const first = hzlJson<{ path: string; created: boolean }>(ctx, 'init');
+      const second = hzlJson<{ path: string; created: boolean }>(ctx, 'init');
+      expect(first.created).toBe(true);
+      expect(second.created).toBe(false);
+      expect(fs.existsSync(ctx.dbPath)).toBe(true);
     });
 
-    it('returns path information', async () => {
-      const newDbPath = path.join(tempDir, 'new.db');
-      const result = await runInit({ dbPath: newDbPath, json: true });
-      expect(result.path).toBe(newDbPath);
+    it('returns path information', () => {
+      const result = hzlJson<{ path: string; created: boolean }>(ctx, 'init');
+      expect(result.path).toBe(ctx.dbPath);
       expect(result.created).toBe(true);
     });
   });
 
   describe('which-db command', () => {
     it('returns resolved database path', () => {
-      const result = runWhichDb({ cliPath: dbPath, json: true });
-      expect(result.path).toBe(dbPath);
+      const result = hzlJson<{ path: string; source: string }>(ctx, 'which-db');
+      expect(result.path).toBe(ctx.dbPath);
       expect(result.source).toBe('cli');
     });
   });
 
   describe('task lifecycle round-trip', () => {
     it('creates, lists, claims, completes, and archives a task', () => {
-      // Create task
-      const created = runAdd({
-        services,
-        project: 'inbox',
-        title: 'Test task',
-        priority: 2,
-        tags: ['urgent', 'backend'],
-        json: true,
-      });
-      expect(created.title).toBe('Test task');
+      const created = addTask('inbox', 'Test task', '--priority 2 --tags urgent,backend');
       const taskId = created.task_id;
 
-      // List tasks
-      const listResult = runList({ services, project: 'inbox', json: true });
+      const listResult = hzlJson<{ tasks: Array<{ status: string }> }>(
+        ctx,
+        'list --project inbox'
+      );
       expect(listResult.tasks).toHaveLength(1);
       expect(listResult.tasks[0].status).toBe('backlog');
 
-      // Set to ready
-      runSetStatus({ services, taskId, status: TaskStatus.Ready, json: true });
-      const afterReady = runShow({ services, taskId, json: true });
-      expect(afterReady!.task.status).toBe('ready');
+      hzlJson(ctx, `set-status ${taskId} ready`);
+      const afterReady = hzlJson<{ task: { status: string } }>(ctx, `show ${taskId}`);
+      expect(afterReady.task.status).toBe('ready');
 
-      // Claim task
-      const claimed = runClaim({ services, taskId, author: 'agent-1', leaseMinutes: 30, json: true });
-      expect(claimed.status).toBe('in_progress');
-      expect(claimed.claimed_by_author).toBe('agent-1');
+      hzlJson(ctx, `claim ${taskId} --author agent-1 --lease 30`);
+      const afterClaim = hzlJson<{ task: { status: string; claimed_by_author: string | null } }>(
+        ctx,
+        `show ${taskId}`
+      );
+      expect(afterClaim.task.status).toBe('in_progress');
+      expect(afterClaim.task.claimed_by_author).toBe('agent-1');
 
-      // Complete task
-      const completed = runComplete({ services, taskId, json: true });
-      expect(completed.status).toBe('done');
+      hzlJson(ctx, `complete ${taskId} --author agent-1`);
+      const afterComplete = hzlJson<{ task: { status: string } }>(ctx, `show ${taskId}`);
+      expect(afterComplete.task.status).toBe('done');
 
-      // Archive task
-      const archived = runArchive({ services, taskId, json: true });
-      expect(archived.status).toBe('archived');
+      hzlJson(ctx, `archive ${taskId} --reason done --author agent-1`);
+      const afterArchive = hzlJson<{ task: { status: string } }>(ctx, `show ${taskId}`);
+      expect(afterArchive.task.status).toBe('archived');
     });
 
     it('next command respects priority ordering', () => {
-      // Create tasks with different priorities
-      runAdd({ services, project: 'inbox', title: 'Low priority', priority: 0, json: true });
-      const high = runAdd({ services, project: 'inbox', title: 'High priority', priority: 3, json: true });
-      runAdd({ services, project: 'inbox', title: 'Medium priority', priority: 1, json: true });
+      addTask('inbox', 'Low priority', '--priority 0');
+      const high = addTask('inbox', 'High priority', '--priority 3');
+      addTask('inbox', 'Medium priority', '--priority 1');
 
-      // Set all to ready
-      const tasks = runList({ services, project: 'inbox', json: true });
+      const tasks = hzlJson<{ tasks: Array<{ task_id: string }> }>(ctx, 'list --project inbox');
       for (const task of tasks.tasks) {
-        runSetStatus({ services, taskId: task.task_id, status: TaskStatus.Ready, json: true });
+        hzlJson(ctx, `set-status ${task.task_id} ready`);
       }
 
-      // Next should get highest priority
-      const next = runNext({ services, project: 'inbox', json: true });
-      expect(next!.task_id).toBe(high.task_id);
+      const next = hzlJson<{ task_id: string }>(ctx, 'next --project inbox');
+      expect(next.task_id).toBe(high.task_id);
     });
 
     it('next respects dependency ordering', () => {
-      const dep = runAdd({ services, project: 'inbox', title: 'Dependency task', json: true });
-      const main = runAdd({ services, project: 'inbox', title: 'Main task', dependsOn: [dep.task_id], json: true });
+      const dep = addTask('inbox', 'Dependency task');
+      const main = addTask('inbox', 'Main task', `--depends-on ${dep.task_id}`);
 
-      // Set both to ready
-      runSetStatus({ services, taskId: dep.task_id, status: TaskStatus.Ready, json: true });
-      runSetStatus({ services, taskId: main.task_id, status: TaskStatus.Ready, json: true });
+      hzlJson(ctx, `set-status ${dep.task_id} ready`);
+      hzlJson(ctx, `set-status ${main.task_id} ready`);
 
-      // Next should skip main (has incomplete dep)
-      const next1 = runNext({ services, project: 'inbox', json: true });
-      expect(next1!.task_id).toBe(dep.task_id);
+      const next1 = hzlJson<{ task_id: string }>(ctx, 'next --project inbox');
+      expect(next1.task_id).toBe(dep.task_id);
 
-      // Claim and complete dep
-      runClaim({ services, taskId: dep.task_id, author: 'agent-1', json: true });
-      runComplete({ services, taskId: dep.task_id, json: true });
+      hzlJson(ctx, `claim ${dep.task_id} --author agent-1`);
+      hzlJson(ctx, `complete ${dep.task_id} --author agent-1`);
 
-      // Now main should be claimable via next
-      const next2 = runNext({ services, project: 'inbox', json: true });
-      expect(next2!.task_id).toBe(main.task_id);
+      const next2 = hzlJson<{ task_id: string }>(ctx, 'next --project inbox');
+      expect(next2.task_id).toBe(main.task_id);
     });
   });
 
   describe('dependency management round-trip', () => {
     it('adds and removes dependencies', () => {
-      const task1 = runAdd({ services, project: 'inbox', title: 'Task 1', json: true });
-      const task2 = runAdd({ services, project: 'inbox', title: 'Task 2', json: true });
+      const task1 = addTask('inbox', 'Task 1');
+      const task2 = addTask('inbox', 'Task 2');
 
-      // Add dependency
-      const addResult = runAddDep({ services, taskId: task2.task_id, dependsOnId: task1.task_id, json: true });
+      const addResult = hzlJson<{ task_id: string; depends_on_id: string }>(
+        ctx,
+        `add-dep ${task2.task_id} ${task1.task_id}`
+      );
       expect(addResult.task_id).toBe(task2.task_id);
       expect(addResult.depends_on_id).toBe(task1.task_id);
 
-      // Verify via direct DB query that dependency was added
-      const deps = services.db.prepare(
-        'SELECT depends_on_id FROM task_dependencies WHERE task_id = ?'
-      ).all(task2.task_id) as { depends_on_id: string }[];
-      expect(deps.map(d => d.depends_on_id)).toContain(task1.task_id);
+      const db = new Database(ctx.dbPath);
+      const deps = db
+        .prepare('SELECT depends_on_id FROM task_dependencies WHERE task_id = ?')
+        .all(task2.task_id) as { depends_on_id: string }[];
+      expect(deps.map((d) => d.depends_on_id)).toContain(task1.task_id);
+      db.close();
 
-      // Remove dependency
-      runRemoveDep({ services, taskId: task2.task_id, dependsOnId: task1.task_id, json: true });
-      
-      // Verify dependency was removed
-      const depsAfter = services.db.prepare(
-        'SELECT depends_on_id FROM task_dependencies WHERE task_id = ?'
-      ).all(task2.task_id) as { depends_on_id: string }[];
-      expect(depsAfter.map(d => d.depends_on_id)).not.toContain(task1.task_id);
+      hzlJson(ctx, `remove-dep ${task2.task_id} ${task1.task_id}`);
+
+      const dbAfter = new Database(ctx.dbPath);
+      const depsAfter = dbAfter
+        .prepare('SELECT depends_on_id FROM task_dependencies WHERE task_id = ?')
+        .all(task2.task_id) as { depends_on_id: string }[];
+      expect(depsAfter.map((d) => d.depends_on_id)).not.toContain(task1.task_id);
+      dbAfter.close();
     });
 
     it('rejects cyclic dependencies', () => {
-      const task1 = runAdd({ services, project: 'inbox', title: 'Task 1', json: true });
-      const task2 = runAdd({ services, project: 'inbox', title: 'Task 2', json: true });
+      const task1 = addTask('inbox', 'Task 1');
+      const task2 = addTask('inbox', 'Task 2');
 
-      runAddDep({ services, taskId: task2.task_id, dependsOnId: task1.task_id, json: true });
+      hzlJson(ctx, `add-dep ${task2.task_id} ${task1.task_id}`);
 
-      // Adding reverse dependency should fail
-      expect(() => runAddDep({ services, taskId: task1.task_id, dependsOnId: task2.task_id, json: true }))
-        .toThrow(/cycle/i);
+      const result = hzlMayFail(ctx, `add-dep ${task1.task_id} ${task2.task_id}`);
+      expect(result.success).toBe(false);
     });
   });
 
   describe('comment and checkpoint round-trip', () => {
     it('adds comments and retrieves them', () => {
-      const task = runAdd({ services, project: 'inbox', title: 'Test task', json: true });
+      const task = addTask('inbox', 'Test task');
 
-      runComment({ services, taskId: task.task_id, text: 'First comment', author: 'user-1', json: true });
-      runComment({ services, taskId: task.task_id, text: 'Second comment', author: 'user-2', json: true });
+      hzlJson(ctx, `comment ${task.task_id} "First comment" --author user-1`);
+      hzlJson(ctx, `comment ${task.task_id} "Second comment" --author user-2`);
 
-      const details = runShow({ services, taskId: task.task_id, json: true });
-      expect(details!.comments).toHaveLength(2);
-      expect(details!.comments[0].text).toBe('First comment');
+      const details = hzlJson<{ comments: Array<{ text: string }> }>(ctx, `show ${task.task_id}`);
+      expect(details.comments).toHaveLength(2);
+      expect(details.comments[0].text).toBe('First comment');
     });
 
     it('adds checkpoints and retrieves them', () => {
-      const task = runAdd({ services, project: 'inbox', title: 'Test task', json: true });
+      const task = addTask('inbox', 'Test task');
 
-      runCheckpoint({ services, taskId: task.task_id, name: 'step1', data: { progress: 25 }, json: true });
-      runCheckpoint({ services, taskId: task.task_id, name: 'step2', data: { progress: 50 }, json: true });
+      hzlJson(ctx, `checkpoint ${task.task_id} step1 --data '{"progress":25}'`);
+      hzlJson(ctx, `checkpoint ${task.task_id} step2 --data '{"progress":50}'`);
 
-      const details = runShow({ services, taskId: task.task_id, json: true });
-      expect(details!.checkpoints).toHaveLength(2);
-      expect(details!.checkpoints[0].name).toBe('step1');
-      expect(details!.checkpoints[0].data.progress).toBe(25);
+      const details = hzlJson<{ checkpoints: Array<{ name: string; data: { progress: number } }> }>(
+        ctx,
+        `show ${task.task_id}`
+      );
+      expect(details.checkpoints).toHaveLength(2);
+      expect(details.checkpoints[0].name).toBe('step1');
+      expect(details.checkpoints[0].data.progress).toBe(25);
     });
   });
 
   describe('search round-trip', () => {
     it('indexes and finds tasks by title', () => {
-      runAdd({ services, project: 'inbox', title: 'Implement OAuth authentication', json: true });
-      runAdd({ services, project: 'inbox', title: 'Write unit tests', json: true });
-      runAdd({ services, project: 'inbox', title: 'Setup CI pipeline', json: true });
+      addTask('inbox', 'Implement OAuth authentication');
+      addTask('inbox', 'Write unit tests');
+      addTask('inbox', 'Setup CI pipeline');
 
-      const results = runSearch({ services, query: 'authentication', json: true });
+      const results = hzlJson<{ tasks: Array<{ title: string }> }>(
+        ctx,
+        'search authentication'
+      );
       expect(results.tasks).toHaveLength(1);
       expect(results.tasks[0].title).toContain('OAuth');
     });
 
     it('finds tasks by description', () => {
-      runAdd({ services, project: 'inbox', title: 'Backend task', description: 'Implement REST API endpoints', json: true });
-      runAdd({ services, project: 'inbox', title: 'Frontend task', description: 'Create React components', json: true });
+      addTask('inbox', 'Backend task', '--description "Implement REST API endpoints"');
+      addTask('inbox', 'Frontend task', '--description "Create React components"');
 
-      const results = runSearch({ services, query: 'REST', json: true });
+      const results = hzlJson<{ tasks: Array<{ title: string }> }>(ctx, 'search REST');
       expect(results.tasks).toHaveLength(1);
       expect(results.tasks[0].title).toBe('Backend task');
     });
@@ -242,34 +232,37 @@ describe('CLI Integration Tests', () => {
 
   describe('project management round-trip', () => {
     it('lists projects with task counts', () => {
-      runAdd({ services, project: 'project-a', title: 'Task 1', json: true });
-      runAdd({ services, project: 'project-a', title: 'Task 2', json: true });
-      runAdd({ services, project: 'project-b', title: 'Task 3', json: true });
+      addTask('project-a', 'Task 1');
+      addTask('project-a', 'Task 2');
+      addTask('project-b', 'Task 3');
 
-      const projects = runProjects({ services, json: true });
+      const projects = hzlJson<{ projects: Array<{ name: string; task_count: number }> }>(
+        ctx,
+        'projects'
+      );
       expect(projects.projects).toHaveLength(2);
 
-      const projectA = projects.projects.find((p: any) => p.name === 'project-a');
+      const projectA = projects.projects.find((p) => p.name === 'project-a');
       expect(projectA?.task_count).toBe(2);
     });
 
     it('moves tasks between projects', () => {
-      const task = runAdd({ services, project: 'project-a', title: 'Movable task', json: true });
+      const task = addTask('project-a', 'Movable task');
 
-      runMove({ services, taskId: task.task_id, toProject: 'project-b', json: true });
+      hzlJson(ctx, `move ${task.task_id} project-b`);
 
-      const afterMove = runShow({ services, taskId: task.task_id, json: true });
-      expect(afterMove!.task.project).toBe('project-b');
+      const afterMove = hzlJson<{ task: { project: string } }>(ctx, `show ${task.task_id}`);
+      expect(afterMove.task.project).toBe('project-b');
     });
 
     it('renames project by moving all tasks', () => {
-      runAdd({ services, project: 'old-project', title: 'Task 1', json: true });
-      runAdd({ services, project: 'old-project', title: 'Task 2', json: true });
+      addTask('old-project', 'Task 1');
+      addTask('old-project', 'Task 2');
 
-      runRenameProject({ services, from: 'old-project', to: 'new-project', force: false, json: true });
+      hzlJson(ctx, 'rename-project old-project new-project');
 
-      const projects = runProjects({ services, json: true });
-      const names = projects.projects.map((p: any) => p.name);
+      const projects = hzlJson<{ projects: Array<{ name: string }> }>(ctx, 'projects');
+      const names = projects.projects.map((p) => p.name);
       expect(names).toContain('new-project');
       expect(names).not.toContain('old-project');
     });
@@ -277,14 +270,14 @@ describe('CLI Integration Tests', () => {
 
   describe('history and event tracking', () => {
     it('shows full event history for a task', () => {
-      const task = runAdd({ services, project: 'inbox', title: 'Test task', json: true });
-      runSetStatus({ services, taskId: task.task_id, status: TaskStatus.Ready, json: true });
-      runClaim({ services, taskId: task.task_id, author: 'agent-1', json: true });
-      runComment({ services, taskId: task.task_id, text: 'Working on it', json: true });
-      runComplete({ services, taskId: task.task_id, json: true });
+      const task = addTask('inbox', 'Test task');
+      hzlJson(ctx, `set-status ${task.task_id} ready`);
+      hzlJson(ctx, `claim ${task.task_id} --author agent-1`);
+      hzlJson(ctx, `comment ${task.task_id} "Working on it"`);
+      hzlJson(ctx, `complete ${task.task_id} --author agent-1`);
 
-      const history = runHistory({ services, taskId: task.task_id, json: true });
-      const eventTypes = history.events.map((e: any) => e.type);
+      const history = hzlJson<{ events: Array<{ type: string }> }>(ctx, `history ${task.task_id}`);
+      const eventTypes = history.events.map((e) => e.type);
 
       expect(eventTypes).toContain('task_created');
       expect(eventTypes).toContain('status_changed');
@@ -294,20 +287,19 @@ describe('CLI Integration Tests', () => {
 
   describe('stats command', () => {
     it('returns task counts by status', () => {
-      // Create tasks in various states
-      const t1 = runAdd({ services, project: 'inbox', title: 'Backlog task', json: true });
-      const t2 = runAdd({ services, project: 'inbox', title: 'Ready task', json: true });
-      const t3 = runAdd({ services, project: 'inbox', title: 'In progress task', json: true });
-      const t4 = runAdd({ services, project: 'inbox', title: 'Done task', json: true });
+      const t1 = addTask('inbox', 'Backlog task');
+      const t2 = addTask('inbox', 'Ready task');
+      const t3 = addTask('inbox', 'In progress task');
+      const t4 = addTask('inbox', 'Done task');
 
-      runSetStatus({ services, taskId: t2.task_id, status: TaskStatus.Ready, json: true });
-      runSetStatus({ services, taskId: t3.task_id, status: TaskStatus.Ready, json: true });
-      runClaim({ services, taskId: t3.task_id, author: 'agent-1', json: true });
-      runSetStatus({ services, taskId: t4.task_id, status: TaskStatus.Ready, json: true });
-      runClaim({ services, taskId: t4.task_id, author: 'agent-1', json: true });
-      runComplete({ services, taskId: t4.task_id, json: true });
+      hzlJson(ctx, `set-status ${t2.task_id} ready`);
+      hzlJson(ctx, `set-status ${t3.task_id} ready`);
+      hzlJson(ctx, `claim ${t3.task_id} --author agent-1`);
+      hzlJson(ctx, `set-status ${t4.task_id} ready`);
+      hzlJson(ctx, `claim ${t4.task_id} --author agent-1`);
+      hzlJson(ctx, `complete ${t4.task_id} --author agent-1`);
 
-      const stats = runStats({ services, project: 'inbox', json: true });
+      const stats = hzlJson<{ by_status: Record<string, number> }>(ctx, 'stats --project inbox');
 
       expect(stats.by_status.backlog).toBe(1);
       expect(stats.by_status.ready).toBe(1);
@@ -318,10 +310,10 @@ describe('CLI Integration Tests', () => {
 
   describe('validate command', () => {
     it('validates a clean database successfully', () => {
-      runAdd({ services, project: 'inbox', title: 'Task 1', json: true });
-      runAdd({ services, project: 'inbox', title: 'Task 2', json: true });
+      addTask('inbox', 'Task 1');
+      addTask('inbox', 'Task 2');
 
-      const result = runValidate({ services, json: true });
+      const result = hzlJson<{ isValid: boolean; issues: unknown[] }>(ctx, 'validate');
       expect(result.isValid).toBe(true);
       expect(result.issues).toHaveLength(0);
     });
@@ -329,18 +321,17 @@ describe('CLI Integration Tests', () => {
 
   describe('export-events command', () => {
     it('exports events to JSONL file', () => {
-      runAdd({ services, project: 'inbox', title: 'Task 1', json: true });
-      runAdd({ services, project: 'inbox', title: 'Task 2', json: true });
+      addTask('inbox', 'Task 1');
+      addTask('inbox', 'Task 2');
 
-      const exportPath = path.join(tempDir, 'events.jsonl');
-      runExportEvents({ services, outputPath: exportPath, json: true });
+      const exportPath = path.join(ctx.tempDir, 'events.jsonl');
+      hzlJson(ctx, `export-events ${exportPath}`);
 
       expect(fs.existsSync(exportPath)).toBe(true);
       const content = fs.readFileSync(exportPath, 'utf-8');
-      const lines = content.trim().split('\n').filter((l) => l.length > 0);
+      const lines = content.trim().split('\n').filter((line) => line.length > 0);
       expect(lines).toHaveLength(2);
 
-      // Verify each line is valid JSON
       for (const line of lines) {
         const event = JSON.parse(line);
         expect(event.type).toBe('task_created');
@@ -351,45 +342,58 @@ describe('CLI Integration Tests', () => {
 
   describe('release and reopen commands', () => {
     it('releases a claimed task back to ready', () => {
-      const task = runAdd({ services, project: 'inbox', title: 'Task to release', json: true });
-      runSetStatus({ services, taskId: task.task_id, status: TaskStatus.Ready, json: true });
-      runClaim({ services, taskId: task.task_id, author: 'agent-1', json: true });
+      const task = addTask('inbox', 'Task to release');
+      hzlJson(ctx, `set-status ${task.task_id} ready`);
+      hzlJson(ctx, `claim ${task.task_id} --author agent-1`);
 
-      const released = runRelease({ services, taskId: task.task_id, json: true });
+      const released = hzlJson<{ status: string; claimed_by_author: string | null }>(
+        ctx,
+        `release ${task.task_id}`
+      );
       expect(released.status).toBe('ready');
       expect(released.claimed_by_author).toBeNull();
     });
 
     it('reopens a done task', () => {
-      const task = runAdd({ services, project: 'inbox', title: 'Task to reopen', json: true });
-      runSetStatus({ services, taskId: task.task_id, status: TaskStatus.Ready, json: true });
-      runClaim({ services, taskId: task.task_id, author: 'agent-1', json: true });
-      runComplete({ services, taskId: task.task_id, json: true });
+      const task = addTask('inbox', 'Task to reopen');
+      hzlJson(ctx, `set-status ${task.task_id} ready`);
+      hzlJson(ctx, `claim ${task.task_id} --author agent-1`);
+      hzlJson(ctx, `complete ${task.task_id} --author agent-1`);
 
-      const reopened = runReopen({ services, taskId: task.task_id, json: true });
+      const reopened = hzlJson<{ status: string }>(ctx, `reopen ${task.task_id}`);
       expect(reopened.status).toBe('ready');
     });
   });
 
   describe('steal and stuck commands', () => {
     it('steals a task with force flag', () => {
-      const task = runAdd({ services, project: 'inbox', title: 'Task to steal', json: true });
-      runSetStatus({ services, taskId: task.task_id, status: TaskStatus.Ready, json: true });
-      runClaim({ services, taskId: task.task_id, author: 'agent-1', leaseMinutes: 60, json: true });
+      const task = addTask('inbox', 'Task to steal');
+      hzlJson(ctx, `set-status ${task.task_id} ready`);
+      hzlJson(ctx, `claim ${task.task_id} --author agent-1 --lease 60`);
 
-      const stolen = runSteal({ services, taskId: task.task_id, force: true, newOwner: 'agent-2', json: true });
+      const stolen = hzlJson<{ claimed_by_author: string | null }>(
+        ctx,
+        `steal ${task.task_id} --force --owner agent-2`
+      );
       expect(stolen.claimed_by_author).toBe('agent-2');
     });
 
     it('lists stuck tasks with expired leases', () => {
-      const task = runAdd({ services, project: 'inbox', title: 'Stuck task', json: true });
-      runSetStatus({ services, taskId: task.task_id, status: TaskStatus.Ready, json: true });
-      // Use a lease that expires immediately (in the past)
-      const pastLease = new Date(Date.now() - 60000).toISOString();
-      services.taskService.claimTask(task.task_id, { author: 'stalled-agent', lease_until: pastLease });
+      const task = addTask('inbox', 'Stuck task');
+      hzlJson(ctx, `set-status ${task.task_id} ready`);
 
-      // The stuck command should find tasks with expired leases
-      const stuckResult = runStuck({ services, olderThanMinutes: 0, json: true });
+      const pastLease = new Date(Date.now() - 60000).toISOString();
+      const services = initializeDb(ctx.dbPath);
+      try {
+        services.taskService.claimTask(task.task_id, {
+          author: 'stalled-agent',
+          lease_until: pastLease,
+        });
+      } finally {
+        closeDb(services);
+      }
+
+      const stuckResult = hzlJson<{ tasks: Array<{ task_id: string }> }>(ctx, 'stuck --older-than 0');
       expect(stuckResult.tasks.length).toBeGreaterThanOrEqual(1);
     });
   });

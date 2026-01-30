@@ -5473,6 +5473,8 @@ Options: --project, --json
 
 ### Task 35: CLI Integration Tests ✅
 
+Status: ✅
+
 **Files:**
 - Create: `packages/hzl-cli/src/__tests__/integration/cli-integration.test.ts`
 - Create: `packages/hzl-cli/src/__tests__/integration/helpers.ts`
