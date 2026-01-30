@@ -1,0 +1,6 @@
+# Verify package-lock.json is in sync with package.json
+npm ci --ignore-scripts --dry-run 2>/dev/null || {
+  echo "❌ package-lock.json is out of sync with package.json"
+  echo "   Run 'npm install' and commit the updated lock file."
+  exit 1
+}
