@@ -5150,7 +5150,7 @@ git commit -m "feat(cli): add rename-project command with event emission"
 
 ---
 
-### Task 25: Task Creation and Listing Commands
+### Task 25: Task Creation and Listing Commands ✅
 
 #### 25.1-25.4 TaskService Methods
 
