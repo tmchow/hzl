@@ -26,6 +26,8 @@ import { createReleaseCommand } from './commands/release.js';
 import { createArchiveCommand } from './commands/archive.js';
 import { createReopenCommand } from './commands/reopen.js';
 import { createSetStatusCommand } from './commands/set-status.js';
+import { createStealCommand } from './commands/steal.js';
+import { createStuckCommand } from './commands/stuck.js';
 
 const program = new Command();
 
@@ -65,6 +67,8 @@ program.addCommand(createReleaseCommand());
 program.addCommand(createArchiveCommand());
 program.addCommand(createReopenCommand());
 program.addCommand(createSetStatusCommand());
+program.addCommand(createStealCommand());
+program.addCommand(createStuckCommand());
 
 // Task commands
 const task = program.command('task').description('Task management commands');
