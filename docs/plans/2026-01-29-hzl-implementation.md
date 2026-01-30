@@ -5209,7 +5209,7 @@ git commit -m "feat(cli): add 'hzl next' command for deterministic work selectio
 
 ---
 
-### Task 26: Task Display and Update Commands
+### Task 26: Task Display and Update Commands ✅
 
 #### 26.1-26.4 TaskService Methods
 

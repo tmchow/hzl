@@ -20,6 +20,12 @@ import { createShowCommand } from './commands/show.js';
 import { createHistoryCommand } from './commands/history.js';
 import { createUpdateCommand } from './commands/update.js';
 import { createMoveCommand } from './commands/move.js';
+import { createClaimCommand } from './commands/claim.js';
+import { createCompleteCommand } from './commands/complete.js';
+import { createReleaseCommand } from './commands/release.js';
+import { createArchiveCommand } from './commands/archive.js';
+import { createReopenCommand } from './commands/reopen.js';
+import { createSetStatusCommand } from './commands/set-status.js';
 
 const program = new Command();
 
@@ -53,6 +59,12 @@ program.addCommand(createShowCommand());
 program.addCommand(createHistoryCommand());
 program.addCommand(createUpdateCommand());
 program.addCommand(createMoveCommand());
+program.addCommand(createClaimCommand());
+program.addCommand(createCompleteCommand());
+program.addCommand(createReleaseCommand());
+program.addCommand(createArchiveCommand());
+program.addCommand(createReopenCommand());
+program.addCommand(createSetStatusCommand());
 
 // Task commands
 const task = program.command('task').description('Task management commands');
