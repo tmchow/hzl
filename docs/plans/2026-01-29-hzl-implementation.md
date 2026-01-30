@@ -2,17 +2,23 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Build a task coordination system for AI agent swarms with SQLite-backed event sourcing, CLI interface, and web dashboard.
+**Goal:** Build a task coordination system for AI agent swarms with SQLite-backed event sourcing, a CLI, and a web dashboard.
 
-**Architecture:** Event-sourced design with append-only events table as source of truth, rebuildable projections for fast reads. Core library (`hzl-core`) contains all business logic, consumed by CLI and web dashboard. SQLite with WAL mode for concurrent access.
+**Deliverables (concrete packages):**
+- `hzl-core` — All business logic, SQLite, events, projections, invariants
+- `hzl-cli` — Thin CLI wrapper over `hzl-core`
+- `hzl-server` — HTTP API over `hzl-core` for the dashboard (no CLI process spawning)
+- `hzl-web` — Dashboard UI (Kanban, analytics, steering)
 
-**Tech Stack:** TypeScript, Node.js, SQLite (better-sqlite3), Vitest for testing, Commander.js for CLI
+**Architecture:** Event-sourced design with append-only events table as source of truth. Projections are rebuildable and updated atomically within the same transaction as event writes. Core library (`hzl-core`) contains all business logic, consumed by CLI, server, and web dashboard. SQLite with WAL mode for concurrent access from multiple agent processes.
+
+**Tech Stack:** TypeScript, Node.js 20+, SQLite (better-sqlite3), Zod for validation, Vitest for testing, Commander.js for CLI, Fastify for server
 
 ---
 
 ## Phase 1: Project Setup & Core Infrastructure
 
-### Task 1: Initialize TypeScript Monorepo
+### Task 1: Initialize TypeScript Monorepo (Core + CLI + Server + Web)
 
 **Files:**
 - Create: `package.json`
@@ -21,18 +27,31 @@
 - Create: `packages/hzl-core/tsconfig.json`
 - Create: `packages/hzl-cli/package.json`
 - Create: `packages/hzl-cli/tsconfig.json`
+- Create: `packages/hzl-server/package.json`
+- Create: `packages/hzl-server/tsconfig.json`
+- Create: `packages/hzl-web/package.json`
+- Create: `packages/hzl-web/tsconfig.json`
+- Create: `.prettierrc`
+- Create: `.prettierignore`
 
 **Step 1: Create root package.json**
 
 ```json
 {
-  "name": "hzl",
+  "name": "hzl-workspace",
   "private": true,
   "workspaces": ["packages/*"],
+  "engines": { "node": ">=20.0.0" },
+  "packageManager": "npm@10.0.0",
   "scripts": {
-    "build": "npm run build --workspaces",
-    "test": "npm run test --workspaces",
-    "lint": "eslint packages/*/src"
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "test:ci": "npm run test --workspaces --if-present -- --run",
+    "typecheck": "tsc -b packages/*/tsconfig.json",
+    "lint": "eslint \"packages/*/src/**/*.ts\"",
+    "lint:fix": "eslint \"packages/*/src/**/*.ts\" --fix",
+    "format": "prettier -w .",
+    "format:check": "prettier -c ."
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
@@ -40,7 +59,8 @@
     "vitest": "^1.2.0",
     "eslint": "^8.56.0",
     "@typescript-eslint/parser": "^6.19.0",
-    "@typescript-eslint/eslint-plugin": "^6.19.0"
+    "@typescript-eslint/eslint-plugin": "^6.19.0",
+    "prettier": "^3.2.0"
   }
 }
 ```
@@ -80,7 +100,8 @@
   },
   "dependencies": {
     "better-sqlite3": "^9.3.0",
-    "ulid": "^2.3.0"
+    "ulid": "^2.3.0",
+    "zod": "^3.23.0"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.8"
@@ -105,7 +126,7 @@
 
 ```json
 {
-  "name": "hzl",
+  "name": "hzl-cli",
   "version": "0.1.0",
   "type": "module",
   "bin": {
@@ -116,7 +137,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "hzl-core": "*",
+    "hzl-core": "workspace:*",
     "commander": "^12.0.0"
   }
 }
@@ -135,15 +156,109 @@
 }
 ```
 
-**Step 7: Install dependencies**
+**Step 7: Create packages/hzl-server/package.json**
+
+```json
+{
+  "name": "hzl-server",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "hzl-core": "workspace:*",
+    "fastify": "^4.26.0"
+  }
+}
+```
+
+**Step 8: Create packages/hzl-server/tsconfig.json**
+
+```json
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist"
+  },
+  "include": ["src/**/*"]
+}
+```
+
+**Step 9: Create packages/hzl-web/package.json**
+
+```json
+{
+  "name": "hzl-web",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@vitejs/plugin-react": "^4.2.0",
+    "vite": "^5.0.0"
+  }
+}
+```
+
+**Step 10: Create packages/hzl-web/tsconfig.json**
+
+```json
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "rootDir": "src",
+    "outDir": "dist"
+  },
+  "include": ["src/**/*"]
+}
+```
+
+**Step 11: Create .prettierrc**
+
+```json
+{
+  "semi": true,
+  "singleQuote": true,
+  "trailingComma": "es5",
+  "printWidth": 100
+}
+```
+
+**Step 12: Create .prettierignore**
+
+```
+dist/
+node_modules/
+*.db
+*.db-wal
+*.db-shm
+```
+
+**Step 13: Install dependencies**
 
 Run: `npm install`
 
-**Step 8: Commit**
+**Step 14: Commit**
 
 ```bash
-git add package.json tsconfig.json packages/
-git commit -m "chore: initialize TypeScript monorepo structure"
+git add package.json tsconfig.json packages/ .prettierrc .prettierignore
+git commit -m "chore: initialize TypeScript monorepo with core, cli, server, web"
 ```
 
 ---
@@ -193,7 +308,7 @@ describe('migrations', () => {
     expect(columnNames).toContain('timestamp');
   });
 
-  it('creates tasks_current projection table', () => {
+  it('creates tasks_current projection table with lease fields', () => {
     runMigrations(db);
     const columns = db.prepare("PRAGMA table_info(tasks_current)").all();
     const columnNames = columns.map((c: any) => c.name);
@@ -201,12 +316,46 @@ describe('migrations', () => {
     expect(columnNames).toContain('title');
     expect(columnNames).toContain('status');
     expect(columnNames).toContain('project');
+    expect(columnNames).toContain('claimed_at');
+    expect(columnNames).toContain('lease_until');
   });
 
   it('creates task_dependencies table', () => {
     runMigrations(db);
     const table = db.prepare(
       "SELECT name FROM sqlite_master WHERE type='table' AND name='task_dependencies'"
+    ).get();
+    expect(table).toBeDefined();
+  });
+
+  it('creates projection_state table', () => {
+    runMigrations(db);
+    const table = db.prepare(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='projection_state'"
+    ).get();
+    expect(table).toBeDefined();
+  });
+
+  it('creates task_tags table for fast tag filtering', () => {
+    runMigrations(db);
+    const table = db.prepare(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='task_tags'"
+    ).get();
+    expect(table).toBeDefined();
+  });
+
+  it('creates task_comments table', () => {
+    runMigrations(db);
+    const table = db.prepare(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='task_comments'"
+    ).get();
+    expect(table).toBeDefined();
+  });
+
+  it('creates task_checkpoints table', () => {
+    runMigrations(db);
+    const table = db.prepare(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='task_checkpoints'"
     ).get();
     expect(table).toBeDefined();
   });
@@ -245,22 +394,33 @@ CREATE TABLE IF NOT EXISTS events (
     timestamp        TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
 
+-- Track last applied event id per projection (enables incremental projection + doctor checks)
+CREATE TABLE IF NOT EXISTS projection_state (
+    name          TEXT PRIMARY KEY,
+    last_event_id INTEGER NOT NULL DEFAULT 0,
+    updated_at    TEXT NOT NULL
+);
+
 -- Current-state projection for fast reads (rebuildable from events)
 CREATE TABLE IF NOT EXISTS tasks_current (
-    task_id       TEXT PRIMARY KEY,
-    title         TEXT NOT NULL,
-    project       TEXT NOT NULL,
-    status        TEXT NOT NULL,
-    parent_id     TEXT,
-    description   TEXT,
-    links         TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(links)),
-    tags          TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(tags)),
-    priority      INTEGER NOT NULL DEFAULT 0,
-    due_at        TEXT,
-    metadata      TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(metadata)),
-    created_at    TEXT NOT NULL,
-    updated_at    TEXT NOT NULL,
-    last_event_id INTEGER NOT NULL
+    task_id            TEXT PRIMARY KEY,
+    title              TEXT NOT NULL,
+    project            TEXT NOT NULL,
+    status             TEXT NOT NULL CHECK (status IN ('backlog','ready','in_progress','done','archived')),
+    parent_id          TEXT,
+    description        TEXT,
+    links              TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(links)),
+    tags               TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(tags)),
+    priority           INTEGER NOT NULL DEFAULT 0 CHECK (priority BETWEEN 0 AND 3),
+    due_at             TEXT,
+    metadata           TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(metadata)),
+    claimed_at         TEXT,
+    claimed_by_author  TEXT,
+    claimed_by_agent_id TEXT,
+    lease_until        TEXT,
+    created_at         TEXT NOT NULL,
+    updated_at         TEXT NOT NULL,
+    last_event_id      INTEGER NOT NULL
 );
 
 -- Dependency edges for fast availability checks (rebuildable from events)
@@ -270,8 +430,35 @@ CREATE TABLE IF NOT EXISTS task_dependencies (
     PRIMARY KEY (task_id, depends_on_id)
 );
 
+-- Fast tag filtering (rebuildable)
+CREATE TABLE IF NOT EXISTS task_tags (
+    task_id TEXT NOT NULL,
+    tag     TEXT NOT NULL,
+    PRIMARY KEY (task_id, tag)
+);
+
+-- Fast access for steering comments (rebuildable)
+CREATE TABLE IF NOT EXISTS task_comments (
+    event_rowid INTEGER PRIMARY KEY,
+    task_id     TEXT NOT NULL,
+    author      TEXT,
+    agent_id    TEXT,
+    text        TEXT NOT NULL,
+    timestamp   TEXT NOT NULL
+);
+
+-- Fast access for checkpoints (rebuildable)
+CREATE TABLE IF NOT EXISTS task_checkpoints (
+    event_rowid INTEGER PRIMARY KEY,
+    task_id     TEXT NOT NULL,
+    name        TEXT NOT NULL,
+    data        TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(data)),
+    timestamp   TEXT NOT NULL
+);
+
 -- Indexes for events
 CREATE INDEX IF NOT EXISTS idx_events_task_id ON events(task_id);
+CREATE INDEX IF NOT EXISTS idx_events_task_id_id ON events(task_id, id);
 CREATE INDEX IF NOT EXISTS idx_events_type ON events(type);
 CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events(timestamp);
 CREATE INDEX IF NOT EXISTS idx_events_correlation_id ON events(correlation_id);
@@ -279,9 +466,17 @@ CREATE INDEX IF NOT EXISTS idx_events_correlation_id ON events(correlation_id);
 -- Indexes for tasks_current
 CREATE INDEX IF NOT EXISTS idx_tasks_current_project_status ON tasks_current(project, status);
 CREATE INDEX IF NOT EXISTS idx_tasks_current_priority ON tasks_current(project, priority, created_at);
+CREATE INDEX IF NOT EXISTS idx_tasks_current_claim_next ON tasks_current(project, status, priority DESC, created_at ASC, task_id ASC);
+CREATE INDEX IF NOT EXISTS idx_tasks_current_stuck ON tasks_current(project, status, claimed_at);
+CREATE INDEX IF NOT EXISTS idx_tasks_current_parent ON tasks_current(parent_id);
 
 -- Indexes for dependencies
 CREATE INDEX IF NOT EXISTS idx_deps_depends_on ON task_dependencies(depends_on_id);
+
+-- Indexes for tags/comments/checkpoints
+CREATE INDEX IF NOT EXISTS idx_task_tags_tag ON task_tags(tag, task_id);
+CREATE INDEX IF NOT EXISTS idx_task_comments_task ON task_comments(task_id, event_rowid);
+CREATE INDEX IF NOT EXISTS idx_task_checkpoints_task ON task_checkpoints(task_id, event_rowid);
 `;
 
 export const PRAGMAS = `
@@ -351,12 +546,12 @@ Expected: PASS
 
 ```bash
 git add packages/hzl-core/src/db/
-git commit -m "feat(core): add database schema and migrations"
+git commit -m "feat(core): add database schema with projections, leases, tags, comments, checkpoints"
 ```
 
 ---
 
-### Task 3: Database Connection Manager
+### Task 3: Database Connection Manager & Write Transaction Helper
 
 **Files:**
 - Create: `packages/hzl-core/src/db/connection.ts`
@@ -367,7 +562,7 @@ git commit -m "feat(core): add database schema and migrations"
 ```typescript
 // packages/hzl-core/src/db/connection.test.ts
 import { describe, it, expect, afterEach } from 'vitest';
-import { createConnection, getDefaultDbPath } from './connection.js';
+import { createConnection, getDefaultDbPath, withWriteTransaction } from './connection.js';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -397,6 +592,7 @@ describe('connection', () => {
     const tableNames = tables.map((t: any) => t.name);
     expect(tableNames).toContain('events');
     expect(tableNames).toContain('tasks_current');
+    expect(tableNames).toContain('projection_state');
     db.close();
   });
 
@@ -406,6 +602,31 @@ describe('connection', () => {
     expect(defaultPath).toContain('data.db');
   });
 });
+
+describe('withWriteTransaction', () => {
+  it('commits on success', () => {
+    const db = createConnection(':memory:');
+    withWriteTransaction(db, () => {
+      db.prepare('INSERT INTO projection_state (name, last_event_id, updated_at) VALUES (?, ?, ?)').run('test', 0, new Date().toISOString());
+    });
+    const row = db.prepare('SELECT * FROM projection_state WHERE name = ?').get('test');
+    expect(row).toBeDefined();
+    db.close();
+  });
+
+  it('rolls back on error', () => {
+    const db = createConnection(':memory:');
+    try {
+      withWriteTransaction(db, () => {
+        db.prepare('INSERT INTO projection_state (name, last_event_id, updated_at) VALUES (?, ?, ?)').run('test', 0, new Date().toISOString());
+        throw new Error('Intentional failure');
+      });
+    } catch {}
+    const row = db.prepare('SELECT * FROM projection_state WHERE name = ?').get('test');
+    expect(row).toBeUndefined();
+    db.close();
+  });
+});
 ```
 
 **Step 2: Run test to verify it fails**
@@ -413,7 +634,7 @@ describe('connection', () => {
 Run: `cd packages/hzl-core && npm test`
 Expected: FAIL
 
-**Step 3: Implement connection manager**
+**Step 3: Implement connection manager with write transaction helper**
 
 ```typescript
 // packages/hzl-core/src/db/connection.ts
@@ -431,14 +652,51 @@ export function getDefaultDbPath(): string {
 export function createConnection(dbPath?: string): Database.Database {
   const resolvedPath = dbPath ?? process.env.HZL_DB ?? getDefaultDbPath();
 
-  const dir = path.dirname(resolvedPath);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
+  // Handle in-memory databases
+  if (resolvedPath !== ':memory:') {
+    const dir = path.dirname(resolvedPath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
   }
 
   const db = new Database(resolvedPath);
   runMigrations(db);
   return db;
+}
+
+/**
+ * Execute a function within a write transaction using BEGIN IMMEDIATE.
+ * This ensures proper locking for concurrent access from multiple agents.
+ * Includes retry logic for SQLITE_BUSY errors.
+ */
+export function withWriteTransaction<T>(
+  db: Database.Database,
+  fn: () => T,
+  opts?: { retries?: number; busySleepMs?: number }
+): T {
+  const retries = opts?.retries ?? 5;
+  const busySleepMs = opts?.busySleepMs ?? 25;
+  let attempt = 0;
+
+  while (true) {
+    try {
+      // Use immediate transaction for write lock
+      return db.transaction(fn).immediate();
+    } catch (err: any) {
+      const isBusy = err?.code === 'SQLITE_BUSY' || String(err?.message).includes('SQLITE_BUSY');
+      if (!isBusy || attempt >= retries) {
+        throw err;
+      }
+      attempt += 1;
+      // Simple sleep with exponential backoff
+      const sleepTime = busySleepMs * attempt;
+      const start = Date.now();
+      while (Date.now() - start < sleepTime) {
+        // Busy wait (synchronous sleep for better-sqlite3)
+      }
+    }
+  }
 }
 ```
 
@@ -451,7 +709,7 @@ Expected: PASS
 
 ```bash
 git add packages/hzl-core/src/db/connection.ts packages/hzl-core/src/db/connection.test.ts
-git commit -m "feat(core): add database connection manager"
+git commit -m "feat(core): add database connection manager with write transaction helper"
 ```
 
 ---
@@ -536,7 +794,7 @@ git commit -m "feat(core): add ULID generation and validation"
 
 ## Phase 2: Event System
 
-### Task 5: Event Types & Validation
+### Task 5: Event Types & Zod Validation Schemas
 
 **Files:**
 - Create: `packages/hzl-core/src/events/types.ts`
@@ -556,8 +814,33 @@ describe('event validation', () => {
       expect(() => validateEventData(EventType.TaskCreated, data)).not.toThrow();
     });
 
+    it('accepts valid data with all optional fields', () => {
+      const data = {
+        title: 'Test task',
+        project: 'inbox',
+        description: 'A description',
+        links: ['docs/spec.md', 'https://example.com'],
+        depends_on: ['TASK1', 'TASK2'],
+        tags: ['urgent', 'backend'],
+        priority: 2,
+        due_at: '2026-02-01T00:00:00Z',
+        metadata: { custom: 'value' },
+      };
+      expect(() => validateEventData(EventType.TaskCreated, data)).not.toThrow();
+    });
+
     it('rejects missing title', () => {
       const data = { project: 'inbox' };
+      expect(() => validateEventData(EventType.TaskCreated, data)).toThrow();
+    });
+
+    it('rejects invalid priority', () => {
+      const data = { title: 'Test', project: 'inbox', priority: 5 };
+      expect(() => validateEventData(EventType.TaskCreated, data)).toThrow();
+    });
+
+    it('rejects empty tags', () => {
+      const data = { title: 'Test', project: 'inbox', tags: ['valid', ''] };
       expect(() => validateEventData(EventType.TaskCreated, data)).toThrow();
     });
   });
@@ -568,8 +851,26 @@ describe('event validation', () => {
       expect(() => validateEventData(EventType.StatusChanged, data)).not.toThrow();
     });
 
+    it('accepts transition with lease_until', () => {
+      const data = {
+        from: TaskStatus.Ready,
+        to: TaskStatus.InProgress,
+        lease_until: '2026-01-30T12:00:00Z',
+      };
+      expect(() => validateEventData(EventType.StatusChanged, data)).not.toThrow();
+    });
+
     it('rejects invalid status', () => {
       const data = { from: 'ready', to: 'invalid_status' };
+      expect(() => validateEventData(EventType.StatusChanged, data)).toThrow();
+    });
+
+    it('rejects invalid lease_until format', () => {
+      const data = {
+        from: TaskStatus.Ready,
+        to: TaskStatus.InProgress,
+        lease_until: 'not-a-date',
+      };
       expect(() => validateEventData(EventType.StatusChanged, data)).toThrow();
     });
   });
@@ -585,6 +886,18 @@ describe('event validation', () => {
       expect(() => validateEventData(EventType.CommentAdded, data)).toThrow();
     });
   });
+
+  describe('checkpoint_recorded', () => {
+    it('accepts valid checkpoint', () => {
+      const data = { name: 'step1', data: { progress: 50 } };
+      expect(() => validateEventData(EventType.CheckpointRecorded, data)).not.toThrow();
+    });
+
+    it('rejects missing name', () => {
+      const data = { data: {} };
+      expect(() => validateEventData(EventType.CheckpointRecorded, data)).toThrow();
+    });
+  });
 });
 ```
 
@@ -593,10 +906,12 @@ describe('event validation', () => {
 Run: `cd packages/hzl-core && npm test`
 Expected: FAIL
 
-**Step 3: Implement event types**
+**Step 3: Implement event types with Zod schemas**
 
 ```typescript
 // packages/hzl-core/src/events/types.ts
+import { z } from 'zod';
+
 export enum EventType {
   TaskCreated = 'task_created',
   StatusChanged = 'status_changed',
@@ -630,85 +945,88 @@ export interface EventEnvelope {
   timestamp: string;
 }
 
-export interface TaskCreatedData {
-  title: string;
-  project: string;
-  parent_id?: string;
-  description?: string;
-  links?: string[];
-  depends_on?: string[];
-  tags?: string[];
-  priority?: number;
-  due_at?: string;
-  metadata?: Record<string, unknown>;
-}
+// ISO-8601 datetime validation
+const isoDateTime = z.string().refine((s) => !Number.isNaN(Date.parse(s)), {
+  message: 'Must be an ISO-8601 datetime string',
+});
 
-export interface StatusChangedData {
-  from: TaskStatus;
-  to: TaskStatus;
-  reason?: string;
-}
+// Non-empty string
+const nonEmptyString = z.string().min(1);
 
-const VALID_STATUSES = Object.values(TaskStatus);
+// Event data schemas
+const TaskCreatedSchema = z.object({
+  title: nonEmptyString,
+  project: nonEmptyString,
+  parent_id: nonEmptyString.optional(),
+  description: z.string().max(2000).optional(),
+  links: z.array(nonEmptyString).optional(),
+  depends_on: z.array(nonEmptyString).optional(),
+  tags: z.array(nonEmptyString).optional(),
+  priority: z.number().int().min(0).max(3).optional(),
+  due_at: isoDateTime.optional(),
+  metadata: z.record(z.unknown()).optional(),
+});
+
+const StatusChangedSchema = z.object({
+  from: z.nativeEnum(TaskStatus),
+  to: z.nativeEnum(TaskStatus),
+  reason: z.string().optional(),
+  lease_until: isoDateTime.optional(),
+});
+
+const TaskMovedSchema = z.object({
+  from_project: nonEmptyString,
+  to_project: nonEmptyString,
+});
+
+const DependencySchema = z.object({
+  depends_on_id: nonEmptyString,
+});
+
+const TaskUpdatedSchema = z.object({
+  field: nonEmptyString,
+  old_value: z.unknown().optional(),
+  new_value: z.unknown(),
+});
+
+const TaskArchivedSchema = z.object({
+  reason: z.string().optional(),
+});
+
+const CommentAddedSchema = z.object({
+  text: nonEmptyString,
+});
+
+const CheckpointRecordedSchema = z.object({
+  name: nonEmptyString,
+  data: z.record(z.unknown()).optional(),
+});
+
+export const EventSchemas: Record<EventType, z.ZodSchema<unknown>> = {
+  [EventType.TaskCreated]: TaskCreatedSchema,
+  [EventType.StatusChanged]: StatusChangedSchema,
+  [EventType.TaskMoved]: TaskMovedSchema,
+  [EventType.DependencyAdded]: DependencySchema,
+  [EventType.DependencyRemoved]: DependencySchema,
+  [EventType.TaskUpdated]: TaskUpdatedSchema,
+  [EventType.TaskArchived]: TaskArchivedSchema,
+  [EventType.CommentAdded]: CommentAddedSchema,
+  [EventType.CheckpointRecorded]: CheckpointRecordedSchema,
+};
 
 export function validateEventData(type: EventType, data: unknown): void {
-  if (!data || typeof data !== 'object') {
-    throw new Error('Event data must be an object');
+  const schema = EventSchemas[type];
+  if (!schema) {
+    throw new Error(`No schema for event type: ${type}`);
   }
-
-  const d = data as Record<string, unknown>;
-
-  switch (type) {
-    case EventType.TaskCreated:
-      if (!d.title || typeof d.title !== 'string') {
-        throw new Error('task_created requires title string');
-      }
-      if (!d.project || typeof d.project !== 'string') {
-        throw new Error('task_created requires project string');
-      }
-      break;
-
-    case EventType.StatusChanged:
-      if (!VALID_STATUSES.includes(d.from as TaskStatus)) {
-        throw new Error(`Invalid from status: ${d.from}`);
-      }
-      if (!VALID_STATUSES.includes(d.to as TaskStatus)) {
-        throw new Error(`Invalid to status: ${d.to}`);
-      }
-      break;
-
-    case EventType.CommentAdded:
-      if (!d.text || typeof d.text !== 'string' || d.text.trim() === '') {
-        throw new Error('comment_added requires non-empty text');
-      }
-      break;
-
-    case EventType.CheckpointRecorded:
-      if (!d.name || typeof d.name !== 'string') {
-        throw new Error('checkpoint_recorded requires name');
-      }
-      break;
-
-    case EventType.DependencyAdded:
-    case EventType.DependencyRemoved:
-      if (!d.depends_on_id || typeof d.depends_on_id !== 'string') {
-        throw new Error('dependency events require depends_on_id');
-      }
-      break;
-
-    case EventType.TaskMoved:
-      if (!d.from_project || !d.to_project) {
-        throw new Error('task_moved requires from_project and to_project');
-      }
-      break;
-
-    case EventType.TaskUpdated:
-      if (!d.field || typeof d.field !== 'string') {
-        throw new Error('task_updated requires field');
-      }
-      break;
-  }
+  schema.parse(data);
 }
+
+// Inferred types for convenience
+export type TaskCreatedData = z.infer<typeof TaskCreatedSchema>;
+export type StatusChangedData = z.infer<typeof StatusChangedSchema>;
+export type CommentAddedData = z.infer<typeof CommentAddedSchema>;
+export type CheckpointRecordedData = z.infer<typeof CheckpointRecordedSchema>;
 ```
 
 **Step 4: Run test to verify it passes**
@@ -720,12 +1038,12 @@ Expected: PASS
 
 ```bash
 git add packages/hzl-core/src/events/
-git commit -m "feat(core): add event types and validation"
+git commit -m "feat(core): add event types with Zod validation schemas"
 ```
 
 ---
 
-### Task 6: Event Store
+### Task 6: Event Store with Canonical Timestamps & Pagination
 
 **Files:**
 - Create: `packages/hzl-core/src/events/store.ts`
@@ -756,7 +1074,7 @@ describe('EventStore', () => {
   });
 
   describe('append', () => {
-    it('inserts event and returns envelope', () => {
+    it('inserts event and returns envelope with DB timestamp', () => {
       const event = store.append({
         task_id: '01ARZ3NDEKTSV4RRFFQ69G5FAV',
         type: EventType.TaskCreated,
@@ -766,6 +1084,22 @@ describe('EventStore', () => {
       expect(event.event_id).toBeDefined();
       expect(event.task_id).toBe('01ARZ3NDEKTSV4RRFFQ69G5FAV');
       expect(event.type).toBe(EventType.TaskCreated);
+      expect(event.timestamp).toBeDefined();
+      expect(event.rowid).toBeGreaterThan(0);
+    });
+
+    it('uses DB-generated timestamp (not Node clock)', () => {
+      const before = new Date().toISOString();
+      const event = store.append({
+        task_id: 'TASK1',
+        type: EventType.TaskCreated,
+        data: { title: 'Test', project: 'inbox' },
+      });
+      const after = new Date().toISOString();
+
+      // Timestamp should be between before and after (with some tolerance)
+      expect(event.timestamp >= before.slice(0, 19)).toBe(true);
+      expect(event.timestamp <= after.slice(0, 19) + 'Z').toBe(true);
     });
 
     it('rejects duplicate event_id', () => {
@@ -782,6 +1116,14 @@ describe('EventStore', () => {
         task_id: 'TASK2',
         type: EventType.TaskCreated,
         data: { title: 'Test 2', project: 'inbox' },
+      })).toThrow();
+    });
+
+    it('validates event data', () => {
+      expect(() => store.append({
+        task_id: 'TASK1',
+        type: EventType.TaskCreated,
+        data: { project: 'inbox' }, // missing title
       })).toThrow();
     });
   });
@@ -806,6 +1148,80 @@ describe('EventStore', () => {
       expect(events).toHaveLength(2);
       expect(events[0].type).toBe(EventType.TaskCreated);
       expect(events[1].type).toBe(EventType.StatusChanged);
+    });
+
+    it('supports pagination with afterId', () => {
+      const taskId = 'TASK1';
+      const e1 = store.append({
+        task_id: taskId,
+        type: EventType.TaskCreated,
+        data: { title: 'Test', project: 'inbox' },
+      });
+      store.append({
+        task_id: taskId,
+        type: EventType.CommentAdded,
+        data: { text: 'Comment 1' },
+      });
+      store.append({
+        task_id: taskId,
+        type: EventType.CommentAdded,
+        data: { text: 'Comment 2' },
+      });
+
+      const events = store.getByTaskId(taskId, { afterId: e1.rowid });
+      expect(events).toHaveLength(2);
+      expect((events[0].data as any).text).toBe('Comment 1');
+    });
+
+    it('supports limit', () => {
+      const taskId = 'TASK1';
+      store.append({
+        task_id: taskId,
+        type: EventType.TaskCreated,
+        data: { title: 'Test', project: 'inbox' },
+      });
+      for (let i = 0; i < 10; i++) {
+        store.append({
+          task_id: taskId,
+          type: EventType.CommentAdded,
+          data: { text: `Comment ${i}` },
+        });
+      }
+
+      const events = store.getByTaskId(taskId, { limit: 5 });
+      expect(events).toHaveLength(5);
+    });
+  });
+
+  describe('appendIdempotent', () => {
+    it('inserts new event', () => {
+      const result = store.appendIdempotent({
+        event_id: 'UNIQUE1',
+        task_id: 'TASK1',
+        type: EventType.TaskCreated,
+        data: { title: 'Test', project: 'inbox' },
+      });
+
+      expect(result).not.toBeNull();
+      expect(result!.event_id).toBe('UNIQUE1');
+    });
+
+    it('returns null for duplicate event_id', () => {
+      store.append({
+        event_id: 'UNIQUE1',
+        task_id: 'TASK1',
+        type: EventType.TaskCreated,
+        data: { title: 'Test', project: 'inbox' },
+      });
+
+      const result = store.appendIdempotent({
+        event_id: 'UNIQUE1',
+        task_id: 'TASK1',
+        type: EventType.TaskCreated,
+        data: { title: 'Test', project: 'inbox' },
+      });
+
+      expect(result).toBeNull();
     });
   });
 });
@@ -836,28 +1252,82 @@ export interface AppendEventInput {
   causation_id?: string;
 }
 
+export interface PersistedEventEnvelope extends EventEnvelope {
+  rowid: number;
+}
+
+export interface GetByTaskIdOptions {
+  afterId?: number;
+  limit?: number;
+}
+
 export class EventStore {
-  private insertStmt: Database.Statement;
+  private insertReturningStmt: Database.Statement;
+  private insertIgnoreStmt: Database.Statement;
   private selectByTaskStmt: Database.Statement;
+  private selectByEventIdStmt: Database.Statement;
 
   constructor(private db: Database.Database) {
-    this.insertStmt = db.prepare(`
+    // Use RETURNING to get canonical DB timestamp and rowid
+    this.insertReturningStmt = db.prepare(`
       INSERT INTO events (event_id, task_id, type, data, author, agent_id, session_id, correlation_id, causation_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      RETURNING id, timestamp
+    `);
+
+    this.insertIgnoreStmt = db.prepare(`
+      INSERT OR IGNORE INTO events (event_id, task_id, type, data, author, agent_id, session_id, correlation_id, causation_id)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     this.selectByTaskStmt = db.prepare(`
-      SELECT * FROM events WHERE task_id = ? ORDER BY id ASC
+      SELECT * FROM events
+      WHERE task_id = ? AND id > COALESCE(?, 0)
+      ORDER BY id ASC
+      LIMIT COALESCE(?, 1000)
+    `);
+
+    this.selectByEventIdStmt = db.prepare(`
+      SELECT * FROM events WHERE event_id = ?
     `);
   }
 
-  append(input: AppendEventInput): EventEnvelope {
+  append(input: AppendEventInput): PersistedEventEnvelope {
     validateEventData(input.type, input.data);
 
     const eventId = input.event_id ?? generateId();
-    const timestamp = new Date().toISOString();
+    const row = this.insertReturningStmt.get(
+      eventId,
+      input.task_id,
+      input.type,
+      JSON.stringify(input.data),
+      input.author ?? null,
+      input.agent_id ?? null,
+      input.session_id ?? null,
+      input.correlation_id ?? null,
+      input.causation_id ?? null
+    ) as { id: number; timestamp: string };
 
-    this.insertStmt.run(
+    return {
+      rowid: row.id,
+      event_id: eventId,
+      task_id: input.task_id,
+      type: input.type,
+      data: input.data,
+      author: input.author,
+      agent_id: input.agent_id,
+      session_id: input.session_id,
+      correlation_id: input.correlation_id,
+      causation_id: input.causation_id,
+      timestamp: row.timestamp,
+    };
+  }
+
+  appendIdempotent(input: AppendEventInput): PersistedEventEnvelope | null {
+    validateEventData(input.type, input.data);
+
+    const eventId = input.event_id ?? generateId();
+    const result = this.insertIgnoreStmt.run(
       eventId,
       input.task_id,
       input.type,
@@ -869,34 +1339,39 @@ export class EventStore {
       input.causation_id ?? null
     );
 
-    return {
-      event_id: eventId,
-      task_id: input.task_id,
-      type: input.type,
-      data: input.data,
-      author: input.author,
-      agent_id: input.agent_id,
-      session_id: input.session_id,
-      correlation_id: input.correlation_id,
-      causation_id: input.causation_id,
-      timestamp,
-    };
+    // If no rows changed, the event_id already existed
+    if (result.changes === 0) {
+      return null;
+    }
+
+    // Fetch the inserted row to get canonical timestamp
+    const row = this.selectByEventIdStmt.get(eventId) as any;
+    return this.rowToEnvelope(row);
   }
 
-  getByTaskId(taskId: string): EventEnvelope[] {
-    const rows = this.selectByTaskStmt.all(taskId) as any[];
-    return rows.map(row => ({
+  getByTaskId(taskId: string, opts?: GetByTaskIdOptions): PersistedEventEnvelope[] {
+    const rows = this.selectByTaskStmt.all(
+      taskId,
+      opts?.afterId ?? null,
+      opts?.limit ?? null
+    ) as any[];
+    return rows.map(row => this.rowToEnvelope(row));
+  }
+
+  private rowToEnvelope(row: any): PersistedEventEnvelope {
+    return {
+      rowid: row.id,
       event_id: row.event_id,
       task_id: row.task_id,
       type: row.type as EventType,
       data: JSON.parse(row.data),
-      author: row.author,
-      agent_id: row.agent_id,
-      session_id: row.session_id,
-      correlation_id: row.correlation_id,
-      causation_id: row.causation_id,
+      author: row.author ?? undefined,
+      agent_id: row.agent_id ?? undefined,
+      session_id: row.session_id ?? undefined,
+      correlation_id: row.correlation_id ?? undefined,
+      causation_id: row.causation_id ?? undefined,
       timestamp: row.timestamp,
-    }));
+    };
   }
 }
 ```
@@ -910,40 +1385,105 @@ Expected: PASS
 
 ```bash
 git add packages/hzl-core/src/events/store.ts packages/hzl-core/src/events/store.test.ts
-git commit -m "feat(core): add event store"
+git commit -m "feat(core): add event store with canonical timestamps and pagination"
 ```
 
 ---
 
-## Summary: Remaining Tasks (7-27)
+## Summary: Remaining Tasks (7-42)
 
-### Phase 3: Projections
-- **Task 7:** Task projection (create, status change, update)
-- **Task 8:** Dependency projection (add/remove deps, cycle detection)
+### Phase 3: Projections (First-Class Incremental System)
+
+All projections apply events in the same transaction as event writes to ensure immediate consistency.
+
+- **Task 7:** ProjectionEngine + Projector interface + projection_state tracking
+- **Task 8:** TasksCurrentProjector (create/status/move/update + claim lease fields)
+- **Task 9:** DependenciesProjector (add/remove deps, enforce no self-deps)
+- **Task 10:** TagsProjector (task_tags for fast tag filtering)
+- **Task 11:** CommentsAndCheckpointsProjector (task_comments + task_checkpoints)
+- **Task 12:** Rebuild API: drop projections, replay from events, verify consistency
 
 ### Phase 4: Core Services
-- **Task 9:** TaskService - create task
-- **Task 10:** TaskService - claim task (atomic)
-- **Task 11:** TaskService - claim-next (atomic select + claim)
-- **Task 12:** TaskService - complete, release, archive
-- **Task 13:** TaskService - comments and checkpoints
-- **Task 14:** Availability checker (deps satisfied)
 
-### Phase 5: CLI
-- **Task 15:** CLI entry point and init command
-- **Task 16:** CLI add command
-- **Task 17:** CLI list/show commands
-- **Task 18:** CLI claim/complete commands
-- **Task 19:** CLI claim-next command
-- **Task 20:** CLI dependency commands
-- **Task 21:** CLI comment/checkpoint commands
-- **Task 22:** CLI utility commands (doctor, rebuild)
+All writes use BEGIN IMMEDIATE + append event(s) + apply projections in one transaction.
+
+- **Task 13:** TaskService - create task (emit task_created + apply projections atomically)
+- **Task 14:** TaskService - claim task (atomic): verify claimable (ready + deps done), emit status_changed(ready→in_progress) with optional lease_until
+- **Task 15:** TaskService - claim-next (atomic): select claimable by priority DESC, created_at ASC, task_id ASC, then claim in same transaction
+- **Task 16:** TaskService - complete, release, archive, reopen (status transitions with invariants)
+- **Task 17:** Lease support: lease_until storage, steal-if-expired (enforced in single transaction), stuck detection helpers
+- **Task 18:** Availability checker (all deps done) + tag-aware "next" query helpers
+- **Task 19:** Validate API: cycles detection, missing deps check, projection consistency verification
+- **Task 20:** TaskService - comments and checkpoints APIs
+
+### Phase 5: CLI (Full Command Surface)
+
+- **Task 21:** CLI framework: global options (--db, --json), config resolution (env vars + ~/.hzl/config.json), error handling
+- **Task 22:** init / which-db / projects / rename-project
+- **Task 23:** add / list (filters: project/status/parent/tag/available) / next
+- **Task 24:** show (current state + recent history + comments + checkpoints) / history (full event history) / update / move
+- **Task 25:** claim / claim-next / complete / set-status / release / reopen / archive
+- **Task 26:** steal (--if-expired, --force) / stuck (--project, --older-than)
+- **Task 27:** add-dep / remove-dep / validate (cycles, missing tasks, invalid states)
+- **Task 28:** comment / checkpoint / checkpoints
+- **Task 29:** backup / restore / export (--jsonl) / import (idempotent via event_id)
+- **Task 30:** doctor (integrity_check + projection consistency) / rebuild / compact
+- **Task 31:** stats (durations, throughput derived from events)
 
 ### Phase 6: Testing & QA
-- **Task 23:** Concurrency stress tests
-- **Task 24:** Sample project command
-- **Task 25:** Property-based tests
+
+- **Task 32:** CLI integration tests (real file DB, round-trip commands)
+- **Task 33:** Cross-process concurrency stress tests (claim, claim-next, steal-if-expired using child processes)
+- **Task 34:** Migration upgrade tests (v1 → v2 fixtures)
+- **Task 35:** Import/export idempotency tests + backup/restore round-trip tests
+- **Task 36:** Projection rebuild equivalence tests (incremental vs full rebuild)
+- **Task 37:** Property-based tests (event replay determinism, invariants hold for all valid event sequences)
+- **Task 38:** Sample project command (`hzl sample-project create/reset`)
 
 ### Phase 7: CI/CD
-- **Task 26:** GitHub Actions workflow
-- **Task 27:** Core library index export
+
+- **Task 39:** GitHub Actions workflow (Linux/macOS/Windows matrix, cache native deps, typecheck/lint/test/format)
+- **Task 40:** Core library index.ts export (public API surface)
+
+### Phase 8: Web Dashboard (Server + UI)
+
+- **Task 41:** hzl-server scaffolding (Fastify HTTP server calling hzl-core directly)
+- **Task 42:** Read API: GET /tasks (list with filters), GET /tasks/:id (show), GET /tasks/:id/history, GET /projects, GET /stats, GET /stuck
+- **Task 43:** Write API: POST /tasks (add), PATCH /tasks/:id (update/move), POST /tasks/:id/claim, POST /claim-next, POST /tasks/:id/complete, POST /tasks/:id/release, POST /tasks/:id/steal, POST /tasks/:id/comment, POST /tasks/:id/checkpoint
+- **Task 44:** Live updates: SSE endpoint for events since last id (GET /events/stream?since=N)
+- **Task 45:** hzl-web scaffolding (Vite + React) + routing + project switcher
+- **Task 46:** Kanban board view + filters (tags/status/priority) + "Next up" view
+- **Task 47:** Task detail panel (history timeline, comments, checkpoints)
+- **Task 48:** Stuck tasks view + basic analytics dashboard
+
+---
+
+## Appendix: Key Invariants (Enforced by TaskService)
+
+These invariants MUST be tested and MUST hold under concurrent access:
+
+**Status Transitions:**
+- `backlog` → `ready` (explicit)
+- `ready` → `in_progress` (via claim, requires deps done)
+- `in_progress` → `done` (via complete)
+- `in_progress` → `ready` (via release, with reason)
+- `done` → `ready` or `backlog` (via reopen)
+- Any → `archived` (via archive)
+
+**Claim Requirements:**
+- Task status MUST be `ready`
+- ALL tasks in `depends_on` MUST have status `done`
+
+**Dependency Integrity:**
+- No self-dependencies (`task_id != depends_on_id`)
+- No cycles (reject at write time via DFS/BFS check)
+
+**Claim-Next Selection Policy:**
+1. Filter: status=ready AND all deps done
+2. Sort: priority DESC, created_at ASC, task_id ASC (stable tie-break)
+3. Select first, claim atomically in same transaction
+
+**Leases:**
+- When `--lease` provided, store `lease_until` timestamp
+- `steal --if-expired` only succeeds if `lease_until < now` (unless `--force`)
+- All checked within single transaction
