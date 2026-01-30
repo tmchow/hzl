@@ -6755,6 +6755,8 @@ git commit -m "test(core): add migration upgrade tests with v1 fixtures"
 
 ### Task 38: Import/Export Idempotency Tests + Backup/Restore Round-Trip Tests ✅
 
+Status: ✅
+
 **Files:**
 - Create: `packages/hzl-core/src/__tests__/backup/backup-restore.test.ts`
 - Create: `packages/hzl-core/src/__tests__/backup/import-export.test.ts`

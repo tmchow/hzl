@@ -166,6 +166,10 @@ describe('Import/Export Idempotency Tests', () => {
       expect(events[0].type).toBe('task_created');
       expect(events[1].type).toBe('status_changed');
 
+      const tasks = newDb.prepare('SELECT * FROM tasks_current').all() as any[];
+      expect(tasks).toHaveLength(1);
+      expect(tasks[0].status).toBe('ready');
+
       newDb.close();
     });
 
