@@ -5471,7 +5471,7 @@ Options: --project, --json
 
 ## Phase 6: Testing & QA
 
-### Task 35: CLI Integration Tests
+### Task 35: CLI Integration Tests ✅
 
 **Files:**
 - Create: `packages/hzl-cli/src/__tests__/integration/cli-integration.test.ts`
@@ -5847,7 +5847,7 @@ git commit -m "test(cli): add CLI integration tests with round-trip scenarios"
 
 ---
 
-### Task 36: Cross-Process Concurrency Stress Tests
+### Task 36: Cross-Process Concurrency Stress Tests ✅
 
 **Files:**
 - Create: `packages/hzl-core/src/__tests__/concurrency/stress.test.ts`
