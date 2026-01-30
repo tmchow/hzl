@@ -2,23 +2,25 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Build a task coordination system for AI agent swarms with SQLite-backed event sourcing, a CLI, and a web dashboard.
+**Goal:** Build a task coordination system for AI agent swarms with SQLite-backed event sourcing and a CLI. Web dashboard deferred to future phase.
 
-**Deliverables (concrete packages):**
+**Deliverables (this plan):**
 - `hzl-core` — All business logic, SQLite, events, projections, invariants
 - `hzl-cli` — Thin CLI wrapper over `hzl-core`
-- `hzl-server` — HTTP API over `hzl-core` for the dashboard (no CLI process spawning)
+
+**Future Deliverables (separate plan):**
+- `hzl-server` — HTTP API over `hzl-core` for the dashboard
 - `hzl-web` — Dashboard UI (Kanban, analytics, steering)
 
-**Architecture:** Event-sourced design with append-only events table as source of truth. Projections are rebuildable and updated atomically within the same transaction as event writes. Core library (`hzl-core`) contains all business logic, consumed by CLI, server, and web dashboard. SQLite with WAL mode for concurrent access from multiple agent processes.
+**Architecture:** Event-sourced design with append-only events table as source of truth. Projections are rebuildable and updated atomically within the same transaction as event writes. Core library (`hzl-core`) contains all business logic, consumed by CLI (and later server/web). SQLite with WAL mode for concurrent access from multiple agent processes.
 
-**Tech Stack:** TypeScript, Node.js 20+, SQLite (better-sqlite3), Zod for validation, Vitest for testing, Commander.js for CLI, Fastify for server
+**Tech Stack:** TypeScript, Node.js 20+, SQLite (better-sqlite3), Zod for validation, Vitest for testing, Commander.js for CLI
 
 ---
 
 ## Phase 1: Project Setup & Core Infrastructure
 
-### Task 1: Initialize TypeScript Monorepo (Core + CLI + Server + Web)
+### Task 1: Initialize TypeScript Monorepo (Core + CLI)
 
 **Files:**
 - Create: `package.json`
@@ -27,10 +29,6 @@
 - Create: `packages/hzl-core/tsconfig.json`
 - Create: `packages/hzl-cli/package.json`
 - Create: `packages/hzl-cli/tsconfig.json`
-- Create: `packages/hzl-server/package.json`
-- Create: `packages/hzl-server/tsconfig.json`
-- Create: `packages/hzl-web/package.json`
-- Create: `packages/hzl-web/tsconfig.json`
 - Create: `.prettierrc`
 - Create: `.prettierignore`
 
@@ -156,80 +154,7 @@
 }
 ```
 
-**Step 7: Create packages/hzl-server/package.json**
-
-```json
-{
-  "name": "hzl-server",
-  "version": "0.1.0",
-  "type": "module",
-  "main": "dist/index.js",
-  "scripts": {
-    "build": "tsc",
-    "test": "vitest run",
-    "start": "node dist/index.js"
-  },
-  "dependencies": {
-    "hzl-core": "workspace:*",
-    "fastify": "^4.26.0"
-  }
-}
-```
-
-**Step 8: Create packages/hzl-server/tsconfig.json**
-
-```json
-{
-  "extends": "../../tsconfig.json",
-  "compilerOptions": {
-    "rootDir": "src",
-    "outDir": "dist"
-  },
-  "include": ["src/**/*"]
-}
-```
-
-**Step 9: Create packages/hzl-web/package.json**
-
-```json
-{
-  "name": "hzl-web",
-  "version": "0.1.0",
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
-  },
-  "devDependencies": {
-    "@types/react": "^18.2.0",
-    "@types/react-dom": "^18.2.0",
-    "@vitejs/plugin-react": "^4.2.0",
-    "vite": "^5.0.0"
-  }
-}
-```
-
-**Step 10: Create packages/hzl-web/tsconfig.json**
-
-```json
-{
-  "extends": "../../tsconfig.json",
-  "compilerOptions": {
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "jsx": "react-jsx",
-    "rootDir": "src",
-    "outDir": "dist"
-  },
-  "include": ["src/**/*"]
-}
-```
-
-**Step 11: Create .prettierrc**
+**Step 7: Create .prettierrc**
 
 ```json
 {
@@ -240,7 +165,7 @@
 }
 ```
 
-**Step 12: Create .prettierignore**
+**Step 8: Create .prettierignore**
 
 ```
 dist/
@@ -250,15 +175,15 @@ node_modules/
 *.db-shm
 ```
 
-**Step 13: Install dependencies**
+**Step 9: Install dependencies**
 
 Run: `npm install`
 
-**Step 14: Commit**
+**Step 10: Commit**
 
 ```bash
 git add package.json tsconfig.json packages/ .prettierrc .prettierignore
-git commit -m "chore: initialize TypeScript monorepo with core, cli, server, web"
+git commit -m "chore: initialize TypeScript monorepo with core and cli"
 ```
 
 ---
@@ -360,6 +285,14 @@ describe('migrations', () => {
     expect(table).toBeDefined();
   });
 
+  it('creates task_search FTS5 table', () => {
+    runMigrations(db);
+    const table = db.prepare(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='task_search'"
+    ).get();
+    expect(table).toBeDefined();
+  });
+
   it('is idempotent', () => {
     runMigrations(db);
     runMigrations(db);
@@ -456,6 +389,15 @@ CREATE TABLE IF NOT EXISTS task_checkpoints (
     timestamp   TEXT NOT NULL
 );
 
+-- Full-text search over tasks (rebuildable)
+CREATE VIRTUAL TABLE IF NOT EXISTS task_search USING fts5(
+    task_id UNINDEXED,
+    title,
+    description,
+    content='tasks_current',
+    content_rowid='rowid'
+);
+
 -- Indexes for events
 CREATE INDEX IF NOT EXISTS idx_events_task_id ON events(task_id);
 CREATE INDEX IF NOT EXISTS idx_events_task_id_id ON events(task_id, id);
@@ -546,7 +488,7 @@ Expected: PASS
 
 ```bash
 git add packages/hzl-core/src/db/
-git commit -m "feat(core): add database schema with projections, leases, tags, comments, checkpoints"
+git commit -m "feat(core): add database schema with projections, leases, tags, comments, checkpoints, FTS5 search"
 ```
 
 ---
@@ -1088,20 +1030,6 @@ describe('EventStore', () => {
       expect(event.rowid).toBeGreaterThan(0);
     });
 
-    it('uses DB-generated timestamp (not Node clock)', () => {
-      const before = new Date().toISOString();
-      const event = store.append({
-        task_id: 'TASK1',
-        type: EventType.TaskCreated,
-        data: { title: 'Test', project: 'inbox' },
-      });
-      const after = new Date().toISOString();
-
-      // Timestamp should be between before and after (with some tolerance)
-      expect(event.timestamp >= before.slice(0, 19)).toBe(true);
-      expect(event.timestamp <= after.slice(0, 19) + 'Z').toBe(true);
-    });
-
     it('rejects duplicate event_id', () => {
       const eventId = '01ARZ3NDEKTSV4RRFFQ69G5FAV';
       store.append({
@@ -1390,7 +1318,7 @@ git commit -m "feat(core): add event store with canonical timestamps and paginat
 
 ---
 
-## Summary: Remaining Tasks (7-42)
+## Summary: Remaining Tasks (7-40)
 
 ### Phase 3: Projections (First-Class Incremental System)
 
@@ -1401,60 +1329,68 @@ All projections apply events in the same transaction as event writes to ensure i
 - **Task 9:** DependenciesProjector (add/remove deps, enforce no self-deps)
 - **Task 10:** TagsProjector (task_tags for fast tag filtering)
 - **Task 11:** CommentsAndCheckpointsProjector (task_comments + task_checkpoints)
-- **Task 12:** Rebuild API: drop projections, replay from events, verify consistency
+- **Task 12:** SearchProjector (FTS5 task_search for full-text search)
+- **Task 13:** Rebuild API: drop projections, replay from events, verify consistency
 
 ### Phase 4: Core Services
 
 All writes use BEGIN IMMEDIATE + append event(s) + apply projections in one transaction.
 
-- **Task 13:** TaskService - create task (emit task_created + apply projections atomically)
-- **Task 14:** TaskService - claim task (atomic): verify claimable (ready + deps done), emit status_changed(ready→in_progress) with optional lease_until
-- **Task 15:** TaskService - claim-next (atomic): select claimable by priority DESC, created_at ASC, task_id ASC, then claim in same transaction
-- **Task 16:** TaskService - complete, release, archive, reopen (status transitions with invariants)
-- **Task 17:** Lease support: lease_until storage, steal-if-expired (enforced in single transaction), stuck detection helpers
-- **Task 18:** Availability checker (all deps done) + tag-aware "next" query helpers
-- **Task 19:** Validate API: cycles detection, missing deps check, projection consistency verification
-- **Task 20:** TaskService - comments and checkpoints APIs
+- **Task 14:** TaskService - create task (emit task_created + apply projections atomically)
+- **Task 15:** TaskService - claim task (atomic): verify claimable (ready + deps done), emit status_changed(ready→in_progress) with optional lease_until
+- **Task 16:** TaskService - claim-next (atomic): select claimable by priority DESC, created_at ASC, task_id ASC, then claim in same transaction
+- **Task 17:** TaskService - complete, release, archive, reopen (status transitions with invariants)
+- **Task 18:** Lease support: lease_until storage, steal-if-expired (enforced in single transaction), stuck detection helpers
+- **Task 19:** Availability checker (all deps done) + tag-aware "next" query helpers
+- **Task 20:** Validate API: cycles detection, missing deps check, projection consistency verification
+- **Task 21:** TaskService - comments and checkpoints APIs
+- **Task 22:** SearchService - full-text search over tasks (title/description)
 
 ### Phase 5: CLI (Full Command Surface)
 
-- **Task 21:** CLI framework: global options (--db, --json), config resolution (env vars + ~/.hzl/config.json), error handling
-- **Task 22:** init / which-db / projects / rename-project
-- **Task 23:** add / list (filters: project/status/parent/tag/available) / next
-- **Task 24:** show (current state + recent history + comments + checkpoints) / history (full event history) / update / move
-- **Task 25:** claim / claim-next / complete / set-status / release / reopen / archive
-- **Task 26:** steal (--if-expired, --force) / stuck (--project, --older-than)
-- **Task 27:** add-dep / remove-dep / validate (cycles, missing tasks, invalid states)
-- **Task 28:** comment / checkpoint / checkpoints
-- **Task 29:** backup / restore / export (--jsonl) / import (idempotent via event_id)
-- **Task 30:** doctor (integrity_check + projection consistency) / rebuild / compact
-- **Task 31:** stats (durations, throughput derived from events)
+- **Task 23:** CLI framework: global options (--db, --json), config resolution (env vars + ~/.hzl/config.json), error handling
+- **Task 24:** init / which-db / projects / rename-project
+- **Task 25:** add / list (filters: project/status/parent/tag/available) / next
+- **Task 26:** show (current state + recent history + comments + checkpoints) / history (full event history) / update / move
+- **Task 27:** claim / claim-next / complete / set-status / release / reopen / archive
+- **Task 28:** steal (--if-expired, --force) / stuck (--project, --older-than)
+- **Task 29:** add-dep / remove-dep / validate (cycles, missing tasks, invalid states)
+- **Task 30:** comment / checkpoint / checkpoints
+- **Task 31:** search (full-text search with JSON output)
+- **Task 32:** backup / restore / export (--jsonl) / import (idempotent via event_id)
+- **Task 33:** doctor (integrity_check + projection consistency) / rebuild / compact
+- **Task 34:** stats (durations, throughput derived from events)
 
 ### Phase 6: Testing & QA
 
-- **Task 32:** CLI integration tests (real file DB, round-trip commands)
-- **Task 33:** Cross-process concurrency stress tests (claim, claim-next, steal-if-expired using child processes)
-- **Task 34:** Migration upgrade tests (v1 → v2 fixtures)
-- **Task 35:** Import/export idempotency tests + backup/restore round-trip tests
-- **Task 36:** Projection rebuild equivalence tests (incremental vs full rebuild)
-- **Task 37:** Property-based tests (event replay determinism, invariants hold for all valid event sequences)
-- **Task 38:** Sample project command (`hzl sample-project create/reset`)
+- **Task 35:** CLI integration tests (real file DB, round-trip commands)
+- **Task 36:** Cross-process concurrency stress tests (claim, claim-next, steal-if-expired using child processes)
+- **Task 37:** Migration upgrade tests (v1 → v2 fixtures)
+- **Task 38:** Import/export idempotency tests + backup/restore round-trip tests
+- **Task 39:** Projection rebuild equivalence tests (incremental vs full rebuild)
+- **Task 40:** Property-based tests (event replay determinism, invariants hold for all valid event sequences)
+- **Task 41:** Sample project command (`hzl sample-project create/reset`)
 
 ### Phase 7: CI/CD
 
-- **Task 39:** GitHub Actions workflow (Linux/macOS/Windows matrix, cache native deps, typecheck/lint/test/format)
-- **Task 40:** Core library index.ts export (public API surface)
+- **Task 42:** GitHub Actions workflow (Linux/macOS/Windows matrix, cache native deps, typecheck/lint/test/format)
+- **Task 43:** Core library index.ts export (public API surface)
 
-### Phase 8: Web Dashboard (Server + UI)
+---
 
-- **Task 41:** hzl-server scaffolding (Fastify HTTP server calling hzl-core directly)
-- **Task 42:** Read API: GET /tasks (list with filters), GET /tasks/:id (show), GET /tasks/:id/history, GET /projects, GET /stats, GET /stuck
-- **Task 43:** Write API: POST /tasks (add), PATCH /tasks/:id (update/move), POST /tasks/:id/claim, POST /claim-next, POST /tasks/:id/complete, POST /tasks/:id/release, POST /tasks/:id/steal, POST /tasks/:id/comment, POST /tasks/:id/checkpoint
-- **Task 44:** Live updates: SSE endpoint for events since last id (GET /events/stream?since=N)
-- **Task 45:** hzl-web scaffolding (Vite + React) + routing + project switcher
-- **Task 46:** Kanban board view + filters (tags/status/priority) + "Next up" view
-- **Task 47:** Task detail panel (history timeline, comments, checkpoints)
-- **Task 48:** Stuck tasks view + basic analytics dashboard
+## Future Phase: Web Dashboard (Server + UI)
+
+> **Note:** Deferred. Implement after CLI is stable and battle-tested.
+
+- hzl-server scaffolding (Fastify HTTP server calling hzl-core directly)
+- Read API: GET /tasks, GET /tasks/:id, GET /tasks/:id/history, GET /projects, GET /stats, GET /stuck, GET /search
+- Write API: POST /tasks, PATCH /tasks/:id, POST /tasks/:id/claim, POST /claim-next, POST /tasks/:id/complete, POST /tasks/:id/release, POST /tasks/:id/steal, POST /tasks/:id/comment, POST /tasks/:id/checkpoint
+- Live updates: SSE endpoint for events since last id (GET /events/stream?since=N)
+- hzl-web scaffolding (Vite + React) + routing + project switcher
+- Kanban board view + filters (tags/status/priority) + "Next up" view
+- Task detail panel (history timeline, comments, checkpoints)
+- Stuck tasks view + basic analytics dashboard
+- Search bar + result list
 
 ---
 
