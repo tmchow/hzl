@@ -7822,7 +7822,7 @@ git commit -m "test(core): add projection rebuild equivalence tests"
 
 ---
 
-### Task 40: Property-Based Tests
+### Task 40: Property-Based Tests ✅
 
 **Files:**
 - Create: `packages/hzl-core/src/__tests__/properties/invariants.test.ts`
