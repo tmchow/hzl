@@ -1,4 +1,5 @@
 // packages/hzl-cli/src/commands/which-db.ts
+import fs from 'fs';
 import { Command } from 'commander';
 import { resolveDbPath, getDefaultDbPath } from '../config.js';
 import type { GlobalOptions } from '../types.js';
@@ -36,7 +37,6 @@ export function runWhichDb(options: { cliPath?: string; json: boolean }): WhichD
   }
   
   // Check if file exists
-  const fs = require('fs');
   const exists = fs.existsSync(path);
   
   const result: WhichDbResult = { path, source, exists };

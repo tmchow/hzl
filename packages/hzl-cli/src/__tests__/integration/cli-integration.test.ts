@@ -18,9 +18,7 @@ const packageRoot = path.resolve(__dirname, '../../..');
 const cliBinaryPath = path.join(packageRoot, 'dist', 'cli.js');
 
 beforeAll(() => {
-  if (!fs.existsSync(cliBinaryPath)) {
-    execSync('npm run build', { cwd: packageRoot, stdio: 'inherit' });
-  }
+  execSync('npm run build', { cwd: packageRoot, stdio: 'inherit' });
 });
 
 describe('CLI Integration Tests', () => {
