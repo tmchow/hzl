@@ -391,6 +391,105 @@ COMMIT;
 - No human interference with task progression
 - Humans can unstick work via release/steal/reopen when an agent crashes or a task becomes stale
 
+## Quality Assurance & Testing
+
+### Test Strategy
+
+**Unit Tests (hzl-core)**
+
+- Event creation and validation
+- Projection updates from events
+- Status transition rules
+- Dependency cycle detection
+- ULID/UUID generation and validation
+
+**Integration Tests (CLI + SQLite)**
+
+- Full command execution against real database
+- WAL mode concurrency behavior
+- Migration execution
+- Backup/restore round-trips
+
+**Concurrency Tests (Critical)**
+
+- Two agents claiming same task simultaneously
+- Parallel `claim-next` calls
+- Transaction isolation under `BEGIN IMMEDIATE`
+- Busy timeout behavior
+
+**Property-Based Tests**
+
+- Event replay always produces same projection state
+- Projection rebuild matches incremental updates
+- No valid event sequence produces invalid state
+
+### Test Scenarios
+
+| Scenario | Description | Validates |
+|----------|-------------|-----------|
+| Happy path lifecycle | Create → claim → checkpoint → complete | Basic flow |
+| Concurrent claim race | Two processes claim same task | Atomic claiming |
+| Dependency gate | Task with unmet deps cannot be claimed | Availability rules |
+| claim-next atomicity | Parallel claim-next gets different tasks | No double-assignment |
+| Cycle rejection | Adding dep that creates cycle fails | Integrity constraint |
+| Crash recovery | Agent crashes, another reads checkpoints and continues | Checkpoint mechanism |
+| Projection rebuild | Delete projections, rebuild, compare | Event sourcing correctness |
+| Stuck task detection | Task in_progress > threshold appears in `stuck` | Monitoring |
+| Import idempotency | Import same events twice, no duplicates | event_id uniqueness |
+
+### Sample Project
+
+A canonical sample project for testing and demos:
+
+```
+Project: "docs-site"
+Tasks:
+  [T1] Write introduction (ready)
+  [T2] Write API reference (ready)
+  [T3] Write examples (depends_on: T2)
+  [T4] Review all docs (depends_on: T1, T2, T3)
+  [T5] Publish site (depends_on: T4)
+```
+
+**Usage:**
+
+- `hzl sample-project create` - Creates the sample project
+- `hzl sample-project reset` - Resets to initial state
+- Used in integration tests, CI, and documentation
+
+### Automation
+
+**CI Pipeline (GitHub Actions)**
+
+```yaml
+jobs:
+  test:
+    steps:
+      - Unit tests (fast, every push)
+      - Integration tests (CLI commands)
+      - Concurrency stress tests
+      - Sample project walkthrough
+      - Coverage reporting (target: 90%+)
+```
+
+**Pre-release Checklist**
+
+- [ ] All tests pass
+- [ ] Sample project walkthrough succeeds
+- [ ] `hzl doctor` reports no issues
+- [ ] Projection rebuild matches current state
+- [ ] Migrations apply cleanly to fresh DB
+- [ ] Migrations apply cleanly to previous version DB
+
+### Invariant Assertions
+
+Runtime checks (debug mode) that can be enabled:
+
+- After every write: projection matches event replay
+- No task has status `in_progress` with unmet dependencies
+- No dependency cycles exist
+- All `depends_on` references point to existing tasks
+
 ## Deliverables
 
 1. **`hzl-core`** - Shared TypeScript library (DB, events, projections, validation)
@@ -398,3 +497,9 @@ COMMIT;
 3. **Web dashboard** - Kanban board, analytics, comment interface (uses `hzl-core`)
 4. **Migrations + tooling** - schema migrations, projection rebuild, backup/restore, export/import, doctor
 5. **Claude Code skill** - Teaches agents how to use `hzl` (separate deliverable)
+6. **Test suite** - Unit, integration, and concurrency stress tests with 90%+ coverage target
+7. **Sample project** - `hzl sample-project` command for demos and testing
+8. **CI configuration** - GitHub Actions workflow for automated testing
+
+
+
