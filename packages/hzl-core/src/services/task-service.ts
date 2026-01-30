@@ -62,6 +62,16 @@ export interface StuckTask {
   lease_until: string | null;
 }
 
+export interface AvailableTask {
+  task_id: string;
+  title: string;
+  project: string;
+  status: TaskStatus;
+  priority: number;
+  created_at: string;
+  tags: string[];
+}
+
 export interface Task {
   task_id: string;
   title: string;
@@ -419,6 +429,69 @@ export class TaskService {
     query += ' ORDER BY claimed_at ASC';
 
     return this.db.prepare(query).all(...params) as StuckTask[];
+  }
+
+  areAllDepsDone(taskId: string): boolean {
+    const result = this.db.prepare(`
+      SELECT COUNT(*) as count FROM task_dependencies td
+      JOIN tasks_current tc ON td.depends_on_id = tc.task_id
+      WHERE td.task_id = ? AND tc.status != 'done'
+    `).get(taskId) as { count: number };
+    return result.count === 0;
+  }
+
+  isTaskAvailable(taskId: string): boolean {
+    const task = this.getTaskById(taskId);
+    if (!task) return false;
+    if (task.status !== TaskStatus.Ready) return false;
+    return this.areAllDepsDone(taskId);
+  }
+
+  getAvailableTasks(opts: { project?: string; tagsAny?: string[]; tagsAll?: string[]; limit?: number }): AvailableTask[] {
+    let query = `
+      SELECT tc.task_id, tc.title, tc.project, tc.status, tc.priority, tc.created_at, tc.tags
+      FROM tasks_current tc
+      WHERE tc.status = 'ready'
+        AND NOT EXISTS (
+          SELECT 1 FROM task_dependencies td
+          JOIN tasks_current dep ON td.depends_on_id = dep.task_id
+          WHERE td.task_id = tc.task_id AND dep.status != 'done'
+        )
+    `;
+    const params: any[] = [];
+
+    if (opts.project) {
+      query += ' AND tc.project = ?';
+      params.push(opts.project);
+    }
+
+    if (opts.tagsAny?.length) {
+      query += ` AND EXISTS (SELECT 1 FROM task_tags tt WHERE tt.task_id = tc.task_id AND tt.tag IN (${opts.tagsAny.map(() => '?').join(',')}))`;
+      params.push(...opts.tagsAny);
+    }
+
+    if (opts.tagsAll?.length) {
+      query += ` AND (SELECT COUNT(DISTINCT tt.tag) FROM task_tags tt WHERE tt.task_id = tc.task_id AND tt.tag IN (${opts.tagsAll.map(() => '?').join(',')})) = ?`;
+      params.push(...opts.tagsAll, opts.tagsAll.length);
+    }
+
+    query += ' ORDER BY tc.priority DESC, tc.created_at ASC, tc.task_id ASC';
+
+    if (opts.limit) {
+      query += ' LIMIT ?';
+      params.push(opts.limit);
+    }
+
+    const rows = this.db.prepare(query).all(...params) as any[];
+    return rows.map(row => ({
+      task_id: row.task_id,
+      title: row.title,
+      project: row.project,
+      status: row.status as TaskStatus,
+      priority: row.priority,
+      created_at: row.created_at,
+      tags: JSON.parse(row.tags || '[]'),
+    }));
   }
 
   getTaskById(taskId: string): Task | null {

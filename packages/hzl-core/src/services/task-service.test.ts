@@ -381,4 +381,71 @@ describe('TaskService', () => {
       expect(stuck[0].project).toBe('project-a');
     });
   });
+
+  describe('areAllDepsDone', () => {
+    it('returns true when task has no dependencies', () => {
+      const task = taskService.createTask({ title: 'No deps', project: 'inbox' });
+      expect(taskService.areAllDepsDone(task.task_id)).toBe(true);
+    });
+
+    it('returns true when all dependencies are done', () => {
+      const dep = taskService.createTask({ title: 'Dep', project: 'inbox' });
+      taskService.setStatus(dep.task_id, TaskStatus.Ready);
+      taskService.claimTask(dep.task_id);
+      taskService.completeTask(dep.task_id);
+
+      const task = taskService.createTask({ title: 'Main', project: 'inbox', depends_on: [dep.task_id] });
+      expect(taskService.areAllDepsDone(task.task_id)).toBe(true);
+    });
+
+    it('returns false when some dependencies are not done', () => {
+      const dep = taskService.createTask({ title: 'Dep', project: 'inbox' });
+      const task = taskService.createTask({ title: 'Main', project: 'inbox', depends_on: [dep.task_id] });
+      expect(taskService.areAllDepsDone(task.task_id)).toBe(false);
+    });
+  });
+
+  describe('isTaskAvailable', () => {
+    it('returns true when task is ready and all deps are done', () => {
+      const task = taskService.createTask({ title: 'Test', project: 'inbox' });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+      expect(taskService.isTaskAvailable(task.task_id)).toBe(true);
+    });
+
+    it('returns false when task is not ready', () => {
+      const task = taskService.createTask({ title: 'Test', project: 'inbox' });
+      expect(taskService.isTaskAvailable(task.task_id)).toBe(false);
+    });
+  });
+
+  describe('getAvailableTasks', () => {
+    it('returns tasks that are ready with all deps done', () => {
+      const task = taskService.createTask({ title: 'Available', project: 'inbox' });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+
+      const tasks = taskService.getAvailableTasks({});
+      expect(tasks.map(t => t.task_id)).toContain(task.task_id);
+    });
+
+    it('filters by project', () => {
+      const taskA = taskService.createTask({ title: 'A', project: 'project-a' });
+      const taskB = taskService.createTask({ title: 'B', project: 'project-b' });
+      taskService.setStatus(taskA.task_id, TaskStatus.Ready);
+      taskService.setStatus(taskB.task_id, TaskStatus.Ready);
+
+      const tasks = taskService.getAvailableTasks({ project: 'project-a' });
+      expect(tasks).toHaveLength(1);
+      expect(tasks[0].project).toBe('project-a');
+    });
+
+    it('sorts by priority DESC, created_at ASC', () => {
+      const low = taskService.createTask({ title: 'Low', project: 'inbox', priority: 1 });
+      const high = taskService.createTask({ title: 'High', project: 'inbox', priority: 3 });
+      taskService.setStatus(low.task_id, TaskStatus.Ready);
+      taskService.setStatus(high.task_id, TaskStatus.Ready);
+
+      const tasks = taskService.getAvailableTasks({});
+      expect(tasks[0].task_id).toBe(high.task_id);
+    });
+  });
 });
