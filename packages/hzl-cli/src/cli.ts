@@ -16,6 +16,10 @@ import { createRenameProjectCommand } from './commands/rename-project.js';
 import { createAddCommand } from './commands/add.js';
 import { createListCommand } from './commands/list.js';
 import { createNextCommand } from './commands/next.js';
+import { createShowCommand } from './commands/show.js';
+import { createHistoryCommand } from './commands/history.js';
+import { createUpdateCommand } from './commands/update.js';
+import { createMoveCommand } from './commands/move.js';
 
 const program = new Command();
 
@@ -45,6 +49,10 @@ program.addCommand(createRenameProjectCommand());
 program.addCommand(createAddCommand());
 program.addCommand(createListCommand());
 program.addCommand(createNextCommand());
+program.addCommand(createShowCommand());
+program.addCommand(createHistoryCommand());
+program.addCommand(createUpdateCommand());
+program.addCommand(createMoveCommand());
 
 // Task commands
 const task = program.command('task').description('Task management commands');
