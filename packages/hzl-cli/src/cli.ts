@@ -28,6 +28,10 @@ import { createReopenCommand } from './commands/reopen.js';
 import { createSetStatusCommand } from './commands/set-status.js';
 import { createStealCommand } from './commands/steal.js';
 import { createStuckCommand } from './commands/stuck.js';
+import { createAddDepCommand } from './commands/add-dep.js';
+import { createRemoveDepCommand } from './commands/remove-dep.js';
+import { createCommentCommand } from './commands/comment.js';
+import { createCheckpointCommand } from './commands/checkpoint.js';
 
 const program = new Command();
 
@@ -69,6 +73,10 @@ program.addCommand(createReopenCommand());
 program.addCommand(createSetStatusCommand());
 program.addCommand(createStealCommand());
 program.addCommand(createStuckCommand());
+program.addCommand(createAddDepCommand());
+program.addCommand(createRemoveDepCommand());
+program.addCommand(createCommentCommand());
+program.addCommand(createCheckpointCommand());
 
 // Task commands
 const task = program.command('task').description('Task management commands');
