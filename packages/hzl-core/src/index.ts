@@ -100,9 +100,6 @@ export {
 
 export {
   BackupService,
-  type BackupResult,
-  type RestoreResult,
-  type ExportResult,
   type ImportResult,
 } from './services/backup-service.js';
 
