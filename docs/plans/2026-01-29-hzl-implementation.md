@@ -7469,7 +7469,7 @@ git commit -m "test(core): add import/export idempotency and backup/restore roun
 
 ---
 
-### Task 39: Projection Rebuild Equivalence Tests
+### Task 39: Projection Rebuild Equivalence Tests ✅
 
 **Files:**
 - Create: `packages/hzl-core/src/__tests__/projections/rebuild-equivalence.test.ts`
