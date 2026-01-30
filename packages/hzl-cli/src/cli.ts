@@ -34,6 +34,8 @@ import { createCommentCommand } from './commands/comment.js';
 import { createCheckpointCommand } from './commands/checkpoint.js';
 import { createValidateCommand } from './commands/validate.js';
 import { createSearchCommand } from './commands/search.js';
+import { createStatsCommand } from './commands/stats.js';
+import { createExportEventsCommand } from './commands/export-events.js';
 
 const program = new Command();
 
@@ -81,6 +83,8 @@ program.addCommand(createCommentCommand());
 program.addCommand(createCheckpointCommand());
 program.addCommand(createValidateCommand());
 program.addCommand(createSearchCommand());
+program.addCommand(createStatsCommand());
+program.addCommand(createExportEventsCommand());
 
 // Task commands
 const task = program.command('task').description('Task management commands');
