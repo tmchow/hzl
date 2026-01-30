@@ -3,9 +3,10 @@ export enum ExitCode {
   Success = 0,
   GeneralError = 1,
   InvalidUsage = 2,
-  NotFound = 3,
-  DatabaseError = 4,
-  ValidationError = 5,
+  InvalidInput = 3,
+  NotFound = 4,
+  DatabaseError = 5,
+  ValidationError = 6,
 }
 
 export class CLIError extends Error {
@@ -18,7 +19,7 @@ export class CLIError extends Error {
   }
 }
 
-export function handleError(error: unknown, json: boolean = false): never {
+export function handleError(error: unknown, json: boolean = false): void {
   if (error instanceof CLIError) {
     if (json) {
       console.log(JSON.stringify({ error: error.message, code: error.exitCode }));
