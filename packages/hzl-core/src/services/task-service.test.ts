@@ -122,4 +122,68 @@ describe('TaskService', () => {
       expect(events[0].agent_id).toBe('AGENT001');
     });
   });
+
+  describe('claimTask', () => {
+    it('claims a ready task with no dependencies', () => {
+      const task = taskService.createTask({ title: 'Ready task', project: 'inbox' });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+
+      const claimed = taskService.claimTask(task.task_id, { author: 'agent-1' });
+
+      expect(claimed.status).toBe(TaskStatus.InProgress);
+      expect(claimed.claimed_by_author).toBe('agent-1');
+      expect(claimed.claimed_at).toBeDefined();
+    });
+
+    it('claims a ready task with all dependencies done', () => {
+      const dep1 = taskService.createTask({ title: 'Dep 1', project: 'inbox' });
+      const dep2 = taskService.createTask({ title: 'Dep 2', project: 'inbox' });
+
+      // Complete dependencies
+      taskService.setStatus(dep1.task_id, TaskStatus.Ready);
+      taskService.claimTask(dep1.task_id);
+      taskService.completeTask(dep1.task_id);
+
+      taskService.setStatus(dep2.task_id, TaskStatus.Ready);
+      taskService.claimTask(dep2.task_id);
+      taskService.completeTask(dep2.task_id);
+
+      const task = taskService.createTask({
+        title: 'Dependent task',
+        project: 'inbox',
+        depends_on: [dep1.task_id, dep2.task_id],
+      });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+
+      const claimed = taskService.claimTask(task.task_id);
+      expect(claimed.status).toBe(TaskStatus.InProgress);
+    });
+
+    it('sets lease_until when provided', () => {
+      const task = taskService.createTask({ title: 'Leased task', project: 'inbox' });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+
+      const leaseUntil = '2026-01-30T12:00:00Z';
+      const claimed = taskService.claimTask(task.task_id, { lease_until: leaseUntil });
+
+      expect(claimed.lease_until).toBe(leaseUntil);
+    });
+
+    it('throws if task is not in ready status', () => {
+      const task = taskService.createTask({ title: 'Backlog task', project: 'inbox' });
+      expect(() => taskService.claimTask(task.task_id)).toThrow(/not claimable/i);
+    });
+
+    it('throws if task has incomplete dependencies', () => {
+      const dep = taskService.createTask({ title: 'Incomplete dep', project: 'inbox' });
+      const task = taskService.createTask({
+        title: 'Blocked task',
+        project: 'inbox',
+        depends_on: [dep.task_id],
+      });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+
+      expect(() => taskService.claimTask(task.task_id)).toThrow(/dependencies not done/i);
+    });
+  });
 });

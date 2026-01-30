@@ -27,6 +27,10 @@ export interface EventContext {
   causation_id?: string;
 }
 
+export interface ClaimTaskOptions extends EventContext {
+  lease_until?: string;
+}
+
 export interface Task {
   task_id: string;
   title: string;
@@ -47,12 +51,40 @@ export interface Task {
   updated_at: string;
 }
 
+export class TaskNotFoundError extends Error {
+  constructor(taskId: string) {
+    super(`Task not found: ${taskId}`);
+  }
+}
+
+export class TaskNotClaimableError extends Error {
+  constructor(taskId: string, reason: string) {
+    super(`Task ${taskId} is not claimable: ${reason}`);
+  }
+}
+
+export class DependenciesNotDoneError extends Error {
+  constructor(taskId: string, pendingDeps: string[]) {
+    super(`Task ${taskId} has dependencies not done: ${pendingDeps.join(', ')}`);
+  }
+}
+
 export class TaskService {
+  private getIncompleteDepsStmt: Database.Statement;
+
   constructor(
     private db: Database.Database,
     private eventStore: EventStore,
     private projectionEngine: ProjectionEngine
-  ) {}
+  ) {
+    this.getIncompleteDepsStmt = db.prepare(`
+      SELECT td.depends_on_id
+      FROM task_dependencies td
+      LEFT JOIN tasks_current tc ON tc.task_id = td.depends_on_id
+      WHERE td.task_id = ?
+        AND (tc.status IS NULL OR tc.status != 'done')
+    `);
+  }
 
   createTask(input: CreateTaskInput, ctx?: EventContext): Task {
     const taskId = generateId();
@@ -96,6 +128,78 @@ export class TaskService {
       throw new Error(`Failed to create task: task not found after creation`);
     }
     return task;
+  }
+
+  claimTask(taskId: string, opts?: ClaimTaskOptions): Task {
+    return withWriteTransaction(this.db, () => {
+      const task = this.getTaskById(taskId);
+      if (!task) throw new TaskNotFoundError(taskId);
+
+      if (task.status !== TaskStatus.Ready) {
+        throw new TaskNotClaimableError(taskId, `status is ${task.status}, must be ready`);
+      }
+
+      const incompleteDeps = this.getIncompleteDepsStmt.all(taskId) as { depends_on_id: string }[];
+      if (incompleteDeps.length > 0) {
+        throw new DependenciesNotDoneError(taskId, incompleteDeps.map(d => d.depends_on_id));
+      }
+
+      const eventData: any = {
+        from: TaskStatus.Ready,
+        to: TaskStatus.InProgress,
+      };
+      if (opts?.lease_until) eventData.lease_until = opts.lease_until;
+
+      const event = this.eventStore.append({
+        task_id: taskId,
+        type: EventType.StatusChanged,
+        data: eventData,
+        author: opts?.author,
+        agent_id: opts?.agent_id,
+      });
+
+      this.projectionEngine.applyEvent(event);
+      return this.getTaskById(taskId)!;
+    });
+  }
+
+  setStatus(taskId: string, toStatus: TaskStatus, ctx?: EventContext): Task {
+    return withWriteTransaction(this.db, () => {
+      const task = this.getTaskById(taskId);
+      if (!task) throw new TaskNotFoundError(taskId);
+
+      const event = this.eventStore.append({
+        task_id: taskId,
+        type: EventType.StatusChanged,
+        data: { from: task.status, to: toStatus },
+        author: ctx?.author,
+        agent_id: ctx?.agent_id,
+      });
+
+      this.projectionEngine.applyEvent(event);
+      return this.getTaskById(taskId)!;
+    });
+  }
+
+  completeTask(taskId: string, ctx?: EventContext): Task {
+    return withWriteTransaction(this.db, () => {
+      const task = this.getTaskById(taskId);
+      if (!task) throw new TaskNotFoundError(taskId);
+      if (task.status !== TaskStatus.InProgress) {
+        throw new Error(`Cannot complete: status is ${task.status}, must be in_progress`);
+      }
+
+      const event = this.eventStore.append({
+        task_id: taskId,
+        type: EventType.StatusChanged,
+        data: { from: TaskStatus.InProgress, to: TaskStatus.Done },
+        author: ctx?.author,
+        agent_id: ctx?.agent_id,
+      });
+
+      this.projectionEngine.applyEvent(event);
+      return this.getTaskById(taskId)!;
+    });
   }
 
   getTaskById(taskId: string): Task | null {
