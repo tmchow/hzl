@@ -72,6 +72,23 @@ export interface AvailableTask {
   tags: string[];
 }
 
+export interface Comment {
+  event_rowid: number;
+  task_id: string;
+  author?: string;
+  agent_id?: string;
+  text: string;
+  timestamp: string;
+}
+
+export interface Checkpoint {
+  event_rowid: number;
+  task_id: string;
+  name: string;
+  data: Record<string, unknown>;
+  timestamp: string;
+}
+
 export interface Task {
   task_id: string;
   title: string;
@@ -500,6 +517,59 @@ export class TaskService {
     ).get(taskId) as any;
     if (!row) return null;
     return this.rowToTask(row);
+  }
+
+  addComment(taskId: string, text: string, opts?: EventContext): Comment {
+    if (!text?.trim()) throw new Error('Comment text cannot be empty');
+    const task = this.getTaskById(taskId);
+    if (!task) throw new TaskNotFoundError(taskId);
+
+    return withWriteTransaction(this.db, () => {
+      const event = this.eventStore.append({
+        task_id: taskId,
+        type: EventType.CommentAdded,
+        data: { text },
+        author: opts?.author,
+        agent_id: opts?.agent_id,
+      });
+      this.projectionEngine.applyEvent(event);
+      return { event_rowid: event.rowid, task_id: taskId, author: opts?.author, agent_id: opts?.agent_id, text, timestamp: event.timestamp };
+    });
+  }
+
+  addCheckpoint(taskId: string, name: string, data?: Record<string, unknown>, opts?: EventContext): Checkpoint {
+    if (!name?.trim()) throw new Error('Checkpoint name cannot be empty');
+    const task = this.getTaskById(taskId);
+    if (!task) throw new TaskNotFoundError(taskId);
+
+    const checkpointData = data ?? {};
+    return withWriteTransaction(this.db, () => {
+      const event = this.eventStore.append({
+        task_id: taskId,
+        type: EventType.CheckpointRecorded,
+        data: { name, data: checkpointData },
+        author: opts?.author,
+        agent_id: opts?.agent_id,
+      });
+      this.projectionEngine.applyEvent(event);
+      return { event_rowid: event.rowid, task_id: taskId, name, data: checkpointData, timestamp: event.timestamp };
+    });
+  }
+
+  getComments(taskId: string): Comment[] {
+    const rows = this.db.prepare(`
+      SELECT event_rowid, task_id, author, agent_id, text, timestamp
+      FROM task_comments WHERE task_id = ? ORDER BY event_rowid ASC
+    `).all(taskId) as any[];
+    return rows.map(r => ({ event_rowid: r.event_rowid, task_id: r.task_id, author: r.author ?? undefined, agent_id: r.agent_id ?? undefined, text: r.text, timestamp: r.timestamp }));
+  }
+
+  getCheckpoints(taskId: string): Checkpoint[] {
+    const rows = this.db.prepare(`
+      SELECT event_rowid, task_id, name, data, timestamp
+      FROM task_checkpoints WHERE task_id = ? ORDER BY event_rowid ASC
+    `).all(taskId) as any[];
+    return rows.map(r => ({ event_rowid: r.event_rowid, task_id: r.task_id, name: r.name, data: JSON.parse(r.data), timestamp: r.timestamp }));
   }
 
   private rowToTask(row: any): Task {

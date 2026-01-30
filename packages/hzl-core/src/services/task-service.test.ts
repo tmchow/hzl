@@ -448,4 +448,52 @@ describe('TaskService', () => {
       expect(tasks[0].task_id).toBe(high.task_id);
     });
   });
+
+  describe('addComment', () => {
+    it('adds a comment to a task', () => {
+      const task = taskService.createTask({ title: 'Test', project: 'inbox' });
+      const comment = taskService.addComment(task.task_id, 'This is a comment');
+
+      expect(comment.text).toBe('This is a comment');
+      expect(comment.task_id).toBe(task.task_id);
+    });
+
+    it('throws when task does not exist', () => {
+      expect(() => taskService.addComment('NONEXISTENT', 'Comment')).toThrow();
+    });
+  });
+
+  describe('addCheckpoint', () => {
+    it('adds a checkpoint to a task', () => {
+      const task = taskService.createTask({ title: 'Test', project: 'inbox' });
+      const checkpoint = taskService.addCheckpoint(task.task_id, 'step1', { progress: 50 });
+
+      expect(checkpoint.name).toBe('step1');
+      expect(checkpoint.data).toEqual({ progress: 50 });
+    });
+  });
+
+  describe('getComments', () => {
+    it('returns comments for a task in order', () => {
+      const task = taskService.createTask({ title: 'Test', project: 'inbox' });
+      taskService.addComment(task.task_id, 'First');
+      taskService.addComment(task.task_id, 'Second');
+
+      const comments = taskService.getComments(task.task_id);
+      expect(comments).toHaveLength(2);
+      expect(comments[0].text).toBe('First');
+    });
+  });
+
+  describe('getCheckpoints', () => {
+    it('returns checkpoints for a task in order', () => {
+      const task = taskService.createTask({ title: 'Test', project: 'inbox' });
+      taskService.addCheckpoint(task.task_id, 'step1', { progress: 25 });
+      taskService.addCheckpoint(task.task_id, 'step2', { progress: 50 });
+
+      const checkpoints = taskService.getCheckpoints(task.task_id);
+      expect(checkpoints).toHaveLength(2);
+      expect(checkpoints[0].name).toBe('step1');
+    });
+  });
 });
