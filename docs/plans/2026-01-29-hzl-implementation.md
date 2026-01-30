@@ -6319,6 +6319,8 @@ git commit -m "test(core): add cross-process concurrency stress tests for claim,
 
 ### Task 37: Migration Upgrade Tests ✅
 
+Status: ✅
+
 **Files:**
 - Create: `packages/hzl-core/src/__tests__/migrations/upgrade.test.ts`
 - Create: `packages/hzl-core/src/__tests__/migrations/fixtures/v1-sample.sql`

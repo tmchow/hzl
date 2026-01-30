@@ -3,8 +3,12 @@ import Database from 'better-sqlite3';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
+import { fileURLToPath } from 'url';
 import { runMigrations, getCurrentVersion } from '../../db/migrations.js';
 import { createConnection } from '../../db/connection.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 describe('Migration Upgrade Tests', () => {
   let tempDir: string;
