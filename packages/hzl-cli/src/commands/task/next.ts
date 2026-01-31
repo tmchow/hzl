@@ -1,9 +1,9 @@
 // packages/hzl-cli/src/commands/next.ts
 import { Command } from 'commander';
-import { resolveDbPath } from '../config.js';
-import { initializeDb, closeDb, type Services } from '../db.js';
-import { handleError } from '../errors.js';
-import type { GlobalOptions } from '../types.js';
+import { resolveDbPath } from '../../config.js';
+import { initializeDb, closeDb, type Services } from '../../db.js';
+import { handleError } from '../../errors.js';
+import type { GlobalOptions } from '../../types.js';
 
 export interface NextResult {
   task_id: string;

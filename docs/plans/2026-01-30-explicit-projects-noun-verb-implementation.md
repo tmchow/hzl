@@ -1358,7 +1358,7 @@ Update `task/move.ts` to validate target project exists.
 
 ---
 
-### Task 20: Migrate Query Task Commands
+### Task 20: Migrate Query Task Commands ✅
 
 **Files:**
 - Move: `search.ts` → `task/search.ts`
