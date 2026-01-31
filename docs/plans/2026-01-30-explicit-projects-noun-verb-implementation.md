@@ -1243,7 +1243,7 @@ Shows projects with task counts (active and archived separately).
 
 ---
 
-### Task 11: Create `hzl project rename` Command
+### Task 11: Create `hzl project rename` Command ✅
 
 **Files:**
 - Create: `packages/hzl-cli/src/commands/project/rename.ts`
