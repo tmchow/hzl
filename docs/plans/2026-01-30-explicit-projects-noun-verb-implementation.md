@@ -1209,7 +1209,7 @@ hzl project create <name> [-d, --description <desc>]
 
 ---
 
-### Task 9: Create `hzl project delete` Command
+### Task 9: Create `hzl project delete` Command ✅
 
 **Files:**
 - Create: `packages/hzl-cli/src/commands/project/delete.ts`
