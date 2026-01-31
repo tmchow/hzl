@@ -10,6 +10,9 @@ export enum EventType {
   TaskArchived = 'task_archived',
   CommentAdded = 'comment_added',
   CheckpointRecorded = 'checkpoint_recorded',
+  ProjectCreated = 'project_created',
+  ProjectRenamed = 'project_renamed',
+  ProjectDeleted = 'project_deleted',
 }
 
 export enum TaskStatus {
@@ -90,6 +93,23 @@ const CheckpointRecordedSchema = z.object({
   data: z.record(z.unknown()).optional(),
 });
 
+const ProjectCreatedSchema = z.object({
+  name: nonEmptyString,
+  description: z.string().optional(),
+  is_protected: z.boolean().optional(),
+});
+
+const ProjectRenamedSchema = z.object({
+  old_name: nonEmptyString,
+  new_name: nonEmptyString,
+});
+
+const ProjectDeletedSchema = z.object({
+  name: nonEmptyString,
+  task_count: z.number().int().min(0),
+  archived_task_count: z.number().int().min(0),
+});
+
 export const EventSchemas: Record<EventType, z.ZodSchema<unknown>> = {
   [EventType.TaskCreated]: TaskCreatedSchema,
   [EventType.StatusChanged]: StatusChangedSchema,
@@ -100,6 +120,9 @@ export const EventSchemas: Record<EventType, z.ZodSchema<unknown>> = {
   [EventType.TaskArchived]: TaskArchivedSchema,
   [EventType.CommentAdded]: CommentAddedSchema,
   [EventType.CheckpointRecorded]: CheckpointRecordedSchema,
+  [EventType.ProjectCreated]: ProjectCreatedSchema,
+  [EventType.ProjectRenamed]: ProjectRenamedSchema,
+  [EventType.ProjectDeleted]: ProjectDeletedSchema,
 };
 
 export function validateEventData(type: EventType, data: unknown): void {
@@ -115,3 +138,8 @@ export type TaskCreatedData = z.infer<typeof TaskCreatedSchema>;
 export type StatusChangedData = z.infer<typeof StatusChangedSchema>;
 export type CommentAddedData = z.infer<typeof CommentAddedSchema>;
 export type CheckpointRecordedData = z.infer<typeof CheckpointRecordedSchema>;
+export type ProjectCreatedData = z.infer<typeof ProjectCreatedSchema>;
+export type ProjectRenamedData = z.infer<typeof ProjectRenamedSchema>;
+export type ProjectDeletedData = z.infer<typeof ProjectDeletedSchema>;
+
+export const PROJECT_EVENT_TASK_ID = '__project__';
