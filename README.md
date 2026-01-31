@@ -65,14 +65,14 @@ npm link packages/hzl-cli
 hzl init
 
 # Create tasks
-hzl add inbox "Set up authentication" --priority 2 --tags backend,auth
-hzl add inbox "Write API tests" --depends <task-id>
+hzl task create "Set up authentication" --project myapp --priority 2 --tags backend,auth
+hzl task create "Write API tests" --project myapp --depends-on <task-id>
 
 # List available work
-hzl list --project inbox --available
+hzl list --project myapp --available
 
 # Claim and work
-hzl claim-next inbox --author agent-1
+hzl task claim-next --project myapp --author agent-1
 hzl checkpoint <task-id> "Completed OAuth flow"
 hzl complete <task-id>
 ```
@@ -82,11 +82,11 @@ hzl complete <task-id>
 ### Task Lifecycle
 
 ```bash
-hzl add <project> <title>       # Create a task
-hzl list [--project] [--status] # List tasks
-hzl next [--project]            # Show next claimable task
-hzl claim-next [--project]      # Atomically claim next task
-hzl complete <id>               # Mark done
+hzl task create <title> --project <project>   # Create a task
+hzl list [--project] [--status]               # List tasks
+hzl next [--project]                          # Show next claimable task
+hzl task claim-next [--project]               # Atomically claim next task
+hzl complete <id>                             # Mark done
 ```
 
 ### For Agents
@@ -94,7 +94,7 @@ hzl complete <id>               # Mark done
 ```bash
 # All commands support --json for structured output
 hzl list --project myapp --available --json
-hzl claim-next myapp --author agent-1 --json
+hzl task claim-next --project myapp --author agent-1 --json
 
 # Checkpoints let agents recover each other's work
 hzl checkpoint <id> "step-3-complete" --data '{"files":["a.ts","b.ts"]}'
@@ -161,18 +161,33 @@ Copy this into your project's `CLAUDE.md` or `AGENTS.md`:
 ````markdown
 ## Task Management
 
-This project uses [HZL](https://github.com/tmchow/hzl) for task coordination.
+This project uses [HZL](https://github.com/tmchow/hzl) for task tracking.
+
+### Choosing a project name
+
+Use a **stable identifier** you can always derive:
+
+- **Working in a repo?** Use the repository name (e.g., `hzl`, `my-app`)
+- **Long-lived agent?** Use your agent identity (e.g., `openclaw`, `kalids-openclaw`)
+
+Projects group related work. Don't create per-feature projects—keep them long-lived. If no project is specified, tasks default to `inbox`.
+
+### Commands
 
 ```bash
-hzl list --project <project-name> --available --json   # Available tasks
-hzl claim-next <project-name> --author <agent-id> --json  # Claim next
-hzl show <task-id> --json                              # Task details
-hzl checkpoint <task-id> "<name>"                      # Save progress
-hzl complete <task-id>                                 # Mark done
-hzl comment <task-id> "text"                           # Add notes
+# Projects (created implicitly when you add tasks)
+hzl projects                                       # List all projects
+hzl rename-project <old> <new>                     # Rename a project
+
+# Tasks
+hzl task create "Task title" --project <project>   # Create task
+hzl task claim-next --project <project> --json     # Claim next available
+hzl show <task-id> --json                          # Task details + history
+hzl checkpoint <task-id> "<name>"                  # Save progress
+hzl complete <task-id>                             # Mark done
 ```
 
-Use `--json` for structured output. HZL handles atomic claiming automatically.
+Use `--json` for structured output. HZL handles atomic claiming.
 ````
 
 ---
