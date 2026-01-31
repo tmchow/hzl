@@ -6,7 +6,7 @@
     "packages/*"
   ],
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.14.0"
   },
   "packageManager": "npm@10.0.0",
   "scripts": {

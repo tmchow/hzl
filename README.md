@@ -42,7 +42,7 @@ HZL intentionally does not do these things:
 
 ## Installation
 
-Requires Node.js 20+.
+Requires Node.js 22.14+.
 
 ```bash
 npm install -g hzl-cli
