@@ -141,7 +141,7 @@ feat: add ProjectCreated, ProjectRenamed, and ProjectDeleted event types
 
 ---
 
-### Task 2: Add Projects Table to Schema and Migration
+### Task 2: Add Projects Table to Schema and Migration ✅
 
 **Files:**
 - Modify: `packages/hzl-core/src/db/schema.ts`
