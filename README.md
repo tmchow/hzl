@@ -262,7 +262,7 @@ HZL fits well as the task ledger that OpenClaw (and its sub-agents) can share.
 Copy/paste this into an OpenClaw chat (single prompt):
 
 ```
-Install HZL from https://github.com/tmchow/hzl and run hzl init. Install the HZL skill from https://www.clawhub.ai/tmchow/hzl. Then append the HZL policy from https://raw.githubusercontent.com/tmchow/hzl/main/docs/openclaw-hzl-tools-prompt.md to my TOOLS.md.
+Install HZL from https://github.com/tmchow/hzl and run hzl init. Install the HZL skill from https://www.clawhub.ai/tmchow/hzl. Then append the HZL policy from https://raw.githubusercontent.com/tmchow/hzl/main/docs/openclaw/tools-prompt.md to my TOOLS.md.
 ```
 
 ### Manual setup
@@ -278,12 +278,12 @@ hzl init
    Skill source (for reference only): **[`docs/openclaw/skill-hzl.md`](./docs/openclaw/skill-hzl.md)**
 
 3) Teach OpenClaw when to use HZL (important):
-   - Copy/paste from: **[`docs/openclaw-hzl-tools-prompt.md`](./docs/openclaw-hzl-tools-prompt.md)**
+   - Copy/paste from: **[`docs/openclaw/tools-prompt.md`](./docs/openclaw/tools-prompt.md)**
    - Or tell OpenClaw to add this policy to `TOOLS.md`:
 
 ```
 HZL is a tool available to you for task management in certain cases. I want you to add this information to your TOOLS.md in the right way so you remember how to use it:
-https://raw.githubusercontent.com/tmchow/hzl/main/docs/openclaw-hzl-tools-prompt.md
+https://raw.githubusercontent.com/tmchow/hzl/main/docs/openclaw/tools-prompt.md
 ```
 
 ---
