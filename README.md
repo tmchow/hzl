@@ -58,7 +58,31 @@ npm run build
 npm link packages/hzl-cli
 ```
 
+## Claude Code Skills
+
+If you use [Claude Code](https://claude.ai/code), you can install HZL skills directly:
+
+```bash
+# Add the HZL marketplace
+/plugin marketplace add tmchow/hzl
+
+# Install skills
+/plugin install hzl@hzl-marketplace
+```
+
+This gives you access to:
+- **hzo**: End-to-end orchestration for complex missions
+- **hzl-orchestrator**: Break down projects and coordinate workers
+- **hzl-worker**: Claim and complete tasks autonomously
+- **hzl-planning**: Structure work for parallel execution
+- **hzl-writing-tasks**: Write effective task descriptions
+- **hzl-status-reports**: Format progress reports for humans
+- **hzl-troubleshooting**: Diagnose common issues
+
+Skills auto-invoke based on context. See `.claude/skills/` for details.
+
 ## Quick Start
+
 
 ```bash
 # Initialize the database

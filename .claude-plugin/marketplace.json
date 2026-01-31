@@ -1,0 +1,26 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "hzl",
+  "metadata": {
+    "description": "HZL task coordination skills for AI agent orchestration and swarm coordination."
+  },
+  "owner": {
+    "name": "HZL Contributors",
+    "email": "hello@hzl.dev"
+  },
+  "plugins": [
+    {
+      "name": "hzl",
+      "description": "HZL task coordination skills for AI agent orchestration. Includes /hzo (end-to-end orchestration), /orchestrator, /planning, /worker, and more.",
+      "version": "1.0.0",
+      "author": {
+        "name": "HZL Contributors",
+        "email": "hello@hzl.dev"
+      },
+      "source": "./",
+      "category": "productivity",
+      "homepage": "https://github.com/tmchow/hzl",
+      "tags": ["task-management", "orchestration", "ai-agents", "coordination", "skills"]
+    }
+  ]
+}

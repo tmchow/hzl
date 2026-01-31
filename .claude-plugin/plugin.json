@@ -1,0 +1,12 @@
+{
+  "name": "hzl",
+  "description": "HZL task coordination skills for AI agent orchestration. Includes /hzo (end-to-end orchestration), /orchestrator, /planning, /worker, and more.",
+  "version": "1.0.0",
+  "author": {
+    "name": "HZL Contributors",
+    "email": "hello@hzl.dev"
+  },
+  "homepage": "https://github.com/tmchow/hzl",
+  "repository": "https://github.com/tmchow/hzl",
+  "skills": "./.claude/skills"
+}
