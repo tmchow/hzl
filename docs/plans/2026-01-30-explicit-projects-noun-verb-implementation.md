@@ -1255,7 +1255,7 @@ Validates target project doesn't exist.
 
 ---
 
-### Task 12: Create `hzl project show` Command
+### Task 12: Create `hzl project show` Command ✅
 
 **Files:**
 - Create: `packages/hzl-cli/src/commands/project/show.ts`
