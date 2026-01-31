@@ -2,8 +2,7 @@ import { Command } from 'commander';
 import { createInitCommand } from './commands/init.js';
 import { createWhichDbCommand } from './commands/which-db.js';
 import { createConfigCommand } from './commands/config.js';
-import { createProjectsCommand } from './commands/projects.js';
-import { createRenameProjectCommand } from './commands/rename-project.js';
+// project commands live under ./commands/project
 import { createProjectCommand } from './commands/project/index.js';
 import { createTaskCommand } from './commands/task/index.js';
 import { createValidateCommand } from './commands/validate.js';
@@ -25,8 +24,6 @@ export function createProgram(): Command {
   program.addCommand(createWhichDbCommand());
   program.addCommand(createConfigCommand());
   program.addCommand(createProjectCommand());
-  program.addCommand(createProjectsCommand());
-  program.addCommand(createRenameProjectCommand());
   program.addCommand(createTaskCommand());
   program.addCommand(createValidateCommand());
   program.addCommand(createStatsCommand());
