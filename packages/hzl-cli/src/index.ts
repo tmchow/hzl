@@ -39,7 +39,7 @@ export function createProgram(): Command {
 
   program
     .name('hzl')
-    .description('HZL - Hierarchical task coordination for AI agent swarms')
+    .description('HZL - Lightweight task tracking for AI agents and swarms')
     .version('0.1.0')
     .option('--db <path>', 'Path to database file')
     .option('--json', 'Output in JSON format', false);
