@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { resolveDbPath, getDefaultDbPath, getConfigPath, writeConfig } from './config.js';
+import { resolveDbPath, getDefaultDbPath, getConfigPath, writeConfig, readConfig } from './config.js';
 
 describe('resolveDbPath', () => {
   const originalEnv = process.env;
@@ -100,5 +100,39 @@ describe('writeConfig', () => {
     const content = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
     expect(content.dbPath).toBe('/my/db.sqlite');
     expect(content.otherKey).toBe('value');
+  });
+});
+
+describe('readConfig', () => {
+  let tempDir: string;
+
+  beforeEach(() => {
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hzl-readconfig-test-'));
+  });
+
+  afterEach(() => {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  });
+
+  it('returns empty config when file does not exist', () => {
+    const configPath = path.join(tempDir, 'nonexistent.json');
+    const config = readConfig(configPath);
+    expect(config).toEqual({});
+  });
+
+  it('returns parsed config when file exists', () => {
+    const configPath = path.join(tempDir, 'config.json');
+    fs.writeFileSync(configPath, JSON.stringify({ dbPath: '/my/db.sqlite' }));
+
+    const config = readConfig(configPath);
+    expect(config.dbPath).toBe('/my/db.sqlite');
+  });
+
+  it('throws on invalid JSON', () => {
+    const configPath = path.join(tempDir, 'config.json');
+    fs.writeFileSync(configPath, 'not valid json {{{');
+
+    expect(() => readConfig(configPath))
+      .toThrow(`Config file at ${configPath} is invalid JSON`);
   });
 });

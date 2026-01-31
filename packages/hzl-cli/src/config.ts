@@ -32,15 +32,25 @@ export function resolveDbPath(cliOption?: string, configPath: string = getConfig
   if (cliOption) return expandTilde(cliOption);
   if (process.env.HZL_DB) return expandTilde(process.env.HZL_DB);
 
-  try {
-    if (fs.existsSync(configPath)) {
-      const content = fs.readFileSync(configPath, 'utf-8');
-      const config = JSON.parse(content);
-      if (config.dbPath) return expandTilde(config.dbPath);
-    }
-  } catch { /* ignore */ }
+  const config = readConfig(configPath);
+  if (config.dbPath) return expandTilde(config.dbPath);
 
   return getDefaultDbPath();
+}
+
+export function readConfig(configPath: string = getConfigPath()): Config {
+  if (!fs.existsSync(configPath)) {
+    return {};
+  }
+
+  const content = fs.readFileSync(configPath, 'utf-8');
+  try {
+    const parsed = JSON.parse(content);
+    const result = ConfigFileSchema.safeParse(parsed);
+    return result.success ? result.data : {};
+  } catch {
+    throw new Error(`Config file at ${configPath} is invalid JSON`);
+  }
 }
 
 export async function loadConfig(configPath: string = getConfigPath()): Promise<Config> {
