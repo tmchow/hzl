@@ -1,9 +1,9 @@
 // packages/hzl-cli/src/commands/checkpoint.ts
 import { Command } from 'commander';
-import { resolveDbPath } from '../config.js';
-import { initializeDb, closeDb, type Services } from '../db.js';
-import { handleError, CLIError, ExitCode } from '../errors.js';
-import type { GlobalOptions } from '../types.js';
+import { resolveDbPath } from '../../config.js';
+import { initializeDb, closeDb, type Services } from '../../db.js';
+import { handleError, CLIError, ExitCode } from '../../errors.js';
+import type { GlobalOptions } from '../../types.js';
 
 export interface CheckpointResult {
   task_id: string;
