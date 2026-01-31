@@ -36,6 +36,7 @@ describe('runAdd', () => {
   });
 
   it('creates a task with all options', () => {
+    services.projectService.createProject('my-project');
     const result = runAdd({
       services,
       project: 'my-project',

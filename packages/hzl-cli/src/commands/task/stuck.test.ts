@@ -41,6 +41,8 @@ describe('runStuck', () => {
   });
 
   it('filters by project', () => {
+    services.projectService.createProject('project-a');
+    services.projectService.createProject('project-b');
     // Stuck task in project-a
     const task1 = services.taskService.createTask({ title: 'Stuck task 1', project: 'project-a' });
     services.taskService.setStatus(task1.task_id, TaskStatus.Ready);

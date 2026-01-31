@@ -29,6 +29,7 @@ describe('runShow', () => {
   });
 
   it('returns task details', () => {
+    services.projectService.createProject('test-project');
     const task = services.taskService.createTask({
       title: 'Test task',
       project: 'test-project',

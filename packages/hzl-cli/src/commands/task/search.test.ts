@@ -23,6 +23,7 @@ describe('runSearch', () => {
   });
 
   it('finds tasks by title', () => {
+    services.projectService.createProject('webapp');
     services.taskService.createTask({ title: 'Fix authentication bug', project: 'webapp' });
     services.taskService.createTask({ title: 'Add new feature', project: 'webapp' });
 
@@ -32,6 +33,8 @@ describe('runSearch', () => {
   });
 
   it('finds tasks by title when searching different projects', () => {
+    services.projectService.createProject('project-a');
+    services.projectService.createProject('project-b');
     services.taskService.createTask({ title: 'Alpha task', project: 'project-a' });
     services.taskService.createTask({ title: 'Beta task', project: 'project-b' });
 

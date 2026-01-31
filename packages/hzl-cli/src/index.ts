@@ -9,6 +9,9 @@ import { createValidateCommand } from './commands/validate.js';
 import { createStatsCommand } from './commands/stats.js';
 import { createExportEventsCommand } from './commands/export-events.js';
 import { createSampleProjectCommand } from './commands/sample-project.js';
+import { CLIError, ExitCode } from './errors.js';
+import { resolveDbPath, readConfig } from './config.js';
+import { formatOutput, printSuccess, printError, printTable } from './output.js';
 
 export function createProgram(): Command {
   const program = new Command();
@@ -32,3 +35,19 @@ export function createProgram(): Command {
 
   return program;
 }
+
+export async function run(argv: string[] = process.argv): Promise<void> {
+  const program = createProgram();
+  await program.parseAsync(argv);
+}
+
+export {
+  CLIError,
+  ExitCode,
+  resolveDbPath,
+  readConfig,
+  formatOutput,
+  printSuccess,
+  printError,
+  printTable,
+};

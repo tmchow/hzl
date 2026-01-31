@@ -1,5 +1,6 @@
 import type Database from 'better-sqlite3';
 import { EventType, PROJECT_EVENT_TASK_ID } from '../events/types.js';
+import { generateId } from '../utils/id.js';
 import { SCHEMA_V1, PRAGMAS } from './schema.js';
 
 const MIGRATIONS: Record<number, string> = {
@@ -72,9 +73,22 @@ function migrateToProjectsTable(db: Database.Database): void {
     `);
   }
 
-  const existingProjects = db
-    .prepare('SELECT DISTINCT project FROM tasks_current')
-    .all() as { project: string }[];
+  const eventsTableExists = db
+    .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='events'")
+    .get();
+  if (!eventsTableExists) {
+    return;
+  }
+
+  const tasksCurrentExists = db
+    .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='tasks_current'")
+    .get();
+
+  const existingProjects = tasksCurrentExists
+    ? (db.prepare('SELECT DISTINCT project FROM tasks_current').all() as {
+        project: string;
+      }[])
+    : [];
 
   const timestamp = new Date().toISOString();
   const insertEvent = db.prepare(`
@@ -92,7 +106,7 @@ function migrateToProjectsTable(db: Database.Database): void {
       .get(project);
     if (projectExists) continue;
 
-    const eventId = `synthetic-${project}-${Date.now()}`;
+    const eventId = generateId();
     const data = JSON.stringify({ name: project });
     insertEvent.run(eventId, PROJECT_EVENT_TASK_ID, EventType.ProjectCreated, data, timestamp);
     insertProject.run(project, 0, timestamp);
@@ -102,7 +116,7 @@ function migrateToProjectsTable(db: Database.Database): void {
     .prepare('SELECT 1 FROM projects WHERE name = ?')
     .get('inbox');
   if (!inboxExists) {
-    const eventId = `synthetic-inbox-${Date.now()}`;
+    const eventId = generateId();
     const data = JSON.stringify({ name: 'inbox', is_protected: true });
     insertEvent.run(eventId, PROJECT_EVENT_TASK_ID, EventType.ProjectCreated, data, timestamp);
     insertProject.run('inbox', 1, timestamp);

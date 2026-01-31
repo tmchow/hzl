@@ -40,6 +40,8 @@ describe('runNext', () => {
   });
 
   it('respects project filter', () => {
+    services.projectService.createProject('project-a');
+    services.projectService.createProject('project-b');
     const taskA = services.taskService.createTask({ title: 'Task A', project: 'project-a' });
     const taskB = services.taskService.createTask({ title: 'Task B', project: 'project-b' });
     
