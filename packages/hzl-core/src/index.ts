@@ -35,6 +35,7 @@ export {
   TaskStatus,
   validateEventData,
   EventSchemas,
+  PROJECT_EVENT_TASK_ID,
   type EventEnvelope,
   type TaskCreatedData,
   type StatusChangedData,
@@ -58,6 +59,7 @@ export { DependenciesProjector } from './projections/dependencies.js';
 export { TagsProjector } from './projections/tags.js';
 export { SearchProjector } from './projections/search.js';
 export { CommentsCheckpointsProjector } from './projections/comments-checkpoints.js';
+export { ProjectsProjector } from './projections/projects.js';
 
 export { rebuildAllProjections } from './projections/rebuild.js';
 
@@ -82,6 +84,16 @@ export {
   type Comment,
   type Checkpoint,
 } from './services/task-service.js';
+
+export {
+  ProjectService,
+  ProjectNotFoundError,
+  ProtectedProjectError,
+  ProjectHasTasksError,
+  ProjectAlreadyExistsError,
+  type Project,
+  type CreateProjectOptions,
+} from './services/project-service.js';
 
 export {
   ValidationService,

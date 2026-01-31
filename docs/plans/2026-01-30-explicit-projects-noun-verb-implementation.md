@@ -1087,7 +1087,7 @@ feat: validate project exists when creating/moving tasks
 
 ---
 
-### Task 6: Update hzl-core Exports and Wire Up Services
+### Task 6: Update hzl-core Exports and Wire Up Services ✅
 
 **Files:**
 - Modify: `packages/hzl-core/src/index.ts`
