@@ -4,7 +4,7 @@ import { resolveDbPath } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError, CLIError, ExitCode } from '../../errors.js';
 import { TaskStatus } from 'hzl-core/events/types.js';
-import type { GlobalOptions } from '../../types.js';
+import { GlobalOptionsSchema } from '../../types.js';
 
 export interface SetStatusResult {
   task_id: string;
@@ -14,6 +14,10 @@ export interface SetStatusResult {
 }
 
 const validStatuses = Object.values(TaskStatus);
+
+interface SetStatusCommandOptions {
+  author?: string;
+}
 
 export function runSetStatus(options: {
   services: Services;
@@ -54,8 +58,13 @@ export function createSetStatusCommand(): Command {
     .argument('<taskId>', 'Task ID')
     .argument('<status>', `New status (${validStatuses.join(', ')})`)
     .option('--author <name>', 'Author name')
-    .action(function (this: Command, taskId: string, status: string, opts: any) {
-      const globalOpts = this.optsWithGlobals() as GlobalOptions;
+    .action(function (
+      this: Command,
+      taskId: string,
+      status: string,
+      opts: SetStatusCommandOptions
+    ) {
+      const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const dbPath = resolveDbPath(globalOpts.db);
       const services = initializeDb(dbPath);
       try {

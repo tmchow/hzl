@@ -4,7 +4,7 @@ import { resolveDbPath } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError, CLIError, ExitCode } from '../../errors.js';
 import { EventType } from 'hzl-core/events/types.js';
-import type { GlobalOptions } from '../../types.js';
+import { GlobalOptionsSchema } from '../../types.js';
 
 export interface UpdateResult {
   task_id: string;
@@ -19,6 +19,13 @@ export interface TaskUpdates {
   description?: string;
   priority?: number;
   tags?: string[];
+}
+
+interface UpdateCommandOptions {
+  title?: string;
+  desc?: string;
+  priority?: string;
+  tags?: string;
 }
 
 export function runUpdate(options: {
@@ -105,8 +112,8 @@ export function createUpdateCommand(): Command {
     .option('--desc <description>', 'New description')
     .option('-p, --priority <n>', 'New priority (0-3)')
     .option('-t, --tags <tags>', 'New tags (comma-separated)')
-    .action(function (this: Command, taskId: string, opts: any) {
-      const globalOpts = this.optsWithGlobals() as GlobalOptions;
+    .action(function (this: Command, taskId: string, opts: UpdateCommandOptions) {
+      const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const dbPath = resolveDbPath(globalOpts.db);
       const services = initializeDb(dbPath);
       try {

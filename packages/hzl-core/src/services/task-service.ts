@@ -1,7 +1,12 @@
 // packages/hzl-core/src/services/task-service.ts
 import type Database from 'better-sqlite3';
 import { EventStore } from '../events/store.js';
-import { EventType, TaskStatus, type TaskCreatedData } from '../events/types.js';
+import {
+  EventType,
+  TaskStatus,
+  type StatusChangedData,
+  type TaskCreatedData,
+} from '../events/types.js';
 import { ProjectionEngine } from '../projections/engine.js';
 import { withWriteTransaction } from '../db/connection.js';
 import { generateId } from '../utils/id.js';
@@ -110,6 +115,28 @@ export interface Task {
   updated_at: string;
 }
 
+type TaskRow = {
+  task_id: string;
+  title: string;
+  project: string;
+  status: TaskStatus;
+  parent_id: string | null;
+  description: string | null;
+  links: string;
+  tags: string;
+  priority: number;
+  due_at: string | null;
+  metadata: string;
+  claimed_at: string | null;
+  claimed_by_author: string | null;
+  claimed_by_agent_id: string | null;
+  lease_until: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type TaskIdRow = { task_id: string };
+
 export class TaskNotFoundError extends Error {
   constructor(taskId: string) {
     super(`Task not found: ${taskId}`);
@@ -166,17 +193,15 @@ export class TaskService {
       metadata: input.metadata,
     };
 
-    Object.keys(eventData).forEach((key) => {
-      if ((eventData as any)[key] === undefined) {
-        delete (eventData as any)[key];
-      }
-    });
+    const cleanedEventData = Object.fromEntries(
+      Object.entries(eventData).filter(([, value]) => value !== undefined)
+    ) as TaskCreatedData;
 
     const task = withWriteTransaction(this.db, () => {
       const event = this.eventStore.append({
         task_id: taskId,
         type: EventType.TaskCreated,
-        data: eventData,
+        data: cleanedEventData,
         author: ctx?.author,
         agent_id: ctx?.agent_id,
         session_id: ctx?.session_id,
@@ -236,7 +261,7 @@ export class TaskService {
         throw new DependenciesNotDoneError(taskId, incompleteDeps.map(d => d.depends_on_id));
       }
 
-      const eventData: any = {
+      const eventData: StatusChangedData = {
         from: TaskStatus.Ready,
         to: TaskStatus.InProgress,
       };
@@ -296,7 +321,7 @@ export class TaskService {
 
   claimNext(opts: ClaimNextOptions = {}): Task | null {
     return withWriteTransaction(this.db, () => {
-      let candidate: any;
+      let candidate: TaskIdRow | undefined;
 
       if (opts.tags && opts.tags.length > 0) {
         const tagPlaceholders = opts.tags.map(() => '?').join(', ');
@@ -312,14 +337,14 @@ export class TaskService {
             )
             AND (SELECT COUNT(DISTINCT tag) FROM task_tags WHERE task_id = tc.task_id AND tag IN (${tagPlaceholders})) = ?
         `;
-        const params: any[] = [...opts.tags, tagCount];
+        const params: Array<string | number> = [...opts.tags, tagCount];
 
         if (opts.project) {
           query += ' AND tc.project = ?';
           params.push(opts.project);
         }
         query += ' ORDER BY tc.priority DESC, tc.created_at ASC, tc.task_id ASC LIMIT 1';
-        candidate = this.db.prepare(query).get(...params);
+        candidate = this.db.prepare(query).get(...params) as TaskIdRow | undefined;
       } else if (opts.project) {
         candidate = this.db.prepare(`
           SELECT tc.task_id FROM tasks_current tc
@@ -330,7 +355,7 @@ export class TaskService {
               WHERE td.task_id = tc.task_id AND dep.status != 'done'
             )
           ORDER BY tc.priority DESC, tc.created_at ASC, tc.task_id ASC LIMIT 1
-        `).get(opts.project);
+        `).get(opts.project) as TaskIdRow | undefined;
       } else {
         candidate = this.db.prepare(`
           SELECT tc.task_id FROM tasks_current tc
@@ -341,7 +366,7 @@ export class TaskService {
               WHERE td.task_id = tc.task_id AND dep.status != 'done'
             )
           ORDER BY tc.priority DESC, tc.created_at ASC, tc.task_id ASC LIMIT 1
-        `).get();
+        `).get() as TaskIdRow | undefined;
       }
 
       if (!candidate) return null;
@@ -471,7 +496,7 @@ export class TaskService {
       SELECT task_id, title, project, claimed_at, claimed_by_author, claimed_by_agent_id, lease_until
       FROM tasks_current WHERE status = 'in_progress' AND claimed_at < ?
     `;
-    const params: any[] = [cutoffTime];
+    const params: Array<string | number> = [cutoffTime];
 
     if (opts.project) {
       query += ' AND project = ?';
@@ -509,7 +534,7 @@ export class TaskService {
           WHERE td.task_id = tc.task_id AND dep.status != 'done'
         )
     `;
-    const params: any[] = [];
+    const params: Array<string | number> = [];
 
     if (opts.project) {
       query += ' AND tc.project = ?';
@@ -533,22 +558,30 @@ export class TaskService {
       params.push(opts.limit);
     }
 
-    const rows = this.db.prepare(query).all(...params) as any[];
-    return rows.map(row => ({
+    const rows = this.db.prepare(query).all(...params) as Array<{
+      task_id: string;
+      title: string;
+      project: string;
+      status: TaskStatus;
+      priority: number;
+      created_at: string;
+      tags: string | null;
+    }>;
+    return rows.map((row) => ({
       task_id: row.task_id,
       title: row.title,
       project: row.project,
-      status: row.status as TaskStatus,
+      status: row.status,
       priority: row.priority,
       created_at: row.created_at,
-      tags: JSON.parse(row.tags || '[]'),
+      tags: JSON.parse(row.tags ?? '[]') as string[],
     }));
   }
 
   getTaskById(taskId: string): Task | null {
     const row = this.db.prepare(
       'SELECT * FROM tasks_current WHERE task_id = ?'
-    ).get(taskId) as any;
+    ).get(taskId) as TaskRow | undefined;
     if (!row) return null;
     return this.rowToTask(row);
   }
@@ -594,31 +627,57 @@ export class TaskService {
     const rows = this.db.prepare(`
       SELECT event_rowid, task_id, author, agent_id, text, timestamp
       FROM task_comments WHERE task_id = ? ORDER BY event_rowid ASC
-    `).all(taskId) as any[];
-    return rows.map(r => ({ event_rowid: r.event_rowid, task_id: r.task_id, author: r.author ?? undefined, agent_id: r.agent_id ?? undefined, text: r.text, timestamp: r.timestamp }));
+    `).all(taskId) as Array<{
+      event_rowid: number;
+      task_id: string;
+      author: string | null;
+      agent_id: string | null;
+      text: string;
+      timestamp: string;
+    }>;
+    return rows.map((r) => ({
+      event_rowid: r.event_rowid,
+      task_id: r.task_id,
+      author: r.author ?? undefined,
+      agent_id: r.agent_id ?? undefined,
+      text: r.text,
+      timestamp: r.timestamp,
+    }));
   }
 
   getCheckpoints(taskId: string): Checkpoint[] {
     const rows = this.db.prepare(`
       SELECT event_rowid, task_id, name, data, timestamp
       FROM task_checkpoints WHERE task_id = ? ORDER BY event_rowid ASC
-    `).all(taskId) as any[];
-    return rows.map(r => ({ event_rowid: r.event_rowid, task_id: r.task_id, name: r.name, data: JSON.parse(r.data), timestamp: r.timestamp }));
+    `).all(taskId) as Array<{
+      event_rowid: number;
+      task_id: string;
+      name: string;
+      data: string;
+      timestamp: string;
+    }>;
+    return rows.map((r) => ({
+      event_rowid: r.event_rowid,
+      task_id: r.task_id,
+      name: r.name,
+      data: JSON.parse(r.data) as Record<string, unknown>,
+      timestamp: r.timestamp,
+    }));
   }
 
-  private rowToTask(row: any): Task {
+  private rowToTask(row: TaskRow): Task {
     return {
       task_id: row.task_id,
       title: row.title,
       project: row.project,
-      status: row.status as TaskStatus,
+      status: row.status,
       parent_id: row.parent_id,
       description: row.description,
-      links: JSON.parse(row.links),
-      tags: JSON.parse(row.tags),
+      links: JSON.parse(row.links) as string[],
+      tags: JSON.parse(row.tags) as string[],
       priority: row.priority,
       due_at: row.due_at,
-      metadata: JSON.parse(row.metadata),
+      metadata: JSON.parse(row.metadata) as Record<string, unknown>,
       claimed_at: row.claimed_at,
       claimed_by_author: row.claimed_by_author,
       claimed_by_agent_id: row.claimed_by_agent_id,

@@ -13,6 +13,10 @@ const ConfigFileSchema = z.object({
   leaseMinutes: z.number().positive().optional(),
 }).partial();
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 // Detect if running from source repo (development mode)
 // Walks up from this file to find monorepo root
 function findRepoRoot(): string | null {
@@ -23,9 +27,13 @@ function findRepoRoot(): string | null {
     const pkgPath = path.join(dir, 'package.json');
     if (fs.existsSync(pkgPath)) {
       try {
-        const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+        const parsed: unknown = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
         // Check for monorepo root: has workspaces containing hzl-cli
-        if (pkg.workspaces && fs.existsSync(path.join(dir, 'packages', 'hzl-cli', 'package.json'))) {
+        if (
+          isRecord(parsed) &&
+          parsed.workspaces &&
+          fs.existsSync(path.join(dir, 'packages', 'hzl-cli', 'package.json'))
+        ) {
           return dir;
         }
       } catch {
@@ -136,7 +144,7 @@ export function readConfig(configPath: string = getConfigPath()): Config {
 
   const content = fs.readFileSync(configPath, 'utf-8');
   try {
-    const parsed = JSON.parse(content);
+    const parsed: unknown = JSON.parse(content);
     const result = ConfigFileSchema.safeParse(parsed);
     return result.success ? result.data : {};
   } catch {
@@ -166,7 +174,8 @@ export function writeConfig(updates: Partial<Config>, configPath: string = getCo
   let existing: Record<string, unknown> = {};
   if (fs.existsSync(configPath)) {
     try {
-      existing = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+      const parsed: unknown = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+      existing = isRecord(parsed) ? parsed : {};
     } catch {
       // If existing config is invalid, start fresh
       existing = {};

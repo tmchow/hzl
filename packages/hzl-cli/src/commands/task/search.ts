@@ -3,7 +3,7 @@ import { Command } from 'commander';
 import { resolveDbPath } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError } from '../../errors.js';
-import type { GlobalOptions } from '../../types.js';
+import { GlobalOptionsSchema } from '../../types.js';
 import type { SearchTaskResult } from 'hzl-core/services/search-service.js';
 
 export interface SearchTask {
@@ -16,6 +16,12 @@ export interface SearchTask {
 export interface SearchResult {
   tasks: SearchTask[];
   total: number;
+}
+
+interface SearchCommandOptions {
+  project?: string;
+  status?: string;
+  limit?: string;
 }
 
 export function runSearch(options: {
@@ -48,7 +54,7 @@ export function runSearch(options: {
       FROM tasks_current 
       WHERE (title LIKE ? OR project LIKE ? OR description LIKE ?)
     `;
-    const params: any[] = [searchPattern, searchPattern, searchPattern];
+    const params: Array<string | number> = [searchPattern, searchPattern, searchPattern];
     
     if (project) {
       sql += ' AND project = ?';
@@ -92,8 +98,8 @@ export function createSearchCommand(): Command {
     .option('-p, --project <project>', 'Filter by project')
     .option('-s, --status <status>', 'Filter by status')
     .option('-l, --limit <n>', 'Max results', '20')
-    .action(function (this: Command, query: string, opts: any) {
-      const globalOpts = this.optsWithGlobals() as GlobalOptions;
+    .action(function (this: Command, query: string, opts: SearchCommandOptions) {
+      const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const dbPath = resolveDbPath(globalOpts.db);
       const services = initializeDb(dbPath);
       try {
@@ -102,7 +108,7 @@ export function createSearchCommand(): Command {
           query,
           project: opts.project,
           status: opts.status,
-          limit: parseInt(opts.limit, 10),
+          limit: parseInt(opts.limit ?? '20', 10),
           json: globalOpts.json ?? false,
         });
       } catch (e) {

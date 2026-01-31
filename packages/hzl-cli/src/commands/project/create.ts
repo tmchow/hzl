@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import { resolveDbPath } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError } from '../../errors.js';
-import type { GlobalOptions } from '../../types.js';
+import { GlobalOptionsSchema } from '../../types.js';
 
 export interface ProjectCreateResult {
   name: string;
@@ -16,6 +16,10 @@ export interface ProjectCreateOptions {
   name: string;
   description?: string;
   json: boolean;
+}
+
+interface ProjectCreateCommandOptions {
+  description?: string;
 }
 
 export function runProjectCreate(
@@ -48,8 +52,8 @@ export function createProjectCreateCommand(): Command {
     .description('Create a new project')
     .argument('<name>', 'Project name')
     .option('-d, --description <desc>', 'Project description')
-    .action(function (this: Command, name: string, opts: any) {
-      const globalOpts = this.optsWithGlobals() as GlobalOptions;
+    .action(function (this: Command, name: string, opts: ProjectCreateCommandOptions) {
+      const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const dbPath = resolveDbPath(globalOpts.db);
       const services = initializeDb(dbPath);
       try {

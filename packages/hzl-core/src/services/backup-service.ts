@@ -16,6 +16,19 @@ export interface ImportResult {
   errors: number;
 }
 
+type ExportEventRow = {
+  event_id: string;
+  task_id: string;
+  type: string;
+  data: string;
+  author: string | null;
+  agent_id: string | null;
+  session_id: string | null;
+  correlation_id: string | null;
+  causation_id: string | null;
+  timestamp: string;
+};
+
 export class BackupService {
   constructor(private db: Database.Database) {}
 
@@ -34,13 +47,13 @@ export class BackupService {
       const testDb = new Database(srcPath, { readonly: true });
       testDb.prepare("SELECT name FROM sqlite_master WHERE type='table'").get();
       testDb.close();
-    } catch (err) {
+    } catch {
       throw new Error(`Invalid backup file: ${srcPath}`);
     }
 
     const dir = path.dirname(destPath);
-    fs.mkdirSync(dir, { recursive: true });
-    fs.copyFileSync(srcPath, destPath);
+    await fs.promises.mkdir(dir, { recursive: true });
+    await fs.promises.copyFile(srcPath, destPath);
   }
 
   async exportEvents(destPath: string): Promise<void> {
@@ -58,14 +71,14 @@ export class BackupService {
         ORDER BY id ASC
       `
       )
-      .all() as any[];
+      .all() as ExportEventRow[];
 
     for (const row of rows) {
       const payload = {
         event_id: row.event_id,
         task_id: row.task_id,
         type: row.type,
-        data: JSON.parse(row.data),
+        data: JSON.parse(row.data) as Record<string, unknown>,
         author: row.author ?? undefined,
         agent_id: row.agent_id ?? undefined,
         session_id: row.session_id ?? undefined,
@@ -106,7 +119,18 @@ export class BackupService {
       if (!line.trim()) continue;
 
       try {
-        const event = JSON.parse(line);
+        const event = JSON.parse(line) as {
+          event_id: string;
+          task_id: string;
+          type: string;
+          data?: Record<string, unknown>;
+          author?: string;
+          agent_id?: string;
+          session_id?: string;
+          correlation_id?: string;
+          causation_id?: string;
+          timestamp: string;
+        };
         const result = insertStmt.run(
           event.event_id,
           event.task_id,
@@ -124,7 +148,7 @@ export class BackupService {
         } else {
           imported += 1;
         }
-      } catch (err) {
+      } catch {
         errors += 1;
       }
     }

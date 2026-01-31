@@ -1,6 +1,7 @@
 // packages/hzl-cli/src/commands/init.ts
 import { Command } from 'commander';
 import fs from 'fs';
+import { z } from 'zod';
 import {
   resolveDbPathWithSource,
   getDefaultDbPath,
@@ -11,7 +12,7 @@ import {
   isDevMode,
   type DbPathSource
 } from '../config.js';
-import type { GlobalOptions } from '../types.js';
+import { GlobalOptionsSchema } from '../types.js';
 
 export interface InitResult {
   path: string;
@@ -93,8 +94,8 @@ export function createInitCommand(): Command {
     .description('Initialize a new HZL database')
     .option('-f, --force', 'Reset to default location (or use with --db for specific path)')
     .action(async function (this: Command) {
-      const globalOpts = this.optsWithGlobals() as GlobalOptions;
-      const opts = this.opts();
+      const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
+      const opts = z.object({ force: z.boolean().optional() }).parse(this.opts());
       const force = opts.force ?? false;
 
       let dbPath: string;

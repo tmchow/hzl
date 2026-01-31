@@ -2,7 +2,14 @@
 import type Database from 'better-sqlite3';
 import type { PersistedEventEnvelope } from '../events/store.js';
 import type { Projector } from './types.js';
-import { EventType, TaskStatus } from '../events/types.js';
+import {
+  EventType,
+  TaskStatus,
+  type StatusChangedData,
+  type TaskCreatedData,
+  type TaskMovedData,
+  type TaskUpdatedData,
+} from '../events/types.js';
 
 const JSON_FIELDS = new Set(['tags', 'links', 'metadata']);
 
@@ -34,7 +41,7 @@ export class TasksCurrentProjector implements Projector {
   }
 
   private handleTaskCreated(event: PersistedEventEnvelope, db: Database.Database): void {
-    const data = event.data as any;
+    const data = event.data as TaskCreatedData;
     db.prepare(`
       INSERT INTO tasks_current (
         task_id, title, project, status, parent_id, description,
@@ -60,8 +67,8 @@ export class TasksCurrentProjector implements Projector {
   }
 
   private handleStatusChanged(event: PersistedEventEnvelope, db: Database.Database): void {
-    const data = event.data as any;
-    const toStatus = data.to as TaskStatus;
+    const data = event.data as StatusChangedData;
+    const toStatus = data.to;
 
     if (toStatus === TaskStatus.InProgress) {
       db.prepare(`
@@ -108,7 +115,7 @@ export class TasksCurrentProjector implements Projector {
   }
 
   private handleTaskMoved(event: PersistedEventEnvelope, db: Database.Database): void {
-    const data = event.data as any;
+    const data = event.data as TaskMovedData;
     db.prepare(`
       UPDATE tasks_current SET
         project = ?,
@@ -119,7 +126,7 @@ export class TasksCurrentProjector implements Projector {
   }
 
   private handleTaskUpdated(event: PersistedEventEnvelope, db: Database.Database): void {
-    const data = event.data as any;
+    const data = event.data as TaskUpdatedData;
     const field = data.field;
     const newValue = JSON_FIELDS.has(field)
       ? JSON.stringify(data.new_value)

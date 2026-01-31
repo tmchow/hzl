@@ -16,6 +16,13 @@ export interface CreateProjectOptions {
   is_protected?: boolean;
 }
 
+type ProjectRow = {
+  name: string;
+  description: string | null;
+  is_protected: number;
+  created_at: string;
+};
+
 export class ProjectNotFoundError extends Error {
   constructor(name: string) {
     super(`Project not found: ${name}`);
@@ -79,7 +86,7 @@ export class ProjectService {
       .prepare(
         'SELECT name, description, is_protected, created_at FROM projects WHERE name = ?'
       )
-      .get(name) as any;
+      .get(name) as ProjectRow | undefined;
     if (!row) return null;
     return {
       name: row.name,
@@ -99,7 +106,7 @@ export class ProjectService {
       .prepare(
         'SELECT name, description, is_protected, created_at FROM projects ORDER BY name'
       )
-      .all() as any[];
+      .all() as ProjectRow[];
     return rows.map((row) => ({
       name: row.name,
       description: row.description,

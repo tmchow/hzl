@@ -43,8 +43,11 @@ export function withWriteTransaction<T>(
     try {
       // Use immediate transaction for write lock
       return db.transaction(fn).immediate();
-    } catch (err: any) {
-      const isBusy = err?.code === 'SQLITE_BUSY' || String(err?.message).includes('SQLITE_BUSY');
+    } catch (err: unknown) {
+      const error = err as { code?: string; message?: string } | null;
+      const isBusy =
+        error?.code === 'SQLITE_BUSY' ||
+        (typeof error?.message === 'string' && error.message.includes('SQLITE_BUSY'));
       if (!isBusy || attempt >= retries) {
         throw err;
       }

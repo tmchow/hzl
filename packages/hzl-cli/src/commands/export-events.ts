@@ -4,7 +4,7 @@ import fs from 'fs';
 import { resolveDbPath } from '../config.js';
 import { initializeDb, closeDb, type Services } from '../db.js';
 import { handleError } from '../errors.js';
-import type { GlobalOptions } from '../types.js';
+import { GlobalOptionsSchema } from '../types.js';
 
 export interface ExportEventsResult {
   count: number;
@@ -25,7 +25,7 @@ export function runExportEvents(options: {
     SELECT * FROM events 
     ${fromId ? 'WHERE rowid > ?' : ''}
     ORDER BY rowid
-  `).all(fromId ? [fromId] : []) as any[];
+  `).all(fromId ? [fromId] : []) as Array<Record<string, unknown>>;
 
   const lines = events.map(e => JSON.stringify(e));
   
@@ -58,8 +58,12 @@ export function createExportEventsCommand(): Command {
     .description('Export events to JSONL file')
     .argument('[output]', 'Output file path (use - for stdout)', '-')
     .option('--from <id>', 'Export events starting from rowid')
-    .action(function (this: Command, output: string, opts: any) {
-      const globalOpts = this.optsWithGlobals() as GlobalOptions;
+    .action(function (
+      this: Command,
+      output: string,
+      opts: { from?: string }
+    ) {
+      const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const dbPath = resolveDbPath(globalOpts.db);
       const services = initializeDb(dbPath);
       try {

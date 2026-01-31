@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import { resolveDbPath } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError } from '../../errors.js';
-import type { GlobalOptions } from '../../types.js';
+import { GlobalOptionsSchema } from '../../types.js';
 
 export interface ProjectRenameResult {
   old_name: string;
@@ -43,7 +43,7 @@ export function createProjectRenameCommand(): Command {
     .argument('<oldName>', 'Current project name')
     .argument('<newName>', 'New project name')
     .action(function (this: Command, oldName: string, newName: string) {
-      const globalOpts = this.optsWithGlobals() as GlobalOptions;
+      const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const dbPath = resolveDbPath(globalOpts.db);
       const services = initializeDb(dbPath);
       try {

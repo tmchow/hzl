@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import { readConfig, getDefaultDbPath, getConfigPath } from '../config.js';
-import type { GlobalOptions } from '../types.js';
+import { GlobalOptionsSchema } from '../types.js';
 
 export interface ConfigResult {
   db: {
@@ -56,7 +56,7 @@ export function createConfigCommand(): Command {
   return new Command('config')
     .description('Show current configuration')
     .action(function (this: Command) {
-      const globalOpts = this.optsWithGlobals() as GlobalOptions;
+      const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       runConfig({
         cliPath: globalOpts.db,
         json: globalOpts.json ?? false,

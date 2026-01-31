@@ -2,7 +2,7 @@
 import fs from 'fs';
 import { Command } from 'commander';
 import { resolveDbPathWithSource, type DbPathSource } from '../config.js';
-import type { GlobalOptions } from '../types.js';
+import { GlobalOptionsSchema } from '../types.js';
 
 export interface WhichDbResult {
   path: string;
@@ -37,7 +37,7 @@ export function createWhichDbCommand(): Command {
   return new Command('which-db')
     .description('Show resolved database path')
     .action(function (this: Command) {
-      const globalOpts = this.optsWithGlobals() as GlobalOptions;
+      const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       runWhichDb({
         cliPath: globalOpts.db,
         json: globalOpts.json ?? false,

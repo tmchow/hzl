@@ -3,12 +3,16 @@ import { Command } from 'commander';
 import { resolveDbPath } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError, CLIError, ExitCode } from '../../errors.js';
-import type { GlobalOptions } from '../../types.js';
+import { GlobalOptionsSchema } from '../../types.js';
 
 export interface CommentResult {
   task_id: string;
   text: string;
   author: string | undefined;
+}
+
+interface CommentCommandOptions {
+  author?: string;
 }
 
 export function runComment(options: {
@@ -48,8 +52,13 @@ export function createCommentCommand(): Command {
     .argument('<taskId>', 'Task ID')
     .argument('<text>', 'Comment text')
     .option('--author <name>', 'Author name')
-    .action(function (this: Command, taskId: string, text: string, opts: any) {
-      const globalOpts = this.optsWithGlobals() as GlobalOptions;
+    .action(function (
+      this: Command,
+      taskId: string,
+      text: string,
+      opts: CommentCommandOptions
+    ) {
+      const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const dbPath = resolveDbPath(globalOpts.db);
       const services = initializeDb(dbPath);
       try {

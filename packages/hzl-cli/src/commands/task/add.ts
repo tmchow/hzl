@@ -3,7 +3,7 @@ import { Command } from 'commander';
 import { resolveDbPath } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError } from '../../errors.js';
-import type { GlobalOptions } from '../../types.js';
+import { GlobalOptionsSchema } from '../../types.js';
 
 export interface AddResult {
   task_id: string;
@@ -23,6 +23,14 @@ export interface AddOptions {
   priority?: number;
   dependsOn?: string[];
   json: boolean;
+}
+
+interface AddCommandOptions {
+  project?: string;
+  description?: string;
+  tags?: string;
+  priority?: string;
+  dependsOn?: string;
 }
 
 export function runAdd(options: AddOptions): AddResult {
@@ -64,8 +72,8 @@ export function createAddCommand(): Command {
     .option('-t, --tags <tags>', 'Comma-separated tags')
     .option('-p, --priority <n>', 'Priority (0-3)', '0')
     .option('--depends-on <ids>', 'Comma-separated task IDs this depends on')
-    .action(function (this: Command, title: string, opts: any) {
-      const globalOpts = this.optsWithGlobals() as GlobalOptions;
+    .action(function (this: Command, title: string, opts: AddCommandOptions) {
+      const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const dbPath = resolveDbPath(globalOpts.db);
       const services = initializeDb(dbPath);
       try {
@@ -75,7 +83,7 @@ export function createAddCommand(): Command {
           title,
           description: opts.description,
           tags: opts.tags?.split(','),
-          priority: parseInt(opts.priority, 10),
+          priority: parseInt(opts.priority ?? '0', 10),
           dependsOn: opts.dependsOn?.split(','),
           json: globalOpts.json ?? false,
         });

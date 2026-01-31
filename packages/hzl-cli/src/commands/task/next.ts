@@ -3,7 +3,7 @@ import { Command } from 'commander';
 import { resolveDbPath } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError } from '../../errors.js';
-import type { GlobalOptions } from '../../types.js';
+import { GlobalOptionsSchema } from '../../types.js';
 
 export interface NextResult {
   task_id: string;
@@ -18,6 +18,11 @@ export interface NextOptions {
   project?: string;
   tags?: string[];
   json: boolean;
+}
+
+interface NextCommandOptions {
+  project?: string;
+  tags?: string;
 }
 
 export function runNext(options: NextOptions): NextResult | null {
@@ -62,8 +67,8 @@ export function createNextCommand(): Command {
     .description('Get the next available task')
     .option('-p, --project <project>', 'Filter by project')
     .option('-t, --tags <tags>', 'Required tags (comma-separated)')
-    .action(function (this: Command, opts: any) {
-      const globalOpts = this.optsWithGlobals() as GlobalOptions;
+    .action(function (this: Command, opts: NextCommandOptions) {
+      const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const dbPath = resolveDbPath(globalOpts.db);
       const services = initializeDb(dbPath);
       try {

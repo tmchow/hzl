@@ -146,6 +146,10 @@ export function validateEventData(type: EventType, data: unknown): void {
 // Inferred types for convenience
 export type TaskCreatedData = z.infer<typeof TaskCreatedSchema>;
 export type StatusChangedData = z.infer<typeof StatusChangedSchema>;
+export type TaskMovedData = z.infer<typeof TaskMovedSchema>;
+export type DependencyData = z.infer<typeof DependencySchema>;
+export type TaskUpdatedData = z.infer<typeof TaskUpdatedSchema>;
+export type TaskArchivedData = z.infer<typeof TaskArchivedSchema>;
 export type CommentAddedData = z.infer<typeof CommentAddedSchema>;
 export type CheckpointRecordedData = z.infer<typeof CheckpointRecordedSchema>;
 export type ProjectCreatedData = z.infer<typeof ProjectCreatedSchema>;

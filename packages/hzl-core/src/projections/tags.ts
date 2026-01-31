@@ -2,7 +2,7 @@
 import type Database from 'better-sqlite3';
 import type { PersistedEventEnvelope } from '../events/store.js';
 import type { Projector } from './types.js';
-import { EventType } from '../events/types.js';
+import { EventType, type TaskCreatedData, type TaskUpdatedData } from '../events/types.js';
 
 export class TagsProjector implements Projector {
   name = 'tags';
@@ -23,18 +23,18 @@ export class TagsProjector implements Projector {
   }
 
   private handleTaskCreated(event: PersistedEventEnvelope, db: Database.Database): void {
-    const data = event.data as any;
-    const tags = data.tags as string[] | undefined;
+    const data = event.data as TaskCreatedData;
+    const tags = data.tags;
     if (!tags || tags.length === 0) return;
 
     this.insertTags(db, event.task_id, tags);
   }
 
   private handleTaskUpdated(event: PersistedEventEnvelope, db: Database.Database): void {
-    const data = event.data as any;
+    const data = event.data as TaskUpdatedData;
     if (data.field !== 'tags') return;
 
-    const newTags = data.new_value as string[];
+    const newTags = Array.isArray(data.new_value) ? (data.new_value as string[]) : [];
     db.prepare('DELETE FROM task_tags WHERE task_id = ?').run(event.task_id);
     if (newTags && newTags.length > 0) {
       this.insertTags(db, event.task_id, newTags);
