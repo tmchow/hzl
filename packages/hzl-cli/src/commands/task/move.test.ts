@@ -4,7 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { runMove } from './move.js';
-import { initializeDb, closeDb, type Services } from '../db.js';
+import { initializeDb, closeDb, type Services } from '../../db.js';
 
 describe('runMove', () => {
   let tempDir: string;
@@ -32,6 +32,8 @@ describe('runMove', () => {
   });
 
   it('moves task to new project', () => {
+    services.projectService.createProject('old-project');
+    services.projectService.createProject('new-project');
     const task = services.taskService.createTask({ title: 'Test', project: 'old-project' });
 
     const result = runMove({
@@ -50,6 +52,7 @@ describe('runMove', () => {
   });
 
   it('returns same project when no-op', () => {
+    services.projectService.createProject('same-project');
     const task = services.taskService.createTask({ title: 'Test', project: 'same-project' });
 
     const result = runMove({

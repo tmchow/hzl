@@ -1,10 +1,9 @@
 // packages/hzl-cli/src/commands/move.ts
 import { Command } from 'commander';
-import { resolveDbPath } from '../config.js';
-import { initializeDb, closeDb, type Services } from '../db.js';
-import { handleError, CLIError, ExitCode } from '../errors.js';
-import { EventType } from 'hzl-core/events/types.js';
-import type { GlobalOptions } from '../types.js';
+import { resolveDbPath } from '../../config.js';
+import { initializeDb, closeDb, type Services } from '../../db.js';
+import { handleError, CLIError, ExitCode } from '../../errors.js';
+import type { GlobalOptions } from '../../types.js';
 
 export interface MoveResult {
   task_id: string;
@@ -19,8 +18,6 @@ export function runMove(options: {
   json: boolean;
 }): MoveResult {
   const { services, taskId, toProject, json } = options;
-  const { eventStore, projectionEngine } = services;
-
   const task = services.taskService.getTaskById(taskId);
   if (!task) {
     throw new CLIError(`Task not found: ${taskId}`, ExitCode.NotFound);
@@ -28,20 +25,12 @@ export function runMove(options: {
 
   const fromProject = task.project;
 
-  // Only emit event if actually changing project
-  if (fromProject !== toProject) {
-    const event = eventStore.append({
-      task_id: taskId,
-      type: EventType.TaskMoved,
-      data: { from_project: fromProject, to_project: toProject },
-    });
-    projectionEngine.applyEvent(event);
-  }
+  const moved = services.taskService.moveTask(taskId, toProject);
 
   const result: MoveResult = {
     task_id: taskId,
     from_project: fromProject,
-    to_project: toProject,
+    to_project: moved.project,
   };
 
   if (json) {

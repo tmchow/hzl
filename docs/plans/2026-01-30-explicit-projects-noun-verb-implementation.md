@@ -1324,7 +1324,7 @@ Update `task/add.ts`:
 
 ---
 
-### Task 17: Migrate Update/Move Task Commands
+### Task 17: Migrate Update/Move Task Commands ✅
 
 **Files:**
 - Move: `update.ts` → `task/update.ts`
