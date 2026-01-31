@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { resolveDbPath, getDefaultDbPath } from './config.js';
+import { resolveDbPath, getDefaultDbPath, getConfigPath } from './config.js';
 
 describe('resolveDbPath', () => {
   const originalEnv = process.env;
@@ -40,5 +40,27 @@ describe('resolveDbPath', () => {
   it('returns default path when nothing else specified', () => {
     const result = resolveDbPath();
     expect(result).toBe(getDefaultDbPath());
+  });
+});
+
+describe('getConfigPath', () => {
+  const originalEnv = process.env;
+
+  beforeEach(() => {
+    process.env = { ...originalEnv };
+    delete process.env.HZL_CONFIG;
+  });
+
+  afterEach(() => {
+    process.env = originalEnv;
+  });
+
+  it('returns HZL_CONFIG env var when set', () => {
+    process.env.HZL_CONFIG = '/custom/config.json';
+    expect(getConfigPath()).toBe('/custom/config.json');
+  });
+
+  it('returns default path when HZL_CONFIG not set', () => {
+    expect(getConfigPath()).toContain('.hzl/config.json');
   });
 });

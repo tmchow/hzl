@@ -17,6 +17,7 @@ export function getDefaultDbPath(): string {
 }
 
 export function getConfigPath(): string {
+  if (process.env.HZL_CONFIG) return process.env.HZL_CONFIG;
   return path.join(os.homedir(), '.hzl', 'config.json');
 }
 
