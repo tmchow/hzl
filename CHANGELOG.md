@@ -1,3 +1,10 @@
+# [1.6.0](https://github.com/tmchow/hzl/compare/v1.5.1...v1.6.0) (2026-01-31)
+
+
+### Features
+
+* readme redesign and openclaw positioning and skills ([#26](https://github.com/tmchow/hzl/issues/26)) ([ede69dd](https://github.com/tmchow/hzl/commit/ede69ddf4d591cb9d93c7529722d4504af2e676c))
+
 ## [1.5.1](https://github.com/tmchow/hzl/compare/v1.5.0...v1.5.1) (2026-01-31)
 
 
