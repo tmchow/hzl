@@ -4,7 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { runAddDep } from './add-dep.js';
-import { initializeDb, closeDb, type Services } from '../db.js';
+import { initializeDb, closeDb, type Services } from '../../db.js';
 
 describe('runAddDep', () => {
   let tempDir: string;

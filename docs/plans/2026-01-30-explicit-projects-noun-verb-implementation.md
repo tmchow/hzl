@@ -1337,7 +1337,7 @@ Update `task/move.ts` to validate target project exists.
 
 ---
 
-### Task 18: Migrate Dependency Task Commands
+### Task 18: Migrate Dependency Task Commands ✅
 
 **Files:**
 - Move: `add-dep.ts` → `task/add-dep.ts`
