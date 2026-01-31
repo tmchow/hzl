@@ -12,7 +12,7 @@
 
 ## Phase 1: Core Infrastructure
 
-### Task 1: Add Project Event Types
+### Task 1: Add Project Event Types ✅
 
 **Files:**
 - Modify: `packages/hzl-core/src/events/types.ts`
