@@ -1270,7 +1270,7 @@ Shows:
 
 ---
 
-### Task 13: Wire Up Project Subcommand Group
+### Task 13: Wire Up Project Subcommand Group ✅
 
 **Files:**
 - Create: `packages/hzl-cli/src/commands/project/index.ts`

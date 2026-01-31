@@ -10,6 +10,7 @@ import { createWhichDbCommand } from './commands/which-db.js';
 import { createConfigCommand } from './commands/config.js';
 import { createProjectsCommand } from './commands/projects.js';
 import { createRenameProjectCommand } from './commands/rename-project.js';
+import { createProjectCommand } from './commands/project/index.js';
 import { createAddCommand } from './commands/add.js';
 import { createListCommand } from './commands/list.js';
 import { createNextCommand } from './commands/next.js';
@@ -59,6 +60,7 @@ export function createProgram(): Command {
   program.addCommand(createInitCommand());
   program.addCommand(createWhichDbCommand());
   program.addCommand(createConfigCommand());
+  program.addCommand(createProjectCommand());
   program.addCommand(createProjectsCommand());
   program.addCommand(createRenameProjectCommand());
   program.addCommand(createAddCommand());
