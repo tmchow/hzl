@@ -1,0 +1,12 @@
+{
+  "name": "hzl-skills",
+  "version": "1.0.0",
+  "description": "Skills for AI agents using HZL task tracking",
+  "author": {
+    "name": "HZL"
+  },
+  "repository": "https://github.com/tmchow/hzl",
+  "license": "MIT",
+  "keywords": ["hzl", "tasks", "agents", "tracking"],
+  "skills": "./skills/"
+}
