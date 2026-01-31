@@ -517,7 +517,7 @@ feat: add ProjectsProjector for project lifecycle events
 
 ---
 
-### Task 4: Create ProjectService
+### Task 4: Create ProjectService ✅
 
 **Files:**
 - Create: `packages/hzl-core/src/services/project-service.ts`
