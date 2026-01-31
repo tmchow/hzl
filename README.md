@@ -1,164 +1,246 @@
-# HZL
+# HZL (Hazel)
 
-**Lightweight task tracking for AI agents and swarms.**
+**A shared task ledger for OpenClaw and poly-agent workflows.**
 
-HZL is a CLI-first task management system designed for solo developers working with multiple AI agents across multiple projects. It provides durable, local coordination without the overhead of team-oriented project management tools.
+OpenClaw is great at doing work: running tools, coordinating sub-agents, and maintaining memory.
+What it (and most agent tools) do not give you is a durable, shared backlog that survives:
 
-## Why HZL?
+- session boundaries
+- crashes/reboots
+- switching between different agent runtimes (Claude Code, Codex, Gemini, etc.)
 
-Most project management tools assume teams of humans collaborating on shared repositories. When you're a solo developer with AI agents as your primary collaborators, these tools become heavyweight:
+HZL fills that gap: a lightweight, local-first task tracker that any agent can read/write.
 
-- **Repository-level storage is limiting.** You work across many repos and non-code projects. HZL stores tasks at the user level (`~/.hzl/data.db`), giving you one source of truth for all your work.
+Using OpenClaw? Start here: [OpenClaw integration](#openclaw-integration)
 
-- **Agents need machine-readable interfaces.** HZL's CLI is optimized for programmatic use with `--json` output, atomic operations, and deterministic selection policies that agents can rely on.
+Not using OpenClaw? Jump to: [Using HZL with Claude Code, Codex, Gemini CLI, or any coding agent](#using-hzl-with-claude-code-codex-gemini-cli-or-any-coding-agent)
 
-- **Concurrent agents need coordination.** Multiple agents working in parallel can atomically claim tasks, preventing conflicts. No heartbeats required—checkpoints let agents recover each other's work.
+HZL provides:
 
-- **Active work, not archival.** HZL is designed for coordinating current projects, not storing years of task history. Track recent work, see progress stats, then let completed tasks fade.
+- Projects and tasks
+- Dependencies (`B` waits for `A`)
+- Checkpoints (progress snapshots you can resume from)
+- Leases (time-limited claims for multi-agent coordination)
+- Event history (audit trail)
+- A CLI + JSON output that agents can script against
 
-## Design Principles
+Data is stored in SQLite. Default location: `$XDG_DATA_HOME/hzl/data.db` (fallback `~/.local/share/hzl/data.db`); Windows: `%LOCALAPPDATA%\\hzl\\data.db`.
 
-1. **Tracker, not orchestrator.** HZL is a dumb ledger. It tracks work state—it doesn't orchestrate, prioritize, or decide what agents should do. Orchestration belongs elsewhere: in your control agents, workflow tools, or the agents themselves. This separation is intentional. HZL stays simple and reliable because it does one thing well.
+---
 
-2. **Events are truth.** Every change is an append-only event. Current state is a projection. Full audit trails, reconstructable history.
+## Why another task tracker?
 
-3. **Local-first.** SQLite with WAL mode. No network dependency. Works offline.
+Because most task trackers are built for humans.
 
-4. **Hierarchical but simple.** Projects contain tasks. Tasks can have subtasks and dependencies. That's it.
+HZL is built for agents:
 
-## Non-Goals
+- It is backend-first, not UI-first. Think "task database with a CLI," not "another Trello."
+- It is model-agnostic. Your tasks live outside any one vendor's memory or chat history.
+- It is multi-agent safe. Leases prevent orphaned work and enable clean handoffs.
+- It is resumable. Checkpoints let an agent crash, reboot, or swap models and keep going.
 
-HZL intentionally does not do these things:
+If you already have a favorite human todo app, keep it.
+If you need a shared task state that multiple agents can read/write, that is HZL.
 
-- **Orchestration.** HZL doesn't spawn agents, manage their lifecycles, assign work, or decide what should happen next. If you need a control agent that spawns sub-agents, that logic lives in your agent—not in HZL.
+---
 
-- **Task decomposition.** HZL won't break down "build the app" into subtasks. Humans or agents create the task hierarchy; HZL just tracks it.
+## Where HZL fits
 
-- **Smart scheduling.** `hzl next` uses simple, deterministic rules (priority, then FIFO). There's no learning, no load balancing, no routing based on agent capabilities. If you need smarter task selection, your orchestration layer decides and claims by ID.
+### 1) OpenClaw orchestrator + sub-agents
 
-- **Team collaboration.** No permissions, roles, notifications, or multi-user features. HZL assumes a single developer working with their agents.
+```mermaid
+flowchart LR
+  You[You] --> OC["OpenClaw (orchestrator)"]
+  OC --> Tools["OpenClaw tools<br/>(browser, exec, email, etc.)"]
+  OC <--> HZL[(HZL task ledger)]
+  OC --> S1[Claude Code]
+  OC --> S2[Codex / other]
+  S1 <--> HZL
+  S2 <--> HZL
+```
 
-- **Cloud sync.** Local SQLite by design. If you want sync, export/import or backup to your own storage.
+OpenClaw coordinates the work. HZL is the shared, durable task board that OpenClaw and its sub-agents can use across sessions.
 
-## Installation
+### 2) Any poly-agent system (no OpenClaw required)
+
+```mermaid
+flowchart LR
+  U[You] --> O["Orchestrator (human or agent)"]
+  O <--> HZL[(HZL)]
+  O --> C[Claude Code]
+  O --> X[Codex]
+  O --> G[Gemini]
+  C <--> HZL
+  X <--> HZL
+  G <--> HZL
+```
+
+Same idea: once you are switching tools/models, you need a shared ledger.
+
+### 3) One agent, many sessions
+
+```mermaid
+flowchart LR
+  U[You] --> A[Coding agent]
+  A <--> HZL
+  A --> R[Repo / files]
+```
+
+Use HZL to persist "what's next" and "what changed" between sessions.
+
+### 4) HZL as the backend for your own UI
+
+```mermaid
+flowchart LR
+  UI[Your lightweight web app] --> HZL
+  Agents[Agents + scripts] --> HZL
+```
+
+If you want a human-friendly interface, build one. HZL stays the durable backend that both humans and agents can use.
+
+---
+
+## Quickstart
+
+### Install
 
 Requires Node.js 22.14+.
 
 ```bash
 npm install -g hzl-cli
-```
-
-Or from source:
-
-```bash
-git clone https://github.com/tmchow/hzl.git
-cd hzl
-npm install
-npm run build
-npm link packages/hzl-cli
-```
-
-## Quick Start
-
-```bash
-# Initialize the database
 hzl init
-
-# Create a project
-hzl project create myapp
-
-# Create tasks
-hzl task add "Set up authentication" -P myapp --priority 2 --tags backend,auth
-hzl task add "Write API tests" -P myapp --depends-on <task-id>
-
-# List available work
-hzl task list --project myapp --available
-
-# Claim and work
-hzl task next --project myapp
-hzl task claim <task-id> --author agent-1
-hzl task checkpoint <task-id> "Completed OAuth flow"
-hzl task complete <task-id>
 ```
 
-## Key Commands
-
-### Task Lifecycle
+### Create a project and tasks
 
 ```bash
-hzl task add <title> -P <project>             # Create a task
-hzl task list [--project] [--status]          # List tasks
-hzl task next [--project]                     # Show next claimable task
-hzl task claim <id>                           # Claim a task
-hzl task complete <id>                        # Mark done
+hzl project create portland-trip
+
+hzl task add "Check calendars for March weekends" -P portland-trip --priority 5
+hzl task add "Research neighborhoods + activities" -P portland-trip --priority 4
+hzl task add "Shortlist 2-3 weekend options" -P portland-trip --priority 3 \
+  --depends-on <calendar-task-id> --depends-on <research-task-id>
 ```
 
-### For Agents
+### Work with checkpoints
 
 ```bash
-# All commands support --json for structured output
-hzl task list --project myapp --available --json
-hzl task claim <id> --author agent-1 --json
-
-# Checkpoints let agents recover each other's work
-hzl task checkpoint <id> "step-3-complete" --data '{"files":["a.ts","b.ts"]}'
-hzl task show <id> --json             # Get task details + history
+hzl task claim <calendar-task-id> --author trevin-agent
+hzl task checkpoint <calendar-task-id> "Found 3 options: Mar 7-9, 14-16, 21-23"
+hzl task complete <calendar-task-id>
 ```
 
-### Stuck Task Recovery
+### Use JSON output when scripting
 
 ```bash
-hzl task claim <id> --lease 30  # Claim with 30-minute lease
-hzl task stuck                 # Find tasks with expired leases
-hzl task steal <id> --if-expired # Reclaim expired work
+hzl task show <id> --json
+hzl task next --project portland-trip --json
 ```
 
-### Human Oversight
+---
+
+## Core concepts (the stuff that matters)
+
+### Tasks are units of work, not reminders
+
+HZL is optimized for "do work, report progress, unblock the next step."
+
+If you need time-based reminders, pair HZL with a scheduler (cron, OpenClaw cron, etc.).
+
+### Checkpoints are progress snapshots
+
+A checkpoint is a compact, durable record of what happened:
+
+- what you tried
+- what you found
+- what's still missing
+- links, commands, or file paths needed to resume
+
+### Dependencies encode ordering
+
+Dependencies are how an agent avoids premature work:
+
+- "Don't search flights before you know dates."
+- "Don't open a PR before tests pass."
+
+### Leases make multi-agent handoffs reliable
+
+Leases are time-limited claims:
+
+- A worker agent claims a task with `--lease 30`
+- If it disappears, the lease expires
+- Another agent can detect stuck work and take over
+
+---
+
+## Patterns
+
+### Pattern: Poly-agent backlog (recommended)
+
+Conventions that help:
+
+- Use consistent author IDs: `openclaw`, `claude-code`, `codex`, `gemini`, etc.
+- Claim tasks before work.
+- Checkpoint whenever you learn something that would be painful to rediscover.
+
+Example handoff:
 
 ```bash
-hzl project list               # See all projects
-hzl task show <id>             # Task details + history
-hzl task comment <id> "guidance..."  # Add steering comments
+# Orchestrator creates task
+hzl task add "Implement REST API endpoints" -P myapp --priority 2
+TASK_ID=<id>
+
+# Worker agent claims with a lease
+hzl task claim "$TASK_ID" --author claude-code --lease 30
+hzl task checkpoint "$TASK_ID" "Endpoints scaffolded; next: auth middleware"
+hzl task complete "$TASK_ID"
 ```
 
-### Dependencies
+### Pattern: Personal todo list (it works, but bring your own UI)
 
-```bash
-hzl task add-dep <task> <depends-on> # Task waits for dependency
-hzl task remove-dep <task> <dep>     # Remove dependency
-hzl validate                         # Check for cycles
+HZL can track personal tasks and has the advantage of centralizing agent and personal tasks.
+This enables scenarios like OpenClaw assigning you tasks without needing to sync with other todo systems.
+
+HZL itself is not trying to be a polished, human-first todo app. You bring other pieces for that.
+
+If you want a todo app, build or use a UI:
+
+- a tiny web app
+- a TUI wrapper
+- a menu bar widget
+
+HZL stays the storage layer and concurrency-safe ledger underneath.
+
+---
+
+## Using HZL with Claude Code, Codex, Gemini CLI, or any coding agent
+
+If your coding agent supports an instruction file (for example `CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, etc.), add a short policy so the agent reaches for HZL consistently.
+
+### Drop-in policy snippet
+
+```md
+### HZL task ledger (use for multi-step work)
+
+When a request has multiple steps, spans multiple sessions, or involves coordination with other agents/tools:
+1) Create or use an HZL project for the work.
+2) Break work into tasks with dependencies.
+3) Claim tasks before work and checkpoint after meaningful progress.
+4) Use `--json` when producing output another tool will parse.
+
+Key commands:
+- `hzl project create <name>`
+- `hzl task add "<title>" -P <project> [--depends-on <id>]`
+- `hzl task claim <id> --author <agent-id> [--lease 30]`
+- `hzl task checkpoint <id> "<progress + next step>"`
+- `hzl task complete <id>`
 ```
 
-## Configuration
+That snippet is intentionally short. The goal is consistency, not ceremony.
 
-HZL stores configuration in `~/.hzl/config.json`. The config file is created automatically when you run `hzl init`.
+### Claude Code marketplace (optional)
 
-To use a custom database location:
-
-```bash
-hzl init --db ~/my-project/tasks.db
-```
-
-Subsequent commands will automatically use this database.
-
-**Config resolution order (highest to lowest priority):**
-1. `--db` flag
-2. `HZL_DB` environment variable
-3. `~/.hzl/config.json`
-4. Default: `~/.hzl/data.db`
-
-## Environment Variables
-
-| Variable | Description |
-|----------|-------------|
-| `HZL_DB` | Override database location |
-| `HZL_CONFIG` | Override config file location (default: `~/.hzl/config.json`) |
-| `HZL_AUTHOR` | Default author for claims/comments |
-| `HZL_AGENT_ID` | Default agent identifier |
-
-## Claude Code Marketplace
-
-HZL includes a [Claude Code](https://claude.ai/code) plugin marketplace with skills that help AI agents work effectively with HZL.
+HZL includes a Claude Code plugin marketplace with skills that help agents work effectively with HZL.
 
 ```bash
 # Add the marketplace
@@ -170,62 +252,81 @@ HZL includes a [Claude Code](https://claude.ai/code) plugin marketplace with ski
 
 See [`packages/hzl-marketplace`](./packages/hzl-marketplace) for details.
 
-## Related Projects
+## OpenClaw integration
 
-- [Beads](https://github.com/steveyegge/beads) - Steve Yegge's task management for agents
-- [beads-rust](https://github.com/Dicklesworthstone/beads_rust) - Rust port of Beads
+OpenClaw is a self-hosted AI assistant that can coordinate tools and sub-agents.
+HZL fits well as the task ledger that OpenClaw (and its sub-agents) can share.
 
-HZL takes a different approach: user-level storage, CLI-first for agents, and designed for solo developers coordinating multiple agents across projects.
+### Quick start (recommended)
 
-## Development
+Copy/paste this into an OpenClaw chat (single prompt):
+
+```
+Install HZL from https://github.com/tmchow/hzl and run hzl init. Install the HZL skill from https://www.clawhub.ai/tmchow/hzl. Then append the HZL policy from https://raw.githubusercontent.com/tmchow/hzl/main/docs/openclaw-hzl-tools-prompt.md to my TOOLS.md.
+```
+
+### Manual setup
+
+1) Install HZL on the machine running OpenClaw:
 
 ```bash
-npm install
-npm run build
-npm test
-npm run lint
+npm install -g hzl-cli
+hzl init
+```
 
-# Try the sample project
-hzl sample-project
+2) Install the HZL skill from https://www.clawhub.ai/tmchow/hzl  
+   Skill source (for reference only): **[`docs/openclaw/skill-hzl.md`](./docs/openclaw/skill-hzl.md)**
+
+3) Teach OpenClaw when to use HZL (important):
+   - Copy/paste from: **[`docs/openclaw-hzl-tools-prompt.md`](./docs/openclaw-hzl-tools-prompt.md)**
+   - Or tell OpenClaw to add this policy to `TOOLS.md`:
+
+```
+HZL is a tool available to you for task management in certain cases. I want you to add this information to your TOOLS.md in the right way so you remember how to use it:
+https://raw.githubusercontent.com/tmchow/hzl/main/docs/openclaw-hzl-tools-prompt.md
 ```
 
 ---
 
-## CLAUDE.md / AGENTS.md Snippet
+## When to use HZL (and when not to)
 
-Copy this into your project's `CLAUDE.md` or `AGENTS.md`:
+### Use HZL when:
 
-````markdown
-## Task Management
+- work has multiple steps and you want explicit sequencing
+- work spans multiple sessions (resume tomorrow with confidence)
+- you are coordinating multiple agents or model providers
+- you need durable status reporting (done / in progress / blocked / next)
+- you want a task ledger your own UI can sit on top of
 
-This project uses [HZL](https://github.com/tmchow/hzl) for task tracking.
+### Consider something else when:
 
-### Choosing a project name
+- you need time-based reminders or notifications (use a scheduler + a notifier)
+- you need rich human workflow features (due dates, recurring tasks, calendar views)
+- you are tracking an org-wide backlog (GitHub/Jira/etc. may be a better fit)
 
-Use a **stable identifier** you can always derive:
+---
 
-- **Working in a repo?** Use the repository name (e.g., `hzl`, `my-app`)
-- **Long-lived agent?** Use your agent identity (e.g., `openclaw`, `kalids-openclaw`)
-
-Projects group related work. Don't create per-feature projects—keep them long-lived. If no project is specified, tasks default to `inbox`.
-
-### Commands
+## CLI reference (short)
 
 ```bash
-# Projects
-hzl project list                                   # List all projects
-hzl project rename <old> <new>                     # Rename a project
+hzl init
 
-# Tasks
-hzl task add "Task title" -P <project>             # Create task
-hzl task next --project <project> --json           # Show next available
-hzl task show <task-id> --json                     # Task details + history
-hzl task checkpoint <task-id> "<name>"             # Save progress
-hzl task complete <task-id>                        # Mark done
+hzl project create <name>
+hzl project list
+
+hzl task add "<title>" -P <project>
+hzl task list --project <project>
+hzl task next --project <project>
+
+hzl task claim <id> --author <name> [--lease <minutes>]
+hzl task checkpoint <id> "<message>"
+hzl task complete <id>
+
+hzl task stuck
+hzl task steal <id> --if-expired
+
+hzl task show <id> --json
 ```
-
-Use `--json` for structured output. HZL handles atomic claiming.
-````
 
 ---
 
