@@ -22,6 +22,17 @@ export interface ProjectDeleteOptions {
   json: boolean;
 }
 
+/**
+ * Deletes tasks directly from projection tables without recording events.
+ *
+ * WARNING: This bypasses event sourcing. Tasks deleted this way:
+ * - Will NOT have TaskDeleted events in the event log
+ * - Will REAPPEAR if projections are rebuilt (hzl doctor --rebuild)
+ * - Cannot be audited or traced
+ *
+ * This is a known trade-off for bulk deletion performance. A future
+ * improvement would be to emit TaskDeleted events before deletion.
+ */
 function deleteTasksFromProjections(services: Services, taskIds: string[]): number {
   if (taskIds.length === 0) return 0;
 
