@@ -1,3 +1,10 @@
+# [1.3.0](https://github.com/tmchow/hzl/compare/v1.2.0...v1.3.0) (2026-01-31)
+
+
+### Features
+
+* add dev mode isolation, XDG paths, Windows support, and security hardening ([#21](https://github.com/tmchow/hzl/issues/21)) ([b646156](https://github.com/tmchow/hzl/commit/b6461563ea9c8370adcb2484780ab11faf99a416))
+
 # [1.2.0](https://github.com/tmchow/hzl/compare/v1.1.0...v1.2.0) (2026-01-31)
 
 
