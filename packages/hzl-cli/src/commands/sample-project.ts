@@ -8,7 +8,7 @@ import {
 import { resolveDbPath } from '../config.js';
 import { initializeDb, closeDb, type Services } from '../db.js';
 import { handleError } from '../errors.js';
-import type { GlobalOptions } from '../types.js';
+import { GlobalOptionsSchema } from '../types.js';
 
 export interface SampleProjectCreateResult {
   project: string;
@@ -32,8 +32,10 @@ function createSampleProject(services: Services): number {
 
   for (const spec of SAMPLE_TASKS) {
     const dependsOn = spec.depends_on_indices
-      ?.map((index) => taskIds[index])
-      .filter(Boolean) as string[] | undefined;
+      ? spec.depends_on_indices
+          .map((index) => taskIds[index])
+          .filter((id): id is string => Boolean(id))
+      : undefined;
 
     const task = services.taskService.createTask({
       title: spec.title,
@@ -185,7 +187,7 @@ export function createSampleProjectCommand(): Command {
     .command('create')
     .description('Create the sample project if it does not exist')
     .action(function (this: Command) {
-      const globalOpts = this.optsWithGlobals() as GlobalOptions;
+      const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       try {
         runSampleProjectCreate({
           dbPath: resolveDbPath(globalOpts.db),
@@ -200,7 +202,7 @@ export function createSampleProjectCommand(): Command {
     .command('reset')
     .description('Delete and recreate the sample project')
     .action(function (this: Command) {
-      const globalOpts = this.optsWithGlobals() as GlobalOptions;
+      const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       try {
         runSampleProjectReset({
           dbPath: resolveDbPath(globalOpts.db),

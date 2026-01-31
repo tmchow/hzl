@@ -3,20 +3,25 @@ import { Command } from 'commander';
 import { resolveDbPath } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError } from '../../errors.js';
-import type { GlobalOptions } from '../../types.js';
+import { GlobalOptionsSchema } from '../../types.js';
 
 export interface StuckTask {
   task_id: string;
   title: string;
   project: string;
   claimed_by_author: string | null;
-  lease_until: string | null;
+  lease_until: string;
   expired_for_ms: number;
 }
 
 export interface StuckResult {
   tasks: StuckTask[];
   total: number;
+}
+
+interface StuckCommandOptions {
+  project?: string;
+  olderThan?: string;
 }
 
 export function runStuck(options: {
@@ -29,6 +34,14 @@ export function runStuck(options: {
   const db = services.db;
   const now = new Date();
 
+  type StuckRow = {
+    task_id: string;
+    title: string;
+    project: string;
+    claimed_by_author: string | null;
+    lease_until: string;
+  };
+
   // Find tasks with expired leases
   let query = `
     SELECT task_id, title, project, claimed_by_author, claimed_by_agent_id, lease_until
@@ -37,7 +50,7 @@ export function runStuck(options: {
       AND lease_until IS NOT NULL
       AND lease_until < ?
   `;
-  const params: any[] = [now.toISOString()];
+  const params: Array<string> = [now.toISOString()];
 
   if (project) {
     query += ' AND project = ?';
@@ -46,29 +59,28 @@ export function runStuck(options: {
 
   query += ' ORDER BY lease_until ASC';
 
-  const rows = db.prepare(query).all(...params) as any[];
+  const rows = db.prepare(query).all(...params) as StuckRow[];
 
-  const tasks: StuckTask[] = rows
-    .map(row => {
-      const leaseExpiry = new Date(row.lease_until);
-      const expiredForMs = now.getTime() - leaseExpiry.getTime();
-      const expiredForMinutes = expiredForMs / 60000;
-      
-      // Filter by olderThanMinutes if specified
-      if (expiredForMinutes < olderThanMinutes) {
-        return null;
-      }
+  const tasks: StuckTask[] = [];
+  for (const row of rows) {
+    const leaseExpiry = new Date(row.lease_until);
+    const expiredForMs = now.getTime() - leaseExpiry.getTime();
+    const expiredForMinutes = expiredForMs / 60000;
 
-      return {
-        task_id: row.task_id,
-        title: row.title,
-        project: row.project,
-        claimed_by_author: row.claimed_by_author,
-        lease_until: row.lease_until,
-        expired_for_ms: expiredForMs,
-      };
-    })
-    .filter((t): t is StuckTask => t !== null);
+    // Filter by olderThanMinutes if specified
+    if (expiredForMinutes < olderThanMinutes) {
+      continue;
+    }
+
+    tasks.push({
+      task_id: row.task_id,
+      title: row.title,
+      project: row.project,
+      claimed_by_author: row.claimed_by_author,
+      lease_until: row.lease_until,
+      expired_for_ms: expiredForMs,
+    });
+  }
 
   const result: StuckResult = {
     tasks,
@@ -98,15 +110,15 @@ export function createStuckCommand(): Command {
     .description('List tasks with expired leases')
     .option('-p, --project <project>', 'Filter by project')
     .option('--older-than <minutes>', 'Only show tasks expired for more than N minutes', '0')
-    .action(function (this: Command, opts: any) {
-      const globalOpts = this.optsWithGlobals() as GlobalOptions;
+    .action(function (this: Command, opts: StuckCommandOptions) {
+      const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const dbPath = resolveDbPath(globalOpts.db);
       const services = initializeDb(dbPath);
       try {
         runStuck({
           services,
           project: opts.project,
-          olderThanMinutes: parseInt(opts.olderThan, 10),
+          olderThanMinutes: parseInt(opts.olderThan ?? '0', 10),
           json: globalOpts.json ?? false,
         });
       } catch (e) {

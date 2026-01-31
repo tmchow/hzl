@@ -1,10 +1,11 @@
 // packages/hzl-cli/src/commands/add-dep.ts
+import type Database from 'better-sqlite3';
 import { Command } from 'commander';
 import { resolveDbPath } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError, CLIError, ExitCode } from '../../errors.js';
 import { EventType } from 'hzl-core/events/types.js';
-import type { GlobalOptions } from '../../types.js';
+import { GlobalOptionsSchema } from '../../types.js';
 
 export interface AddDepResult {
   task_id: string;
@@ -16,7 +17,7 @@ export interface AddDepResult {
  * Check if adding taskId -> dependsOnId would create a cycle.
  * A cycle would occur if dependsOnId (or any of its dependencies) already depends on taskId.
  */
-function wouldCreateCycle(db: any, taskId: string, dependsOnId: string): boolean {
+function wouldCreateCycle(db: Database.Database, taskId: string, dependsOnId: string): boolean {
   // Check if dependsOnId can reach taskId through its dependencies
   const visited = new Set<string>();
   const queue = [dependsOnId];
@@ -90,7 +91,7 @@ export function createAddDepCommand(): Command {
     .argument('<taskId>', 'Task ID that will depend on the other')
     .argument('<dependsOnId>', 'Task ID that must be completed first')
     .action(function (this: Command, taskId: string, dependsOnId: string) {
-      const globalOpts = this.optsWithGlobals() as GlobalOptions;
+      const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const dbPath = resolveDbPath(globalOpts.db);
       const services = initializeDb(dbPath);
       try {

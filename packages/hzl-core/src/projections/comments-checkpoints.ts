@@ -2,7 +2,11 @@
 import type Database from 'better-sqlite3';
 import type { PersistedEventEnvelope } from '../events/store.js';
 import type { Projector } from './types.js';
-import { EventType } from '../events/types.js';
+import {
+  EventType,
+  type CheckpointRecordedData,
+  type CommentAddedData,
+} from '../events/types.js';
 
 export class CommentsCheckpointsProjector implements Projector {
   name = 'comments_checkpoints';
@@ -24,7 +28,7 @@ export class CommentsCheckpointsProjector implements Projector {
   }
 
   private handleCommentAdded(event: PersistedEventEnvelope, db: Database.Database): void {
-    const data = event.data as any;
+    const data = event.data as CommentAddedData;
     db.prepare(`
       INSERT INTO task_comments (event_rowid, task_id, author, agent_id, text, timestamp)
       VALUES (?, ?, ?, ?, ?, ?)
@@ -39,7 +43,7 @@ export class CommentsCheckpointsProjector implements Projector {
   }
 
   private handleCheckpointRecorded(event: PersistedEventEnvelope, db: Database.Database): void {
-    const data = event.data as any;
+    const data = event.data as CheckpointRecordedData;
     db.prepare(`
       INSERT INTO task_checkpoints (event_rowid, task_id, name, data, timestamp)
       VALUES (?, ?, ?, ?, ?)

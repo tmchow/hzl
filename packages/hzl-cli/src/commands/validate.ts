@@ -3,12 +3,8 @@ import { Command } from 'commander';
 import { resolveDbPath } from '../config.js';
 import { initializeDb, closeDb, type Services } from '../db.js';
 import { handleError } from '../errors.js';
-import type { GlobalOptions } from '../types.js';
-import type {
-  ValidationResult,
-  CycleNode,
-  MissingDep,
-} from 'hzl-core/services/validation-service.js';
+import { GlobalOptionsSchema } from '../types.js';
+import type { ValidationResult } from 'hzl-core/services/validation-service.js';
 
 export function runValidate(options: {
   services: Services;
@@ -32,13 +28,13 @@ export function runValidate(options: {
       if (result.cycles.length > 0) {
         console.log(`\nCycles (${result.cycles.length}):`);
         for (const cycle of result.cycles) {
-          const path = cycle.map((c: CycleNode) => c.taskId.slice(0, 8)).join(' → ');
+          const path = cycle.map((c) => c.taskId.slice(0, 8)).join(' → ');
           console.log(`  ${path} → (cycle)`);
         }
       }
       if (result.missingDeps.length > 0) {
         console.log(`\nMissing dependencies (${result.missingDeps.length}):`);
-        for (const missing of result.missingDeps as MissingDep[]) {
+        for (const missing of result.missingDeps) {
           console.log(`  ${missing.taskId.slice(0, 8)} → ${missing.missingDepId.slice(0, 8)} (missing)`);
         }
       }
@@ -52,7 +48,7 @@ export function createValidateCommand(): Command {
   return new Command('validate')
     .description('Validate database integrity (check for cycles, missing deps)')
     .action(function (this: Command) {
-      const globalOpts = this.optsWithGlobals() as GlobalOptions;
+      const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const dbPath = resolveDbPath(globalOpts.db);
       const services = initializeDb(dbPath);
       try {

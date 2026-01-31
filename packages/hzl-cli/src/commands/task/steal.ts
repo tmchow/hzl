@@ -3,7 +3,7 @@ import { Command } from 'commander';
 import { resolveDbPath } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError, CLIError, ExitCode } from '../../errors.js';
-import type { GlobalOptions } from '../../types.js';
+import { GlobalOptionsSchema } from '../../types.js';
 
 export interface StealResult {
   task_id: string;
@@ -11,6 +11,12 @@ export interface StealResult {
   status: string;
   claimed_by_author: string | null;
   stolen_from: string | null;
+}
+
+interface StealCommandOptions {
+  owner?: string;
+  force?: boolean;
+  ifExpired?: boolean;
 }
 
 export function runSteal(options: {
@@ -89,8 +95,8 @@ export function createStealCommand(): Command {
     .option('--owner <name>', 'New owner name')
     .option('--force', 'Force steal even if lease is active')
     .option('--if-expired', 'Only steal if lease has expired')
-    .action(function (this: Command, taskId: string, opts: any) {
-      const globalOpts = this.optsWithGlobals() as GlobalOptions;
+    .action(function (this: Command, taskId: string, opts: StealCommandOptions) {
+      const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const dbPath = resolveDbPath(globalOpts.db);
       const services = initializeDb(dbPath);
       try {

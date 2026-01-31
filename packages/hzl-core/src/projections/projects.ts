@@ -1,7 +1,12 @@
 import type Database from 'better-sqlite3';
 import type { PersistedEventEnvelope } from '../events/store.js';
 import type { Projector } from './types.js';
-import { EventType } from '../events/types.js';
+import {
+  EventType,
+  type ProjectCreatedData,
+  type ProjectDeletedData,
+  type ProjectRenamedData,
+} from '../events/types.js';
 
 export class ProjectsProjector implements Projector {
   name = 'projects';
@@ -28,11 +33,7 @@ export class ProjectsProjector implements Projector {
     event: PersistedEventEnvelope,
     db: Database.Database
   ): void {
-    const data = event.data as {
-      name: string;
-      description?: string;
-      is_protected?: boolean;
-    };
+    const data = event.data as ProjectCreatedData;
     db.prepare(
       `
       INSERT OR IGNORE INTO projects (name, description, is_protected, created_at, last_event_id)
@@ -51,11 +52,13 @@ export class ProjectsProjector implements Projector {
     event: PersistedEventEnvelope,
     db: Database.Database
   ): void {
-    const data = event.data as { old_name: string; new_name: string };
+    const data = event.data as ProjectRenamedData;
 
     const oldProject = db
       .prepare('SELECT * FROM projects WHERE name = ?')
-      .get(data.old_name) as any;
+      .get(data.old_name) as
+      | { description: string | null; is_protected: number; created_at: string }
+      | undefined;
     if (!oldProject) return;
 
     db.prepare('DELETE FROM projects WHERE name = ?').run(data.old_name);
@@ -82,7 +85,7 @@ export class ProjectsProjector implements Projector {
     event: PersistedEventEnvelope,
     db: Database.Database
   ): void {
-    const data = event.data as { name: string };
+    const data = event.data as ProjectDeletedData;
     db.prepare('DELETE FROM projects WHERE name = ?').run(data.name);
   }
 }

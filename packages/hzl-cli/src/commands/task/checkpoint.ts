@@ -3,12 +3,17 @@ import { Command } from 'commander';
 import { resolveDbPath } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError, CLIError, ExitCode } from '../../errors.js';
-import type { GlobalOptions } from '../../types.js';
+import { GlobalOptionsSchema } from '../../types.js';
 
 export interface CheckpointResult {
   task_id: string;
   name: string;
   data: Record<string, unknown>;
+}
+
+interface CheckpointCommandOptions {
+  data?: string;
+  author?: string;
 }
 
 export function runCheckpoint(options: {
@@ -50,15 +55,20 @@ export function createCheckpointCommand(): Command {
     .argument('<name>', 'Checkpoint name')
     .option('--data <json>', 'Checkpoint data as JSON')
     .option('--author <name>', 'Author name')
-    .action(function (this: Command, taskId: string, name: string, opts: any) {
-      const globalOpts = this.optsWithGlobals() as GlobalOptions;
+    .action(function (
+      this: Command,
+      taskId: string,
+      name: string,
+      opts: CheckpointCommandOptions
+    ) {
+      const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const dbPath = resolveDbPath(globalOpts.db);
       const services = initializeDb(dbPath);
       try {
         let data: Record<string, unknown> | undefined;
         if (opts.data) {
           try {
-            data = JSON.parse(opts.data);
+            data = JSON.parse(opts.data) as Record<string, unknown>;
           } catch {
             throw new CLIError('Invalid JSON for --data', ExitCode.InvalidInput);
           }

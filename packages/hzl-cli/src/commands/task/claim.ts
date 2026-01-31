@@ -3,7 +3,7 @@ import { Command } from 'commander';
 import { resolveDbPath } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError } from '../../errors.js';
-import type { GlobalOptions } from '../../types.js';
+import { GlobalOptionsSchema } from '../../types.js';
 
 export interface ClaimResult {
   task_id: string;
@@ -12,6 +12,12 @@ export interface ClaimResult {
   claimed_by_author: string | null;
   claimed_by_agent_id: string | null;
   lease_until: string | null;
+}
+
+interface ClaimCommandOptions {
+  author?: string;
+  agent?: string;
+  lease?: string;
 }
 
 export function runClaim(options: {
@@ -60,8 +66,8 @@ export function createClaimCommand(): Command {
     .option('--author <name>', 'Author name')
     .option('--agent <id>', 'Agent ID')
     .option('-l, --lease <minutes>', 'Lease duration in minutes')
-    .action(function (this: Command, taskId: string, opts: any) {
-      const globalOpts = this.optsWithGlobals() as GlobalOptions;
+    .action(function (this: Command, taskId: string, opts: ClaimCommandOptions) {
+      const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const dbPath = resolveDbPath(globalOpts.db);
       const services = initializeDb(dbPath);
       try {

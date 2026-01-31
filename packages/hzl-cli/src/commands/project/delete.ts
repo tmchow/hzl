@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import { resolveDbPath } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { CLIError, ExitCode, handleError } from '../../errors.js';
-import type { GlobalOptions } from '../../types.js';
+import { GlobalOptionsSchema } from '../../types.js';
 import { EventType, PROJECT_EVENT_TASK_ID } from 'hzl-core/events/types.js';
 import { withWriteTransaction } from 'hzl-core/db/connection.js';
 
@@ -20,6 +20,12 @@ export interface ProjectDeleteOptions {
   archiveTasks?: boolean;
   deleteTasks?: boolean;
   json: boolean;
+}
+
+interface ProjectDeleteCommandOptions {
+  moveTo?: string;
+  archiveTasks?: boolean;
+  deleteTasks?: boolean;
 }
 
 /**
@@ -145,12 +151,20 @@ export function runProjectDelete(options: ProjectDeleteOptions): ProjectDeleteRe
     });
     services.projectionEngine.applyEvent(event);
 
+    const action: ProjectDeleteResult['action'] = moveTo
+      ? 'move'
+      : archiveTasks
+        ? 'archive'
+        : deleteTasks
+          ? 'delete'
+          : 'none';
+
     return {
       name,
       task_count: activeCount,
       archived_task_count: archivedCount,
-      action: moveTo ? 'move' : archiveTasks ? 'archive' : deleteTasks ? 'delete' : 'none',
-    } as ProjectDeleteResult;
+      action,
+    };
   });
 
   if (json) {
@@ -169,8 +183,12 @@ export function createProjectDeleteCommand(): Command {
     .option('--move-to <project>', 'Move tasks to target project')
     .option('--archive-tasks', 'Archive tasks before deleting project')
     .option('--delete-tasks', 'Delete tasks before deleting project')
-    .action(function (this: Command, name: string, opts: any) {
-      const globalOpts = this.optsWithGlobals() as GlobalOptions;
+    .action(function (
+      this: Command,
+      name: string,
+      opts: ProjectDeleteCommandOptions
+    ) {
+      const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const dbPath = resolveDbPath(globalOpts.db);
       const services = initializeDb(dbPath);
       try {

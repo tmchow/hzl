@@ -3,7 +3,7 @@ import { Command } from 'commander';
 import { resolveDbPath } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { CLIError, ExitCode, handleError } from '../../errors.js';
-import type { GlobalOptions } from '../../types.js';
+import { GlobalOptionsSchema } from '../../types.js';
 import type { Comment, Checkpoint } from 'hzl-core/services/task-service.js';
 
 export interface ShowResult {
@@ -98,7 +98,7 @@ export function createShowCommand(): Command {
     .description('Show task details with comments and checkpoints')
     .argument('<taskId>', 'Task ID')
     .action(function (this: Command, taskId: string) {
-      const globalOpts = this.optsWithGlobals() as GlobalOptions;
+      const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const dbPath = resolveDbPath(globalOpts.db);
       const services = initializeDb(dbPath);
       try {

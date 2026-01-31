@@ -3,7 +3,7 @@ import { Command } from 'commander';
 import { resolveDbPath } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError } from '../../errors.js';
-import type { GlobalOptions } from '../../types.js';
+import { GlobalOptionsSchema } from '../../types.js';
 
 export interface HistoryEvent {
   rowid: number;
@@ -23,6 +23,15 @@ export function runHistory(options: { services: Services; taskId: string; limit?
   const { services, taskId, limit = 100, json } = options;
   const db = services.db;
 
+  type HistoryRow = {
+    rowid: number;
+    type: string;
+    timestamp: string;
+    author: string | null;
+    agent_id: string | null;
+    data: string;
+  };
+
   // Get events for this task from the events table
   const events = db.prepare(`
     SELECT rowid, type, timestamp, author, agent_id, data
@@ -30,17 +39,17 @@ export function runHistory(options: { services: Services; taskId: string; limit?
     WHERE task_id = ?
     ORDER BY rowid ASC
     LIMIT ?
-  `).all(taskId, limit) as any[];
+  `).all(taskId, limit) as HistoryRow[];
 
   const result: HistoryResult = {
     task_id: taskId,
-    events: events.map(e => ({
+    events: events.map((e) => ({
       rowid: e.rowid,
       type: e.type,
       timestamp: e.timestamp,
-      author: e.author,
-      agent_id: e.agent_id,
-      data: JSON.parse(e.data),
+      author: e.author ?? undefined,
+      agent_id: e.agent_id ?? undefined,
+      data: JSON.parse(e.data) as Record<string, unknown>,
     })),
   };
 
@@ -67,7 +76,7 @@ export function createHistoryCommand(): Command {
     .argument('<taskId>', 'Task ID')
     .option('-l, --limit <n>', 'Limit number of events', '100')
     .action(function (this: Command, taskId: string, opts: { limit: string }) {
-      const globalOpts = this.optsWithGlobals() as GlobalOptions;
+      const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const dbPath = resolveDbPath(globalOpts.db);
       const services = initializeDb(dbPath);
       try {

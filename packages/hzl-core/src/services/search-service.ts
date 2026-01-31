@@ -19,7 +19,7 @@ export class SearchService {
     if (!safeQuery) return { tasks: [], total: 0, limit, offset };
 
     let countQuery: string, searchQuery: string;
-    const params: any[] = [];
+    const params: Array<string | number> = [];
 
     if (opts?.project) {
       countQuery = `SELECT COUNT(*) as total FROM task_search s JOIN tasks_current t ON s.task_id = t.task_id WHERE task_search MATCH ? AND t.project = ?`;
@@ -31,7 +31,9 @@ export class SearchService {
       params.push(safeQuery, limit, offset);
     }
 
-    const countParams = opts?.project ? [safeQuery, opts.project] : [safeQuery];
+    const countParams: Array<string | number> = opts?.project
+      ? [safeQuery, opts.project]
+      : [safeQuery];
     const total = (this.db.prepare(countQuery).get(...countParams) as { total: number }).total;
     const rows = this.db.prepare(searchQuery).all(...params) as SearchTaskResult[];
 

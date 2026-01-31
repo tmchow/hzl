@@ -23,6 +23,20 @@ export interface GetByTaskIdOptions {
   limit?: number;
 }
 
+type EventRow = {
+  id: number;
+  event_id: string;
+  task_id: string;
+  type: EventType;
+  data: string;
+  author: string | null;
+  agent_id: string | null;
+  session_id: string | null;
+  correlation_id: string | null;
+  causation_id: string | null;
+  timestamp: string;
+};
+
 export class EventStore {
   private insertReturningStmt: Database.Statement;
   private insertIgnoreStmt: Database.Statement;
@@ -107,7 +121,10 @@ export class EventStore {
     }
 
     // Fetch the inserted row to get canonical timestamp
-    const row = this.selectByEventIdStmt.get(eventId) as any;
+    const row = this.selectByEventIdStmt.get(eventId) as EventRow | undefined;
+    if (!row) {
+      throw new Error(`Failed to load inserted event: ${eventId}`);
+    }
     return this.rowToEnvelope(row);
   }
 
@@ -116,17 +133,17 @@ export class EventStore {
       taskId,
       opts?.afterId ?? null,
       opts?.limit ?? null
-    ) as any[];
+    ) as EventRow[];
     return rows.map(row => this.rowToEnvelope(row));
   }
 
-  private rowToEnvelope(row: any): PersistedEventEnvelope {
+  private rowToEnvelope(row: EventRow): PersistedEventEnvelope {
     return {
       rowid: row.id,
       event_id: row.event_id,
       task_id: row.task_id,
-      type: row.type as EventType,
-      data: JSON.parse(row.data),
+      type: row.type,
+      data: JSON.parse(row.data) as Record<string, unknown>,
       author: row.author ?? undefined,
       agent_id: row.agent_id ?? undefined,
       session_id: row.session_id ?? undefined,

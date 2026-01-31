@@ -2,7 +2,7 @@
 import type Database from 'better-sqlite3';
 import type { PersistedEventEnvelope } from '../events/store.js';
 import type { Projector } from './types.js';
-import { EventType } from '../events/types.js';
+import { EventType, type TaskCreatedData, type TaskUpdatedData } from '../events/types.js';
 
 const SEARCHABLE_FIELDS = new Set(['title', 'description']);
 
@@ -25,7 +25,7 @@ export class SearchProjector implements Projector {
   }
 
   private handleTaskCreated(event: PersistedEventEnvelope, db: Database.Database): void {
-    const data = event.data as any;
+    const data = event.data as TaskCreatedData;
     db.prepare(`
       INSERT INTO task_search (task_id, title, description)
       VALUES (?, ?, ?)
@@ -33,7 +33,7 @@ export class SearchProjector implements Projector {
   }
 
   private handleTaskUpdated(event: PersistedEventEnvelope, db: Database.Database): void {
-    const data = event.data as any;
+    const data = event.data as TaskUpdatedData;
     if (!SEARCHABLE_FIELDS.has(data.field)) return;
 
     const task = db.prepare(

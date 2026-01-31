@@ -4,7 +4,9 @@ import { resolveDbPath } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError } from '../../errors.js';
 import { TaskStatus } from 'hzl-core/events/types.js';
-import type { GlobalOptions } from '../../types.js';
+import { GlobalOptionsSchema } from '../../types.js';
+
+const validStatuses = Object.values(TaskStatus);
 
 export interface TaskListItem {
   task_id: string;
@@ -29,6 +31,13 @@ export interface ListOptions {
   json: boolean;
 }
 
+interface ListCommandOptions {
+  project?: string;
+  status?: string;
+  available?: boolean;
+  limit?: string;
+}
+
 export function runList(options: ListOptions): ListResult {
   const { services, project, status, availableOnly, limit = 50, json } = options;
   const db = services.db;
@@ -39,7 +48,7 @@ export function runList(options: ListOptions): ListResult {
     FROM tasks_current
     WHERE status != 'archived'
   `;
-  const params: any[] = [];
+  const params: Array<string | number> = [];
   
   if (project) {
     query += ' AND project = ?';
@@ -94,17 +103,20 @@ export function createListCommand(): Command {
     .option('-s, --status <status>', 'Filter by status')
     .option('-a, --available', 'Show only available (ready, no blocking deps)', false)
     .option('-l, --limit <n>', 'Limit results', '50')
-    .action(function (this: Command, opts: any) {
-      const globalOpts = this.optsWithGlobals() as GlobalOptions;
+    .action(function (this: Command, opts: ListCommandOptions) {
+      const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const dbPath = resolveDbPath(globalOpts.db);
       const services = initializeDb(dbPath);
       try {
+        const status = opts.status && validStatuses.includes(opts.status as TaskStatus)
+          ? (opts.status as TaskStatus)
+          : undefined;
         runList({
           services,
           project: opts.project,
-          status: opts.status as TaskStatus | undefined,
+          status,
           availableOnly: opts.available,
-          limit: parseInt(opts.limit, 10),
+          limit: parseInt(opts.limit ?? '50', 10),
           json: globalOpts.json ?? false,
         });
       } catch (e) {

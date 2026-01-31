@@ -3,7 +3,7 @@ import { Command } from 'commander';
 import { resolveDbPath } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError, CLIError, ExitCode } from '../../errors.js';
-import type { GlobalOptions } from '../../types.js';
+import { GlobalOptionsSchema } from '../../types.js';
 
 export interface MoveResult {
   task_id: string;
@@ -52,7 +52,7 @@ export function createMoveCommand(): Command {
     .argument('<taskId>', 'Task ID')
     .argument('<project>', 'Target project name')
     .action(function (this: Command, taskId: string, project: string) {
-      const globalOpts = this.optsWithGlobals() as GlobalOptions;
+      const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const dbPath = resolveDbPath(globalOpts.db);
       const services = initializeDb(dbPath);
       try {

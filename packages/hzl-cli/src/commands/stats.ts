@@ -3,13 +3,17 @@ import { Command } from 'commander';
 import { resolveDbPath } from '../config.js';
 import { initializeDb, closeDb, type Services } from '../db.js';
 import { handleError } from '../errors.js';
-import type { GlobalOptions } from '../types.js';
+import { GlobalOptionsSchema } from '../types.js';
 
 export interface StatsResult {
   total: number;
   by_status: Record<string, number>;
   by_project: Record<string, number>;
   events_count: number;
+}
+
+interface StatsCommandOptions {
+  project?: string;
 }
 
 export function runStats(options: {
@@ -84,8 +88,8 @@ export function createStatsCommand(): Command {
   return new Command('stats')
     .description('Show database statistics')
     .option('-p, --project <project>', 'Filter by project')
-    .action(function (this: Command, opts: any) {
-      const globalOpts = this.optsWithGlobals() as GlobalOptions;
+    .action(function (this: Command, opts: StatsCommandOptions) {
+      const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const dbPath = resolveDbPath(globalOpts.db);
       const services = initializeDb(dbPath);
       try {

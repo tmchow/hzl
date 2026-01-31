@@ -2,7 +2,7 @@
 import type Database from 'better-sqlite3';
 import type { PersistedEventEnvelope } from '../events/store.js';
 import type { Projector } from './types.js';
-import { EventType } from '../events/types.js';
+import { EventType, type DependencyData, type TaskCreatedData } from '../events/types.js';
 
 export class DependenciesProjector implements Projector {
   name = 'dependencies';
@@ -26,8 +26,8 @@ export class DependenciesProjector implements Projector {
   }
 
   private handleTaskCreated(event: PersistedEventEnvelope, db: Database.Database): void {
-    const data = event.data as any;
-    const dependsOn = data.depends_on as string[] | undefined;
+    const data = event.data as TaskCreatedData;
+    const dependsOn = data.depends_on;
     if (!dependsOn || dependsOn.length === 0) return;
 
     const insertStmt = db.prepare(
@@ -39,14 +39,14 @@ export class DependenciesProjector implements Projector {
   }
 
   private handleDependencyAdded(event: PersistedEventEnvelope, db: Database.Database): void {
-    const data = event.data as any;
+    const data = event.data as DependencyData;
     db.prepare(
       'INSERT OR IGNORE INTO task_dependencies (task_id, depends_on_id) VALUES (?, ?)'
     ).run(event.task_id, data.depends_on_id);
   }
 
   private handleDependencyRemoved(event: PersistedEventEnvelope, db: Database.Database): void {
-    const data = event.data as any;
+    const data = event.data as DependencyData;
     db.prepare(
       'DELETE FROM task_dependencies WHERE task_id = ? AND depends_on_id = ?'
     ).run(event.task_id, data.depends_on_id);

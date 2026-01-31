@@ -4,12 +4,18 @@ import { resolveDbPath } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError } from '../../errors.js';
 import { TaskStatus } from 'hzl-core/events/types.js';
-import type { GlobalOptions } from '../../types.js';
+import { GlobalOptionsSchema } from '../../types.js';
 
 export interface ReopenResult {
   task_id: string;
   title: string;
   status: string;
+}
+
+interface ReopenCommandOptions {
+  status?: string;
+  reason?: string;
+  author?: string;
 }
 
 export function runReopen(options: {
@@ -48,8 +54,8 @@ export function createReopenCommand(): Command {
     .option('-s, --status <status>', 'Target status (ready or backlog)', 'ready')
     .option('--reason <reason>', 'Reopen reason')
     .option('--author <name>', 'Author name')
-    .action(function (this: Command, taskId: string, opts: any) {
-      const globalOpts = this.optsWithGlobals() as GlobalOptions;
+    .action(function (this: Command, taskId: string, opts: ReopenCommandOptions) {
+      const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const dbPath = resolveDbPath(globalOpts.db);
       const services = initializeDb(dbPath);
       try {

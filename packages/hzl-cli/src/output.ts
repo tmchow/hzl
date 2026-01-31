@@ -20,7 +20,19 @@ export function createFormatter(jsonMode: boolean): OutputFormatter {
         const cols = columns ?? Object.keys(data[0]);
         console.log(cols.join('\t'));
         for (const row of data) {
-          console.log(cols.map(c => String(row[c] ?? '')).join('\t'));
+          console.log(
+            cols
+              .map((c) => {
+                const value = row[c];
+                if (value === null || value === undefined) return '';
+                if (typeof value === 'string') return value;
+                if (typeof value === 'number' || typeof value === 'boolean') {
+                  return String(value);
+                }
+                return JSON.stringify(value);
+              })
+              .join('\t')
+          );
         }
       }
     },

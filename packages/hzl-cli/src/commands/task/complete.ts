@@ -3,12 +3,16 @@ import { Command } from 'commander';
 import { resolveDbPath } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError } from '../../errors.js';
-import type { GlobalOptions } from '../../types.js';
+import { GlobalOptionsSchema } from '../../types.js';
 
 export interface CompleteResult {
   task_id: string;
   title: string;
   status: string;
+}
+
+interface CompleteCommandOptions {
+  author?: string;
 }
 
 export function runComplete(options: {
@@ -41,8 +45,8 @@ export function createCompleteCommand(): Command {
     .description('Mark a task as done')
     .argument('<taskId>', 'Task ID')
     .option('--author <name>', 'Author name')
-    .action(function (this: Command, taskId: string, opts: any) {
-      const globalOpts = this.optsWithGlobals() as GlobalOptions;
+    .action(function (this: Command, taskId: string, opts: CompleteCommandOptions) {
+      const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const dbPath = resolveDbPath(globalOpts.db);
       const services = initializeDb(dbPath);
       try {

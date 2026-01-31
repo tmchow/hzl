@@ -1,7 +1,22 @@
 // packages/hzl-core/src/projections/engine.ts
 import type Database from 'better-sqlite3';
 import type { PersistedEventEnvelope } from '../events/store.js';
+import type { EventType } from '../events/types.js';
 import type { Projector, ProjectionState } from './types.js';
+
+type EventRow = {
+  id: number;
+  event_id: string;
+  task_id: string;
+  type: EventType;
+  data: string;
+  author: string | null;
+  agent_id: string | null;
+  session_id: string | null;
+  correlation_id: string | null;
+  causation_id: string | null;
+  timestamp: string;
+};
 
 export class ProjectionEngine {
   private projectors: Projector[] = [];
@@ -45,13 +60,13 @@ export class ProjectionEngine {
   }
 
   getEventsSince(afterId: number, limit: number): PersistedEventEnvelope[] {
-    const rows = this.getEventsSinceStmt.all(afterId, limit) as any[];
+    const rows = this.getEventsSinceStmt.all(afterId, limit) as EventRow[];
     return rows.map((row) => ({
       rowid: row.id,
       event_id: row.event_id,
       task_id: row.task_id,
       type: row.type,
-      data: JSON.parse(row.data),
+      data: JSON.parse(row.data) as Record<string, unknown>,
       author: row.author ?? undefined,
       agent_id: row.agent_id ?? undefined,
       session_id: row.session_id ?? undefined,
