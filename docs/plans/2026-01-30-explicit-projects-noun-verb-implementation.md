@@ -300,7 +300,7 @@ feat: add projects table schema and migration with synthetic events
 
 ---
 
-### Task 3: Create Projects Projector
+### Task 3: Create Projects Projector ✅
 
 **Files:**
 - Create: `packages/hzl-core/src/projections/projects.ts`
