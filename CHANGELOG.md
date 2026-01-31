@@ -1,3 +1,10 @@
+## [1.5.1](https://github.com/tmchow/hzl/compare/v1.5.0...v1.5.1) (2026-01-31)
+
+
+### Bug Fixes
+
+* **ci:** gate release on CI and fix npm provenance ([198645e](https://github.com/tmchow/hzl/commit/198645e338a2a46a6f3444868376c633a1dc0ad0))
+
 # [1.5.0](https://github.com/tmchow/hzl/compare/v1.4.0...v1.5.0) (2026-01-31)
 
 
