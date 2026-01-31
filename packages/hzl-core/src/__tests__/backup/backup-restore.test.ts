@@ -96,7 +96,7 @@ describe('Backup/Restore Round-Trip Tests', () => {
         .prepare('SELECT COUNT(*) as count FROM tasks_current')
         .get() as { count: number };
 
-      expect(eventCount.count).toBe(100);
+      expect(eventCount.count).toBe(101);
       expect(taskCount.count).toBe(100);
       backupDb.close();
     });

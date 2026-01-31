@@ -5,6 +5,7 @@ import { EventType, TaskStatus, type TaskCreatedData } from '../events/types.js'
 import { ProjectionEngine } from '../projections/engine.js';
 import { withWriteTransaction } from '../db/connection.js';
 import { generateId } from '../utils/id.js';
+import { ProjectService } from './project-service.js';
 
 export interface CreateTaskInput {
   title: string;
@@ -133,7 +134,8 @@ export class TaskService {
   constructor(
     private db: Database.Database,
     private eventStore: EventStore,
-    private projectionEngine: ProjectionEngine
+    private projectionEngine: ProjectionEngine,
+    private projectService?: ProjectService
   ) {
     this.getIncompleteDepsStmt = db.prepare(`
       SELECT td.depends_on_id
@@ -145,6 +147,10 @@ export class TaskService {
   }
 
   createTask(input: CreateTaskInput, ctx?: EventContext): Task {
+    if (this.projectService) {
+      this.projectService.requireProject(input.project);
+    }
+
     const taskId = generateId();
 
     const eventData: TaskCreatedData = {
@@ -186,6 +192,34 @@ export class TaskService {
       throw new Error(`Failed to create task: task not found after creation`);
     }
     return task;
+  }
+
+  moveTask(taskId: string, toProject: string, ctx?: EventContext): Task {
+    return withWriteTransaction(this.db, () => {
+      const task = this.getTaskById(taskId);
+      if (!task) throw new TaskNotFoundError(taskId);
+
+      if (this.projectService) {
+        this.projectService.requireProject(toProject);
+      }
+
+      if (task.project !== toProject) {
+        const event = this.eventStore.append({
+          task_id: taskId,
+          type: EventType.TaskMoved,
+          data: { from_project: task.project, to_project: toProject },
+          author: ctx?.author,
+          agent_id: ctx?.agent_id,
+          session_id: ctx?.session_id,
+          correlation_id: ctx?.correlation_id,
+          causation_id: ctx?.causation_id,
+        });
+
+        this.projectionEngine.applyEvent(event);
+      }
+
+      return this.getTaskById(taskId)!;
+    });
   }
 
   claimTask(taskId: string, opts?: ClaimTaskOptions): Task {

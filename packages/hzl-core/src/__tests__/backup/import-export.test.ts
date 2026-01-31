@@ -83,10 +83,11 @@ describe('Import/Export Idempotency Tests', () => {
       expect(fs.existsSync(exportPath)).toBe(true);
       const events = await readJsonlFile(exportPath);
 
-      expect(events.length).toBe(3);
-      expect(events[0].type).toBe('task_created');
-      expect(events[1].type).toBe('status_changed');
-      expect(events[2].type).toBe('comment_added');
+      expect(events.length).toBe(4);
+      expect(events[0].type).toBe('project_created');
+      expect(events[1].type).toBe('task_created');
+      expect(events[2].type).toBe('status_changed');
+      expect(events[3].type).toBe('comment_added');
     });
 
     it('exports events with all fields preserved', async () => {
@@ -108,7 +109,8 @@ describe('Import/Export Idempotency Tests', () => {
       await backupService.exportEvents(exportPath);
       const events = await readJsonlFile(exportPath);
 
-      const taskCreatedEvent = events[0];
+      const taskCreatedEvent = events.find((event) => event.type === 'task_created') as any;
+      expect(taskCreatedEvent).toBeDefined();
       expect(taskCreatedEvent.event_id).toBeDefined();
       expect(taskCreatedEvent.task_id).toBe(task.task_id);
       expect(taskCreatedEvent.type).toBe('task_created');
@@ -129,13 +131,14 @@ describe('Import/Export Idempotency Tests', () => {
       await backupService.exportEvents(exportPath);
       const events = await readJsonlFile(exportPath);
 
-      expect(events[0].type).toBe('task_created');
-      expect(events[1].type).toBe('status_changed');
-      expect(events[1].data.to).toBe('ready');
+      expect(events[0].type).toBe('project_created');
+      expect(events[1].type).toBe('task_created');
       expect(events[2].type).toBe('status_changed');
-      expect(events[2].data.to).toBe('in_progress');
+      expect(events[2].data.to).toBe('ready');
       expect(events[3].type).toBe('status_changed');
-      expect(events[3].data.to).toBe('done');
+      expect(events[3].data.to).toBe('in_progress');
+      expect(events[4].type).toBe('status_changed');
+      expect(events[4].data.to).toBe('done');
 
       for (let i = 1; i < events.length; i++) {
         expect(new Date(events[i].timestamp).getTime()).toBeGreaterThanOrEqual(
@@ -158,13 +161,15 @@ describe('Import/Export Idempotency Tests', () => {
 
       const result = await newServices.backupService.importEvents(exportPath);
 
-      expect(result.imported).toBe(2);
+      expect(result.imported).toBe(3);
       expect(result.skipped).toBe(0);
 
       const events = newDb.prepare('SELECT * FROM events ORDER BY id').all() as any[];
-      expect(events).toHaveLength(2);
-      expect(events[0].type).toBe('task_created');
-      expect(events[1].type).toBe('status_changed');
+      expect(events).toHaveLength(4);
+      expect(events[0].type).toBe('project_created');
+      expect(events[1].type).toBe('project_created');
+      expect(events[2].type).toBe('task_created');
+      expect(events[3].type).toBe('status_changed');
 
       const tasks = newDb.prepare('SELECT * FROM tasks_current').all() as any[];
       expect(tasks).toHaveLength(1);
@@ -184,21 +189,21 @@ describe('Import/Export Idempotency Tests', () => {
       const newServices = setupServices(newDb);
 
       const result1 = await newServices.backupService.importEvents(exportPath);
-      expect(result1.imported).toBe(2);
+      expect(result1.imported).toBe(3);
       expect(result1.skipped).toBe(0);
 
       const result2 = await newServices.backupService.importEvents(exportPath);
       expect(result2.imported).toBe(0);
-      expect(result2.skipped).toBe(2);
+      expect(result2.skipped).toBe(3);
 
       const result3 = await newServices.backupService.importEvents(exportPath);
       expect(result3.imported).toBe(0);
-      expect(result3.skipped).toBe(2);
+      expect(result3.skipped).toBe(3);
 
       const eventCount = newDb
         .prepare('SELECT COUNT(*) as count FROM events')
         .get() as { count: number };
-      expect(eventCount.count).toBe(2);
+      expect(eventCount.count).toBe(4);
 
       newDb.close();
     });
@@ -220,7 +225,7 @@ describe('Import/Export Idempotency Tests', () => {
 
       const result = await newServices.backupService.importEvents(exportPath2);
       expect(result.imported).toBe(1);
-      expect(result.skipped).toBe(1);
+      expect(result.skipped).toBe(2);
 
       newDb.close();
     });
@@ -283,14 +288,17 @@ not valid json
         .prepare('SELECT event_id, task_id, type, data, author, agent_id, timestamp FROM events ORDER BY id')
         .all() as any[];
 
-      expect(importedEvents.length).toBe(originalEvents.length);
+      expect(importedEvents.length).toBe(originalEvents.length + 1);
+      expect(importedEvents[0].type).toBe('project_created');
       for (let i = 0; i < originalEvents.length; i++) {
-        expect(importedEvents[i].event_id).toBe(originalEvents[i].event_id);
-        expect(importedEvents[i].task_id).toBe(originalEvents[i].task_id);
-        expect(importedEvents[i].type).toBe(originalEvents[i].type);
-        expect(importedEvents[i].data).toBe(originalEvents[i].data);
-        expect(importedEvents[i].author).toBe(originalEvents[i].author);
-        expect(importedEvents[i].timestamp).toBe(originalEvents[i].timestamp);
+        const imported = importedEvents[i + 1];
+        const original = originalEvents[i];
+        expect(imported.event_id).toBe(original.event_id);
+        expect(imported.task_id).toBe(original.task_id);
+        expect(imported.type).toBe(original.type);
+        expect(imported.data).toBe(original.data);
+        expect(imported.author).toBe(original.author);
+        expect(imported.timestamp).toBe(original.timestamp);
       }
 
       newDb.close();
@@ -359,7 +367,8 @@ not valid json
       await backupService.exportEvents(exportPath);
 
       const events = await readJsonlFile(exportPath);
-      expect(events).toHaveLength(0);
+      expect(events).toHaveLength(1);
+      expect(events[0].type).toBe('project_created');
     });
 
     it('handles very large event data', async () => {
@@ -381,7 +390,7 @@ not valid json
       const newServices = setupServices(newDb);
       const result = await newServices.backupService.importEvents(exportPath);
 
-      expect(result.imported).toBe(1);
+      expect(result.imported).toBe(2);
 
       const importedTask = newDb
         .prepare('SELECT * FROM tasks_current WHERE task_id = ?')

@@ -39,6 +39,8 @@ describe('runStats', () => {
   });
 
   it('counts tasks by project', () => {
+    services.projectService.createProject('project-a');
+    services.projectService.createProject('project-b');
     services.taskService.createTask({ title: 'Task A', project: 'project-a' });
     services.taskService.createTask({ title: 'Task B', project: 'project-a' });
     services.taskService.createTask({ title: 'Task C', project: 'project-b' });

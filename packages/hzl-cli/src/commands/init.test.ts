@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { runInit } from './init.js';
+import { closeDb, initializeDb } from '../db.js';
 
 describe('runInit', () => {
   let tempDir: string;
@@ -91,5 +92,21 @@ describe('runInit', () => {
 
     const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
     expect(config.dbPath).toBe(dbPath);
+  });
+
+  it('should create inbox project on init', async () => {
+    const dbPath = path.join(tempDir, 'test.db');
+    const configPath = path.join(tempDir, 'config.json');
+
+    await runInit({ dbPath, json: false, configPath });
+
+    const services = initializeDb(dbPath);
+    try {
+      const inbox = services.projectService.getProject('inbox');
+      expect(inbox).not.toBeNull();
+      expect(inbox?.is_protected).toBe(true);
+    } finally {
+      closeDb(services);
+    }
   });
 });

@@ -83,6 +83,17 @@ CREATE VIRTUAL TABLE IF NOT EXISTS task_search USING fts5(
     description
 );
 
+-- Projects table (projection from events)
+CREATE TABLE IF NOT EXISTS projects (
+    name TEXT PRIMARY KEY,
+    description TEXT,
+    is_protected INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    last_event_id INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_projects_protected ON projects(is_protected);
+
 -- Indexes for events
 CREATE INDEX IF NOT EXISTS idx_events_task_id ON events(task_id);
 CREATE INDEX IF NOT EXISTS idx_events_task_id_id ON events(task_id, id);

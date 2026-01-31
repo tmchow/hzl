@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterEach } from 'vitest';
 import { execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const packageRoot = path.resolve(__dirname, '../../..');
 const cliPath = path.resolve(__dirname, '../../../dist/cli.js');
 
 interface TestContext {
@@ -36,6 +37,10 @@ function createTestContext(): TestContext {
 
 describe('config integration', () => {
   let ctx: TestContext;
+
+  beforeAll(() => {
+    execSync('npm run build', { cwd: packageRoot, stdio: 'inherit' });
+  });
 
   beforeEach(() => {
     ctx = createTestContext();

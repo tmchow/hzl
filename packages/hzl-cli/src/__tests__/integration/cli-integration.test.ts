@@ -33,10 +33,13 @@ describe('CLI Integration Tests', () => {
   });
 
   const addTask = (project: string, title: string, extraArgs = '') => {
+    if (project !== 'inbox') {
+      hzlMayFail(ctx, `project create ${project}`);
+    }
     const args = extraArgs ? ` ${extraArgs}` : '';
     return hzlJson<{ task_id: string; title: string; status: string }>(
       ctx,
-      `add ${project} "${title}"${args}`
+      `task add "${title}" -P ${project}${args}`
     );
   };
 
@@ -78,29 +81,29 @@ describe('CLI Integration Tests', () => {
 
       const listResult = hzlJson<{ tasks: Array<{ status: string }> }>(
         ctx,
-        'list --project inbox'
+        'task list --project inbox'
       );
       expect(listResult.tasks).toHaveLength(1);
       expect(listResult.tasks[0].status).toBe('backlog');
 
-      hzlJson(ctx, `set-status ${taskId} ready`);
-      const afterReady = hzlJson<{ task: { status: string } }>(ctx, `show ${taskId}`);
+      hzlJson(ctx, `task set-status ${taskId} ready`);
+      const afterReady = hzlJson<{ task: { status: string } }>(ctx, `task show ${taskId}`);
       expect(afterReady.task.status).toBe('ready');
 
-      hzlJson(ctx, `claim ${taskId} --author agent-1 --lease 30`);
+      hzlJson(ctx, `task claim ${taskId} --author agent-1 --lease 30`);
       const afterClaim = hzlJson<{ task: { status: string; claimed_by_author: string | null } }>(
         ctx,
-        `show ${taskId}`
+        `task show ${taskId}`
       );
       expect(afterClaim.task.status).toBe('in_progress');
       expect(afterClaim.task.claimed_by_author).toBe('agent-1');
 
-      hzlJson(ctx, `complete ${taskId} --author agent-1`);
-      const afterComplete = hzlJson<{ task: { status: string } }>(ctx, `show ${taskId}`);
+      hzlJson(ctx, `task complete ${taskId} --author agent-1`);
+      const afterComplete = hzlJson<{ task: { status: string } }>(ctx, `task show ${taskId}`);
       expect(afterComplete.task.status).toBe('done');
 
-      hzlJson(ctx, `archive ${taskId} --reason done --author agent-1`);
-      const afterArchive = hzlJson<{ task: { status: string } }>(ctx, `show ${taskId}`);
+      hzlJson(ctx, `task archive ${taskId} --reason done --author agent-1`);
+      const afterArchive = hzlJson<{ task: { status: string } }>(ctx, `task show ${taskId}`);
       expect(afterArchive.task.status).toBe('archived');
     });
 
@@ -109,12 +112,15 @@ describe('CLI Integration Tests', () => {
       const high = addTask('inbox', 'High priority', '--priority 3');
       addTask('inbox', 'Medium priority', '--priority 1');
 
-      const tasks = hzlJson<{ tasks: Array<{ task_id: string }> }>(ctx, 'list --project inbox');
+      const tasks = hzlJson<{ tasks: Array<{ task_id: string }> }>(
+        ctx,
+        'task list --project inbox'
+      );
       for (const task of tasks.tasks) {
-        hzlJson(ctx, `set-status ${task.task_id} ready`);
+        hzlJson(ctx, `task set-status ${task.task_id} ready`);
       }
 
-      const next = hzlJson<{ task_id: string }>(ctx, 'next --project inbox');
+      const next = hzlJson<{ task_id: string }>(ctx, 'task next --project inbox');
       expect(next.task_id).toBe(high.task_id);
     });
 
@@ -122,16 +128,16 @@ describe('CLI Integration Tests', () => {
       const dep = addTask('inbox', 'Dependency task');
       const main = addTask('inbox', 'Main task', `--depends-on ${dep.task_id}`);
 
-      hzlJson(ctx, `set-status ${dep.task_id} ready`);
-      hzlJson(ctx, `set-status ${main.task_id} ready`);
+      hzlJson(ctx, `task set-status ${dep.task_id} ready`);
+      hzlJson(ctx, `task set-status ${main.task_id} ready`);
 
-      const next1 = hzlJson<{ task_id: string }>(ctx, 'next --project inbox');
+      const next1 = hzlJson<{ task_id: string }>(ctx, 'task next --project inbox');
       expect(next1.task_id).toBe(dep.task_id);
 
-      hzlJson(ctx, `claim ${dep.task_id} --author agent-1`);
-      hzlJson(ctx, `complete ${dep.task_id} --author agent-1`);
+      hzlJson(ctx, `task claim ${dep.task_id} --author agent-1`);
+      hzlJson(ctx, `task complete ${dep.task_id} --author agent-1`);
 
-      const next2 = hzlJson<{ task_id: string }>(ctx, 'next --project inbox');
+      const next2 = hzlJson<{ task_id: string }>(ctx, 'task next --project inbox');
       expect(next2.task_id).toBe(main.task_id);
     });
   });
@@ -143,7 +149,7 @@ describe('CLI Integration Tests', () => {
 
       const addResult = hzlJson<{ task_id: string; depends_on_id: string }>(
         ctx,
-        `add-dep ${task2.task_id} ${task1.task_id}`
+        `task add-dep ${task2.task_id} ${task1.task_id}`
       );
       expect(addResult.task_id).toBe(task2.task_id);
       expect(addResult.depends_on_id).toBe(task1.task_id);
@@ -155,7 +161,7 @@ describe('CLI Integration Tests', () => {
       expect(deps.map((d) => d.depends_on_id)).toContain(task1.task_id);
       db.close();
 
-      hzlJson(ctx, `remove-dep ${task2.task_id} ${task1.task_id}`);
+      hzlJson(ctx, `task remove-dep ${task2.task_id} ${task1.task_id}`);
 
       const dbAfter = new Database(ctx.dbPath);
       const depsAfter = dbAfter
@@ -169,9 +175,9 @@ describe('CLI Integration Tests', () => {
       const task1 = addTask('inbox', 'Task 1');
       const task2 = addTask('inbox', 'Task 2');
 
-      hzlJson(ctx, `add-dep ${task2.task_id} ${task1.task_id}`);
+      hzlJson(ctx, `task add-dep ${task2.task_id} ${task1.task_id}`);
 
-      const result = hzlMayFail(ctx, `add-dep ${task1.task_id} ${task2.task_id}`);
+      const result = hzlMayFail(ctx, `task add-dep ${task1.task_id} ${task2.task_id}`);
       expect(result.success).toBe(false);
     });
   });
@@ -180,10 +186,13 @@ describe('CLI Integration Tests', () => {
     it('adds comments and retrieves them', () => {
       const task = addTask('inbox', 'Test task');
 
-      hzlJson(ctx, `comment ${task.task_id} "First comment" --author user-1`);
-      hzlJson(ctx, `comment ${task.task_id} "Second comment" --author user-2`);
+      hzlJson(ctx, `task comment ${task.task_id} "First comment" --author user-1`);
+      hzlJson(ctx, `task comment ${task.task_id} "Second comment" --author user-2`);
 
-      const details = hzlJson<{ comments: Array<{ text: string }> }>(ctx, `show ${task.task_id}`);
+      const details = hzlJson<{ comments: Array<{ text: string }> }>(
+        ctx,
+        `task show ${task.task_id}`
+      );
       expect(details.comments).toHaveLength(2);
       expect(details.comments[0].text).toBe('First comment');
     });
@@ -191,12 +200,12 @@ describe('CLI Integration Tests', () => {
     it('adds checkpoints and retrieves them', () => {
       const task = addTask('inbox', 'Test task');
 
-      hzlJson(ctx, `checkpoint ${task.task_id} step1 --data '{"progress":25}'`);
-      hzlJson(ctx, `checkpoint ${task.task_id} step2 --data '{"progress":50}'`);
+      hzlJson(ctx, `task checkpoint ${task.task_id} step1 --data '{"progress":25}'`);
+      hzlJson(ctx, `task checkpoint ${task.task_id} step2 --data '{"progress":50}'`);
 
       const details = hzlJson<{ checkpoints: Array<{ name: string; data: { progress: number } }> }>(
         ctx,
-        `show ${task.task_id}`
+        `task show ${task.task_id}`
       );
       expect(details.checkpoints).toHaveLength(2);
       expect(details.checkpoints[0].name).toBe('step1');
@@ -212,7 +221,7 @@ describe('CLI Integration Tests', () => {
 
       const results = hzlJson<{ tasks: Array<{ title: string }> }>(
         ctx,
-        'search authentication'
+        'task search authentication'
       );
       expect(results.tasks).toHaveLength(1);
       expect(results.tasks[0].title).toContain('OAuth');
@@ -222,7 +231,7 @@ describe('CLI Integration Tests', () => {
       addTask('inbox', 'Backend task', '--description "Implement REST API endpoints"');
       addTask('inbox', 'Frontend task', '--description "Create React components"');
 
-      const results = hzlJson<{ tasks: Array<{ title: string }> }>(ctx, 'search REST');
+      const results = hzlJson<{ tasks: Array<{ title: string }> }>(ctx, 'task search REST');
       expect(results.tasks).toHaveLength(1);
       expect(results.tasks[0].title).toBe('Backend task');
     });
@@ -236,9 +245,9 @@ describe('CLI Integration Tests', () => {
 
       const projects = hzlJson<{ projects: Array<{ name: string; task_count: number }> }>(
         ctx,
-        'projects'
+        'project list'
       );
-      expect(projects.projects).toHaveLength(2);
+      expect(projects.projects).toHaveLength(3);
 
       const projectA = projects.projects.find((p) => p.name === 'project-a');
       expect(projectA?.task_count).toBe(2);
@@ -246,10 +255,14 @@ describe('CLI Integration Tests', () => {
 
     it('moves tasks between projects', () => {
       const task = addTask('project-a', 'Movable task');
+      hzlMayFail(ctx, 'project create project-b');
 
-      hzlJson(ctx, `move ${task.task_id} project-b`);
+      hzlJson(ctx, `task move ${task.task_id} project-b`);
 
-      const afterMove = hzlJson<{ task: { project: string } }>(ctx, `show ${task.task_id}`);
+      const afterMove = hzlJson<{ task: { project: string } }>(
+        ctx,
+        `task show ${task.task_id}`
+      );
       expect(afterMove.task.project).toBe('project-b');
     });
 
@@ -257,9 +270,12 @@ describe('CLI Integration Tests', () => {
       addTask('old-project', 'Task 1');
       addTask('old-project', 'Task 2');
 
-      hzlJson(ctx, 'rename-project old-project new-project');
+      hzlJson(ctx, 'project rename old-project new-project');
 
-      const projects = hzlJson<{ projects: Array<{ name: string }> }>(ctx, 'projects');
+      const projects = hzlJson<{ projects: Array<{ name: string }> }>(
+        ctx,
+        'project list'
+      );
       const names = projects.projects.map((p) => p.name);
       expect(names).toContain('new-project');
       expect(names).not.toContain('old-project');
@@ -269,12 +285,15 @@ describe('CLI Integration Tests', () => {
   describe('history and event tracking', () => {
     it('shows full event history for a task', () => {
       const task = addTask('inbox', 'Test task');
-      hzlJson(ctx, `set-status ${task.task_id} ready`);
-      hzlJson(ctx, `claim ${task.task_id} --author agent-1`);
-      hzlJson(ctx, `comment ${task.task_id} "Working on it"`);
-      hzlJson(ctx, `complete ${task.task_id} --author agent-1`);
+      hzlJson(ctx, `task set-status ${task.task_id} ready`);
+      hzlJson(ctx, `task claim ${task.task_id} --author agent-1`);
+      hzlJson(ctx, `task comment ${task.task_id} "Working on it"`);
+      hzlJson(ctx, `task complete ${task.task_id} --author agent-1`);
 
-      const history = hzlJson<{ events: Array<{ type: string }> }>(ctx, `history ${task.task_id}`);
+      const history = hzlJson<{ events: Array<{ type: string }> }>(
+        ctx,
+        `task history ${task.task_id}`
+      );
       const eventTypes = history.events.map((e) => e.type);
 
       expect(eventTypes).toContain('task_created');
@@ -290,12 +309,12 @@ describe('CLI Integration Tests', () => {
       const t3 = addTask('inbox', 'In progress task');
       const t4 = addTask('inbox', 'Done task');
 
-      hzlJson(ctx, `set-status ${t2.task_id} ready`);
-      hzlJson(ctx, `set-status ${t3.task_id} ready`);
-      hzlJson(ctx, `claim ${t3.task_id} --author agent-1`);
-      hzlJson(ctx, `set-status ${t4.task_id} ready`);
-      hzlJson(ctx, `claim ${t4.task_id} --author agent-1`);
-      hzlJson(ctx, `complete ${t4.task_id} --author agent-1`);
+      hzlJson(ctx, `task set-status ${t2.task_id} ready`);
+      hzlJson(ctx, `task set-status ${t3.task_id} ready`);
+      hzlJson(ctx, `task claim ${t3.task_id} --author agent-1`);
+      hzlJson(ctx, `task set-status ${t4.task_id} ready`);
+      hzlJson(ctx, `task claim ${t4.task_id} --author agent-1`);
+      hzlJson(ctx, `task complete ${t4.task_id} --author agent-1`);
 
       const stats = hzlJson<{ by_status: Record<string, number> }>(ctx, 'stats --project inbox');
 
@@ -328,11 +347,13 @@ describe('CLI Integration Tests', () => {
       expect(fs.existsSync(exportPath)).toBe(true);
       const content = fs.readFileSync(exportPath, 'utf-8');
       const lines = content.trim().split('\n').filter((line) => line.length > 0);
-      expect(lines).toHaveLength(2);
+      expect(lines).toHaveLength(3);
 
-      for (const line of lines) {
-        const event = JSON.parse(line);
-        expect(event.type).toBe('task_created');
+      const events = lines.map((line) => JSON.parse(line));
+      expect(events[0].type).toBe('project_created');
+      expect(events[1].type).toBe('task_created');
+      expect(events[2].type).toBe('task_created');
+      for (const event of events) {
         expect(event.event_id).toBeDefined();
       }
     });
@@ -341,12 +362,12 @@ describe('CLI Integration Tests', () => {
   describe('release and reopen commands', () => {
     it('releases a claimed task back to ready', () => {
       const task = addTask('inbox', 'Task to release');
-      hzlJson(ctx, `set-status ${task.task_id} ready`);
-      hzlJson(ctx, `claim ${task.task_id} --author agent-1`);
+      hzlJson(ctx, `task set-status ${task.task_id} ready`);
+      hzlJson(ctx, `task claim ${task.task_id} --author agent-1`);
 
       const released = hzlJson<{ status: string; claimed_by_author: string | null }>(
         ctx,
-        `release ${task.task_id}`
+        `task release ${task.task_id}`
       );
       expect(released.status).toBe('ready');
       expect(released.claimed_by_author).toBeNull();
@@ -354,11 +375,11 @@ describe('CLI Integration Tests', () => {
 
     it('reopens a done task', () => {
       const task = addTask('inbox', 'Task to reopen');
-      hzlJson(ctx, `set-status ${task.task_id} ready`);
-      hzlJson(ctx, `claim ${task.task_id} --author agent-1`);
-      hzlJson(ctx, `complete ${task.task_id} --author agent-1`);
+      hzlJson(ctx, `task set-status ${task.task_id} ready`);
+      hzlJson(ctx, `task claim ${task.task_id} --author agent-1`);
+      hzlJson(ctx, `task complete ${task.task_id} --author agent-1`);
 
-      const reopened = hzlJson<{ status: string }>(ctx, `reopen ${task.task_id}`);
+      const reopened = hzlJson<{ status: string }>(ctx, `task reopen ${task.task_id}`);
       expect(reopened.status).toBe('ready');
     });
   });
@@ -366,19 +387,19 @@ describe('CLI Integration Tests', () => {
   describe('steal and stuck commands', () => {
     it('steals a task with force flag', () => {
       const task = addTask('inbox', 'Task to steal');
-      hzlJson(ctx, `set-status ${task.task_id} ready`);
-      hzlJson(ctx, `claim ${task.task_id} --author agent-1 --lease 60`);
+      hzlJson(ctx, `task set-status ${task.task_id} ready`);
+      hzlJson(ctx, `task claim ${task.task_id} --author agent-1 --lease 60`);
 
       const stolen = hzlJson<{ claimed_by_author: string | null }>(
         ctx,
-        `steal ${task.task_id} --force --owner agent-2`
+        `task steal ${task.task_id} --force --owner agent-2`
       );
       expect(stolen.claimed_by_author).toBe('agent-2');
     });
 
     it('lists stuck tasks with expired leases', () => {
       const task = addTask('inbox', 'Stuck task');
-      hzlJson(ctx, `set-status ${task.task_id} ready`);
+      hzlJson(ctx, `task set-status ${task.task_id} ready`);
 
       const pastLease = new Date(Date.now() - 60000).toISOString();
       const services = initializeDb(ctx.dbPath);
@@ -391,7 +412,10 @@ describe('CLI Integration Tests', () => {
         closeDb(services);
       }
 
-      const stuckResult = hzlJson<{ tasks: Array<{ task_id: string }> }>(ctx, 'stuck --older-than 0');
+      const stuckResult = hzlJson<{ tasks: Array<{ task_id: string }> }>(
+        ctx,
+        'task stuck --older-than 0'
+      );
       expect(stuckResult.tasks.length).toBeGreaterThanOrEqual(1);
     });
   });

@@ -343,6 +343,9 @@ describe('Property-Based Tests', () => {
       fc.assert(
         fc.property(fc.integer({ min: 1, max: 50 }), (taskCount) =>
           withIsolatedServices(({ db, taskService }) => {
+            const initialCount = db
+              .prepare('SELECT COUNT(*) as count FROM events')
+              .get() as { count: number };
             let operationCount = 0;
 
             for (let i = 0; i < taskCount; i++) {
@@ -357,7 +360,7 @@ describe('Property-Based Tests', () => {
             const eventCount = db
               .prepare('SELECT COUNT(*) as count FROM events')
               .get() as { count: number };
-            return eventCount.count === operationCount;
+            return eventCount.count - initialCount.count === operationCount;
           })
         ),
         { numRuns: 50 }
