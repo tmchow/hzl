@@ -14,3 +14,7 @@ pkg.dependencies['hzl-core'] = `^${version}`;
 fs.writeFileSync(cliPkgPath, JSON.stringify(pkg, null, 2) + '\n');
 
 console.log(`Updated hzl-cli's hzl-core dependency to ^${version}`);
+
+// Copy root README to hzl-cli package for npm
+fs.copyFileSync('./README.md', './packages/hzl-cli/README.md');
+console.log('Copied README.md to packages/hzl-cli/');
