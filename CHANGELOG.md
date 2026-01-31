@@ -1,3 +1,10 @@
+# [1.5.0](https://github.com/tmchow/hzl/compare/v1.4.0...v1.5.0) (2026-01-31)
+
+
+### Features
+
+* trigger release ([cff3aae](https://github.com/tmchow/hzl/commit/cff3aae3fc0b7c72e6d80c05d1fb656f03641d82))
+
 # [1.4.0](https://github.com/tmchow/hzl/compare/v1.3.0...v1.4.0) (2026-01-31)
 
 
