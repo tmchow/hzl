@@ -1231,7 +1231,7 @@ Implementation must:
 
 ---
 
-### Task 10: Create `hzl project list` Command
+### Task 10: Create `hzl project list` Command ✅
 
 **Files:**
 - Create: `packages/hzl-cli/src/commands/project/list.ts`
