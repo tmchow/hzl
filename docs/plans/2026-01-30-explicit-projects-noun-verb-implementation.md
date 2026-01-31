@@ -1396,7 +1396,7 @@ Register all task subcommands and remove old top-level task commands from index.
 
 ## Phase 5: Documentation and Sample Project
 
-### Task 23: Update sample-project.ts
+### Task 23: Update sample-project.ts ✅
 
 **Files:**
 - Modify: `packages/hzl-cli/src/commands/sample-project.ts`

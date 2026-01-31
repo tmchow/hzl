@@ -23,6 +23,11 @@ export interface SampleProjectResetResult {
 }
 
 function createSampleProject(services: Services): number {
+  const existingProject = services.projectService.getProject(SAMPLE_PROJECT_NAME);
+  if (!existingProject) {
+    services.projectService.createProject(SAMPLE_PROJECT_NAME);
+  }
+
   const taskIds: string[] = [];
 
   for (const spec of SAMPLE_TASKS) {
