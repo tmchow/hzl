@@ -52,6 +52,12 @@ hzl/
    ```
 5. Submit a pull request.
 
+## CI & Release Expectations
+
+- The `CI` workflow must pass before merging to `main`.
+- The `Release` workflow runs only after `CI` completes successfully on `main`.
+- Keep branch protection on `main` requiring the `CI` status check.
+
 ## Commit Messages
 
 We use Conventional Commits:
