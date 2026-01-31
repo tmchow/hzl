@@ -1368,7 +1368,7 @@ Update `task/move.ts` to validate target project exists.
 
 ---
 
-### Task 21: Wire Up Task Subcommand Group
+### Task 21: Wire Up Task Subcommand Group ✅
 
 **Files:**
 - Modify: `packages/hzl-cli/src/commands/task/index.ts`
