@@ -20,7 +20,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: '22.14.0'
           cache: 'npm'
 
       - name: Enable npm via corepack
@@ -44,7 +44,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
-        node: ['20']
+        node: ['22.14.0']
 
     steps:
       - uses: actions/checkout@v6
@@ -70,7 +70,7 @@ jobs:
         run: npm run test:ci
 
       - name: Upload coverage (ubuntu, node 20 only)
-        if: matrix.os == 'ubuntu-latest' && matrix.node == '20'
+        if: matrix.os == 'ubuntu-latest' && matrix.node == '22.14.0'
         uses: codecov/codecov-action@v5
         with:
           files: ./packages/hzl-core/coverage/lcov.info,./packages/hzl-cli/coverage/lcov.info
@@ -86,7 +86,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: '22.14.0'
           cache: 'npm'
 
       - name: Enable npm via corepack
