@@ -17,6 +17,7 @@ export function getDefaultDbPath(): string {
 }
 
 export function getConfigPath(): string {
+  if (process.env.HZL_CONFIG) return process.env.HZL_CONFIG;
   return path.join(os.homedir(), '.hzl', 'config.json');
 }
 
@@ -31,29 +32,61 @@ export function resolveDbPath(cliOption?: string, configPath: string = getConfig
   if (cliOption) return expandTilde(cliOption);
   if (process.env.HZL_DB) return expandTilde(process.env.HZL_DB);
 
-  try {
-    if (fs.existsSync(configPath)) {
-      const content = fs.readFileSync(configPath, 'utf-8');
-      const config = JSON.parse(content);
-      if (config.dbPath) return expandTilde(config.dbPath);
-    }
-  } catch { /* ignore */ }
+  const config = readConfig(configPath);
+  if (config.dbPath) return expandTilde(config.dbPath);
 
   return getDefaultDbPath();
 }
 
-export async function loadConfig(configPath: string = getConfigPath()): Promise<Config> {
+export function readConfig(configPath: string = getConfigPath()): Config {
+  if (!fs.existsSync(configPath)) {
+    return {};
+  }
+
+  const content = fs.readFileSync(configPath, 'utf-8');
   try {
-    if (!fs.existsSync(configPath)) return {};
-    const content = await fs.promises.readFile(configPath, 'utf-8');
-    const result = ConfigFileSchema.safeParse(JSON.parse(content));
+    const parsed = JSON.parse(content);
+    const result = ConfigFileSchema.safeParse(parsed);
     return result.success ? result.data : {};
-  } catch { return {}; }
+  } catch {
+    throw new Error(`Config file at ${configPath} is invalid JSON`);
+  }
 }
 
 export function ensureDbDirectory(dbPath: string): void {
   const dir = path.dirname(dbPath);
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
+  }
+}
+
+export function writeConfig(updates: Partial<Config>, configPath: string = getConfigPath()): void {
+  // Ensure directory exists
+  const dir = path.dirname(configPath);
+  if (!fs.existsSync(dir)) {
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+    } catch {
+      throw new Error(`Cannot write config file - directory creation failed: ${dir}`);
+    }
+  }
+
+  // Load existing config or start fresh
+  let existing: Record<string, unknown> = {};
+  if (fs.existsSync(configPath)) {
+    try {
+      existing = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+    } catch {
+      // If existing config is invalid, start fresh
+      existing = {};
+    }
+  }
+
+  // Merge and write
+  const merged = { ...existing, ...updates };
+  try {
+    fs.writeFileSync(configPath, JSON.stringify(merged, null, 2) + '\n');
+  } catch {
+    throw new Error(`Cannot write config file - your database preference won't persist`);
   }
 }

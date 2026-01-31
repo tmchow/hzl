@@ -7,6 +7,7 @@ import { handleError } from './errors.js';
 import * as taskCommands from './commands/task.js';
 import { createInitCommand } from './commands/init.js';
 import { createWhichDbCommand } from './commands/which-db.js';
+import { createConfigCommand } from './commands/config.js';
 import { createProjectsCommand } from './commands/projects.js';
 import { createRenameProjectCommand } from './commands/rename-project.js';
 import { createAddCommand } from './commands/add.js';
@@ -39,7 +40,7 @@ export function createProgram(): Command {
 
   program
     .name('hzl')
-    .description('HZL - Hierarchical task coordination for AI agent swarms')
+    .description('HZL - Lightweight task tracking for AI agents and swarms')
     .version('0.1.0')
     .option('--db <path>', 'Path to database file')
     .option('--json', 'Output in JSON format', false);
@@ -57,6 +58,7 @@ export function createProgram(): Command {
 
   program.addCommand(createInitCommand());
   program.addCommand(createWhichDbCommand());
+  program.addCommand(createConfigCommand());
   program.addCommand(createProjectsCommand());
   program.addCommand(createRenameProjectCommand());
   program.addCommand(createAddCommand());

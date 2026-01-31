@@ -86,7 +86,11 @@ The `--available` flag in `hzl list` filters to claimable tasks.
 
 ## Database Location
 
-Default: `~/.hzl/data.db` (user-level, not repo-level). Override with `HZL_DB` env var or `--db` flag.
+Default: `~/.hzl/data.db`. Config stored in `~/.hzl/config.json`.
+
+Resolution order: `--db` flag → `HZL_DB` env → config file → default.
+
+Override with `HZL_DB` env var, `--db` flag, or `hzl init --db /path`.
 
 ## Testing Concurrency
 

@@ -1,8 +1,7 @@
 // packages/hzl-cli/src/commands/init.ts
 import { Command } from 'commander';
 import fs from 'fs';
-import path from 'path';
-import { resolveDbPath, ensureDbDirectory } from '../config.js';
+import { resolveDbPath, ensureDbDirectory, writeConfig, readConfig, getConfigPath } from '../config.js';
 import type { GlobalOptions } from '../types.js';
 
 export interface InitResult {
@@ -10,12 +9,29 @@ export interface InitResult {
   created: boolean;
 }
 
+export interface InitOptions {
+  dbPath: string;
+  json: boolean;
+  configPath?: string;
+  force?: boolean;
+}
+
 /**
  * Lower-level init function that creates and initializes the database.
  * Separated from CLI wiring to allow mocking/testing.
  */
-export async function runInit(options: { dbPath: string; json: boolean }): Promise<InitResult> {
-  const { dbPath, json } = options;
+export async function runInit(options: InitOptions): Promise<InitResult> {
+  const { dbPath, json, configPath = getConfigPath(), force = false } = options;
+
+  // Check for config conflict
+  const existingConfig = readConfig(configPath);
+  if (existingConfig.dbPath && existingConfig.dbPath !== dbPath && !force) {
+    throw new Error(
+      `Config already exists pointing to ${existingConfig.dbPath}\n` +
+      `Use --force to reinitialize with a different database`
+    );
+  }
+
   const existed = fs.existsSync(dbPath);
   
   // Ensure the directory exists
@@ -28,6 +44,9 @@ export async function runInit(options: { dbPath: string; json: boolean }): Promi
   // Initialize DB which handles migrations
   const services = initializeDb(dbPath);
   closeDb(services);
+
+  // Write config file
+  writeConfig({ dbPath }, configPath);
 
   const result: InitResult = { path: dbPath, created: !existed };
   
@@ -46,11 +65,14 @@ export async function runInit(options: { dbPath: string; json: boolean }): Promi
 export function createInitCommand(): Command {
   return new Command('init')
     .description('Initialize a new HZL database')
+    .option('-f, --force', 'Force reinitialize even if config points elsewhere')
     .action(async function (this: Command) {
       const globalOpts = this.optsWithGlobals() as GlobalOptions;
+      const opts = this.opts();
       await runInit({
         dbPath: resolveDbPath(globalOpts.db),
         json: globalOpts.json ?? false,
+        force: opts.force ?? false,
       });
     });
 }

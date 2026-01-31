@@ -12,7 +12,10 @@ describe('runWhichDb', () => {
   beforeEach(() => {
     process.env = { ...originalEnv };
     delete process.env.HZL_DB;
+    delete process.env.HZL_CONFIG;
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hzl-which-db-test-'));
+    // Point to a non-existent config file to avoid reading the user's config
+    process.env.HZL_CONFIG = path.join(tempDir, 'nonexistent-config.json');
   });
 
   afterEach(() => {
