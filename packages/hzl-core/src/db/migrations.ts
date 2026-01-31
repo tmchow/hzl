@@ -97,30 +97,32 @@ function migrateToProjectsTable(db: Database.Database): void {
   `);
   const insertProject = db.prepare(`
     INSERT OR IGNORE INTO projects (name, description, is_protected, created_at, last_event_id)
-    VALUES (?, NULL, ?, ?, last_insert_rowid())
+    VALUES (?, NULL, ?, ?, ?)
   `);
 
-  for (const { project } of existingProjects) {
-    const projectExists = db
+  db.transaction(() => {
+    for (const { project } of existingProjects) {
+      const projectExists = db
+        .prepare('SELECT 1 FROM projects WHERE name = ?')
+        .get(project);
+      if (projectExists) continue;
+
+      const eventId = generateId();
+      const data = JSON.stringify({ name: project });
+      const result = insertEvent.run(eventId, PROJECT_EVENT_TASK_ID, EventType.ProjectCreated, data, timestamp);
+      insertProject.run(project, 0, timestamp, result.lastInsertRowid);
+    }
+
+    const inboxExists = db
       .prepare('SELECT 1 FROM projects WHERE name = ?')
-      .get(project);
-    if (projectExists) continue;
-
-    const eventId = generateId();
-    const data = JSON.stringify({ name: project });
-    insertEvent.run(eventId, PROJECT_EVENT_TASK_ID, EventType.ProjectCreated, data, timestamp);
-    insertProject.run(project, 0, timestamp);
-  }
-
-  const inboxExists = db
-    .prepare('SELECT 1 FROM projects WHERE name = ?')
-    .get('inbox');
-  if (!inboxExists) {
-    const eventId = generateId();
-    const data = JSON.stringify({ name: 'inbox', is_protected: true });
-    insertEvent.run(eventId, PROJECT_EVENT_TASK_ID, EventType.ProjectCreated, data, timestamp);
-    insertProject.run('inbox', 1, timestamp);
-  } else {
-    db.prepare('UPDATE projects SET is_protected = 1 WHERE name = ?').run('inbox');
-  }
+      .get('inbox');
+    if (!inboxExists) {
+      const eventId = generateId();
+      const data = JSON.stringify({ name: 'inbox', is_protected: true });
+      const result = insertEvent.run(eventId, PROJECT_EVENT_TASK_ID, EventType.ProjectCreated, data, timestamp);
+      insertProject.run('inbox', 1, timestamp, result.lastInsertRowid);
+    } else {
+      db.prepare('UPDATE projects SET is_protected = 1 WHERE name = ?').run('inbox');
+    }
+  })();
 }
