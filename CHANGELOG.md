@@ -1,3 +1,10 @@
+# [1.2.0](https://github.com/tmchow/hzl/compare/v1.1.0...v1.2.0) (2026-01-31)
+
+
+### Features
+
+* explicit project management and noun-verb CLI restructure ([#20](https://github.com/tmchow/hzl/issues/20)) ([56bc184](https://github.com/tmchow/hzl/commit/56bc184f4133da16b7e8a23ff46add922b9978d7))
+
 # [1.1.0](https://github.com/tmchow/hzl/compare/v1.0.0...v1.1.0) (2026-01-31)
 
 
