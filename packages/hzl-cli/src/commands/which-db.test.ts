@@ -39,8 +39,14 @@ describe('runWhichDb', () => {
   });
 
   it('returns default path when nothing specified', () => {
+    process.env.HZL_DEV_MODE = '0'; // Disable dev mode to test production behavior
     const result = runWhichDb({ cliPath: undefined, json: false });
-    expect(result.path).toContain('.hzl');
+    // Platform-aware assertion: Windows uses AppData\Local, Unix uses .local/share
+    if (process.platform === 'win32') {
+      expect(result.path).toMatch(/AppData[/\\]Local[/\\]hzl/);
+    } else {
+      expect(result.path).toContain('.local/share/hzl');
+    }
     expect(result.source).toBe('default');
   });
 });

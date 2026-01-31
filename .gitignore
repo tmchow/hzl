@@ -137,3 +137,12 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Local development (XDG overrides, dev mode is automatic)
+.local/
+.config/
+.envrc
+
+# Claude Code local settings (user-specific, not shared)
+.claude/settings.local.json
+packages/*/.claude/

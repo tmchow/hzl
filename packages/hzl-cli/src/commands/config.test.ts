@@ -50,11 +50,17 @@ describe('runConfig', () => {
   });
 
   it('shows default when nothing configured', () => {
+    process.env.HZL_DEV_MODE = '0'; // Disable dev mode to test production behavior
     const configPath = path.join(tempDir, 'nonexistent.json');
 
     const result = runConfig({ cliPath: undefined, json: true, configPath });
 
-    expect(result.db.value).toContain('.hzl/data.db');
+    // Platform-aware assertion: Windows uses AppData\Local, Unix uses .local/share
+    if (process.platform === 'win32') {
+      expect(result.db.value).toMatch(/AppData[/\\]Local[/\\]hzl[/\\]data\.db$/);
+    } else {
+      expect(result.db.value).toContain('.local/share/hzl/data.db');
+    }
     expect(result.db.source).toBe('default');
   });
 });

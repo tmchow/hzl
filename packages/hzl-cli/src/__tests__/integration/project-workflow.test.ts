@@ -19,7 +19,7 @@ describe('project workflow integration', () => {
     dbPath = path.join(tempDir, 'data.db');
     configPath = path.join(tempDir, 'config.json');
 
-    await runInit({ dbPath, json: false, configPath });
+    await runInit({ dbPath, pathSource: 'cli', json: false, configPath });
     services = initializeDb(dbPath);
   });
 
