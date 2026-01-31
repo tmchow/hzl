@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { resolveDbPath, getDefaultDbPath, getConfigPath } from './config.js';
+import { resolveDbPath, getDefaultDbPath, getConfigPath, writeConfig } from './config.js';
 
 describe('resolveDbPath', () => {
   const originalEnv = process.env;
@@ -62,5 +62,43 @@ describe('getConfigPath', () => {
 
   it('returns default path when HZL_CONFIG not set', () => {
     expect(getConfigPath()).toContain('.hzl/config.json');
+  });
+});
+
+describe('writeConfig', () => {
+  let tempDir: string;
+
+  beforeEach(() => {
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hzl-config-test-'));
+  });
+
+  afterEach(() => {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  });
+
+  it('creates config file with dbPath', () => {
+    const configPath = path.join(tempDir, 'config.json');
+    writeConfig({ dbPath: '/my/db.sqlite' }, configPath);
+
+    const content = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+    expect(content.dbPath).toBe('/my/db.sqlite');
+  });
+
+  it('creates parent directory if needed', () => {
+    const configPath = path.join(tempDir, 'subdir', 'config.json');
+    writeConfig({ dbPath: '/my/db.sqlite' }, configPath);
+
+    expect(fs.existsSync(configPath)).toBe(true);
+  });
+
+  it('merges with existing config', () => {
+    const configPath = path.join(tempDir, 'config.json');
+    fs.writeFileSync(configPath, JSON.stringify({ otherKey: 'value' }));
+
+    writeConfig({ dbPath: '/my/db.sqlite' }, configPath);
+
+    const content = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+    expect(content.dbPath).toBe('/my/db.sqlite');
+    expect(content.otherKey).toBe('value');
   });
 });

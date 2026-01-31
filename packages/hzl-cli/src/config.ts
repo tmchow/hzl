@@ -58,3 +58,34 @@ export function ensureDbDirectory(dbPath: string): void {
     fs.mkdirSync(dir, { recursive: true });
   }
 }
+
+export function writeConfig(updates: Partial<Config>, configPath: string = getConfigPath()): void {
+  // Ensure directory exists
+  const dir = path.dirname(configPath);
+  if (!fs.existsSync(dir)) {
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+    } catch {
+      throw new Error(`Cannot write config file - directory creation failed: ${dir}`);
+    }
+  }
+
+  // Load existing config or start fresh
+  let existing: Record<string, unknown> = {};
+  if (fs.existsSync(configPath)) {
+    try {
+      existing = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+    } catch {
+      // If existing config is invalid, start fresh
+      existing = {};
+    }
+  }
+
+  // Merge and write
+  const merged = { ...existing, ...updates };
+  try {
+    fs.writeFileSync(configPath, JSON.stringify(merged, null, 2) + '\n');
+  } catch {
+    throw new Error(`Cannot write config file - your database preference won't persist`);
+  }
+}
