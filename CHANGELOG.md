@@ -1,3 +1,10 @@
+# [1.4.0](https://github.com/tmchow/hzl/compare/v1.3.0...v1.4.0) (2026-01-31)
+
+
+### Features
+
+* add Claude Code marketplace and skills plugin ([1e66ae3](https://github.com/tmchow/hzl/commit/1e66ae3dace0246448f539993044ff08e06ad746))
+
 # [1.3.0](https://github.com/tmchow/hzl/compare/v1.2.0...v1.3.0) (2026-01-31)
 
 
