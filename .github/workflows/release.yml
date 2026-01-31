@@ -30,6 +30,13 @@ jobs:
       - run: npm run build
       - run: npm run test:ci
 
+      - name: Verify npm token
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          echo "Token length: ${#NODE_AUTH_TOKEN}"
+          npm whoami --registry https://registry.npmjs.org || echo "Token validation failed"
+
       - name: Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
