@@ -1,0 +1,19 @@
+{
+  "name": "hzl-marketplace",
+  "owner": {
+    "name": "HZL",
+    "email": "hzl@example.com"
+  },
+  "metadata": {
+    "description": "Official marketplace for HZL plugins and skills",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "hzl-skills",
+      "source": "./plugins/hzl-skills",
+      "description": "Skills for AI agents using HZL task tracking",
+      "version": "1.0.0"
+    }
+  ]
+}

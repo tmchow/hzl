@@ -156,6 +156,20 @@ Subsequent commands will automatically use this database.
 | `HZL_AUTHOR` | Default author for claims/comments |
 | `HZL_AGENT_ID` | Default agent identifier |
 
+## Claude Code Marketplace
+
+HZL includes a [Claude Code](https://claude.ai/code) plugin marketplace with skills that help AI agents work effectively with HZL.
+
+```bash
+# Add the marketplace
+/plugin marketplace add tmchow/hzl
+
+# Install the skills plugin
+/plugin install hzl-skills@hzl-marketplace
+```
+
+See [`packages/hzl-marketplace`](./packages/hzl-marketplace) for details.
+
 ## Related Projects
 
 - [Beads](https://github.com/steveyegge/beads) - Steve Yegge's task management for agents
