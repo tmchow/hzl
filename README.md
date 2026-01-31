@@ -64,17 +64,21 @@ npm link packages/hzl-cli
 # Initialize the database
 hzl init
 
+# Create a project
+hzl project create myapp
+
 # Create tasks
-hzl task create "Set up authentication" --project myapp --priority 2 --tags backend,auth
-hzl task create "Write API tests" --project myapp --depends-on <task-id>
+hzl task add "Set up authentication" -P myapp --priority 2 --tags backend,auth
+hzl task add "Write API tests" -P myapp --depends-on <task-id>
 
 # List available work
-hzl list --project myapp --available
+hzl task list --project myapp --available
 
 # Claim and work
-hzl task claim-next --project myapp --author agent-1
-hzl checkpoint <task-id> "Completed OAuth flow"
-hzl complete <task-id>
+hzl task next --project myapp
+hzl task claim <task-id> --author agent-1
+hzl task checkpoint <task-id> "Completed OAuth flow"
+hzl task complete <task-id>
 ```
 
 ## Key Commands
@@ -82,47 +86,47 @@ hzl complete <task-id>
 ### Task Lifecycle
 
 ```bash
-hzl task create <title> --project <project>   # Create a task
-hzl list [--project] [--status]               # List tasks
-hzl next [--project]                          # Show next claimable task
-hzl task claim-next [--project]               # Atomically claim next task
-hzl complete <id>                             # Mark done
+hzl task add <title> -P <project>             # Create a task
+hzl task list [--project] [--status]          # List tasks
+hzl task next [--project]                     # Show next claimable task
+hzl task claim <id>                           # Claim a task
+hzl task complete <id>                        # Mark done
 ```
 
 ### For Agents
 
 ```bash
 # All commands support --json for structured output
-hzl list --project myapp --available --json
-hzl task claim-next --project myapp --author agent-1 --json
+hzl task list --project myapp --available --json
+hzl task claim <id> --author agent-1 --json
 
 # Checkpoints let agents recover each other's work
-hzl checkpoint <id> "step-3-complete" --data '{"files":["a.ts","b.ts"]}'
-hzl show <id> --json             # Get task details + history
+hzl task checkpoint <id> "step-3-complete" --data '{"files":["a.ts","b.ts"]}'
+hzl task show <id> --json             # Get task details + history
 ```
 
 ### Stuck Task Recovery
 
 ```bash
-hzl claim <id> --lease 30       # Claim with 30-minute lease
-hzl stuck                       # Find tasks with expired leases
-hzl steal <id> --if-expired     # Reclaim expired work
+hzl task claim <id> --lease 30  # Claim with 30-minute lease
+hzl task stuck                 # Find tasks with expired leases
+hzl task steal <id> --if-expired # Reclaim expired work
 ```
 
 ### Human Oversight
 
 ```bash
-hzl projects                    # See all projects
-hzl show <id>                   # Task details + history
-hzl comment <id> "guidance..."  # Add steering comments
+hzl project list               # See all projects
+hzl task show <id>             # Task details + history
+hzl task comment <id> "guidance..."  # Add steering comments
 ```
 
 ### Dependencies
 
 ```bash
-hzl add-dep <task> <depends-on> # Task waits for dependency
-hzl remove-dep <task> <dep>     # Remove dependency
-hzl validate                    # Check for cycles
+hzl task add-dep <task> <depends-on> # Task waits for dependency
+hzl task remove-dep <task> <dep>     # Remove dependency
+hzl validate                         # Check for cycles
 ```
 
 ## Configuration
@@ -194,16 +198,16 @@ Projects group related work. Don't create per-feature projects—keep them long-
 ### Commands
 
 ```bash
-# Projects (created implicitly when you add tasks)
-hzl projects                                       # List all projects
-hzl rename-project <old> <new>                     # Rename a project
+# Projects
+hzl project list                                   # List all projects
+hzl project rename <old> <new>                     # Rename a project
 
 # Tasks
-hzl task create "Task title" --project <project>   # Create task
-hzl task claim-next --project <project> --json     # Claim next available
-hzl show <task-id> --json                          # Task details + history
-hzl checkpoint <task-id> "<name>"                  # Save progress
-hzl complete <task-id>                             # Mark done
+hzl task add "Task title" -P <project>             # Create task
+hzl task next --project <project> --json           # Show next available
+hzl task show <task-id> --json                     # Task details + history
+hzl task checkpoint <task-id> "<name>"             # Save progress
+hzl task complete <task-id>                        # Mark done
 ```
 
 Use `--json` for structured output. HZL handles atomic claiming.
