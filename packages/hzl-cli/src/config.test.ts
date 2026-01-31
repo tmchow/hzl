@@ -64,7 +64,14 @@ describe('getConfigPath', () => {
   });
 
   it('returns default path when HZL_CONFIG not set', () => {
-    expect(getConfigPath()).toContain('.hzl/config.json');
+    process.env.HZL_DEV_MODE = '0'; // Disable dev mode to test production behavior
+    const configPath = getConfigPath();
+    // Platform-aware assertion: Windows uses AppData\Roaming, Unix uses .config
+    if (process.platform === 'win32') {
+      expect(configPath).toMatch(/AppData[/\\]Roaming[/\\]hzl[/\\]config\.json$/);
+    } else {
+      expect(configPath).toContain('.config/hzl/config.json');
+    }
   });
 });
 

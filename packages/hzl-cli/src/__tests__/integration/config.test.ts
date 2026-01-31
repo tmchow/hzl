@@ -108,9 +108,19 @@ describe('config integration', () => {
 
   it('config shows default when no config file exists', () => {
     // Don't init - just check config with no config file
-    const config = hzlJsonWithConfigOnly<{ db: { value: string; source: string } }>('config');
+    // Disable dev mode to test production behavior
+    const cmd = `node "${cliPath}" config --json`;
+    const result = execSync(cmd, {
+      encoding: 'utf-8',
+      env: { ...process.env, HZL_CONFIG: ctx.configPath, HZL_DB: undefined, HZL_DEV_MODE: '0' },
+    });
+    const config = JSON.parse(result.trim()) as { db: { value: string; source: string } };
     expect(config.db.source).toBe('default');
-    // Default path should be in user's home directory
-    expect(config.db.value).toContain('.hzl');
+    // Platform-aware assertion: Windows uses AppData\Local, Unix uses .local/share
+    if (process.platform === 'win32') {
+      expect(config.db.value).toMatch(/AppData[/\\]Local[/\\]hzl/);
+    } else {
+      expect(config.db.value).toContain('.local/share/hzl');
+    }
   });
 });

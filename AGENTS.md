@@ -28,10 +28,11 @@ npm test -w hzl-cli -- --grep "claim"
 
 ```bash
 # After building, run CLI commands directly
+# Dev mode is automatic - uses .local/hzl/ in repo, not ~/.hzl/
 node packages/hzl-cli/dist/cli.js init
 node packages/hzl-cli/dist/cli.js --help
 
-# Or link globally
+# Or link globally (WARNING: linked CLI still detects dev mode based on install location)
 npm link packages/hzl-cli
 hzl --help
 ```
@@ -86,11 +87,34 @@ The `--available` flag in `hzl task list` filters to claimable tasks.
 
 ## Database Location
 
-Default: `~/.hzl/data.db`. Config stored in `~/.hzl/config.json`.
+### Production (installed CLI)
+
+Uses [XDG Base Directory](https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html) paths:
+
+- Database: `$XDG_DATA_HOME/hzl/data.db` (defaults to `~/.local/share/hzl/data.db`)
+- Config: `$XDG_CONFIG_HOME/hzl/config.json` (defaults to `~/.config/hzl/config.json`)
 
 Resolution order: `--db` flag → `HZL_DB` env → config file → default.
 
-Override with `HZL_DB` env var, `--db` flag, or `hzl init --db /path`.
+### Development (running from source)
+
+**Dev mode is automatic.** When running the CLI from this repo (e.g., `node packages/hzl-cli/dist/cli.js`), hzl detects it's in the source tree and uses project-local storage:
+
+- Database: `.local/hzl/data.db` (in repo root)
+- Config: `.config/hzl/config.json` (in repo root)
+
+This isolation is automatic - no env vars or setup required. The CLI shows `(dev mode - isolated from production)` in output to confirm.
+
+To disable dev mode (for tests checking production behavior): `HZL_DEV_MODE=0`
+
+### CRITICAL: Never modify user's XDG directories
+
+**Do not delete, overwrite, or modify `~/.local/share/hzl/` or `~/.config/hzl/`.** These directories contain the user's real production data if they use hzl outside of development.
+
+When testing or developing:
+- Always use the dev mode paths (automatic when running from source)
+- Never run commands that could affect the user's XDG directories
+- If you need to test with a clean database, use the project-local `.local/hzl/` directory
 
 ## Testing Concurrency
 
