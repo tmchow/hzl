@@ -1311,7 +1311,7 @@ Update `task/add.ts`:
 
 ---
 
-### Task 16: Migrate Status Task Commands
+### Task 16: Migrate Status Task Commands ✅
 
 **Files:**
 - Move: `release.ts` → `task/release.ts`

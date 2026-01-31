@@ -1,10 +1,10 @@
 // packages/hzl-cli/src/commands/reopen.ts
 import { Command } from 'commander';
-import { resolveDbPath } from '../config.js';
-import { initializeDb, closeDb, type Services } from '../db.js';
-import { handleError } from '../errors.js';
+import { resolveDbPath } from '../../config.js';
+import { initializeDb, closeDb, type Services } from '../../db.js';
+import { handleError } from '../../errors.js';
 import { TaskStatus } from 'hzl-core/events/types.js';
-import type { GlobalOptions } from '../types.js';
+import type { GlobalOptions } from '../../types.js';
 
 export interface ReopenResult {
   task_id: string;
