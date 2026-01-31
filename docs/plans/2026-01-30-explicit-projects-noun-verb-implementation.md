@@ -1418,7 +1418,7 @@ Update all CLI examples to use new noun-verb syntax and `-P` for project flag.
 
 ---
 
-### Task 25: Update AGENTS.md
+### Task 25: Update AGENTS.md ✅
 
 **Files:**
 - Modify: `AGENTS.md`

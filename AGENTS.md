@@ -74,7 +74,7 @@ eventStore.append({ type: EventType.StatusChanged, task_id, data: { from, to } }
 
 ### Atomic Claiming
 
-`TaskService.claimTask()` and `claimNext()` use `withWriteTransaction()` with `BEGIN IMMEDIATE` to prevent race conditions. Two agents calling `claim-next` simultaneously will get different tasks.
+`TaskService.claimTask()` and `claimNext()` use `withWriteTransaction()` with `BEGIN IMMEDIATE` to prevent race conditions. Two agents calling `claimNext()` simultaneously will get different tasks.
 
 ### Task Availability
 
@@ -82,7 +82,7 @@ A task is claimable when:
 1. Status is `ready`
 2. All dependencies have status `done`
 
-The `--available` flag in `hzl list` filters to claimable tasks.
+The `--available` flag in `hzl task list` filters to claimable tasks.
 
 ## Database Location
 
