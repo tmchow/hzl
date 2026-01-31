@@ -44,6 +44,16 @@ const isoDateTime = z.string().refine((s) => !Number.isNaN(Date.parse(s)), {
 // Non-empty string
 const nonEmptyString = z.string().min(1);
 
+// Project name validation: alphanumeric start, followed by alphanumeric/hyphens/underscores
+const projectName = z
+  .string()
+  .min(1, 'Project name cannot be empty')
+  .max(255, 'Project name cannot exceed 255 characters')
+  .regex(
+    /^[a-zA-Z0-9][a-zA-Z0-9_-]*$/,
+    'Project name must start with alphanumeric and contain only alphanumeric, hyphens, and underscores'
+  );
+
 // Event data schemas
 const TaskCreatedSchema = z.object({
   title: nonEmptyString,
@@ -94,14 +104,14 @@ const CheckpointRecordedSchema = z.object({
 });
 
 const ProjectCreatedSchema = z.object({
-  name: nonEmptyString,
+  name: projectName,
   description: z.string().optional(),
   is_protected: z.boolean().optional(),
 });
 
 const ProjectRenamedSchema = z.object({
-  old_name: nonEmptyString,
-  new_name: nonEmptyString,
+  old_name: projectName,
+  new_name: projectName,
 });
 
 const ProjectDeletedSchema = z.object({

@@ -60,4 +60,116 @@ describe('Project event types', () => {
       validateEventData(EventType.ProjectRenamed, { new_name: 'foo' })
     ).toThrow();
   });
+
+  describe('project name validation', () => {
+    it('should accept valid project names', () => {
+      const validNames = [
+        'myproject',
+        'my-project',
+        'my_project',
+        'MyProject123',
+        '123project',
+        'a',
+        'A',
+        '1',
+      ];
+      for (const name of validNames) {
+        expect(() =>
+          validateEventData(EventType.ProjectCreated, { name })
+        ).not.toThrow();
+      }
+    });
+
+    it('should reject project names with leading whitespace', () => {
+      expect(() =>
+        validateEventData(EventType.ProjectCreated, { name: ' myproject' })
+      ).toThrow();
+    });
+
+    it('should reject project names with trailing whitespace', () => {
+      expect(() =>
+        validateEventData(EventType.ProjectCreated, { name: 'myproject ' })
+      ).toThrow();
+    });
+
+    it('should reject project names with newlines', () => {
+      expect(() =>
+        validateEventData(EventType.ProjectCreated, { name: 'my\nproject' })
+      ).toThrow();
+    });
+
+    it('should reject project names with control characters', () => {
+      expect(() =>
+        validateEventData(EventType.ProjectCreated, { name: 'my\x00project' })
+      ).toThrow();
+    });
+
+    it('should reject project names with path separators', () => {
+      expect(() =>
+        validateEventData(EventType.ProjectCreated, { name: 'my/project' })
+      ).toThrow();
+      expect(() =>
+        validateEventData(EventType.ProjectCreated, { name: 'my\\project' })
+      ).toThrow();
+    });
+
+    it('should reject project names starting with hyphen', () => {
+      expect(() =>
+        validateEventData(EventType.ProjectCreated, { name: '-myproject' })
+      ).toThrow();
+    });
+
+    it('should reject project names starting with underscore', () => {
+      expect(() =>
+        validateEventData(EventType.ProjectCreated, { name: '_myproject' })
+      ).toThrow();
+    });
+
+    it('should reject project names with spaces', () => {
+      expect(() =>
+        validateEventData(EventType.ProjectCreated, { name: 'my project' })
+      ).toThrow();
+    });
+
+    it('should reject project names with special characters', () => {
+      const invalidNames = ['my@project', 'my#project', 'my$project', 'my.project'];
+      for (const name of invalidNames) {
+        expect(() =>
+          validateEventData(EventType.ProjectCreated, { name })
+        ).toThrow();
+      }
+    });
+
+    it('should reject project names exceeding 255 characters', () => {
+      const longName = 'a'.repeat(256);
+      expect(() =>
+        validateEventData(EventType.ProjectCreated, { name: longName })
+      ).toThrow();
+    });
+
+    it('should accept project names at exactly 255 characters', () => {
+      const maxName = 'a'.repeat(255);
+      expect(() =>
+        validateEventData(EventType.ProjectCreated, { name: maxName })
+      ).not.toThrow();
+    });
+
+    it('should apply same validation to ProjectRenamed new_name', () => {
+      expect(() =>
+        validateEventData(EventType.ProjectRenamed, {
+          old_name: 'valid-name',
+          new_name: 'invalid name with spaces',
+        })
+      ).toThrow();
+    });
+
+    it('should apply same validation to ProjectRenamed old_name', () => {
+      expect(() =>
+        validateEventData(EventType.ProjectRenamed, {
+          old_name: 'invalid/path',
+          new_name: 'valid-name',
+        })
+      ).toThrow();
+    });
+  });
 });
