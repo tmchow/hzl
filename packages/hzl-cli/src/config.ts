@@ -53,15 +53,6 @@ export function readConfig(configPath: string = getConfigPath()): Config {
   }
 }
 
-export async function loadConfig(configPath: string = getConfigPath()): Promise<Config> {
-  try {
-    if (!fs.existsSync(configPath)) return {};
-    const content = await fs.promises.readFile(configPath, 'utf-8');
-    const result = ConfigFileSchema.safeParse(JSON.parse(content));
-    return result.success ? result.data : {};
-  } catch { return {}; }
-}
-
 export function ensureDbDirectory(dbPath: string): void {
   const dir = path.dirname(dbPath);
   if (!fs.existsSync(dir)) {
