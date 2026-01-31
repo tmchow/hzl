@@ -1,4 +1,5 @@
 import type Database from 'better-sqlite3';
+import { EventType, PROJECT_EVENT_TASK_ID } from '../events/types.js';
 import { SCHEMA_V1, PRAGMAS } from './schema.js';
 
 const MIGRATIONS: Record<number, string> = {
@@ -49,5 +50,63 @@ export function runMigrations(db: Database.Database): void {
     }
   }
 
+  migrateToProjectsTable(db);
   db.exec(SCHEMA_V1);
+}
+
+function migrateToProjectsTable(db: Database.Database): void {
+  const tableExists = db
+    .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='projects'")
+    .get();
+
+  if (!tableExists) {
+    db.exec(`
+      CREATE TABLE projects (
+        name TEXT PRIMARY KEY,
+        description TEXT,
+        is_protected INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL,
+        last_event_id INTEGER NOT NULL
+      );
+      CREATE INDEX idx_projects_protected ON projects(is_protected);
+    `);
+  }
+
+  const existingProjects = db
+    .prepare('SELECT DISTINCT project FROM tasks_current')
+    .all() as { project: string }[];
+
+  const timestamp = new Date().toISOString();
+  const insertEvent = db.prepare(`
+    INSERT INTO events (event_id, task_id, type, data, timestamp)
+    VALUES (?, ?, ?, ?, ?)
+  `);
+  const insertProject = db.prepare(`
+    INSERT OR IGNORE INTO projects (name, description, is_protected, created_at, last_event_id)
+    VALUES (?, NULL, ?, ?, last_insert_rowid())
+  `);
+
+  for (const { project } of existingProjects) {
+    const projectExists = db
+      .prepare('SELECT 1 FROM projects WHERE name = ?')
+      .get(project);
+    if (projectExists) continue;
+
+    const eventId = `synthetic-${project}-${Date.now()}`;
+    const data = JSON.stringify({ name: project });
+    insertEvent.run(eventId, PROJECT_EVENT_TASK_ID, EventType.ProjectCreated, data, timestamp);
+    insertProject.run(project, 0, timestamp);
+  }
+
+  const inboxExists = db
+    .prepare('SELECT 1 FROM projects WHERE name = ?')
+    .get('inbox');
+  if (!inboxExists) {
+    const eventId = `synthetic-inbox-${Date.now()}`;
+    const data = JSON.stringify({ name: 'inbox', is_protected: true });
+    insertEvent.run(eventId, PROJECT_EVENT_TASK_ID, EventType.ProjectCreated, data, timestamp);
+    insertProject.run('inbox', 1, timestamp);
+  } else {
+    db.prepare('UPDATE projects SET is_protected = 1 WHERE name = ?').run('inbox');
+  }
 }
