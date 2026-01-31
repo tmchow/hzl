@@ -125,11 +125,30 @@ hzl remove-dep <task> <dep>     # Remove dependency
 hzl validate                    # Check for cycles
 ```
 
+## Configuration
+
+HZL stores configuration in `~/.hzl/config.json`. The config file is created automatically when you run `hzl init`.
+
+To use a custom database location:
+
+```bash
+hzl init --db ~/my-project/tasks.db
+```
+
+Subsequent commands will automatically use this database.
+
+**Config resolution order (highest to lowest priority):**
+1. `--db` flag
+2. `HZL_DB` environment variable
+3. `~/.hzl/config.json`
+4. Default: `~/.hzl/data.db`
+
 ## Environment Variables
 
-| Variable | Purpose |
-|----------|---------|
-| `HZL_DB` | Override database location (default: `~/.hzl/data.db`) |
+| Variable | Description |
+|----------|-------------|
+| `HZL_DB` | Override database location |
+| `HZL_CONFIG` | Override config file location (default: `~/.hzl/config.json`) |
 | `HZL_AUTHOR` | Default author for claims/comments |
 | `HZL_AGENT_ID` | Default agent identifier |
 
