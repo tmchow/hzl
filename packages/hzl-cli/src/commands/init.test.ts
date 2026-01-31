@@ -68,4 +68,28 @@ describe('runInit', () => {
     const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
     expect(config.dbPath).toBe(dbPath);
   });
+
+  it('errors when config points to different path without --force', async () => {
+    const dbPath = path.join(tempDir, 'new.db');
+    const configPath = path.join(tempDir, 'config.json');
+
+    // Pre-existing config pointing elsewhere
+    fs.writeFileSync(configPath, JSON.stringify({ dbPath: '/other/path.db' }));
+
+    await expect(runInit({ dbPath, json: true, configPath }))
+      .rejects.toThrow('Config already exists pointing to /other/path.db');
+  });
+
+  it('overwrites config when --force is used', async () => {
+    const dbPath = path.join(tempDir, 'new.db');
+    const configPath = path.join(tempDir, 'config.json');
+
+    // Pre-existing config pointing elsewhere
+    fs.writeFileSync(configPath, JSON.stringify({ dbPath: '/other/path.db' }));
+
+    await runInit({ dbPath, json: true, configPath, force: true });
+
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+    expect(config.dbPath).toBe(dbPath);
+  });
 });

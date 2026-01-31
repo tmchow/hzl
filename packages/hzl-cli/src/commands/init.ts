@@ -1,7 +1,7 @@
 // packages/hzl-cli/src/commands/init.ts
 import { Command } from 'commander';
 import fs from 'fs';
-import { resolveDbPath, ensureDbDirectory, writeConfig, getConfigPath } from '../config.js';
+import { resolveDbPath, ensureDbDirectory, writeConfig, readConfig, getConfigPath } from '../config.js';
 import type { GlobalOptions } from '../types.js';
 
 export interface InitResult {
@@ -13,6 +13,7 @@ export interface InitOptions {
   dbPath: string;
   json: boolean;
   configPath?: string;
+  force?: boolean;
 }
 
 /**
@@ -20,7 +21,17 @@ export interface InitOptions {
  * Separated from CLI wiring to allow mocking/testing.
  */
 export async function runInit(options: InitOptions): Promise<InitResult> {
-  const { dbPath, json, configPath = getConfigPath() } = options;
+  const { dbPath, json, configPath = getConfigPath(), force = false } = options;
+
+  // Check for config conflict
+  const existingConfig = readConfig(configPath);
+  if (existingConfig.dbPath && existingConfig.dbPath !== dbPath && !force) {
+    throw new Error(
+      `Config already exists pointing to ${existingConfig.dbPath}\n` +
+      `Use --force to reinitialize with a different database`
+    );
+  }
+
   const existed = fs.existsSync(dbPath);
   
   // Ensure the directory exists
@@ -54,11 +65,14 @@ export async function runInit(options: InitOptions): Promise<InitResult> {
 export function createInitCommand(): Command {
   return new Command('init')
     .description('Initialize a new HZL database')
+    .option('-f, --force', 'Force reinitialize even if config points elsewhere')
     .action(async function (this: Command) {
       const globalOpts = this.optsWithGlobals() as GlobalOptions;
+      const opts = this.opts();
       await runInit({
         dbPath: resolveDbPath(globalOpts.db),
         json: globalOpts.json ?? false,
+        force: opts.force ?? false,
       });
     });
 }
