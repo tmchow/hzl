@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url';
 export interface TestContext {
   tempDir: string;
   dbPath: string;
+  configPath: string;
   cleanup: () => void;
 }
 
@@ -18,9 +19,11 @@ const cliPath = path.resolve(__dirname, '../../../dist/cli.js');
 export function createTestContext(): TestContext {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hzl-integration-'));
   const dbPath = path.join(tempDir, 'test.db');
+  const configPath = path.join(tempDir, 'config.json');
   return {
     tempDir,
     dbPath,
+    configPath,
     cleanup: () => {
       try {
         fs.rmSync(tempDir, { recursive: true, force: true });
@@ -33,7 +36,11 @@ export function createTestContext(): TestContext {
 
 export function hzl(ctx: TestContext, args: string, options?: ExecSyncOptions): string {
   const cmd = `node "${cliPath}" --db "${ctx.dbPath}" ${args}`;
-  const result = execSync(cmd, { encoding: 'utf-8', ...options });
+  const result = execSync(cmd, {
+    encoding: 'utf-8',
+    env: { ...process.env, HZL_CONFIG: ctx.configPath },
+    ...options,
+  });
   return (result as string).trim();
 }
 
