@@ -1,3 +1,10 @@
+# [1.1.0](https://github.com/tmchow/hzl/compare/v1.0.0...v1.1.0) (2026-01-31)
+
+
+### Features
+
+* add persistent config file support ([#18](https://github.com/tmchow/hzl/issues/18)) ([83fdad9](https://github.com/tmchow/hzl/commit/83fdad9b9402c5237aee2539cfcf72d84bb3962f))
+
 # 1.0.0 (2026-01-31)
 
 
