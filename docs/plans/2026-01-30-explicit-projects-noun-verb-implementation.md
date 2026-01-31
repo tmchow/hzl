@@ -1193,7 +1193,7 @@ test: verify inbox project created on init
 
 ## Phase 2: CLI Restructure - Project Commands
 
-### Task 8: Create `hzl project create` Command
+### Task 8: Create `hzl project create` Command ✅
 
 **Files:**
 - Create: `packages/hzl-cli/src/commands/project/create.ts`
