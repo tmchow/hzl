@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { resolveDbPath } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
+import { handleError } from '../../errors.js';
 import type { GlobalOptions } from '../../types.js';
 
 export interface ProjectListInfo {
@@ -87,6 +88,8 @@ export function createProjectListCommand(): Command {
       const services = initializeDb(dbPath);
       try {
         runProjectList({ services, json: globalOpts.json ?? false });
+      } catch (e) {
+        handleError(e, globalOpts.json);
       } finally {
         closeDb(services);
       }

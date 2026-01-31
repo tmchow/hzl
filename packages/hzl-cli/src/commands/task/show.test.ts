@@ -5,6 +5,7 @@ import path from 'path';
 import os from 'os';
 import { runShow } from './show.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
+import { CLIError, ExitCode } from '../../errors.js';
 import { TaskStatus } from 'hzl-core/events/types.js';
 
 describe('runShow', () => {
@@ -23,9 +24,15 @@ describe('runShow', () => {
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
-  it('returns null for non-existent task', () => {
-    const result = runShow({ services, taskId: 'nonexistent', json: false });
-    expect(result).toBeNull();
+  it('throws CLIError for non-existent task', () => {
+    expect(() => runShow({ services, taskId: 'nonexistent', json: false })).toThrow(CLIError);
+    try {
+      runShow({ services, taskId: 'nonexistent', json: false });
+    } catch (e) {
+      expect(e).toBeInstanceOf(CLIError);
+      expect((e as CLIError).exitCode).toBe(ExitCode.NotFound);
+      expect((e as CLIError).message).toBe('Task not found: nonexistent');
+    }
   });
 
   it('returns task details', () => {

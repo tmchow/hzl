@@ -2,7 +2,7 @@
 import { Command } from 'commander';
 import { resolveDbPath } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
-import { handleError } from '../../errors.js';
+import { CLIError, ExitCode, handleError } from '../../errors.js';
 import type { GlobalOptions } from '../../types.js';
 import type { Comment, Checkpoint } from 'hzl-core/services/task-service.js';
 
@@ -24,17 +24,12 @@ export interface ShowResult {
   checkpoints: Array<{ name: string; data: Record<string, unknown>; timestamp: string }>;
 }
 
-export function runShow(options: { services: Services; taskId: string; json: boolean }): ShowResult | null {
+export function runShow(options: { services: Services; taskId: string; json: boolean }): ShowResult {
   const { services, taskId, json } = options;
 
   const task = services.taskService.getTaskById(taskId);
   if (!task) {
-    if (json) {
-      console.log(JSON.stringify(null));
-    } else {
-      console.log(`Task not found: ${taskId}`);
-    }
-    return null;
+    throw new CLIError(`Task not found: ${taskId}`, ExitCode.NotFound);
   }
 
   const comments = services.taskService.getComments(taskId);
