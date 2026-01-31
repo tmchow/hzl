@@ -1156,7 +1156,7 @@ feat: wire up ProjectService and ProjectsProjector in CLI
 
 ---
 
-### Task 7: Update Init and Verify Inbox Creation
+### Task 7: Update Init and Verify Inbox Creation ✅
 
 **Files:**
 - Modify: `packages/hzl-cli/src/commands/init.test.ts`
