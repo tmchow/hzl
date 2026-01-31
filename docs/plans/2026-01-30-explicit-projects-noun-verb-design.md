@@ -17,6 +17,7 @@ Redesign HZL CLI to use explicit project management and consistent noun-verb com
 - Projects must be created with `hzl project create <name>` before tasks can be added
 - `hzl task add "title" --project nonexistent` fails if project doesn't exist
 - Prevents typo-based project creation
+- **All operations that reference a project validate it exists** (task add, task move, project rename target, project delete --move-to)
 
 ### The "inbox" Project
 
@@ -28,12 +29,16 @@ Redesign HZL CLI to use explicit project management and consistent noun-verb com
 ### Project Deletion Requires Explicit Task Handling
 
 ```bash
-hzl project delete <name>                    # Fails if has tasks
-hzl project delete <name> --move-to inbox    # Moves tasks to inbox first
-hzl project delete <name> --move-to other    # Moves tasks to another project
-hzl project delete <name> --archive-tasks    # Archives all tasks first
-hzl project delete <name> --delete-tasks     # Deletes project and all tasks
+hzl project delete <name>                    # Fails if has tasks (including archived)
+hzl project delete <name> --move-to inbox    # Moves ALL tasks (including archived) to inbox first
+hzl project delete <name> --move-to other    # Moves ALL tasks to another project (must exist)
+hzl project delete <name> --archive-tasks    # Archives all non-archived tasks first
+hzl project delete <name> --delete-tasks     # Deletes project and ALL tasks (including archived)
 ```
+
+**Important:** These flags are mutually exclusive. Only one can be specified.
+
+**Cascading effects:** When `--delete-tasks` is used, any tasks in OTHER projects that depend on the deleted tasks will have broken dependencies. The `hzl validate` command can detect this.
 
 ### Full Noun-Verb Command Structure
 
@@ -53,31 +58,33 @@ Keep current behavior:
 
 Clean break - no backwards compatibility aliases. No users yet.
 
+**Database migration:** Existing databases will have synthetic `ProjectCreated` events emitted for all unique projects found in `tasks_current`.
+
 ## Command Reference
 
 ### Project Commands
 
 ```bash
 hzl project create <name>                    # Create a new project
-hzl project create <name> --description "..."
+hzl project create <name> -d "description"   # Create with description
 hzl project delete <name> [--move-to <project> | --archive-tasks | --delete-tasks]
-hzl project list                             # List all projects
-hzl project rename <from> <to>               # Rename project
-hzl project show <name>                      # Show project details + task summary
+hzl project list                             # List all projects with task counts
+hzl project rename <from> <to>               # Rename project (atomic event)
+hzl project show <name>                      # Show project details + task breakdown by status
 ```
 
 ### Task Commands
 
 | Current | New |
 |---------|-----|
-| `hzl add <project> <title>` | `hzl task add <title> [-p <project>]` |
+| `hzl add <project> <title>` | `hzl task add <title> [-P <project>]` |
 | `hzl list` | `hzl task list` |
 | `hzl show <id>` | `hzl task show <id>` |
 | `hzl claim <id>` | `hzl task claim <id>` |
 | `hzl next` | `hzl task next` |
 | `hzl complete <id>` | `hzl task complete <id>` |
 | `hzl update <id>` | `hzl task update <id>` |
-| `hzl move <id> <project>` | `hzl task move <id> --to <project>` |
+| `hzl move <id> <project>` | `hzl task move <id> <project>` |
 | `hzl archive <id>` | `hzl task archive <id>` |
 | `hzl reopen <id>` | `hzl task reopen <id>` |
 | `hzl release <id>` | `hzl task release <id>` |
@@ -91,6 +98,11 @@ hzl project show <name>                      # Show project details + task summa
 | `hzl remove-dep <id> <dep>` | `hzl task remove-dep <id> <dep>` |
 | `hzl set-status <id> <status>` | `hzl task set-status <id> <status>` |
 
+**Flag conventions:**
+- `-P, --project` for project (uppercase to avoid collision with `-p, --priority`)
+- `-p, --priority` for priority (unchanged)
+- `hzl task move` uses positional argument for target project (not `--to` flag)
+
 ### Top-Level Commands (unchanged)
 
 These stay top-level as they're not resource-specific:
@@ -98,10 +110,10 @@ These stay top-level as they're not resource-specific:
 - `hzl init` - Initialize database
 - `hzl config` - Configuration management
 - `hzl stats` - Cross-cutting analytics
-- `hzl validate` - Database integrity check
+- `hzl validate` - Database integrity check (now also detects broken dependencies)
 - `hzl export-events` - Backup/export utility
 - `hzl which-db` - Diagnostic utility
-- `hzl sample-project` - Demo/onboarding utility
+- `hzl sample-project` - Demo/onboarding utility (updated to create project first)
 
 ### Commands to Remove
 
@@ -113,9 +125,15 @@ These stay top-level as they're not resource-specific:
 ### New Event Types
 
 ```typescript
-EventType.ProjectCreated    // { name: string, description?: string, is_protected?: boolean }
-EventType.ProjectDeleted    // { name: string, tasks_action: 'moved' | 'archived' | 'deleted', moved_to?: string }
+// Project events use task_id = '__project__' as a reserved sentinel value
+// to distinguish them from task events while keeping the NOT NULL constraint
+
+EventType.ProjectCreated  // { name: string, description?: string, is_protected?: boolean }
+EventType.ProjectRenamed  // { old_name: string, new_name: string }
+EventType.ProjectDeleted  // { name: string, task_count: number, archived_task_count: number }
 ```
+
+**Note:** `ProjectDeleted` is only emitted AFTER all tasks have been handled (moved, archived, or deleted via their own events). The `task_count` and `archived_task_count` fields record what was in the project at deletion time for audit purposes.
 
 ### New Projection: projects
 
@@ -123,9 +141,12 @@ EventType.ProjectDeleted    // { name: string, tasks_action: 'moved' | 'archived
 CREATE TABLE projects (
   name TEXT PRIMARY KEY,
   description TEXT,
+  is_protected INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL,
-  is_protected INTEGER DEFAULT 0  -- 1 for inbox
+  last_event_id INTEGER NOT NULL
 );
+
+CREATE INDEX idx_projects_protected ON projects(is_protected);
 ```
 
 ### Service Changes
@@ -133,32 +154,49 @@ CREATE TABLE projects (
 **TaskService.createTask():**
 - Validate project exists before creating task
 - If no project specified, default to "inbox"
-- Throw error if project doesn't exist
+- Throw `ProjectNotFoundError` if project doesn't exist
+
+**TaskService - add target validation to:**
+- `moveTask()` - validate target project exists
 
 **New ProjectService:**
 - `createProject(name, options?)` - Create project, emit ProjectCreated
-- `deleteProject(name, options)` - Handle tasks per options, emit ProjectDeleted
+- `deleteProject(name, options)` - Handle tasks FIRST (move/archive/delete), THEN emit ProjectDeleted
 - `getProject(name)` - Get project details
-- `listProjects()` - List all projects
-- `renameProject(from, to)` - Rename via task moves (existing logic)
+- `listProjects()` - List all projects with task counts
+- `renameProject(from, to)` - Validate target doesn't exist (unless force), emit ProjectRenamed
+- `projectExists(name)` - Check if project exists
+- `ensureInboxExists()` - Idempotent inbox creation (uses INSERT OR IGNORE semantics)
+- `getTaskCount(name, includeArchived)` - Get task count for project
+
+**Error types:**
+- `ProjectNotFoundError` - Project doesn't exist
+- `ProjectAlreadyExistsError` - Project already exists (on create or rename target)
+- `ProtectedProjectError` - Cannot delete/rename protected project
+- `ProjectHasTasksError` - Project has tasks, must specify how to handle them
 
 **Init changes:**
 - `hzl init` emits ProjectCreated event for "inbox" with is_protected: true
+- Inbox creation is idempotent (safe to call multiple times)
+
+**Migration:**
+- Emit synthetic `ProjectCreated` events for all unique projects in `tasks_current`
+- Emit `ProjectCreated` for "inbox" with is_protected: true if not already present
 
 ### Documentation Updates
 
 Files to update:
 - README.md - All CLI examples, AGENTS.md snippet
 - AGENTS.md - Command examples
-- skills/*.md - Any CLI examples
+- sample-project.ts - Create project before adding tasks
 
 ## Out of Scope
 
-- Project descriptions/metadata beyond name
 - Project-level settings or configurations
-- Archiving projects (use delete with --archive-tasks)
+- Archiving projects as a status (use delete with --archive-tasks)
 - TTY detection for output format
 - Backwards compatibility aliases
+- Configurable default project name (hardcoded to "inbox" for V1)
 
 ## References
 
