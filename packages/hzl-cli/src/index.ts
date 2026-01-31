@@ -7,6 +7,7 @@ import { handleError } from './errors.js';
 import * as taskCommands from './commands/task.js';
 import { createInitCommand } from './commands/init.js';
 import { createWhichDbCommand } from './commands/which-db.js';
+import { createConfigCommand } from './commands/config.js';
 import { createProjectsCommand } from './commands/projects.js';
 import { createRenameProjectCommand } from './commands/rename-project.js';
 import { createAddCommand } from './commands/add.js';
@@ -57,6 +58,7 @@ export function createProgram(): Command {
 
   program.addCommand(createInitCommand());
   program.addCommand(createWhichDbCommand());
+  program.addCommand(createConfigCommand());
   program.addCommand(createProjectsCommand());
   program.addCommand(createRenameProjectCommand());
   program.addCommand(createAddCommand());
