@@ -4,6 +4,7 @@ import { initializeDb, closeDb, type Services } from '../../db.js';
 import { CLIError, ExitCode, handleError } from '../../errors.js';
 import type { GlobalOptions } from '../../types.js';
 import { EventType, PROJECT_EVENT_TASK_ID } from 'hzl-core/events/types.js';
+import { withWriteTransaction } from 'hzl-core/db/connection.js';
 
 export interface ProjectDeleteResult {
   name: string;
@@ -73,8 +74,8 @@ export function runProjectDelete(options: ProjectDeleteOptions): ProjectDeleteRe
   }
 
   const taskRows = services.db
-    .prepare('SELECT task_id, status FROM tasks_current WHERE project = ?')
-    .all(name) as { task_id: string; status: string }[];
+    .prepare('SELECT task_id, status, project FROM tasks_current WHERE project = ?')
+    .all(name) as { task_id: string; status: string; project: string }[];
 
   const archivedCount = taskRows.filter((row) => row.status === 'archived').length;
   const activeCount = taskRows.length - archivedCount;
@@ -86,39 +87,60 @@ export function runProjectDelete(options: ProjectDeleteOptions): ProjectDeleteRe
     );
   }
 
+  // Validate target project exists before starting transaction
   if (moveTo) {
     services.projectService.requireProject(moveTo);
-    for (const row of taskRows) {
-      services.taskService.moveTask(row.task_id, moveTo);
-    }
-  } else if (archiveTasks) {
-    for (const row of taskRows) {
-      if (row.status !== 'archived') {
-        services.taskService.archiveTask(row.task_id);
-      }
-    }
-    deleteTasksFromProjections(services, taskRows.map((row) => row.task_id));
-  } else if (deleteTasks) {
-    deleteTasksFromProjections(services, taskRows.map((row) => row.task_id));
   }
 
-  const event = services.eventStore.append({
-    task_id: PROJECT_EVENT_TASK_ID,
-    type: EventType.ProjectDeleted,
-    data: {
+  // Wrap all mutations in a single atomic transaction
+  const result = withWriteTransaction(services.db, () => {
+    if (moveTo) {
+      // Move each task by appending TaskMoved events
+      for (const row of taskRows) {
+        if (row.project !== moveTo) {
+          const event = services.eventStore.append({
+            task_id: row.task_id,
+            type: EventType.TaskMoved,
+            data: { from_project: row.project, to_project: moveTo },
+          });
+          services.projectionEngine.applyEvent(event);
+        }
+      }
+    } else if (archiveTasks) {
+      // Archive each non-archived task by appending TaskArchived events
+      for (const row of taskRows) {
+        if (row.status !== 'archived') {
+          const event = services.eventStore.append({
+            task_id: row.task_id,
+            type: EventType.TaskArchived,
+            data: {},
+          });
+          services.projectionEngine.applyEvent(event);
+        }
+      }
+      deleteTasksFromProjections(services, taskRows.map((row) => row.task_id));
+    } else if (deleteTasks) {
+      deleteTasksFromProjections(services, taskRows.map((row) => row.task_id));
+    }
+
+    const event = services.eventStore.append({
+      task_id: PROJECT_EVENT_TASK_ID,
+      type: EventType.ProjectDeleted,
+      data: {
+        name,
+        task_count: activeCount,
+        archived_task_count: archivedCount,
+      },
+    });
+    services.projectionEngine.applyEvent(event);
+
+    return {
       name,
       task_count: activeCount,
       archived_task_count: archivedCount,
-    },
+      action: moveTo ? 'move' : archiveTasks ? 'archive' : deleteTasks ? 'delete' : 'none',
+    } as ProjectDeleteResult;
   });
-  services.projectionEngine.applyEvent(event);
-
-  const result: ProjectDeleteResult = {
-    name,
-    task_count: activeCount,
-    archived_task_count: archivedCount,
-    action: moveTo ? 'move' : archiveTasks ? 'archive' : deleteTasks ? 'delete' : 'none',
-  };
 
   if (json) {
     console.log(JSON.stringify(result));
