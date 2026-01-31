@@ -4,7 +4,6 @@ import {
   ProjectService,
   ProjectNotFoundError,
   ProtectedProjectError,
-  ProjectHasTasksError,
   ProjectAlreadyExistsError,
 } from './project-service.js';
 import { EventStore } from '../events/store.js';
@@ -126,37 +125,6 @@ describe('ProjectService', () => {
       projectService.createProject('project-b');
       expect(() => projectService.renameProject('project-a', 'project-b')).toThrow(
         ProjectAlreadyExistsError
-      );
-    });
-  });
-
-  describe('deleteProject', () => {
-    it('should delete empty project', () => {
-      projectService.createProject('myproject');
-      projectService.deleteProject('myproject');
-      expect(projectService.getProject('myproject')).toBeNull();
-    });
-
-    it('should throw when deleting protected project', () => {
-      projectService.createProject('inbox', { is_protected: true });
-      expect(() => projectService.deleteProject('inbox')).toThrow(
-        ProtectedProjectError
-      );
-    });
-
-    it('should throw when deleting non-existent project', () => {
-      expect(() => projectService.deleteProject('nonexistent')).toThrow(
-        ProjectNotFoundError
-      );
-    });
-
-    it('should throw ProjectHasTasksError when project has tasks and no action specified', () => {
-      projectService.createProject('myproject');
-      db.prepare(`INSERT INTO tasks_current (task_id, title, project, status, created_at, updated_at, last_event_id)
-        VALUES ('t1', 'Test', 'myproject', 'ready', datetime('now'), datetime('now'), 1)`).run();
-
-      expect(() => projectService.deleteProject('myproject')).toThrow(
-        ProjectHasTasksError
       );
     });
   });

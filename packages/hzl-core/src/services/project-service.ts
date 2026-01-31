@@ -31,16 +31,11 @@ export class ProtectedProjectError extends Error {
 }
 
 export class ProjectHasTasksError extends Error {
-  public taskCount: number;
-  public archivedTaskCount: number;
-
   constructor(name: string, taskCount: number, archivedTaskCount: number) {
     super(
       `Project '${name}' has ${taskCount} active tasks and ${archivedTaskCount} archived tasks. Use --move-to, --archive-tasks, or --delete-tasks.`
     );
     this.name = 'ProjectHasTasksError';
-    this.taskCount = taskCount;
-    this.archivedTaskCount = archivedTaskCount;
   }
 }
 
@@ -132,37 +127,6 @@ export class ProjectService {
         data: {
           old_name: oldName,
           new_name: newName,
-        },
-      });
-
-      this.projectionEngine.applyEvent(event);
-    });
-  }
-
-  deleteProject(name: string): void {
-    withWriteTransaction(this.db, () => {
-      const project = this.getProject(name);
-      if (!project) {
-        throw new ProjectNotFoundError(name);
-      }
-      if (project.is_protected) {
-        throw new ProtectedProjectError(name, 'delete');
-      }
-
-      const activeCount = this.getTaskCount(name, false);
-      const archivedCount = this.getTaskCount(name, true) - activeCount;
-
-      if (activeCount > 0 || archivedCount > 0) {
-        throw new ProjectHasTasksError(name, activeCount, archivedCount);
-      }
-
-      const event = this.eventStore.append({
-        task_id: PROJECT_EVENT_TASK_ID,
-        type: EventType.ProjectDeleted,
-        data: {
-          name,
-          task_count: 0,
-          archived_task_count: 0,
         },
       });
 
