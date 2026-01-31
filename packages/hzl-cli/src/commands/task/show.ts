@@ -1,9 +1,9 @@
 // packages/hzl-cli/src/commands/show.ts
 import { Command } from 'commander';
-import { resolveDbPath } from '../config.js';
-import { initializeDb, closeDb, type Services } from '../db.js';
-import { handleError } from '../errors.js';
-import type { GlobalOptions } from '../types.js';
+import { resolveDbPath } from '../../config.js';
+import { initializeDb, closeDb, type Services } from '../../db.js';
+import { handleError } from '../../errors.js';
+import type { GlobalOptions } from '../../types.js';
 import type { Comment, Checkpoint } from 'hzl-core/services/task-service.js';
 
 export interface ShowResult {

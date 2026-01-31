@@ -4,7 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { runShow } from './show.js';
-import { initializeDb, closeDb, type Services } from '../db.js';
+import { initializeDb, closeDb, type Services } from '../../db.js';
 import { TaskStatus } from 'hzl-core/events/types.js';
 
 describe('runShow', () => {

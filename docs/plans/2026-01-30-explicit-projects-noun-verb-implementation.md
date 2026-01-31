@@ -1293,7 +1293,7 @@ Set up the task command group that will contain all task subcommands.
 
 ---
 
-### Task 15: Migrate Core Task Commands
+### Task 15: Migrate Core Task Commands ✅
 
 **Files:**
 - Move: `add.ts` → `task/add.ts` (change `-p` to `-P` for project)

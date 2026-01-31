@@ -1,9 +1,9 @@
 // packages/hzl-cli/src/commands/add.ts
 import { Command } from 'commander';
-import { resolveDbPath } from '../config.js';
-import { initializeDb, closeDb, type Services } from '../db.js';
-import { handleError } from '../errors.js';
-import type { GlobalOptions } from '../types.js';
+import { resolveDbPath } from '../../config.js';
+import { initializeDb, closeDb, type Services } from '../../db.js';
+import { handleError } from '../../errors.js';
+import type { GlobalOptions } from '../../types.js';
 
 export interface AddResult {
   task_id: string;
@@ -58,20 +58,20 @@ export function runAdd(options: AddOptions): AddResult {
 export function createAddCommand(): Command {
   return new Command('add')
     .description('Create a new task')
-    .argument('<project>', 'Project name')
     .argument('<title>', 'Task title')
+    .option('-P, --project <project>', 'Project name', 'inbox')
     .option('-d, --description <desc>', 'Task description')
     .option('-t, --tags <tags>', 'Comma-separated tags')
     .option('-p, --priority <n>', 'Priority (0-3)', '0')
     .option('--depends-on <ids>', 'Comma-separated task IDs this depends on')
-    .action(function (this: Command, project: string, title: string, opts: any) {
+    .action(function (this: Command, title: string, opts: any) {
       const globalOpts = this.optsWithGlobals() as GlobalOptions;
       const dbPath = resolveDbPath(globalOpts.db);
       const services = initializeDb(dbPath);
       try {
         runAdd({
           services,
-          project,
+          project: opts.project ?? 'inbox',
           title,
           description: opts.description,
           tags: opts.tags?.split(','),

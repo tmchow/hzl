@@ -1,19 +1,19 @@
-// packages/hzl-cli/src/commands/complete.test.ts
+// packages/hzl-cli/src/commands/claim.test.ts
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { runComplete } from './complete.js';
-import { initializeDb, closeDb, type Services } from '../db.js';
+import { runClaim } from './claim.js';
+import { initializeDb, closeDb, type Services } from '../../db.js';
 import { TaskStatus } from 'hzl-core/events/types.js';
 
-describe('runComplete', () => {
+describe('runClaim', () => {
   let tempDir: string;
   let dbPath: string;
   let services: Services;
 
   beforeEach(() => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hzl-complete-test-'));
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hzl-claim-test-'));
     dbPath = path.join(tempDir, 'test.db');
     services = initializeDb(dbPath);
   });
@@ -23,28 +23,34 @@ describe('runComplete', () => {
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
-  it('completes an in-progress task', () => {
+  it('claims a ready task', () => {
     const task = services.taskService.createTask({ title: 'Test', project: 'inbox' });
     services.taskService.setStatus(task.task_id, TaskStatus.Ready);
-    services.taskService.claimTask(task.task_id);
 
-    const result = runComplete({
+    const result = runClaim({
       services,
       taskId: task.task_id,
+      author: 'test-agent',
       json: false,
     });
 
-    expect(result.status).toBe(TaskStatus.Done);
+    expect(result.task_id).toBe(task.task_id);
+    expect(result.status).toBe(TaskStatus.InProgress);
+    expect(result.claimed_by_author).toBe('test-agent');
   });
 
-  it('sets status to done', () => {
+  it('sets lease when specified', () => {
     const task = services.taskService.createTask({ title: 'Test', project: 'inbox' });
     services.taskService.setStatus(task.task_id, TaskStatus.Ready);
-    services.taskService.claimTask(task.task_id);
 
-    runComplete({ services, taskId: task.task_id, json: false });
+    const result = runClaim({
+      services,
+      taskId: task.task_id,
+      author: 'test-agent',
+      leaseMinutes: 30,
+      json: false,
+    });
 
-    const updated = services.taskService.getTaskById(task.task_id);
-    expect(updated?.status).toBe(TaskStatus.Done);
+    expect(result.lease_until).toBeDefined();
   });
 });

@@ -4,7 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { runAdd } from './add.js';
-import { initializeDb, closeDb, type Services } from '../db.js';
+import { initializeDb, closeDb, type Services } from '../../db.js';
 
 describe('runAdd', () => {
   let tempDir: string;
