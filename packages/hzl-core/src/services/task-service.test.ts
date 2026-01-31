@@ -2,6 +2,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import Database from 'better-sqlite3';
 import { TaskService } from './task-service.js';
+import { ProjectService, ProjectNotFoundError } from './project-service.js';
 import { runMigrations } from '../db/migrations.js';
 import { EventStore } from '../events/store.js';
 import { EventType, TaskStatus } from '../events/types.js';
@@ -11,12 +12,14 @@ import { DependenciesProjector } from '../projections/dependencies.js';
 import { TagsProjector } from '../projections/tags.js';
 import { CommentsCheckpointsProjector } from '../projections/comments-checkpoints.js';
 import { SearchProjector } from '../projections/search.js';
+import { ProjectsProjector } from '../projections/projects.js';
 
 describe('TaskService', () => {
   let db: Database.Database;
   let eventStore: EventStore;
   let projectionEngine: ProjectionEngine;
   let taskService: TaskService;
+  let projectService: ProjectService;
 
   beforeEach(() => {
     db = new Database(':memory:');
@@ -28,7 +31,12 @@ describe('TaskService', () => {
     projectionEngine.register(new TagsProjector());
     projectionEngine.register(new CommentsCheckpointsProjector());
     projectionEngine.register(new SearchProjector());
-    taskService = new TaskService(db, eventStore, projectionEngine);
+    projectionEngine.register(new ProjectsProjector());
+    projectService = new ProjectService(db, eventStore, projectionEngine);
+    projectService.ensureInboxExists();
+    projectService.createProject('project-a');
+    projectService.createProject('project-b');
+    taskService = new TaskService(db, eventStore, projectionEngine, projectService);
   });
 
   afterEach(() => {
@@ -120,6 +128,59 @@ describe('TaskService', () => {
       const events = eventStore.getByTaskId(task.task_id);
       expect(events[0].author).toBe('user-1');
       expect(events[0].agent_id).toBe('AGENT001');
+    });
+  });
+
+  describe('createTask with project validation', () => {
+    it('should throw ProjectNotFoundError if project does not exist', () => {
+      expect(() =>
+        taskService.createTask({
+          title: 'Test task',
+          project: 'nonexistent',
+        })
+      ).toThrow(ProjectNotFoundError);
+    });
+
+    it('should create task if project exists', () => {
+      projectService.createProject('myproject');
+
+      const task = taskService.createTask({
+        title: 'Test task',
+        project: 'myproject',
+      });
+
+      expect(task.project).toBe('myproject');
+    });
+
+    it('should work with inbox project', () => {
+      projectService.ensureInboxExists();
+
+      const task = taskService.createTask({
+        title: 'Test task',
+        project: 'inbox',
+      });
+
+      expect(task.project).toBe('inbox');
+    });
+  });
+
+  describe('moveTask with project validation', () => {
+    it('should throw ProjectNotFoundError if target project does not exist', () => {
+      projectService.createProject('source');
+      const task = taskService.createTask({ title: 'Test', project: 'source' });
+
+      expect(() => taskService.moveTask(task.task_id, 'nonexistent')).toThrow(
+        ProjectNotFoundError
+      );
+    });
+
+    it('should move task if target project exists', () => {
+      projectService.createProject('source');
+      projectService.createProject('target');
+      const task = taskService.createTask({ title: 'Test', project: 'source' });
+
+      const moved = taskService.moveTask(task.task_id, 'target');
+      expect(moved.project).toBe('target');
     });
   });
 
