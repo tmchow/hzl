@@ -1,5 +1,5 @@
 /**
- * HZL Core - Task coordination for AI agent swarms
+ * HZL Core - Lightweight task tracking for AI agents and swarms
  *
  * This module provides the core business logic for the HZL task management system,
  * including event sourcing, projections, and task coordination services.

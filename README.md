@@ -1,6 +1,6 @@
 # HZL
 
-**Lightweight task coordination for AI agent swarms.**
+**Lightweight task tracking for AI agents and swarms.**
 
 HZL is a CLI-first task management system designed for solo developers working with multiple AI agents across multiple projects. It provides durable, local coordination without the overhead of team-oriented project management tools.
 

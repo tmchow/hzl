@@ -1,7 +1,7 @@
 {
   "name": "hzl-workspace",
   "private": true,
-  "description": "HZL - Task coordination system for AI agent swarms",
+  "description": "Lightweight task tracking for AI agents and swarms",
   "workspaces": ["packages/*"],
   "engines": {
     "node": ">=20.0.0"

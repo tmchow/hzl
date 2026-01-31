@@ -1,7 +1,7 @@
 {
   "name": "hzl-cli",
   "version": "1.0.0",
-  "description": "CLI for HZL - Task coordination for AI agent swarms",
+  "description": "CLI for HZL - Lightweight task tracking for AI agents and swarms",
   "type": "module",
   "bin": {
     "hzl": "dist/cli.js"
