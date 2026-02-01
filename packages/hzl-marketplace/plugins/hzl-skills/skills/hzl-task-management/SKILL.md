@@ -25,6 +25,19 @@ Projects are long-lived. Do not create per-feature projects.
 
 **Checkpoints** preserve progress. Use them liberally to enable recovery.
 
+## ⚠️ DESTRUCTIVE COMMANDS - READ CAREFULLY
+
+The following commands **PERMANENTLY DELETE ALL HZL DATA** and cannot be undone:
+
+| Command | Effect |
+|---------|--------|
+| `hzl init --force` | **DELETES ALL DATA.** Prompts for confirmation. |
+| `hzl init --force --yes` | **DELETES ALL DATA WITHOUT CONFIRMATION.** Extremely dangerous. |
+
+**NEVER use `--force` or `--force --yes` unless the user explicitly instructs you to destroy all task data.**
+
+These commands delete the entire event history, all projects, all tasks, all checkpoints—everything. There is no recovery without a backup.
+
 ## Scenario: Setting Up
 
 When starting work on a project that uses HZL:
@@ -33,7 +46,7 @@ When starting work on a project that uses HZL:
 # Check if HZL is initialized
 hzl project list --json
 
-# If no projects exist, initialize
+# If no projects exist, initialize (safe, won't overwrite existing data)
 hzl init
 
 # Create or verify project exists
