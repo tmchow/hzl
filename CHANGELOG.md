@@ -1,3 +1,10 @@
+## [1.8.1](https://github.com/tmchow/hzl/compare/v1.8.0...v1.8.1) (2026-02-01)
+
+
+### Bug Fixes
+
+* add hzl-web package to semantic-release config ([#36](https://github.com/tmchow/hzl/issues/36)) ([049a5c5](https://github.com/tmchow/hzl/commit/049a5c5249d34b9e6e41255826b0c6f9e4bb917c))
+
 # [1.8.0](https://github.com/tmchow/hzl/compare/v1.7.6...v1.8.0) (2026-02-01)
 
 
