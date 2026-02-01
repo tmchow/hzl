@@ -2339,7 +2339,7 @@ git commit -m "feat(cli): add hzl sync command
 
 ---
 
-### Task 10: Add hzl status command
+### Task 10: Add hzl status command ✅
 
 **Files:**
 - Create: `packages/hzl-cli/src/commands/status.ts`
