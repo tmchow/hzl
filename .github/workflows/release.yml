@@ -11,6 +11,10 @@ permissions:
   pull-requests: write
   id-token: write
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false  # Don't cancel in-progress releases
+
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -19,15 +23,38 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: main
           fetch-depth: 0
           persist-credentials: false
+
+      - name: Verify CI-tested code is included
+        run: |
+          TESTED_SHA="${{ github.event.workflow_run.head_sha }}"
+
+          if ! git merge-base --is-ancestor "$TESTED_SHA" HEAD; then
+            echo "::error::Tested SHA ($TESTED_SHA) is not an ancestor of main. Possible force push. Aborting."
+            exit 1
+          fi
+
+          echo "✓ Verified: CI-tested commit ($TESTED_SHA) is included in current main"
+
+          # Show what commits are newer than tested SHA (for visibility)
+          NEWER_COMMITS=$(git rev-list "$TESTED_SHA"..HEAD --count)
+          if [ "$NEWER_COMMITS" -gt 0 ]; then
+            echo "ℹ️ Main has $NEWER_COMMITS commit(s) since CI ran. These will be built/tested before release:"
+            git log "$TESTED_SHA"..HEAD --oneline
+          fi
 
       - uses: actions/setup-node@v6
         with:
           node-version: '22.14.0'
           registry-url: 'https://registry.npmjs.org'
           cache: 'npm'
+
+      - name: Enable npm via corepack
+        run: |
+          corepack enable
+          corepack prepare npm@10.0.0 --activate
 
       - run: npm ci
       - run: npm run build
