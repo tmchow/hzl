@@ -115,6 +115,12 @@ CREATE INDEX IF NOT EXISTS idx_deps_depends_on ON task_dependencies(depends_on_i
 CREATE INDEX IF NOT EXISTS idx_task_tags_tag ON task_tags(tag, task_id);
 CREATE INDEX IF NOT EXISTS idx_task_comments_task ON task_comments(task_id, event_rowid);
 CREATE INDEX IF NOT EXISTS idx_task_checkpoints_task ON task_checkpoints(task_id, event_rowid);
+
+-- Schema migrations tracking
+CREATE TABLE IF NOT EXISTS schema_migrations (
+    version INTEGER PRIMARY KEY,
+    applied_at TEXT NOT NULL
+);
 `;
 
 // New schema for splitting database into events.db and cache.db

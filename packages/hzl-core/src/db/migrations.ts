@@ -129,6 +129,15 @@ export function runMigrations(db: Database.Database): void {
   // Note: SCHEMA_V1 uses IF NOT EXISTS, so it's safe to run multiple times.
   db.exec(SCHEMA_V1);
 
+  // Ensure version 1 is recorded in schema_migrations
+  const existingVersion = db
+    .prepare('SELECT version FROM schema_migrations WHERE version = 1')
+    .get();
+  if (!existingVersion) {
+    db.prepare('INSERT INTO schema_migrations (version, applied_at) VALUES (1, ?)')
+      .run(new Date().toISOString());
+  }
+
   migrateToProjectsTable(db);
 }
 
