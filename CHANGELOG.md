@@ -1,3 +1,10 @@
+## [1.7.2](https://github.com/tmchow/hzl/compare/v1.7.1...v1.7.2) (2026-02-01)
+
+
+### Bug Fixes
+
+* openclaw skill add link to repo ([#30](https://github.com/tmchow/hzl/issues/30)) ([2d5249c](https://github.com/tmchow/hzl/commit/2d5249c642ca5aed0390ae84c0081f30286e3532))
+
 ## [1.7.1](https://github.com/tmchow/hzl/compare/v1.7.0...v1.7.1) (2026-02-01)
 
 
