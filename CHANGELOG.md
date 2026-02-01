@@ -1,3 +1,10 @@
+## [1.7.3](https://github.com/tmchow/hzl/compare/v1.7.2...v1.7.3) (2026-02-01)
+
+
+### Bug Fixes
+
+* openclaw skill location and folder name ([#31](https://github.com/tmchow/hzl/issues/31)) ([ea74abc](https://github.com/tmchow/hzl/commit/ea74abc1b0793475388c9805e227076df1a8dd0f))
+
 ## [1.7.2](https://github.com/tmchow/hzl/compare/v1.7.1...v1.7.2) (2026-02-01)
 
 
