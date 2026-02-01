@@ -1,0 +1,39 @@
+name: Sync README Includes
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/snippets/**'
+      - 'README.md'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Process README includes
+        run: |
+          # Read the snippet content
+          SNIPPET=$(cat docs/snippets/agent-policy.md)
+
+          # Replace content between markers with snippet wrapped in code fence
+          awk -v snippet="$SNIPPET" '
+            /<!-- START \[code:md\]/ { print; print "```md"; print snippet; print "```"; skip=1; next }
+            /<!-- END \[code:md\]/ { skip=0 }
+            !skip { print }
+          ' README.md > README.tmp && mv README.tmp README.md
+
+      - name: Commit if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git diff --quiet README.md || (git add README.md && git commit -m "docs: sync README includes" && git push)
