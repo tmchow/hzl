@@ -276,6 +276,65 @@ export class TaskService {
     });
   }
 
+  /**
+   * Move a task and all its subtasks to a new project atomically.
+   * All operations happen within a single transaction to ensure consistency.
+   */
+  moveWithSubtasks(
+    taskId: string,
+    toProject: string,
+    ctx?: EventContext
+  ): { task: Task; subtaskCount: number } {
+    return withWriteTransaction(this.db, () => {
+      const task = this.getTaskById(taskId);
+      if (!task) throw new TaskNotFoundError(taskId);
+
+      if (this.projectService) {
+        this.projectService.requireProject(toProject);
+      }
+
+      const fromProject = task.project;
+      let subtaskCount = 0;
+
+      if (fromProject !== toProject) {
+        // Move the parent task
+        const moveEvent = this.eventStore.append({
+          task_id: taskId,
+          type: EventType.TaskMoved,
+          data: { from_project: fromProject, to_project: toProject },
+          author: ctx?.author,
+          agent_id: ctx?.agent_id,
+          session_id: ctx?.session_id,
+          correlation_id: ctx?.correlation_id,
+          causation_id: ctx?.causation_id,
+        });
+        this.projectionEngine.applyEvent(moveEvent);
+
+        // Move all subtasks (fetched inside transaction for consistency)
+        const subtasks = this.getSubtasks(taskId);
+        for (const subtask of subtasks) {
+          const subtaskMoveEvent = this.eventStore.append({
+            task_id: subtask.task_id,
+            type: EventType.TaskMoved,
+            data: { from_project: fromProject, to_project: toProject },
+            author: ctx?.author,
+            agent_id: ctx?.agent_id,
+            session_id: ctx?.session_id,
+            correlation_id: ctx?.correlation_id,
+            causation_id: ctx?.causation_id,
+          });
+          this.projectionEngine.applyEvent(subtaskMoveEvent);
+          subtaskCount++;
+        }
+      }
+
+      return {
+        task: this.getTaskById(taskId)!,
+        subtaskCount,
+      };
+    });
+  }
+
   claimTask(taskId: string, opts?: ClaimTaskOptions): Task {
     return withWriteTransaction(this.db, () => {
       const task = this.getTaskById(taskId);
@@ -552,7 +611,7 @@ export class TaskService {
     return this.areAllDepsDone(taskId);
   }
 
-  getAvailableTasks(opts: { project?: string; tagsAny?: string[]; tagsAll?: string[]; limit?: number }): AvailableTask[] {
+  getAvailableTasks(opts: { project?: string; tagsAny?: string[]; tagsAll?: string[]; limit?: number; leafOnly?: boolean }): AvailableTask[] {
     let query = `
       SELECT tc.task_id, tc.title, tc.project, tc.status, tc.priority, tc.created_at, tc.tags, tc.parent_id
       FROM tasks_current tc
@@ -564,6 +623,13 @@ export class TaskService {
         )
     `;
     const params: Array<string | number> = [];
+
+    // When leafOnly is true, exclude parent tasks (tasks that have children)
+    if (opts.leafOnly) {
+      query += ` AND NOT EXISTS (
+        SELECT 1 FROM tasks_current child WHERE child.parent_id = tc.task_id
+      )`;
+    }
 
     if (opts.project) {
       query += ' AND tc.project = ?';
@@ -991,6 +1057,97 @@ export class TaskService {
       });
       this.projectionEngine.applyEvent(event);
     }
+  }
+
+  /**
+   * Archive a task with optional handling of subtasks.
+   * All operations happen atomically within a single transaction, with validation
+   * performed inside the transaction to prevent race conditions.
+   */
+  archiveWithSubtasks(
+    taskId: string,
+    opts: {
+      cascade?: boolean;
+      orphan?: boolean;
+      reason?: string;
+    } & EventContext = {}
+  ): { task: Task; archivedSubtaskCount: number; orphanedSubtaskCount: number } {
+    const { cascade, orphan, reason, ...ctx } = opts;
+
+    if (cascade && orphan) {
+      throw new Error('Cannot use both cascade and orphan options');
+    }
+
+    return withWriteTransaction(this.db, () => {
+      const task = this.getTaskById(taskId);
+      if (!task) throw new TaskNotFoundError(taskId);
+      if (task.status === TaskStatus.Archived) {
+        throw new Error('Task is already archived');
+      }
+
+      // Fetch subtasks inside transaction to prevent race conditions
+      const subtasks = this.getSubtasks(taskId);
+      const activeSubtasks = subtasks.filter(
+        st => st.status !== TaskStatus.Archived && st.status !== TaskStatus.Done
+      );
+
+      // Validate: if there are active subtasks, must specify cascade or orphan
+      if (activeSubtasks.length > 0 && !cascade && !orphan) {
+        throw new Error(
+          `Cannot archive task with ${activeSubtasks.length} active subtask(s). ` +
+          `Use cascade to archive all subtasks, or orphan to promote subtasks to top-level.`
+        );
+      }
+
+      let archivedSubtaskCount = 0;
+      let orphanedSubtaskCount = 0;
+
+      // Handle cascade: archive active subtasks
+      if (cascade && activeSubtasks.length > 0) {
+        for (const subtask of activeSubtasks) {
+          const archiveEvent = this.eventStore.append({
+            task_id: subtask.task_id,
+            type: EventType.TaskArchived,
+            data: { reason },
+            author: ctx.author,
+            agent_id: ctx.agent_id,
+          });
+          this.projectionEngine.applyEvent(archiveEvent);
+          archivedSubtaskCount++;
+        }
+      }
+
+      // Handle orphan: remove parent_id from all subtasks
+      if (orphan && subtasks.length > 0) {
+        for (const subtask of subtasks) {
+          const orphanEvent = this.eventStore.append({
+            task_id: subtask.task_id,
+            type: EventType.TaskUpdated,
+            data: { field: 'parent_id', old_value: taskId, new_value: null },
+            author: ctx.author,
+            agent_id: ctx.agent_id,
+          });
+          this.projectionEngine.applyEvent(orphanEvent);
+          orphanedSubtaskCount++;
+        }
+      }
+
+      // Archive the parent task
+      const archiveEvent = this.eventStore.append({
+        task_id: taskId,
+        type: EventType.TaskArchived,
+        data: { reason },
+        author: ctx.author,
+        agent_id: ctx.agent_id,
+      });
+      this.projectionEngine.applyEvent(archiveEvent);
+
+      return {
+        task: this.getTaskById(taskId)!,
+        archivedSubtaskCount,
+        orphanedSubtaskCount,
+      };
+    });
   }
 
   private rowToTask(row: TaskRow): Task {

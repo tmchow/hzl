@@ -83,10 +83,13 @@ export function runList(options: ListOptions): ListResult {
   }
 
   if (availableOnly) {
+    // Match task next semantics: ready, deps satisfied, and leaf-only (no children)
     query += ` AND status = 'ready' AND NOT EXISTS (
       SELECT 1 FROM task_dependencies td
       JOIN tasks_current dep ON td.depends_on_id = dep.task_id
       WHERE td.task_id = tasks_current.task_id AND dep.status != 'done'
+    ) AND NOT EXISTS (
+      SELECT 1 FROM tasks_current child WHERE child.parent_id = tasks_current.task_id
     )`;
   }
 

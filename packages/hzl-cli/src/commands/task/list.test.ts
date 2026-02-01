@@ -110,4 +110,23 @@ describe('runList', () => {
     const child = result.tasks.find(t => t.title === 'Child');
     expect(child?.parent_id).toBe(parent.task_id);
   });
+
+  it('--available excludes parent tasks (leaf-only)', () => {
+    services.projectService.createProject('myproject');
+    const parent = services.taskService.createTask({ title: 'Parent', project: 'myproject' });
+    services.taskService.setStatus(parent.task_id, TaskStatus.Ready);
+    const child = services.taskService.createTask({
+      title: 'Child',
+      project: 'myproject',
+      parent_id: parent.task_id,
+    });
+    services.taskService.setStatus(child.task_id, TaskStatus.Ready);
+    const standalone = services.taskService.createTask({ title: 'Standalone', project: 'myproject' });
+    services.taskService.setStatus(standalone.task_id, TaskStatus.Ready);
+
+    const result = runList({ services, availableOnly: true, json: false });
+    // Parent should be excluded since it has children
+    expect(result.tasks).toHaveLength(2);
+    expect(result.tasks.map(t => t.title).sort()).toEqual(['Child', 'Standalone']);
+  });
 });

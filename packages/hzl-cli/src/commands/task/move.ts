@@ -1,6 +1,5 @@
 // packages/hzl-cli/src/commands/task/move.ts
 import { Command } from 'commander';
-import { withWriteTransaction } from 'hzl-core/db/transaction.js';
 import { resolveDbPaths } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError, CLIError, ExitCode } from '../../errors.js';
@@ -21,51 +20,51 @@ export function runMove(options: {
 }): MoveResult {
   const { services, taskId, toProject, json } = options;
 
-  // Use transaction to ensure atomic cascade
-  const result = withWriteTransaction(services.db, () => {
-    const task = services.taskService.getTaskById(taskId);
-    if (!task) {
+  try {
+    // Get original project before move
+    const originalTask = services.taskService.getTaskById(taskId);
+    if (!originalTask) {
       throw new CLIError(`Task not found: ${taskId}`, ExitCode.NotFound);
     }
+    const fromProject = originalTask.project;
 
-    const fromProject = task.project;
-    let subtaskCount = 0;
+    // Use service method which handles subtask cascade atomically
+    const { task, subtaskCount } = services.taskService.moveWithSubtasks(taskId, toProject);
 
-    // Move parent
-    const moved = services.taskService.moveTask(taskId, toProject);
-
-    // Move all subtasks (only 1 level, no recursion needed)
-    if (fromProject !== toProject) {
-      const subtasks = services.taskService.getSubtasks(taskId);
-      subtaskCount = subtasks.length;
-      for (const subtask of subtasks) {
-        services.taskService.moveTask(subtask.task_id, toProject);
-      }
-    }
-
-    return {
+    const result: MoveResult = {
       task_id: taskId,
       from_project: fromProject,
-      to_project: moved.project,
+      to_project: task.project,
       subtask_count: subtaskCount,
     };
-  });
 
-  if (json) {
-    console.log(JSON.stringify(result));
-  } else {
-    if (result.from_project === result.to_project) {
-      console.log(`Task ${taskId} already in project '${result.to_project}'`);
+    if (json) {
+      console.log(JSON.stringify(result));
     } else {
-      if (result.subtask_count && result.subtask_count > 0) {
-        console.log(`✓ Moved task ${taskId} and ${result.subtask_count} subtasks from '${result.from_project}' to '${result.to_project}'`);
+      if (result.from_project === result.to_project) {
+        console.log(`Task ${taskId} already in project '${result.to_project}'`);
       } else {
-        console.log(`✓ Moved task ${taskId} from '${result.from_project}' to '${result.to_project}'`);
+        if (result.subtask_count && result.subtask_count > 0) {
+          console.log(`✓ Moved task ${taskId} and ${result.subtask_count} subtasks from '${result.from_project}' to '${result.to_project}'`);
+        } else {
+          console.log(`✓ Moved task ${taskId} from '${result.from_project}' to '${result.to_project}'`);
+        }
       }
     }
-  }
 
-  return result;
+    return result;
+  } catch (error) {
+    if (error instanceof CLIError) throw error;
+    if (error instanceof Error) {
+      if (error.message.includes('not found')) {
+        throw new CLIError(error.message, ExitCode.NotFound);
+      }
+      if (error.message.includes('does not exist')) {
+        throw new CLIError(error.message, ExitCode.NotFound);
+      }
+    }
+    throw error;
+  }
 }
 
 export function createMoveCommand(): Command {
