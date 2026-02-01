@@ -1,5 +1,9 @@
 import { Command } from 'commander';
+import { createRequire } from 'node:module';
 import { createInitCommand } from './commands/init.js';
+
+const require = createRequire(import.meta.url);
+const pkg = require('../package.json') as { version: string };
 import { createWhichDbCommand } from './commands/which-db.js';
 import { createConfigCommand } from './commands/config.js';
 // project commands live under ./commands/project
@@ -22,8 +26,8 @@ export function createProgram(): Command {
 
   program
     .name('hzl')
-    .description('HZL - Lightweight task tracking for AI agents and swarms')
-    .version('0.1.0')
+    .description('A shared task ledger for OpenClaw and poly-agent workflows.')
+    .version(pkg.version)
     .option('--db <path>', 'Path to database file')
     .option('--json', 'Output in JSON format', false);
 

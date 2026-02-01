@@ -1,5 +1,5 @@
 /**
- * HZL Core - Lightweight task tracking for AI agents and swarms
+ * HZL Core - A shared task ledger for OpenClaw and poly-agent workflows.
  *
  * This module provides the core business logic for the HZL task management system,
  * including event sourcing, projections, and task coordination services.
