@@ -1,8 +1,9 @@
 ---
 name: hzl
-description: Persistent task ledger for agent workflows: tasks/projects with dependencies, checkpoints, leases, and multi-session continuity.
+description: OpenClaw's persistent task database. Coordinate sub-agents, checkpoint progress, survive session boundaries.
 homepage: https://github.com/tmchow/hzl
-metadata: { "openclaw": { "emoji": "🧾", "homepage": "https://github.com/tmchow/hzl", "requires": { "bins": ["hzl"] }, "install": [ { "id": "node", "kind": "node", "package": "hzl-cli", "bins": ["hzl"], "label": "Install HZL (npm)" } ] } }
+metadata:
+  { "openclaw": { "emoji": "🧾", "homepage": "https://github.com/tmchow/hzl", "requires": { "bins": ["hzl"] }, "install": [ { "id": "node", "kind": "node", "package": "hzl-cli", "bins": ["hzl"], "label": "Install HZL (npm)" } ] } }
 ---
 
 # HZL: Persistent task tracking for agents
