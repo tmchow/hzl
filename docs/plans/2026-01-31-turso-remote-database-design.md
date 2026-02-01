@@ -2550,7 +2550,7 @@ git commit -m "feat(cli): add hzl status command
 
 ---
 
-### Task 11: Extend hzl init with sync options
+### Task 11: Extend hzl init with sync options ✅
 
 **Files:**
 - Modify: `packages/hzl-cli/src/commands/init.ts`

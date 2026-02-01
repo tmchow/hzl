@@ -11,6 +11,9 @@ const ConfigFileSchema = z.object({
   defaultProject: z.string().optional(),
   defaultAuthor: z.string().optional(),
   leaseMinutes: z.number().positive().optional(),
+  syncUrl: z.string().optional(),
+  authToken: z.string().optional(),
+  encryptionKey: z.string().optional(),
 }).partial();
 
 function isRecord(value: unknown): value is Record<string, unknown> {

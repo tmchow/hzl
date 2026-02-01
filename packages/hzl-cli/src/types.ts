@@ -13,6 +13,9 @@ export interface Config {
   defaultProject?: string;
   defaultAuthor?: string;
   leaseMinutes?: number;
+  syncUrl?: string;
+  authToken?: string;
+  encryptionKey?: string;
 }
 
 export interface CommandContext {
