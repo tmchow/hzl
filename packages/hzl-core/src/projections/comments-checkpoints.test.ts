@@ -1,8 +1,8 @@
 // packages/hzl-core/src/projections/comments-checkpoints.test.ts
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import Database from 'better-sqlite3';
+import Database from 'libsql';
 import { CommentsCheckpointsProjector } from './comments-checkpoints.js';
-import { runMigrations } from '../db/migrations.js';
+import { createTestDb } from '../db/test-utils.js';
 import { EventStore } from '../events/store.js';
 import { EventType } from '../events/types.js';
 
@@ -12,8 +12,8 @@ describe('CommentsCheckpointsProjector', () => {
   let projector: CommentsCheckpointsProjector;
 
   beforeEach(() => {
-    db = new Database(':memory:');
-    runMigrations(db);
+    db = createTestDb();
+    // Schema applied by createTestDb
     eventStore = new EventStore(db);
     projector = new CommentsCheckpointsProjector();
   });

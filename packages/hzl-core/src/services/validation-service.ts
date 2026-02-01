@@ -1,5 +1,5 @@
 // packages/hzl-core/src/services/validation-service.ts
-import type Database from 'better-sqlite3';
+import type Database from 'libsql';
 
 export interface CycleNode { taskId: string; dependsOnId: string; }
 export interface MissingDep { taskId: string; missingDepId: string; }

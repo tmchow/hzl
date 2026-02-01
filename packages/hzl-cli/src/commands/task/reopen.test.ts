@@ -4,7 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { runReopen } from './reopen.js';
-import { initializeDb, closeDb, type Services } from '../../db.js';
+import { initializeDbFromPath, closeDb, type Services } from '../../db.js';
 import { TaskStatus } from 'hzl-core/events/types.js';
 
 describe('runReopen', () => {
@@ -15,7 +15,7 @@ describe('runReopen', () => {
   beforeEach(() => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hzl-reopen-test-'));
     dbPath = path.join(tempDir, 'test.db');
-    services = initializeDb(dbPath);
+    services = initializeDbFromPath(dbPath);
   });
 
   afterEach(() => {

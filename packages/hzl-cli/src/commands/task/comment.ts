@@ -1,6 +1,6 @@
 // packages/hzl-cli/src/commands/comment.ts
 import { Command } from 'commander';
-import { resolveDbPath } from '../../config.js';
+import { resolveDbPaths } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError, CLIError, ExitCode } from '../../errors.js';
 import { GlobalOptionsSchema } from '../../types.js';
@@ -59,8 +59,8 @@ export function createCommentCommand(): Command {
       opts: CommentCommandOptions
     ) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
-      const dbPath = resolveDbPath(globalOpts.db);
-      const services = initializeDb(dbPath);
+      const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
+      const services = initializeDb({ eventsDbPath, cacheDbPath });
       try {
         runComment({
           services,

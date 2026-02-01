@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url';
 export interface TestContext {
   tempDir: string;
   dbPath: string;
+  cachePath: string;
   configPath: string;
   cleanup: () => void;
 }
@@ -19,10 +20,12 @@ const cliPath = path.resolve(__dirname, '../../../dist/cli.js');
 export function createTestContext(): TestContext {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hzl-integration-'));
   const dbPath = path.join(tempDir, 'test.db');
+  const cachePath = path.join(tempDir, 'test-cache.db');
   const configPath = path.join(tempDir, 'config.json');
   return {
     tempDir,
     dbPath,
+    cachePath,
     configPath,
     cleanup: () => {
       try {

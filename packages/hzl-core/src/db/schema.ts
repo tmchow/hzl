@@ -1,4 +1,5 @@
-export const SCHEMA_V1 = `
+// Schema for events.db (source of truth)
+export const EVENTS_SCHEMA_V2 = `
 -- Append-only event store (source of truth)
 CREATE TABLE IF NOT EXISTS events (
     id               INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -14,7 +15,56 @@ CREATE TABLE IF NOT EXISTS events (
     timestamp        TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
 
--- Track last applied event id per projection (enables incremental projection + doctor checks)
+-- Append-only enforcement: prevent UPDATE on events
+CREATE TRIGGER IF NOT EXISTS events_no_update
+BEFORE UPDATE ON events
+BEGIN
+    SELECT RAISE(ABORT, 'Events table is append-only: cannot UPDATE');
+END;
+
+-- Append-only enforcement: prevent DELETE on events
+CREATE TRIGGER IF NOT EXISTS events_no_delete
+BEFORE DELETE ON events
+BEGIN
+    SELECT RAISE(ABORT, 'Events table is append-only: cannot DELETE');
+END;
+
+-- Global metadata (synced, immutable after creation)
+CREATE TABLE IF NOT EXISTS hzl_global_meta (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
+
+-- Schema migrations tracking (append-only)
+CREATE TABLE IF NOT EXISTS schema_migrations (
+    migration_id TEXT PRIMARY KEY,
+    applied_at_ms INTEGER NOT NULL,
+    checksum TEXT NOT NULL
+);
+
+-- Indexes for events
+CREATE INDEX IF NOT EXISTS idx_events_task_id ON events(task_id);
+CREATE INDEX IF NOT EXISTS idx_events_task_id_id ON events(task_id, id);
+CREATE INDEX IF NOT EXISTS idx_events_type ON events(type);
+CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events(timestamp);
+CREATE INDEX IF NOT EXISTS idx_events_correlation_id ON events(correlation_id);
+`;
+
+// Cache schema (local-only, rebuildable)
+export const CACHE_SCHEMA_V1 = `
+-- Local metadata (per-device sync state)
+CREATE TABLE IF NOT EXISTS hzl_local_meta (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
+
+-- Projection cursor (tracks last applied event)
+CREATE TABLE IF NOT EXISTS projection_cursor (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
+
+-- Track last applied event id per projection
 CREATE TABLE IF NOT EXISTS projection_state (
     name          TEXT PRIMARY KEY,
     last_event_id INTEGER NOT NULL DEFAULT 0,
@@ -43,7 +93,7 @@ CREATE TABLE IF NOT EXISTS tasks_current (
     last_event_id      INTEGER NOT NULL
 );
 
--- Dependency edges for fast availability checks (rebuildable from events)
+-- Dependency edges for fast availability checks (rebuildable)
 CREATE TABLE IF NOT EXISTS task_dependencies (
     task_id        TEXT NOT NULL,
     depends_on_id  TEXT NOT NULL,
@@ -93,13 +143,6 @@ CREATE TABLE IF NOT EXISTS projects (
 );
 
 CREATE INDEX IF NOT EXISTS idx_projects_protected ON projects(is_protected);
-
--- Indexes for events
-CREATE INDEX IF NOT EXISTS idx_events_task_id ON events(task_id);
-CREATE INDEX IF NOT EXISTS idx_events_task_id_id ON events(task_id, id);
-CREATE INDEX IF NOT EXISTS idx_events_type ON events(type);
-CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events(timestamp);
-CREATE INDEX IF NOT EXISTS idx_events_correlation_id ON events(correlation_id);
 
 -- Indexes for tasks_current
 CREATE INDEX IF NOT EXISTS idx_tasks_current_project_status ON tasks_current(project, status);

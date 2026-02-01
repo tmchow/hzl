@@ -1,33 +1,16 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import Database from 'better-sqlite3';
+import Database from 'libsql';
 import { ProjectsProjector } from './projects.js';
 import { EventType, PROJECT_EVENT_TASK_ID } from '../events/types.js';
 import type { PersistedEventEnvelope } from '../events/store.js';
+import { createTestDb } from '../db/test-utils.js';
 
 describe('ProjectsProjector', () => {
   let db: Database.Database;
   let projector: ProjectsProjector;
 
   beforeEach(() => {
-    db = new Database(':memory:');
-    db.exec(`
-      CREATE TABLE projects (
-        name TEXT PRIMARY KEY,
-        description TEXT,
-        is_protected INTEGER NOT NULL DEFAULT 0,
-        created_at TEXT NOT NULL,
-        last_event_id INTEGER NOT NULL
-      );
-      CREATE TABLE tasks_current (
-        task_id TEXT PRIMARY KEY,
-        title TEXT NOT NULL,
-        project TEXT NOT NULL,
-        status TEXT NOT NULL,
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL,
-        last_event_id INTEGER NOT NULL
-      );
-    `);
+    db = createTestDb();
     projector = new ProjectsProjector();
   });
 

@@ -5,7 +5,7 @@ import {
   SAMPLE_PROJECT_NAME,
   SAMPLE_TASKS,
 } from 'hzl-core/fixtures/sample-data.js';
-import { resolveDbPath } from '../config.js';
+import { resolveDbPaths } from '../config.js';
 import { initializeDb, closeDb, type Services } from '../db.js';
 import { handleError } from '../errors.js';
 import { GlobalOptionsSchema } from '../types.js';
@@ -75,7 +75,7 @@ function createSampleProject(services: Services): number {
 }
 
 function deleteSampleProjectData(services: Services): number {
-  const taskRows = services.db
+  const taskRows = services.cacheDb
     .prepare('SELECT task_id FROM tasks_current WHERE project = ?')
     .all(SAMPLE_PROJECT_NAME) as { task_id: string }[];
 
@@ -84,35 +84,41 @@ function deleteSampleProjectData(services: Services): number {
 
   const placeholders = taskIds.map(() => '?').join(', ');
 
-  services.db
+  services.cacheDb
     .prepare(`DELETE FROM task_dependencies WHERE task_id IN (${placeholders}) OR depends_on_id IN (${placeholders})`)
     .run(...taskIds, ...taskIds);
-  services.db
+  services.cacheDb
     .prepare(`DELETE FROM task_tags WHERE task_id IN (${placeholders})`)
     .run(...taskIds);
-  services.db
+  services.cacheDb
     .prepare(`DELETE FROM task_comments WHERE task_id IN (${placeholders})`)
     .run(...taskIds);
-  services.db
+  services.cacheDb
     .prepare(`DELETE FROM task_checkpoints WHERE task_id IN (${placeholders})`)
     .run(...taskIds);
-  services.db
+  services.cacheDb
     .prepare(`DELETE FROM task_search WHERE task_id IN (${placeholders})`)
     .run(...taskIds);
-  services.db
+  services.cacheDb
     .prepare(`DELETE FROM tasks_current WHERE task_id IN (${placeholders})`)
     .run(...taskIds);
 
   return taskIds.length;
 }
 
-export function runSampleProjectCreate(options: {
-  dbPath: string;
+export interface SampleProjectCreateOptions {
+  eventsDbPath: string;
+  cacheDbPath: string;
   json: boolean;
-}): SampleProjectCreateResult {
-  const services = initializeDb(options.dbPath);
+}
+
+export function runSampleProjectCreate(options: SampleProjectCreateOptions): SampleProjectCreateResult {
+  const services = initializeDb({
+    eventsDbPath: options.eventsDbPath,
+    cacheDbPath: options.cacheDbPath,
+  });
   try {
-    const existing = services.db
+    const existing = services.cacheDb
       .prepare('SELECT COUNT(*) as count FROM tasks_current WHERE project = ?')
       .get(SAMPLE_PROJECT_NAME) as { count: number };
 
@@ -151,11 +157,17 @@ export function runSampleProjectCreate(options: {
   }
 }
 
-export function runSampleProjectReset(options: {
-  dbPath: string;
+export interface SampleProjectResetOptions {
+  eventsDbPath: string;
+  cacheDbPath: string;
   json: boolean;
-}): SampleProjectResetResult {
-  const services = initializeDb(options.dbPath);
+}
+
+export function runSampleProjectReset(options: SampleProjectResetOptions): SampleProjectResetResult {
+  const services = initializeDb({
+    eventsDbPath: options.eventsDbPath,
+    cacheDbPath: options.cacheDbPath,
+  });
   try {
     const deleted = deleteSampleProjectData(services);
     const created = createSampleProject(services);
@@ -188,9 +200,11 @@ export function createSampleProjectCommand(): Command {
     .description('Create the sample project if it does not exist')
     .action(function (this: Command) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
+      const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
       try {
         runSampleProjectCreate({
-          dbPath: resolveDbPath(globalOpts.db),
+          eventsDbPath,
+          cacheDbPath,
           json: globalOpts.json ?? false,
         });
       } catch (err) {
@@ -203,9 +217,11 @@ export function createSampleProjectCommand(): Command {
     .description('Delete and recreate the sample project')
     .action(function (this: Command) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
+      const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
       try {
         runSampleProjectReset({
-          dbPath: resolveDbPath(globalOpts.db),
+          eventsDbPath,
+          cacheDbPath,
           json: globalOpts.json ?? false,
         });
       } catch (err) {

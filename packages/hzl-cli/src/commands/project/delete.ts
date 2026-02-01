@@ -1,10 +1,10 @@
 import { Command } from 'commander';
-import { resolveDbPath } from '../../config.js';
+import { resolveDbPaths } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { CLIError, ExitCode, handleError } from '../../errors.js';
 import { GlobalOptionsSchema } from '../../types.js';
 import { EventType, PROJECT_EVENT_TASK_ID } from 'hzl-core/events/types.js';
-import { withWriteTransaction } from 'hzl-core/db/connection.js';
+import { withWriteTransaction } from 'hzl-core/db/transaction.js';
 
 export interface ProjectDeleteResult {
   name: string;
@@ -44,24 +44,24 @@ function deleteTasksFromProjections(services: Services, taskIds: string[]): numb
 
   const placeholders = taskIds.map(() => '?').join(', ');
 
-  services.db
+  services.cacheDb
     .prepare(
       `DELETE FROM task_dependencies WHERE task_id IN (${placeholders}) OR depends_on_id IN (${placeholders})`
     )
     .run(...taskIds, ...taskIds);
-  services.db
+  services.cacheDb
     .prepare(`DELETE FROM task_tags WHERE task_id IN (${placeholders})`)
     .run(...taskIds);
-  services.db
+  services.cacheDb
     .prepare(`DELETE FROM task_comments WHERE task_id IN (${placeholders})`)
     .run(...taskIds);
-  services.db
+  services.cacheDb
     .prepare(`DELETE FROM task_checkpoints WHERE task_id IN (${placeholders})`)
     .run(...taskIds);
-  services.db
+  services.cacheDb
     .prepare(`DELETE FROM task_search WHERE task_id IN (${placeholders})`)
     .run(...taskIds);
-  services.db
+  services.cacheDb
     .prepare(`DELETE FROM tasks_current WHERE task_id IN (${placeholders})`)
     .run(...taskIds);
 
@@ -90,7 +90,7 @@ export function runProjectDelete(options: ProjectDeleteOptions): ProjectDeleteRe
     throw new CLIError(`Cannot delete protected project: ${name}`, ExitCode.InvalidUsage);
   }
 
-  const taskRows = services.db
+  const taskRows = services.cacheDb
     .prepare('SELECT task_id, status, project FROM tasks_current WHERE project = ?')
     .all(name) as { task_id: string; status: string; project: string }[];
 
@@ -110,7 +110,7 @@ export function runProjectDelete(options: ProjectDeleteOptions): ProjectDeleteRe
   }
 
   // Wrap all mutations in a single atomic transaction
-  const result = withWriteTransaction(services.db, () => {
+  const result = withWriteTransaction(services.cacheDb, () => {
     if (moveTo) {
       // Move each task by appending TaskMoved events
       for (const row of taskRows) {
@@ -189,8 +189,8 @@ export function createProjectDeleteCommand(): Command {
       opts: ProjectDeleteCommandOptions
     ) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
-      const dbPath = resolveDbPath(globalOpts.db);
-      const services = initializeDb(dbPath);
+      const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
+      const services = initializeDb({ eventsDbPath, cacheDbPath });
       try {
         runProjectDelete({
           services,

@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { runProjectDelete } from './delete.js';
-import { initializeDb, closeDb, type Services } from '../../db.js';
+import { initializeDbFromPath, closeDb, type Services } from '../../db.js';
 import { CLIError } from '../../errors.js';
 
 describe('runProjectDelete', () => {
@@ -14,7 +14,7 @@ describe('runProjectDelete', () => {
   beforeEach(() => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hzl-project-delete-test-'));
     dbPath = path.join(tempDir, 'test.db');
-    services = initializeDb(dbPath);
+    services = initializeDbFromPath(dbPath);
     services.projectService.createProject('source');
     services.projectService.createProject('target');
   });

@@ -1,29 +1,4 @@
-import Database from 'better-sqlite3';
-import path from 'path';
-import os from 'os';
-import fs from 'fs';
-import { runMigrations } from './migrations.js';
-
-export function getDefaultDbPath(): string {
-  const hzlDir = path.join(os.homedir(), '.hzl');
-  return path.join(hzlDir, 'data.db');
-}
-
-export function createConnection(dbPath?: string): Database.Database {
-  const resolvedPath = dbPath ?? process.env.HZL_DB ?? getDefaultDbPath();
-
-  // Handle in-memory databases
-  if (resolvedPath !== ':memory:') {
-    const dir = path.dirname(resolvedPath);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-  }
-
-  const db = new Database(resolvedPath);
-  runMigrations(db);
-  return db;
-}
+import type Database from 'libsql';
 
 /**
  * Execute a function within a write transaction using BEGIN IMMEDIATE.

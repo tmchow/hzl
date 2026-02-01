@@ -1,6 +1,6 @@
 // packages/hzl-cli/src/commands/update.ts
 import { Command } from 'commander';
-import { resolveDbPath } from '../../config.js';
+import { resolveDbPaths } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError, CLIError, ExitCode } from '../../errors.js';
 import { EventType } from 'hzl-core/events/types.js';
@@ -114,8 +114,8 @@ export function createUpdateCommand(): Command {
     .option('-t, --tags <tags>', 'New tags (comma-separated)')
     .action(function (this: Command, taskId: string, opts: UpdateCommandOptions) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
-      const dbPath = resolveDbPath(globalOpts.db);
-      const services = initializeDb(dbPath);
+      const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
+      const services = initializeDb({ eventsDbPath, cacheDbPath });
       try {
         const updates: TaskUpdates = {};
         if (opts.title) updates.title = opts.title;

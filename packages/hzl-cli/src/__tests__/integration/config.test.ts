@@ -83,9 +83,9 @@ describe('config integration', () => {
 
   it('init creates config, subsequent commands use it', () => {
     // Init with --db flag to specify the database path
-    const initResult = hzlJsonWithDb<{ path: string; created: boolean }>('init');
+    const initResult = hzlJsonWithDb<{ eventsDbPath: string; created: boolean }>('init');
     expect(initResult.created).toBe(true);
-    expect(initResult.path).toBe(ctx.dbPath);
+    expect(initResult.eventsDbPath).toBe(ctx.dbPath);
 
     // Verify config file was created
     expect(fs.existsSync(ctx.configPath)).toBe(true);
@@ -98,7 +98,7 @@ describe('config integration', () => {
 
   it('config shows cli source when --db flag is used', () => {
     // Init first
-    hzlJsonWithDb<{ path: string; created: boolean }>('init');
+    hzlJsonWithDb<{ eventsDbPath: string; created: boolean }>('init');
 
     // Config with --db flag should show 'cli' as source
     const config = hzlJsonWithDb<{ db: { value: string; source: string } }>('config');

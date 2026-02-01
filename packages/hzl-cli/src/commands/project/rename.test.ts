@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { runProjectRename } from './rename.js';
-import { initializeDb, closeDb, type Services } from '../../db.js';
+import { initializeDbFromPath, closeDb, type Services } from '../../db.js';
 import { ProjectAlreadyExistsError } from 'hzl-core/services/project-service.js';
 
 describe('runProjectRename', () => {
@@ -14,7 +14,7 @@ describe('runProjectRename', () => {
   beforeEach(() => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hzl-project-rename-test-'));
     dbPath = path.join(tempDir, 'test.db');
-    services = initializeDb(dbPath);
+    services = initializeDbFromPath(dbPath);
   });
 
   afterEach(() => {

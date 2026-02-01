@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { runInit } from '../../commands/init.js';
-import { initializeDb, closeDb, type Services } from '../../db.js';
+import { initializeDbFromPath, closeDb, type Services } from '../../db.js';
 import { runProjectCreate } from '../../commands/project/create.js';
 import { runProjectDelete } from '../../commands/project/delete.js';
 import { runAdd } from '../../commands/task/add.js';
@@ -14,13 +14,14 @@ describe('project workflow integration', () => {
   let configPath: string;
   let services: Services;
 
-  beforeEach(async () => {
+  beforeEach(() => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hzl-project-workflow-'));
-    dbPath = path.join(tempDir, 'data.db');
+    dbPath = path.join(tempDir, 'events.db');
+    const cacheDbPath = path.join(tempDir, 'cache.db');
     configPath = path.join(tempDir, 'config.json');
 
-    await runInit({ dbPath, pathSource: 'cli', json: false, configPath });
-    services = initializeDb(dbPath);
+    runInit({ eventsDbPath: dbPath, cacheDbPath, pathSource: 'cli', json: false, configPath });
+    services = initializeDbFromPath(dbPath);
   });
 
   afterEach(() => {

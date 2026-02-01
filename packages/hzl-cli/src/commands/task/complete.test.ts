@@ -4,7 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { runComplete } from './complete.js';
-import { initializeDb, closeDb, type Services } from '../../db.js';
+import { initializeDbFromPath, closeDb, type Services } from '../../db.js';
 import { TaskStatus } from 'hzl-core/events/types.js';
 
 describe('runComplete', () => {
@@ -15,7 +15,7 @@ describe('runComplete', () => {
   beforeEach(() => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hzl-complete-test-'));
     dbPath = path.join(tempDir, 'test.db');
-    services = initializeDb(dbPath);
+    services = initializeDbFromPath(dbPath);
   });
 
   afterEach(() => {

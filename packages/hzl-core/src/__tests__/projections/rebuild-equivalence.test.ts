@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import Database from 'better-sqlite3';
+import Database from 'libsql';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { createConnection } from '../../db/connection.js';
+import { createTestDbAtPath } from '../../db/test-utils.js';
 import { EventStore } from '../../events/store.js';
 import { ProjectionEngine } from '../../projections/engine.js';
 import { TasksCurrentProjector } from '../../projections/tasks-current.js';
@@ -58,7 +58,7 @@ describe('Projection Rebuild Equivalence Tests', () => {
   beforeEach(() => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hzl-rebuild-'));
     dbPath = path.join(tempDir, 'test.db');
-    db = createConnection(dbPath);
+    db = createTestDbAtPath(dbPath);
     eventStore = new EventStore(db);
     projectionEngine = new ProjectionEngine(db);
     setupProjectors(projectionEngine);

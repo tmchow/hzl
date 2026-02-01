@@ -1,6 +1,6 @@
 // packages/hzl-cli/src/commands/reopen.ts
 import { Command } from 'commander';
-import { resolveDbPath } from '../../config.js';
+import { resolveDbPaths } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError } from '../../errors.js';
 import { TaskStatus } from 'hzl-core/events/types.js';
@@ -56,8 +56,8 @@ export function createReopenCommand(): Command {
     .option('--author <name>', 'Author name')
     .action(function (this: Command, taskId: string, opts: ReopenCommandOptions) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
-      const dbPath = resolveDbPath(globalOpts.db);
-      const services = initializeDb(dbPath);
+      const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
+      const services = initializeDb({ eventsDbPath, cacheDbPath });
       try {
         const toStatus = opts.status === 'backlog' ? TaskStatus.Backlog : TaskStatus.Ready;
         runReopen({

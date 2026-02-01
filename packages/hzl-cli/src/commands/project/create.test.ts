@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { runProjectCreate } from './create.js';
-import { initializeDb, closeDb, type Services } from '../../db.js';
+import { initializeDbFromPath, closeDb, type Services } from '../../db.js';
 
 describe('runProjectCreate', () => {
   let tempDir: string;
@@ -13,7 +13,7 @@ describe('runProjectCreate', () => {
   beforeEach(() => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hzl-project-create-test-'));
     dbPath = path.join(tempDir, 'test.db');
-    services = initializeDb(dbPath);
+    services = initializeDbFromPath(dbPath);
   });
 
   afterEach(() => {

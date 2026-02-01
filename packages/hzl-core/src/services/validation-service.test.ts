@@ -1,8 +1,8 @@
 // packages/hzl-core/src/services/validation-service.test.ts
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import Database from 'better-sqlite3';
+import Database from 'libsql';
 import { ValidationService } from './validation-service.js';
-import { runMigrations } from '../db/migrations.js';
+import { createTestDb } from '../db/test-utils.js';
 import { EventStore } from '../events/store.js';
 import { ProjectionEngine } from '../projections/engine.js';
 import { TasksCurrentProjector } from '../projections/tasks-current.js';
@@ -16,8 +16,7 @@ describe('ValidationService', () => {
   let validationService: ValidationService;
 
   beforeEach(() => {
-    db = new Database(':memory:');
-    runMigrations(db);
+    db = createTestDb();
     eventStore = new EventStore(db);
     engine = new ProjectionEngine(db);
     engine.register(new TasksCurrentProjector());

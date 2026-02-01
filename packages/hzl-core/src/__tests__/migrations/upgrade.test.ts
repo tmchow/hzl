@@ -1,16 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import Database from 'better-sqlite3';
+import Database from 'libsql';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { fileURLToPath } from 'url';
-import { runMigrations, getCurrentVersion } from '../../db/migrations.js';
-import { createConnection } from '../../db/connection.js';
+import { createTestDbAtPath } from '../../db/test-utils.js';
+import { EVENTS_SCHEMA_V2, CACHE_SCHEMA_V1, PRAGMAS } from '../../db/schema.js';
+import { runMigrationsWithRollback, MigrationError, type Migration } from '../../db/migrations.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-describe('Migration Upgrade Tests', () => {
+describe('Schema Creation Tests', () => {
   let tempDir: string;
   let dbPath: string;
 
@@ -23,9 +20,9 @@ describe('Migration Upgrade Tests', () => {
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
-  describe('v1 schema creation', () => {
+  describe('V2 schema creation', () => {
     it('creates all required tables', () => {
-      const db = createConnection(dbPath);
+      const db = createTestDbAtPath(dbPath);
 
       const tables = db
         .prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
@@ -45,7 +42,7 @@ describe('Migration Upgrade Tests', () => {
     });
 
     it('creates all required indexes', () => {
-      const db = createConnection(dbPath);
+      const db = createTestDbAtPath(dbPath);
 
       const indexes = db
         .prepare("SELECT name FROM sqlite_master WHERE type='index' AND name LIKE 'idx_%'")
@@ -62,190 +59,213 @@ describe('Migration Upgrade Tests', () => {
       db.close();
     });
 
-    it('sets correct schema version', () => {
-      const db = createConnection(dbPath);
-      const version = getCurrentVersion(db);
-      expect(version).toBe(1);
+    it('creates schema_migrations table with correct structure', () => {
+      const db = createTestDbAtPath(dbPath);
+
+      const columns = db
+        .prepare("PRAGMA table_info(schema_migrations)")
+        .all() as { name: string; type: string }[];
+      const columnNames = columns.map((c) => c.name);
+
+      expect(columnNames).toContain('migration_id');
+      expect(columnNames).toContain('applied_at_ms');
+      expect(columnNames).toContain('checksum');
+
       db.close();
     });
   });
 
-  describe('v1 fixture loading', () => {
-    it('loads v1 fixture and verifies data integrity', () => {
+  describe('schema idempotency', () => {
+    it('schema creation is idempotent', () => {
       const db = new Database(dbPath);
+      db.exec(PRAGMAS);
+      db.exec(EVENTS_SCHEMA_V2);
+      db.exec(CACHE_SCHEMA_V1);
 
-      const fixturePath = path.join(__dirname, 'fixtures', 'v1-sample.sql');
-      const fixtureSql = fs.readFileSync(fixturePath, 'utf-8');
-      db.exec(fixtureSql);
+      const tablesBefore = db
+        .prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+        .all() as { name: string }[];
+
+      // Run schema again
+      db.exec(EVENTS_SCHEMA_V2);
+      db.exec(CACHE_SCHEMA_V1);
+
+      const tablesAfter = db
+        .prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+        .all() as { name: string }[];
+
+      expect(tablesAfter.map(t => t.name)).toEqual(tablesBefore.map(t => t.name));
       db.close();
-
-      const migratedDb = createConnection(dbPath);
-
-      const eventCount = migratedDb
-        .prepare('SELECT COUNT(*) as count FROM events')
-        .get() as { count: number };
-      expect(eventCount.count).toBeGreaterThan(0);
-
-      const taskCount = migratedDb
-        .prepare('SELECT COUNT(*) as count FROM tasks_current')
-        .get() as { count: number };
-      expect(taskCount.count).toBeGreaterThan(0);
-
-      const taskWithDeps = migratedDb
-        .prepare(
-          `
-          SELECT tc.task_id, COUNT(td.depends_on_id) as dep_count
-          FROM tasks_current tc
-          LEFT JOIN task_dependencies td ON tc.task_id = td.task_id
-          GROUP BY tc.task_id
-          HAVING dep_count > 0
-        `
-        )
-        .all();
-      expect(taskWithDeps.length).toBeGreaterThan(0);
-
-      migratedDb.close();
     });
-  });
 
-  describe('v1 → v2 migration (future)', () => {
-    it('preserves all existing data after upgrade', async () => {
-      const db = createConnection(dbPath);
+    it('preserves data across multiple schema applications', () => {
+      const db = createTestDbAtPath(dbPath);
 
       db.exec(`
         INSERT INTO events (event_id, task_id, type, data, timestamp)
-        VALUES 
+        VALUES
           ('EVT001', 'TASK001', 'task_created', '{"title":"Test task","project":"inbox"}', '2026-01-01T00:00:00Z'),
           ('EVT002', 'TASK001', 'status_changed', '{"from":"backlog","to":"ready"}', '2026-01-01T00:01:00Z');
-        
+
         INSERT INTO tasks_current (task_id, title, project, status, links, tags, metadata, created_at, updated_at, last_event_id)
         VALUES ('TASK001', 'Test task', 'inbox', 'ready', '[]', '["important"]', '{}', '2026-01-01T00:00:00Z', '2026-01-01T00:01:00Z', 2);
-        
+
         INSERT INTO task_tags (task_id, tag) VALUES ('TASK001', 'important');
       `);
 
       const preEventCount = db
         .prepare('SELECT COUNT(*) as count FROM events')
         .get() as { count: number };
-      const preTaskCount = db
-        .prepare('SELECT COUNT(*) as count FROM tasks_current')
-        .get() as { count: number };
 
-      db.close();
+      // Apply schema again (should be idempotent via IF NOT EXISTS)
+      db.exec(EVENTS_SCHEMA_V2);
+      db.exec(CACHE_SCHEMA_V1);
 
-      const migratedDb = createConnection(dbPath);
-
-      const postEventCount = migratedDb
+      const postEventCount = db
         .prepare('SELECT COUNT(*) as count FROM events')
-        .get() as { count: number };
-      const postTaskCount = migratedDb
-        .prepare('SELECT COUNT(*) as count FROM tasks_current')
         .get() as { count: number };
 
       expect(postEventCount.count).toBe(preEventCount.count);
-      expect(postTaskCount.count).toBe(preTaskCount.count);
 
-      const task = migratedDb
+      const task = db
         .prepare('SELECT * FROM tasks_current WHERE task_id = ?')
         .get('TASK001') as any;
       expect(task.title).toBe('Test task');
       expect(task.status).toBe('ready');
 
-      migratedDb.close();
-    });
-
-    it('handles empty database upgrade', () => {
-      const db = new Database(dbPath);
-      db.exec(`
-        CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);
-        INSERT INTO schema_migrations (version, applied_at) VALUES (1, '2026-01-01T00:00:00Z');
-      `);
       db.close();
-
-      const migratedDb = createConnection(dbPath);
-      const version = getCurrentVersion(migratedDb);
-
-      expect(version).toBeGreaterThanOrEqual(1);
-      migratedDb.close();
-    });
-
-    it('migration is idempotent', () => {
-      const db = createConnection(dbPath);
-      const version1 = getCurrentVersion(db);
-      db.close();
-
-      const db2 = createConnection(dbPath);
-      const version2 = getCurrentVersion(db2);
-      db2.close();
-
-      const db3 = createConnection(dbPath);
-      const version3 = getCurrentVersion(db3);
-      db3.close();
-
-      expect(version1).toBe(version2);
-      expect(version2).toBe(version3);
     });
   });
 
-  describe('migration rollback scenarios', () => {
-    it('fails gracefully on corrupted schema_migrations table', () => {
-      const db = new Database(dbPath);
-      db.exec(`
-        CREATE TABLE schema_migrations (version TEXT, applied_at TEXT);
-        INSERT INTO schema_migrations (version, applied_at) VALUES ('not_a_number', '2026-01-01');
-      `);
-      db.close();
+  describe('runMigrationsWithRollback', () => {
+    it('applies pending migrations', () => {
+      const db = createTestDbAtPath(dbPath);
 
-      const migratedDb = createConnection(dbPath);
-      const version = getCurrentVersion(migratedDb);
-      expect(version).toBeGreaterThanOrEqual(1);
-      migratedDb.close();
+      const migrations: Migration[] = [
+        {
+          id: 'test-001',
+          up: "CREATE TABLE test_table (id INTEGER PRIMARY KEY)",
+        },
+        {
+          id: 'test-002',
+          up: "ALTER TABLE test_table ADD COLUMN name TEXT",
+        },
+      ];
+
+      const result = runMigrationsWithRollback(db, migrations);
+
+      expect(result.success).toBe(true);
+      expect(result.applied).toEqual(['test-001', 'test-002']);
+      expect(result.skipped).toEqual([]);
+
+      // Verify table was created
+      const tables = db
+        .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='test_table'")
+        .all() as { name: string }[];
+      expect(tables.length).toBe(1);
+
+      // Verify migrations were recorded
+      const recorded = db
+        .prepare('SELECT migration_id FROM schema_migrations ORDER BY migration_id')
+        .all() as { migration_id: string }[];
+      expect(recorded.map(r => r.migration_id)).toEqual(['test-001', 'test-002']);
+
+      db.close();
     });
 
-    it('handles partial migration failure', () => {
-      const db = new Database(dbPath);
-      runMigrations(db);
+    it('skips already applied migrations', () => {
+      const db = createTestDbAtPath(dbPath);
 
-      db.exec('DROP TABLE IF EXISTS task_search');
+      const migrations: Migration[] = [
+        {
+          id: 'test-001',
+          up: "CREATE TABLE test_table (id INTEGER PRIMARY KEY)",
+        },
+      ];
+
+      // Apply once
+      runMigrationsWithRollback(db, migrations);
+
+      // Apply again
+      const result = runMigrationsWithRollback(db, migrations);
+
+      expect(result.success).toBe(true);
+      expect(result.applied).toEqual([]);
+      expect(result.skipped).toEqual(['test-001']);
+
       db.close();
+    });
 
-      const reconnectedDb = createConnection(dbPath);
+    it('rolls back all changes on failure', () => {
+      const db = createTestDbAtPath(dbPath);
 
-      const ftsTable = reconnectedDb
-        .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='task_search'")
-        .get();
-      expect(ftsTable).toBeDefined();
+      const migrations: Migration[] = [
+        {
+          id: 'good-001',
+          up: "CREATE TABLE good_table (id INTEGER PRIMARY KEY)",
+        },
+        {
+          id: 'bad-002',
+          up: "CREATE TABLE INVALID SYNTAX",  // This will fail
+        },
+      ];
 
-      reconnectedDb.close();
+      expect(() => runMigrationsWithRollback(db, migrations)).toThrow(MigrationError);
+
+      // Verify the first migration was rolled back
+      const tables = db
+        .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='good_table'")
+        .all() as { name: string }[];
+      expect(tables.length).toBe(0);
+
+      // Verify no migrations were recorded
+      const recorded = db
+        .prepare("SELECT migration_id FROM schema_migrations WHERE migration_id LIKE 'good-%' OR migration_id LIKE 'bad-%'")
+        .all() as { migration_id: string }[];
+      expect(recorded.length).toBe(0);
+
+      db.close();
+    });
+
+    it('records migration timestamps and checksums', () => {
+      const db = createTestDbAtPath(dbPath);
+      const beforeMs = Date.now();
+
+      const migrations: Migration[] = [
+        {
+          id: 'test-001',
+          up: "CREATE TABLE test_table (id INTEGER PRIMARY KEY)",
+        },
+      ];
+
+      runMigrationsWithRollback(db, migrations);
+
+      const afterMs = Date.now();
+
+      const recorded = db
+        .prepare('SELECT migration_id, applied_at_ms, checksum FROM schema_migrations WHERE migration_id = ?')
+        .get('test-001') as { migration_id: string; applied_at_ms: number; checksum: string };
+
+      expect(recorded.migration_id).toBe('test-001');
+      expect(recorded.applied_at_ms).toBeGreaterThanOrEqual(beforeMs);
+      expect(recorded.applied_at_ms).toBeLessThanOrEqual(afterMs);
+      expect(recorded.checksum).toBeDefined();
+      expect(recorded.checksum.length).toBeGreaterThan(0);
+
+      db.close();
     });
   });
 
-  describe('schema version tracking', () => {
-    it('records migration timestamps', () => {
-      const db = createConnection(dbPath);
-
-      const migrations = db
-        .prepare('SELECT version, applied_at FROM schema_migrations ORDER BY version')
-        .all() as { version: number; applied_at: string }[];
-
-      expect(migrations.length).toBeGreaterThan(0);
-      for (const m of migrations) {
-        expect(m.version).toBeGreaterThan(0);
-        expect(new Date(m.applied_at).getTime()).not.toBeNaN();
-      }
-
-      db.close();
-    });
-
-    it('does not re-run already applied migrations', () => {
-      const db = createConnection(dbPath);
+  describe('data persistence', () => {
+    it('preserves existing data on reconnection', () => {
+      const db = createTestDbAtPath(dbPath);
 
       db.exec(
         "INSERT INTO projection_state (name, last_event_id, updated_at) VALUES ('test_marker', 999, '2026-01-01')"
       );
       db.close();
 
-      const db2 = createConnection(dbPath);
+      const db2 = createTestDbAtPath(dbPath);
 
       const marker = db2
         .prepare("SELECT * FROM projection_state WHERE name = 'test_marker'")

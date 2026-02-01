@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import * as fc from 'fast-check';
-import Database from 'better-sqlite3';
-import { createConnection } from '../../db/connection.js';
+import Database from 'libsql';
+import { createTestDb } from '../../db/test-utils.js';
 import { EventStore } from '../../events/store.js';
 import { ProjectionEngine } from '../../projections/engine.js';
 import { TasksCurrentProjector } from '../../projections/tasks-current.js';
@@ -31,7 +31,7 @@ describe('Property-Based Tests', () => {
       validationService: ValidationService;
     }) => T
   ): T {
-    const db = createConnection(':memory:');
+    const db = createTestDb();
     const eventStore = new EventStore(db);
     const engine = new ProjectionEngine(db);
     engine.register(new TasksCurrentProjector());

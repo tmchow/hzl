@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import Database from 'better-sqlite3';
+import type Database from 'libsql';
 import {
   ProjectService,
   ProjectNotFoundError,
@@ -10,7 +10,7 @@ import { EventStore } from '../events/store.js';
 import { ProjectionEngine } from '../projections/engine.js';
 import { ProjectsProjector } from '../projections/projects.js';
 import { TasksCurrentProjector } from '../projections/tasks-current.js';
-import { SCHEMA_V1 } from '../db/schema.js';
+import { createTestDb } from '../db/test-utils.js';
 
 describe('ProjectService', () => {
   let db: Database.Database;
@@ -19,17 +19,7 @@ describe('ProjectService', () => {
   let projectService: ProjectService;
 
   beforeEach(() => {
-    db = new Database(':memory:');
-    db.exec(SCHEMA_V1);
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS projects (
-        name TEXT PRIMARY KEY,
-        description TEXT,
-        is_protected INTEGER NOT NULL DEFAULT 0,
-        created_at TEXT NOT NULL,
-        last_event_id INTEGER NOT NULL
-      );
-    `);
+    db = createTestDb();
     eventStore = new EventStore(db);
     projectionEngine = new ProjectionEngine(db);
     projectionEngine.register(new ProjectsProjector());

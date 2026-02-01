@@ -22,7 +22,7 @@ describe('hzl-cli public API', () => {
   });
 
   it('exports config utilities', () => {
-    expect(hzlCli.resolveDbPath).toBeDefined();
+    expect(hzlCli.resolveDbPaths).toBeDefined();
     expect(hzlCli.readConfig).toBeDefined();
   });
 

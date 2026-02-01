@@ -1,15 +1,13 @@
 // packages/hzl-core/src/__tests__/concurrency/worker.ts
 // Worker script for concurrency stress tests
 import { parentPort, workerData } from 'worker_threads';
-import Database from 'better-sqlite3';
-import { createConnection } from '../../db/connection.js';
+import Database from 'libsql';
 import { EventStore } from '../../events/store.js';
 import { ProjectionEngine } from '../../projections/engine.js';
 import { TasksCurrentProjector } from '../../projections/tasks-current.js';
 import { DependenciesProjector } from '../../projections/dependencies.js';
 import { TagsProjector } from '../../projections/tags.js';
 import { TaskService } from '../../services/task-service.js';
-import { TaskStatus } from '../../events/types.js';
 
 interface WorkerCommand {
   type: 'claim-next' | 'steal' | 'complete' | 'release' | 'claim-specific';
@@ -44,10 +42,11 @@ function setupServices(database: Database.Database) {
 }
 
 async function run(): Promise<WorkerResult> {
-  const db = createConnection(dbPath);
+  // Worker connects to existing database file (schema already applied by main process)
+  const db = new Database(dbPath);
   db.pragma('journal_mode = WAL');
   db.pragma('busy_timeout = 5000');
-  
+
   const { taskService } = setupServices(db);
 
   try {

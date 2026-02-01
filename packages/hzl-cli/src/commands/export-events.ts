@@ -1,7 +1,7 @@
 // packages/hzl-cli/src/commands/export-events.ts
 import { Command } from 'commander';
 import fs from 'fs';
-import { resolveDbPath } from '../config.js';
+import { resolveDbPaths } from '../config.js';
 import { initializeDb, closeDb, type Services } from '../db.js';
 import { handleError } from '../errors.js';
 import { GlobalOptionsSchema } from '../types.js';
@@ -64,8 +64,8 @@ export function createExportEventsCommand(): Command {
       opts: { from?: string }
     ) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
-      const dbPath = resolveDbPath(globalOpts.db);
-      const services = initializeDb(dbPath);
+      const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
+      const services = initializeDb({ eventsDbPath, cacheDbPath });
       try {
         runExportEvents({
           services,

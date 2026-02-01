@@ -1,6 +1,6 @@
 // packages/hzl-cli/src/commands/show.ts
 import { Command } from 'commander';
-import { resolveDbPath } from '../../config.js';
+import { resolveDbPaths } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { CLIError, ExitCode, handleError } from '../../errors.js';
 import { GlobalOptionsSchema } from '../../types.js';
@@ -99,8 +99,8 @@ export function createShowCommand(): Command {
     .argument('<taskId>', 'Task ID')
     .action(function (this: Command, taskId: string) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
-      const dbPath = resolveDbPath(globalOpts.db);
-      const services = initializeDb(dbPath);
+      const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
+      const services = initializeDb({ eventsDbPath, cacheDbPath });
       try {
         runShow({ services, taskId, json: globalOpts.json ?? false });
       } catch (e) {

@@ -1,8 +1,8 @@
 // packages/hzl-core/src/projections/tasks-current.test.ts
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import Database from 'better-sqlite3';
+import Database from 'libsql';
 import { TasksCurrentProjector } from './tasks-current.js';
-import { runMigrations } from '../db/migrations.js';
+import { createTestDb } from '../db/test-utils.js';
 import { EventStore } from '../events/store.js';
 import { EventType, TaskStatus } from '../events/types.js';
 
@@ -12,8 +12,8 @@ describe('TasksCurrentProjector', () => {
   let projector: TasksCurrentProjector;
 
   beforeEach(() => {
-    db = new Database(':memory:');
-    runMigrations(db);
+    db = createTestDb();
+    // Schema applied by createTestDb
     eventStore = new EventStore(db);
     projector = new TasksCurrentProjector();
   });

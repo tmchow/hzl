@@ -1,9 +1,9 @@
 // packages/hzl-core/src/services/task-service.test.ts
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import Database from 'better-sqlite3';
+import Database from 'libsql';
 import { TaskService } from './task-service.js';
 import { ProjectService, ProjectNotFoundError } from './project-service.js';
-import { runMigrations } from '../db/migrations.js';
+import { createTestDb } from '../db/test-utils.js';
 import { EventStore } from '../events/store.js';
 import { EventType, TaskStatus } from '../events/types.js';
 import { ProjectionEngine } from '../projections/engine.js';
@@ -22,8 +22,8 @@ describe('TaskService', () => {
   let projectService: ProjectService;
 
   beforeEach(() => {
-    db = new Database(':memory:');
-    runMigrations(db);
+    db = createTestDb();
+    // Schema applied by createTestDb
     eventStore = new EventStore(db);
     projectionEngine = new ProjectionEngine(db);
     projectionEngine.register(new TasksCurrentProjector());

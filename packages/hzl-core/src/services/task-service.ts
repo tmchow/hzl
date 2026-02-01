@@ -1,5 +1,5 @@
 // packages/hzl-core/src/services/task-service.ts
-import type Database from 'better-sqlite3';
+import type Database from 'libsql';
 import { EventStore } from '../events/store.js';
 import {
   EventType,
@@ -8,7 +8,7 @@ import {
   type TaskCreatedData,
 } from '../events/types.js';
 import { ProjectionEngine } from '../projections/engine.js';
-import { withWriteTransaction } from '../db/connection.js';
+import { withWriteTransaction } from '../db/transaction.js';
 import { generateId } from '../utils/id.js';
 import { ProjectService } from './project-service.js';
 

@@ -7,10 +7,33 @@ import { z } from 'zod';
 import type { Config } from './types.js';
 
 const ConfigFileSchema = z.object({
+  db: z.object({
+    events: z.object({
+      path: z.string().optional(),
+      syncUrl: z.string().optional(),
+      authToken: z.string().optional(),
+      syncMode: z.enum(['replica', 'offline']).optional(),
+      readYourWrites: z.boolean().optional(),
+      encryptionKey: z.string().optional(),
+    }).optional(),
+    cache: z.object({
+      path: z.string().optional(),
+    }).optional(),
+    sync: z.object({
+      policy: z.enum(['manual', 'opportunistic', 'strict']).optional(),
+      staleAfterMs: z.number().optional(),
+      minIntervalMs: z.number().optional(),
+      conflictStrategy: z.enum(['merge', 'discard-local', 'fail']).optional(),
+    }).optional(),
+  }).optional(),
   dbPath: z.string().optional(),
   defaultProject: z.string().optional(),
   defaultAuthor: z.string().optional(),
   leaseMinutes: z.number().positive().optional(),
+  // flatten top-level properties for backward compatibility read
+  syncUrl: z.string().optional(),
+  authToken: z.string().optional(),
+  encryptionKey: z.string().optional(),
 }).partial();
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -94,9 +117,9 @@ function getXdgConfigHome(): string {
 export function getDefaultDbPath(): string {
   // Running from source repo? Use project-local storage
   if (isDevMode()) {
-    return path.join(getDevDataDir(), 'data.db');
+    return path.join(getDevDataDir(), 'events.db');
   }
-  return path.join(getXdgDataHome(), 'hzl', 'data.db');
+  return path.join(getXdgDataHome(), 'hzl', 'events.db');
 }
 
 export function getConfigPath(): string {
@@ -115,26 +138,101 @@ function expandTilde(filePath: string): string {
   return filePath;
 }
 
+/**
+ * Derive cache database path from events database path.
+ * For events.db, returns cache.db in the same directory.
+ * For other paths, appends -cache suffix.
+ */
+export function deriveCachePath(eventsPath: string): string {
+  // Standard case: events.db -> cache.db
+  if (eventsPath.endsWith('/events.db') || eventsPath.endsWith('\\events.db')) {
+    return eventsPath.replace(/events\.db$/, 'cache.db');
+  }
+  // Generic case: append -cache suffix
+  if (eventsPath.endsWith('.db')) {
+    return eventsPath.replace(/\.db$/, '-cache.db');
+  }
+  // No .db suffix: append -cache.db
+  return `${eventsPath}-cache.db`;
+}
+
 export type DbPathSource = 'cli' | 'env' | 'config' | 'default' | 'dev';
 
-export interface ResolvedDbPath {
-  path: string;
+export interface ResolvedDbPaths {
+  eventsDbPath: string;
+  cacheDbPath: string;
+}
+
+export interface ResolvedDbPathsWithSource extends ResolvedDbPaths {
   source: DbPathSource;
 }
 
-export function resolveDbPathWithSource(cliOption?: string, configPath: string = getConfigPath()): ResolvedDbPath {
-  if (cliOption) return { path: expandTilde(cliOption), source: 'cli' };
-  if (process.env.HZL_DB) return { path: expandTilde(process.env.HZL_DB), source: 'env' };
+export function resolveDbPathsWithSource(cliOption?: string, configPath: string = getConfigPath()): ResolvedDbPathsWithSource {
+  // CLI option overrides everything
+  if (cliOption) {
+    const expanded = expandTilde(cliOption);
+    return {
+      eventsDbPath: expanded,
+      cacheDbPath: deriveCachePath(expanded),
+      source: 'cli',
+    };
+  }
 
+  // Environment variables
+  if (process.env.HZL_DB_EVENTS_PATH) {
+    const eventsPath = expandTilde(process.env.HZL_DB_EVENTS_PATH);
+    return {
+      eventsDbPath: eventsPath,
+      cacheDbPath: expandTilde(process.env.HZL_DB_CACHE_PATH ?? deriveCachePath(eventsPath)),
+      source: 'env',
+    };
+  }
+
+  // Legacy HZL_DB env var
+  if (process.env.HZL_DB) {
+    const expanded = expandTilde(process.env.HZL_DB);
+    return {
+      eventsDbPath: expanded,
+      cacheDbPath: deriveCachePath(expanded),
+      source: 'env',
+    };
+  }
+
+  // Config file
   const config = readConfig(configPath);
-  if (config.dbPath) return { path: expandTilde(config.dbPath), source: 'config' };
 
-  // Dev mode returns 'dev' source, otherwise 'default'
-  return { path: getDefaultDbPath(), source: isDevMode() ? 'dev' : 'default' };
+  // New nested structure
+  if (config.db?.events?.path) {
+    const eventsPath = expandTilde(config.db.events.path);
+    return {
+      eventsDbPath: eventsPath,
+      cacheDbPath: expandTilde(config.db.cache?.path ?? deriveCachePath(eventsPath)),
+      source: 'config',
+    };
+  }
+
+  // Legacy dbPath
+  if (config.dbPath) {
+    const expanded = expandTilde(config.dbPath);
+    return {
+      eventsDbPath: expanded,
+      cacheDbPath: deriveCachePath(expanded),
+      source: 'config',
+    };
+  }
+
+  // Default
+  const defaultEventsPath = getDefaultDbPath();
+  return {
+    eventsDbPath: defaultEventsPath,
+    cacheDbPath: deriveCachePath(defaultEventsPath),
+    source: isDevMode() ? 'dev' : 'default',
+  };
 }
 
-export function resolveDbPath(cliOption?: string, configPath: string = getConfigPath()): string {
-  return resolveDbPathWithSource(cliOption, configPath).path;
+export function resolveDbPaths(cliOption?: string, configPath: string = getConfigPath()): ResolvedDbPaths {
+  const { eventsDbPath, cacheDbPath } = resolveDbPathsWithSource(cliOption, configPath);
+  return { eventsDbPath, cacheDbPath };
 }
 
 export function readConfig(configPath: string = getConfigPath()): Config {
@@ -198,4 +296,27 @@ export function writeConfig(updates: Partial<Config>, configPath: string = getCo
     }
     throw new Error(`Cannot write config file - your database preference won't persist`);
   }
+}
+
+/**
+ * Check if config file permissions are secure.
+ * Returns warning message if permissions are too permissive.
+ */
+export function checkConfigPermissions(configPath: string): string | null {
+  if (process.platform === 'win32') {
+    return null; // Skip on Windows
+  }
+
+  try {
+    const stats = fs.statSync(configPath);
+    const mode = stats.mode & 0o777;
+
+    if (mode & 0o077) {
+      return `Config file at ${configPath} is readable by other users (mode: ${mode.toString(8)}). ` +
+        `Consider running: chmod 600 "${configPath}"`;
+    }
+  } catch {
+    // File doesn't exist
+  }
+  return null;
 }

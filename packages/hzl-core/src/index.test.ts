@@ -3,24 +3,27 @@ import * as hzlCore from './index.js';
 
 describe('hzl-core public API', () => {
   describe('database exports', () => {
-    it('exports createConnection', () => {
-      expect(hzlCore.createConnection).toBeDefined();
-      expect(typeof hzlCore.createConnection).toBe('function');
-    });
-
-    it('exports getDefaultDbPath', () => {
-      expect(hzlCore.getDefaultDbPath).toBeDefined();
-      expect(typeof hzlCore.getDefaultDbPath).toBe('function');
-    });
-
     it('exports withWriteTransaction', () => {
       expect(hzlCore.withWriteTransaction).toBeDefined();
       expect(typeof hzlCore.withWriteTransaction).toBe('function');
     });
 
-    it('exports runMigrations', () => {
-      expect(hzlCore.runMigrations).toBeDefined();
-      expect(typeof hzlCore.runMigrations).toBe('function');
+    it('exports createDatastore', () => {
+      expect(hzlCore.createDatastore).toBeDefined();
+      expect(typeof hzlCore.createDatastore).toBe('function');
+    });
+
+    it('exports runMigrationsWithRollback', () => {
+      expect(hzlCore.runMigrationsWithRollback).toBeDefined();
+      expect(typeof hzlCore.runMigrationsWithRollback).toBe('function');
+    });
+
+    it('exports MigrationError', () => {
+      expect(hzlCore.MigrationError).toBeDefined();
+    });
+
+    it('exports DatabaseLock', () => {
+      expect(hzlCore.DatabaseLock).toBeDefined();
     });
   });
 
