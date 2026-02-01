@@ -132,7 +132,7 @@ describe('hzl init command', () => {
       expect(fs.existsSync(configPath)).toBe(false);
     });
 
-    it('does not overwrite existing config dbPath when using default pathSource', () => {
+    it('clears existing config dbPath when using --force', () => {
       const existingDbPath = '/existing/path/events.db';
       fs.writeFileSync(configPath, JSON.stringify({ dbPath: existingDbPath }));
 
@@ -142,10 +142,31 @@ describe('hzl init command', () => {
         pathSource: 'default',
         json: true,
         configPath,
-        force: true // Bypass conflict check
+        force: true
       });
 
       const savedConfig = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+      // --force clears the old dbPath so default location is used
+      expect(savedConfig.dbPath).toBeUndefined();
+    });
+
+    it('preserves existing config dbPath without --force when pathSource is config', () => {
+      // Use paths in test directory
+      const existingDbPath = path.join(testDir, 'existing', 'events.db');
+      const existingCachePath = path.join(testDir, 'existing', 'cache.db');
+      fs.writeFileSync(configPath, JSON.stringify({ dbPath: existingDbPath }));
+
+      runInit({
+        eventsDbPath: existingDbPath,
+        cacheDbPath: existingCachePath,
+        pathSource: 'config', // resolved from config, not default
+        json: true,
+        configPath,
+        force: false
+      });
+
+      const savedConfig = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+      // Without --force, existing dbPath is preserved
       expect(savedConfig.dbPath).toBe(existingDbPath);
     });
   });
