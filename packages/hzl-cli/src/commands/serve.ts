@@ -123,12 +123,12 @@ WantedBy=default.target
 `;
   console.log(unit);
   console.log('# Install with:');
-  console.log(`#   hzl serve --print-systemd --host 0.0.0.0 > ~/.config/systemd/user/hzl-web.service`);
+  console.log('#   hzl serve --print-systemd > ~/.config/systemd/user/hzl-web.service');
   console.log('#   systemctl --user daemon-reload');
   console.log('#   systemctl --user enable --now hzl-web');
-  if (host !== '0.0.0.0') {
+  if (host === '127.0.0.1') {
     console.log('#');
-    console.log('# Note: Use --host 0.0.0.0 to allow network/Tailscale access');
+    console.log('# Note: Remove --host 127.0.0.1 to allow network/Tailscale access');
   }
 }
 
@@ -219,7 +219,7 @@ async function runForeground(port: number, host: string, dbOption?: string): Pro
   if (host === '0.0.0.0') {
     console.log(`Listening on 0.0.0.0:${port} (accessible from network/Tailscale)`);
   } else {
-    console.log(`Listening on ${host}:${port} (localhost only - use --host 0.0.0.0 for network access)`);
+    console.log(`Listening on ${host}:${port} (localhost only - omit --host for network access)`);
   }
   console.log('Press Ctrl+C to stop');
 

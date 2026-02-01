@@ -409,9 +409,9 @@ hzl status                                    # Show database and sync state
 hzl doctor                                    # Health checks
 
 # Web Dashboard
-hzl serve                                     # Start dashboard on localhost:3456
+hzl serve                                     # Start dashboard (network accessible)
 hzl serve --port 8080                         # Custom port
-hzl serve --host 0.0.0.0                      # Allow network/Tailscale access
+hzl serve --host 127.0.0.1                    # Restrict to localhost only
 hzl serve --background                        # Fork to background
 hzl serve --stop                              # Stop background server
 hzl serve --status                            # Check if running
@@ -424,8 +424,8 @@ hzl serve --status                            # Check if running
 HZL includes a lightweight Kanban dashboard for monitoring tasks in near real-time.
 
 ```bash
-hzl serve                    # Start on localhost:3456 (local access only)
-hzl serve --host 0.0.0.0     # Allow network/Tailscale access
+hzl serve                    # Start on port 3456 (network accessible by default)
+hzl serve --host 127.0.0.1   # Restrict to localhost only
 ```
 
 Open `http://localhost:3456` to see:
@@ -454,12 +454,12 @@ hzl serve --stop             # Stop the background server
 For always-on access (e.g., on an OpenClaw box via Tailscale):
 
 ```bash
-hzl serve --print-systemd --host 0.0.0.0 > ~/.config/systemd/user/hzl-web.service
+hzl serve --print-systemd > ~/.config/systemd/user/hzl-web.service
 systemctl --user daemon-reload
 systemctl --user enable --now hzl-web
 ```
 
-The `--host 0.0.0.0` flag enables network access (required for Tailscale). Without it, the server only accepts connections from localhost.
+The server binds to `0.0.0.0` by default, making it accessible over the network (including Tailscale). Use `--host 127.0.0.1` to restrict to localhost only.
 
 ---
 

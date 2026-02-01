@@ -62,7 +62,13 @@ Add `--password` flag for HTTP Basic Auth.
 
 ## Recommended Action
 
-_To be filled during triage_
+**Decision:** Keep `0.0.0.0` as default (network accessible).
+
+**Rationale:**
+- HZL is designed for multi-device/Tailscale access
+- Dashboard is read-only with non-sensitive task data
+- Tailscale networks are already authenticated
+- Localhost-only would break the primary use case
 
 ## Technical Details
 
@@ -72,16 +78,16 @@ _To be filled during triage_
 
 ## Acceptance Criteria
 
-- [ ] Server binds to 127.0.0.1 by default
-- [ ] Network binding requires explicit opt-in (e.g., `--host 0.0.0.0`)
-- [ ] Warning displayed when binding to non-localhost
-- [ ] Documentation updated
+- [x] Server binds to 0.0.0.0 by default (network accessible)
+- [x] Localhost-only mode available via `--host 127.0.0.1`
+- [x] Documentation updated to reflect default behavior
 
 ## Work Log
 
 | Date | Action | Learnings |
 |------|--------|-----------|
 | 2026-01-31 | Identified during code review | Critical for network deployments |
+| 2026-02-01 | Decision: keep 0.0.0.0 default | HZL designed for Tailscale; read-only dashboard is low risk |
 
 ## Resources
 

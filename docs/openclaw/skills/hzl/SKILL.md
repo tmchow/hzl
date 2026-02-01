@@ -73,8 +73,8 @@ hzl status   # database mode, paths, sync state
 hzl doctor   # health check for debugging
 
 # Web Dashboard (human visibility into task state)
-hzl serve                    # Start on localhost:3456 (local only)
-hzl serve --host 0.0.0.0     # Allow network/Tailscale access
+hzl serve                    # Start on port 3456 (network accessible)
+hzl serve --host 127.0.0.1   # Restrict to localhost only
 hzl serve --background       # Fork to background
 hzl serve --stop             # Stop background server
 
