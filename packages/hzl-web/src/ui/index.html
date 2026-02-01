@@ -1,0 +1,1211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>hzl dashboard</title>
+  <style>
+    :root {
+      --bg-primary: #1a1a1a;
+      --bg-secondary: #252525;
+      --bg-card: #2d2d2d;
+      --text-primary: #e5e5e5;
+      --text-secondary: #a3a3a3;
+      --text-muted: #737373;
+      --accent: #f59e0b;
+      --accent-dim: #b45309;
+      --border: #404040;
+      --status-backlog: #6b7280;
+      --status-blocked: #ef4444;
+      --status-ready: #22c55e;
+      --status-in-progress: #3b82f6;
+      --status-done: #6b7280;
+      --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .logo {
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--accent);
+    }
+
+    .header-filters {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .filter-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .filter-label {
+      color: var(--text-muted);
+      font-size: 11px;
+    }
+
+    select {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+      padding: 4px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    select:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .connection-indicator {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .connection-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+
+    .connection-dot.error {
+      background: var(--status-blocked);
+    }
+
+    .activity-btn {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .activity-btn:hover {
+      border-color: var(--accent);
+    }
+
+    /* Kanban Board */
+    .board {
+      display: flex;
+      gap: 12px;
+      padding: 16px;
+      overflow-x: auto;
+      min-height: calc(100vh - 53px);
+    }
+
+    .column {
+      flex: 0 0 280px;
+      background: var(--bg-secondary);
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      max-height: calc(100vh - 85px);
+    }
+
+    .column-header {
+      padding: 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .column-title {
+      font-weight: 600;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .column-count {
+      font-size: 11px;
+      color: var(--text-muted);
+      background: var(--bg-primary);
+      padding: 2px 8px;
+      border-radius: 10px;
+    }
+
+    .column-cards {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    /* Task Cards */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 12px;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+
+    .card:hover {
+      border-color: var(--accent);
+    }
+
+    .card-id {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .card-title {
+      font-size: 13px;
+      color: var(--text-primary);
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      margin-bottom: 8px;
+    }
+
+    .card-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .card-project {
+      background: var(--bg-primary);
+      padding: 2px 6px;
+      border-radius: 3px;
+    }
+
+    .card-agent {
+      color: var(--accent);
+    }
+
+    .card-blocked {
+      font-size: 10px;
+      color: var(--status-blocked);
+      margin-top: 6px;
+    }
+
+    .card-lease {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* Empty State */
+    .empty-column {
+      text-align: center;
+      color: var(--text-muted);
+      padding: 24px 12px;
+      font-size: 12px;
+    }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      padding: 24px;
+    }
+
+    .modal-overlay.open {
+      display: flex;
+    }
+
+    .modal {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      max-width: 600px;
+      width: 100%;
+      max-height: 80vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .modal-header {
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+    }
+
+    .modal-title {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 20px;
+      cursor: pointer;
+      padding: 0;
+      line-height: 1;
+    }
+
+    .modal-close:hover {
+      color: var(--text-primary);
+    }
+
+    .modal-body {
+      padding: 16px;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .modal-section {
+      margin-bottom: 16px;
+    }
+
+    .modal-section:last-child {
+      margin-bottom: 0;
+    }
+
+    .modal-section-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      letter-spacing: 0.5px;
+    }
+
+    .modal-meta {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+
+    .modal-meta-item {
+      background: var(--bg-primary);
+      padding: 8px 10px;
+      border-radius: 4px;
+    }
+
+    .modal-meta-label {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-bottom: 2px;
+    }
+
+    .modal-meta-value {
+      font-size: 12px;
+    }
+
+    .modal-description {
+      background: var(--bg-primary);
+      padding: 12px;
+      border-radius: 4px;
+      white-space: pre-wrap;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .modal-comments {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .comment {
+      background: var(--bg-primary);
+      padding: 10px;
+      border-radius: 4px;
+      border-left: 2px solid var(--accent);
+    }
+
+    .comment-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 4px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .comment-author {
+      color: var(--accent);
+    }
+
+    .comment-text {
+      font-size: 12px;
+      white-space: pre-wrap;
+    }
+
+    /* Activity Panel */
+    .activity-panel {
+      position: fixed;
+      top: 0;
+      right: -400px;
+      width: 400px;
+      height: 100vh;
+      background: var(--bg-secondary);
+      border-left: 1px solid var(--border);
+      z-index: 150;
+      transition: right 0.2s ease;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .activity-panel.open {
+      right: 0;
+    }
+
+    .activity-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .activity-title {
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .activity-close {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 18px;
+      cursor: pointer;
+    }
+
+    .activity-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+    }
+
+    .activity-item {
+      padding: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .activity-item:last-child {
+      border-bottom: none;
+    }
+
+    .activity-item-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+
+    .activity-type {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 2px 6px;
+      border-radius: 3px;
+      background: var(--bg-primary);
+    }
+
+    .activity-type.status_changed { color: var(--status-in-progress); }
+    .activity-type.task_created { color: var(--status-ready); }
+    .activity-type.comment_added { color: var(--accent); }
+    .activity-type.checkpoint_recorded { color: var(--text-secondary); }
+
+    .activity-time {
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    .activity-task {
+      font-size: 12px;
+      color: var(--text-primary);
+      margin-top: 4px;
+    }
+
+    .activity-detail {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* Mobile Styles */
+    @media (max-width: 768px) {
+      .header {
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .header-filters {
+        order: 3;
+        width: 100%;
+        flex-wrap: wrap;
+      }
+
+      .board {
+        display: none;
+      }
+
+      .mobile-tabs {
+        display: flex;
+        overflow-x: auto;
+        background: var(--bg-secondary);
+        border-bottom: 1px solid var(--border);
+        padding: 0 8px;
+      }
+
+      .mobile-tab {
+        flex: 0 0 auto;
+        padding: 12px 16px;
+        font-size: 12px;
+        color: var(--text-muted);
+        border-bottom: 2px solid transparent;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+
+      .mobile-tab.active {
+        color: var(--accent);
+        border-bottom-color: var(--accent);
+      }
+
+      .mobile-tab-badge {
+        background: var(--bg-primary);
+        padding: 1px 6px;
+        border-radius: 8px;
+        font-size: 10px;
+        margin-left: 6px;
+      }
+
+      .mobile-cards {
+        display: none;
+        padding: 12px;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .mobile-cards.active {
+        display: flex;
+      }
+
+      .activity-panel {
+        width: 100%;
+        right: -100%;
+      }
+    }
+
+    @media (min-width: 769px) {
+      .mobile-tabs,
+      .mobile-cards {
+        display: none !important;
+      }
+    }
+
+    /* Hamburger menu for mobile */
+    .hamburger {
+      display: none;
+      background: none;
+      border: none;
+      color: var(--text-primary);
+      font-size: 20px;
+      cursor: pointer;
+    }
+
+    @media (max-width: 768px) {
+      .hamburger {
+        display: block;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="header-left">
+      <button class="hamburger" id="hamburgerBtn">&#9776;</button>
+      <span class="logo">hzl dashboard</span>
+    </div>
+    <div class="header-filters">
+      <div class="filter-group">
+        <select id="dateFilter">
+          <option value="1d">Today</option>
+          <option value="3d" selected>Last 3 days</option>
+          <option value="7d">Last 7 days</option>
+          <option value="14d">Last 14 days</option>
+          <option value="30d">Last 30 days</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <select id="projectFilter">
+          <option value="">All projects</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label class="filter-label">Refresh:</label>
+        <select id="refreshFilter">
+          <option value="1000">1s</option>
+          <option value="2000">2s</option>
+          <option value="5000" selected>5s</option>
+          <option value="10000">10s</option>
+          <option value="30000">30s</option>
+        </select>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="connection-indicator">
+        <div class="connection-dot" id="connectionDot"></div>
+        <span id="connectionText">Connecting...</span>
+      </div>
+      <button class="activity-btn" id="activityBtn">Activity</button>
+    </div>
+  </header>
+
+  <!-- Mobile Tabs -->
+  <div class="mobile-tabs" id="mobileTabs">
+    <div class="mobile-tab" data-status="backlog">Backlog <span class="mobile-tab-badge" id="badge-backlog">0</span></div>
+    <div class="mobile-tab" data-status="blocked">Blocked <span class="mobile-tab-badge" id="badge-blocked">0</span></div>
+    <div class="mobile-tab active" data-status="ready">Ready <span class="mobile-tab-badge" id="badge-ready">0</span></div>
+    <div class="mobile-tab" data-status="in_progress">In Progress <span class="mobile-tab-badge" id="badge-in_progress">0</span></div>
+    <div class="mobile-tab" data-status="done">Done <span class="mobile-tab-badge" id="badge-done">0</span></div>
+  </div>
+
+  <!-- Mobile Cards Container -->
+  <div id="mobileCardsContainer"></div>
+
+  <!-- Desktop Kanban Board -->
+  <main class="board" id="board">
+    <div class="column" data-status="backlog">
+      <div class="column-header">
+        <span class="column-title">Backlog</span>
+        <span class="column-count" id="count-backlog">0</span>
+      </div>
+      <div class="column-cards" id="cards-backlog"></div>
+    </div>
+    <div class="column" data-status="blocked">
+      <div class="column-header">
+        <span class="column-title">Blocked</span>
+        <span class="column-count" id="count-blocked">0</span>
+      </div>
+      <div class="column-cards" id="cards-blocked"></div>
+    </div>
+    <div class="column" data-status="ready">
+      <div class="column-header">
+        <span class="column-title">Ready</span>
+        <span class="column-count" id="count-ready">0</span>
+      </div>
+      <div class="column-cards" id="cards-ready"></div>
+    </div>
+    <div class="column" data-status="in_progress">
+      <div class="column-header">
+        <span class="column-title">In Progress</span>
+        <span class="column-count" id="count-in_progress">0</span>
+      </div>
+      <div class="column-cards" id="cards-in_progress"></div>
+    </div>
+    <div class="column" data-status="done">
+      <div class="column-header">
+        <span class="column-title">Done</span>
+        <span class="column-count" id="count-done">0</span>
+      </div>
+      <div class="column-cards" id="cards-done"></div>
+    </div>
+  </main>
+
+  <!-- Task Detail Modal -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title" id="modalTitle">Task Details</span>
+        <button class="modal-close" id="modalClose">&times;</button>
+      </div>
+      <div class="modal-body" id="modalBody">
+        <!-- Populated by JavaScript -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Activity Panel -->
+  <div class="activity-panel" id="activityPanel">
+    <div class="activity-header">
+      <span class="activity-title">Activity</span>
+      <button class="activity-close" id="activityClose">&times;</button>
+    </div>
+    <div class="activity-list" id="activityList">
+      <!-- Populated by JavaScript -->
+    </div>
+  </div>
+
+  <script>
+    // State
+    let tasks = [];
+    let events = [];
+    let lastEventId = 0;
+    let pollTimer = null;
+    let lastPollTime = null;
+    let selectedTask = null;
+    let activeTab = 'ready';
+
+    // DOM Elements
+    const dateFilter = document.getElementById('dateFilter');
+    const projectFilter = document.getElementById('projectFilter');
+    const refreshFilter = document.getElementById('refreshFilter');
+    const connectionDot = document.getElementById('connectionDot');
+    const connectionText = document.getElementById('connectionText');
+    const activityBtn = document.getElementById('activityBtn');
+    const activityPanel = document.getElementById('activityPanel');
+    const activityClose = document.getElementById('activityClose');
+    const activityList = document.getElementById('activityList');
+    const modalOverlay = document.getElementById('modalOverlay');
+    const modalClose = document.getElementById('modalClose');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalBody = document.getElementById('modalBody');
+    const hamburgerBtn = document.getElementById('hamburgerBtn');
+    const mobileTabs = document.getElementById('mobileTabs');
+
+    // Load saved preferences
+    function loadPreferences() {
+      const saved = localStorage.getItem('hzl-dashboard-prefs');
+      if (saved) {
+        try {
+          const prefs = JSON.parse(saved);
+          if (prefs.dateFilter) dateFilter.value = prefs.dateFilter;
+          if (prefs.projectFilter) projectFilter.value = prefs.projectFilter;
+          if (prefs.refreshFilter) refreshFilter.value = prefs.refreshFilter;
+        } catch (e) {}
+      }
+    }
+
+    function savePreferences() {
+      const prefs = {
+        dateFilter: dateFilter.value,
+        projectFilter: projectFilter.value,
+        refreshFilter: refreshFilter.value,
+      };
+      localStorage.setItem('hzl-dashboard-prefs', JSON.stringify(prefs));
+    }
+
+    // API calls
+    async function fetchTasks() {
+      const since = dateFilter.value;
+      const project = projectFilter.value;
+      const url = `/api/tasks?since=${since}${project ? `&project=${encodeURIComponent(project)}` : ''}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('Failed to fetch tasks');
+      const data = await res.json();
+      return data.tasks;
+    }
+
+    async function fetchEvents() {
+      const res = await fetch(`/api/events?since=${lastEventId}`);
+      if (!res.ok) throw new Error('Failed to fetch events');
+      const data = await res.json();
+      return data.events;
+    }
+
+    async function fetchTaskDetail(taskId) {
+      const [taskRes, commentsRes, checkpointsRes] = await Promise.all([
+        fetch(`/api/tasks/${taskId}`),
+        fetch(`/api/tasks/${taskId}/comments`),
+        fetch(`/api/tasks/${taskId}/checkpoints`),
+      ]);
+
+      if (!taskRes.ok) throw new Error('Task not found');
+
+      const taskData = await taskRes.json();
+      const commentsData = await commentsRes.json();
+      const checkpointsData = await checkpointsRes.json();
+
+      return {
+        task: taskData.task,
+        comments: commentsData.comments,
+        checkpoints: checkpointsData.checkpoints,
+      };
+    }
+
+    async function fetchStats() {
+      const res = await fetch('/api/stats');
+      if (!res.ok) throw new Error('Failed to fetch stats');
+      return await res.json();
+    }
+
+    // Render functions
+    function renderCard(task) {
+      const isBlocked = task.blocked_by && task.blocked_by.length > 0;
+      const status = isBlocked ? 'blocked' : task.status;
+
+      let extra = '';
+      if (isBlocked) {
+        extra = `<div class="card-blocked">Blocked by: ${task.blocked_by.map(id => id.slice(0, 8)).join(', ')}</div>`;
+      }
+      if (task.status === 'in_progress' && task.lease_until) {
+        const remaining = formatTimeRemaining(task.lease_until);
+        extra += `<div class="card-lease">${remaining}</div>`;
+      }
+
+      return `
+        <div class="card" data-task-id="${task.task_id}">
+          <div class="card-id">${task.task_id.slice(0, 8)}</div>
+          <div class="card-title">${escapeHtml(task.title)}</div>
+          <div class="card-meta">
+            <span class="card-project">${escapeHtml(task.project)}</span>
+            ${task.claimed_by_agent_id ? `<span class="card-agent">${task.claimed_by_agent_id.slice(0, 8)}</span>` : ''}
+          </div>
+          ${extra}
+        </div>
+      `;
+    }
+
+    // Group tasks into Kanban columns, treating ready tasks with unmet dependencies as blocked
+    function groupTasksByStatus(taskList) {
+      const columns = {
+        backlog: [],
+        blocked: [],
+        ready: [],
+        in_progress: [],
+        done: [],
+      };
+      for (const task of taskList) {
+        const isBlocked = task.blocked_by && task.blocked_by.length > 0;
+        const status = isBlocked && task.status === 'ready' ? 'blocked' : task.status;
+        if (columns[status]) {
+          columns[status].push(task);
+        }
+      }
+      return columns;
+    }
+
+    function renderBoard() {
+      const columns = groupTasksByStatus(tasks);
+
+      for (const [status, statusTasks] of Object.entries(columns)) {
+        const container = document.getElementById(`cards-${status}`);
+        const countEl = document.getElementById(`count-${status}`);
+        const badgeEl = document.getElementById(`badge-${status}`);
+
+        if (container) {
+          if (statusTasks.length === 0) {
+            container.innerHTML = '<div class="empty-column">No tasks</div>';
+          } else {
+            container.innerHTML = statusTasks.map(renderCard).join('');
+          }
+        }
+        if (countEl) countEl.textContent = statusTasks.length;
+        if (badgeEl) badgeEl.textContent = statusTasks.length;
+      }
+
+      // Render mobile cards for active tab
+      renderMobileCards();
+
+      // Add click handlers
+      document.querySelectorAll('.card').forEach(card => {
+        card.addEventListener('click', () => openTaskModal(card.dataset.taskId));
+      });
+    }
+
+    function renderMobileCards() {
+      const container = document.getElementById('mobileCardsContainer');
+      if (!container) return;
+
+      const columns = groupTasksByStatus(tasks);
+
+      container.innerHTML = Object.entries(columns).map(([status, statusTasks]) => `
+        <div class="mobile-cards ${status === activeTab ? 'active' : ''}" data-status="${status}">
+          ${statusTasks.length === 0
+            ? '<div class="empty-column">No tasks</div>'
+            : statusTasks.map(renderCard).join('')
+          }
+        </div>
+      `).join('');
+
+      container.querySelectorAll('.card').forEach(card => {
+        card.addEventListener('click', () => openTaskModal(card.dataset.taskId));
+      });
+    }
+
+    function renderActivity() {
+      if (events.length === 0) {
+        activityList.innerHTML = '<div class="empty-column">No recent activity</div>';
+        return;
+      }
+
+      activityList.innerHTML = events.map(event => {
+        let detail = '';
+        if (event.type === 'status_changed' && event.data) {
+          detail = `${event.data.from} → ${event.data.to}`;
+        }
+        if (event.agent_id) {
+          detail = detail ? `${detail} by ${event.agent_id.slice(0, 8)}` : `by ${event.agent_id.slice(0, 8)}`;
+        }
+
+        return `
+          <div class="activity-item">
+            <div class="activity-item-header">
+              <span class="activity-type ${event.type}">${formatEventType(event.type)}</span>
+              <span class="activity-time">${formatTime(event.timestamp)}</span>
+            </div>
+            <div class="activity-task">${escapeHtml(event.task_title || event.task_id.slice(0, 8))}</div>
+            ${detail ? `<div class="activity-detail">${escapeHtml(detail)}</div>` : ''}
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function openTaskModal(taskId) {
+      try {
+        const data = await fetchTaskDetail(taskId);
+        selectedTask = data;
+
+        modalTitle.textContent = data.task.title;
+
+        let html = `
+          <div class="modal-section">
+            <div class="modal-meta">
+              <div class="modal-meta-item">
+                <div class="modal-meta-label">Status</div>
+                <div class="modal-meta-value">${data.task.status}</div>
+              </div>
+              <div class="modal-meta-item">
+                <div class="modal-meta-label">Project</div>
+                <div class="modal-meta-value">${escapeHtml(data.task.project)}</div>
+              </div>
+              <div class="modal-meta-item">
+                <div class="modal-meta-label">Priority</div>
+                <div class="modal-meta-value">${data.task.priority}</div>
+              </div>
+              <div class="modal-meta-item">
+                <div class="modal-meta-label">Created</div>
+                <div class="modal-meta-value">${formatTime(data.task.created_at)}</div>
+              </div>
+            </div>
+          </div>
+        `;
+
+        if (data.task.claimed_by_agent_id) {
+          html += `
+            <div class="modal-section">
+              <div class="modal-section-title">Claimed By</div>
+              <div class="modal-meta">
+                <div class="modal-meta-item">
+                  <div class="modal-meta-label">Agent</div>
+                  <div class="modal-meta-value">${data.task.claimed_by_agent_id}</div>
+                </div>
+                ${data.task.lease_until ? `
+                  <div class="modal-meta-item">
+                    <div class="modal-meta-label">Lease Until</div>
+                    <div class="modal-meta-value">${formatTime(data.task.lease_until)}</div>
+                  </div>
+                ` : ''}
+              </div>
+            </div>
+          `;
+        }
+
+        if (data.task.blocked_by && data.task.blocked_by.length > 0) {
+          html += `
+            <div class="modal-section">
+              <div class="modal-section-title">Blocked By</div>
+              <div class="modal-description">${data.task.blocked_by.join(', ')}</div>
+            </div>
+          `;
+        }
+
+        if (data.task.description) {
+          html += `
+            <div class="modal-section">
+              <div class="modal-section-title">Description</div>
+              <div class="modal-description">${escapeHtml(data.task.description)}</div>
+            </div>
+          `;
+        }
+
+        if (data.comments.length > 0) {
+          html += `
+            <div class="modal-section">
+              <div class="modal-section-title">Comments (${data.comments.length})</div>
+              <div class="modal-comments">
+                ${data.comments.map(c => `
+                  <div class="comment">
+                    <div class="comment-header">
+                      <span class="comment-author">${escapeHtml(c.agent_id || c.author || 'Unknown')}</span>
+                      <span>${formatTime(c.timestamp)}</span>
+                    </div>
+                    <div class="comment-text">${escapeHtml(c.text)}</div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          `;
+        }
+
+        if (data.checkpoints.length > 0) {
+          html += `
+            <div class="modal-section">
+              <div class="modal-section-title">Checkpoints (${data.checkpoints.length})</div>
+              <div class="modal-comments">
+                ${data.checkpoints.map(cp => `
+                  <div class="comment">
+                    <div class="comment-header">
+                      <span class="comment-author">${escapeHtml(cp.name)}</span>
+                      <span>${formatTime(cp.timestamp)}</span>
+                    </div>
+                    <div class="comment-text">${JSON.stringify(cp.data, null, 2)}</div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          `;
+        }
+
+        modalBody.innerHTML = html;
+        modalOverlay.classList.add('open');
+      } catch (error) {
+        console.error('Failed to load task:', error);
+        alert('Failed to load task details');
+      }
+    }
+
+    function closeModal() {
+      modalOverlay.classList.remove('open');
+      selectedTask = null;
+    }
+
+    // Polling
+    async function poll() {
+      try {
+        const [newTasks, newEvents, stats] = await Promise.all([
+          fetchTasks(),
+          fetchEvents(),
+          fetchStats(),
+        ]);
+
+        tasks = newTasks;
+
+        if (newEvents.length > 0) {
+          events = [...newEvents, ...events].slice(0, 50);
+          lastEventId = newEvents[0].id;
+        }
+
+        // Update project filter
+        const currentProject = projectFilter.value;
+        projectFilter.innerHTML = '<option value="">All projects</option>' +
+          stats.projects.map(p => `<option value="${escapeHtml(p)}" ${p === currentProject ? 'selected' : ''}>${escapeHtml(p)}</option>`).join('');
+
+        renderBoard();
+        renderActivity();
+
+        lastPollTime = Date.now();
+        updateConnectionStatus(true);
+      } catch (error) {
+        console.error('Poll failed:', error);
+        updateConnectionStatus(false);
+      }
+    }
+
+    function startPolling() {
+      poll();
+      const interval = parseInt(refreshFilter.value, 10);
+      pollTimer = setInterval(poll, interval);
+    }
+
+    function stopPolling() {
+      if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+      }
+    }
+
+    function restartPolling() {
+      stopPolling();
+      startPolling();
+    }
+
+    // Connection status
+    function updateConnectionStatus(success) {
+      if (success) {
+        connectionDot.classList.remove('error');
+        const ago = lastPollTime ? Math.round((Date.now() - lastPollTime) / 1000) : 0;
+        connectionText.textContent = ago === 0 ? 'Just now' : `${ago}s ago`;
+      } else {
+        connectionDot.classList.add('error');
+        connectionText.textContent = 'Error';
+      }
+    }
+
+    // Helpers
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    // Time constants in milliseconds
+    const MS_PER_SECOND = 1000;
+    const MS_PER_MINUTE = 60 * MS_PER_SECOND;
+    const MS_PER_HOUR = 60 * MS_PER_MINUTE;
+    const MS_PER_DAY = 24 * MS_PER_HOUR;
+
+    function formatTime(isoString) {
+      if (!isoString) return '';
+      const date = new Date(isoString);
+      const now = new Date();
+      const diff = now - date;
+
+      if (diff < MS_PER_MINUTE) return 'just now';
+      if (diff < MS_PER_HOUR) return `${Math.floor(diff / MS_PER_MINUTE)}m ago`;
+      if (diff < MS_PER_DAY) return `${Math.floor(diff / MS_PER_HOUR)}h ago`;
+      return date.toLocaleDateString();
+    }
+
+    function formatTimeRemaining(isoString) {
+      if (!isoString) return '';
+      const date = new Date(isoString);
+      const now = new Date();
+      const diff = date - now;
+
+      if (diff <= 0) return 'expired';
+      if (diff < MS_PER_MINUTE) return `${Math.floor(diff / MS_PER_SECOND)}s left`;
+      if (diff < MS_PER_HOUR) return `${Math.floor(diff / MS_PER_MINUTE)}m left`;
+      return `${Math.floor(diff / MS_PER_HOUR)}h left`;
+    }
+
+    function formatEventType(type) {
+      return type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    }
+
+    // Event listeners
+    dateFilter.addEventListener('change', () => {
+      savePreferences();
+      poll();
+    });
+
+    projectFilter.addEventListener('change', () => {
+      savePreferences();
+      poll();
+    });
+
+    refreshFilter.addEventListener('change', () => {
+      savePreferences();
+      restartPolling();
+    });
+
+    activityBtn.addEventListener('click', () => {
+      activityPanel.classList.add('open');
+    });
+
+    activityClose.addEventListener('click', () => {
+      activityPanel.classList.remove('open');
+    });
+
+    modalClose.addEventListener('click', closeModal);
+    modalOverlay.addEventListener('click', (e) => {
+      if (e.target === modalOverlay) closeModal();
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeModal();
+        activityPanel.classList.remove('open');
+      }
+    });
+
+    // Visibility API
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        stopPolling();
+      } else {
+        startPolling();
+      }
+    });
+
+    // Mobile tabs
+    mobileTabs.addEventListener('click', (e) => {
+      const tab = e.target.closest('.mobile-tab');
+      if (!tab) return;
+
+      activeTab = tab.dataset.status;
+
+      document.querySelectorAll('.mobile-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+
+      document.querySelectorAll('.mobile-cards').forEach(c => c.classList.remove('active'));
+      document.querySelector(`.mobile-cards[data-status="${activeTab}"]`)?.classList.add('active');
+    });
+
+    // Hamburger menu (toggle filters on mobile)
+    hamburgerBtn.addEventListener('click', () => {
+      const filters = document.querySelector('.header-filters');
+      filters.style.display = filters.style.display === 'none' ? 'flex' : 'none';
+    });
+
+    // Initialize
+    loadPreferences();
+    startPolling();
+
+    // Update connection time every second
+    setInterval(() => {
+      if (lastPollTime) {
+        const ago = Math.round((Date.now() - lastPollTime) / 1000);
+        connectionText.textContent = ago === 0 ? 'Just now' : `${ago}s ago`;
+      }
+    }, 1000);
+  </script>
+</body>
+</html>

@@ -97,7 +97,7 @@ flowchart LR
   Agents[Agents + scripts] --> HZL
 ```
 
-If you want a human-friendly interface, build one. HZL stays the durable backend that both humans and agents can use.
+HZL includes a basic [Kanban dashboard](#web-dashboard) for human visibility. For richer interfaces, build your own frontend using `hzl-core` directly—HZL stays the durable backend that both humans and agents can use.
 
 ---
 
@@ -405,7 +405,59 @@ hzl task show <id> --json                     # Task details (--json for scripti
 hzl sync                                      # Sync with cloud (if configured)
 hzl status                                    # Show database and sync state
 hzl doctor                                    # Health checks
+
+# Web Dashboard
+hzl serve                                     # Start dashboard (network accessible)
+hzl serve --port 8080                         # Custom port
+hzl serve --host 127.0.0.1                    # Restrict to localhost only
+hzl serve --background                        # Fork to background
+hzl serve --stop                              # Stop background server
+hzl serve --status                            # Check if running
 ```
+
+---
+
+## Web Dashboard
+
+HZL includes a lightweight Kanban dashboard for monitoring tasks in near real-time.
+
+```bash
+hzl serve                    # Start on port 3456 (network accessible by default)
+hzl serve --host 127.0.0.1   # Restrict to localhost only
+```
+
+Open `http://localhost:3456` to see:
+
+- **Kanban board** with columns: Backlog → Blocked → Ready → In Progress → Done
+- **Date filtering**: Today, Last 3d, 7d, 14d, 30d
+- **Project filtering**: Focus on a single project
+- **Task details**: Click any card to see description, comments, and checkpoints
+- **Activity panel**: Recent status changes and events
+- **Mobile support**: Tabs layout on smaller screens
+
+The dashboard polls automatically (configurable 1-30s interval) and pauses when the tab is hidden.
+
+### Background mode
+
+Run the dashboard as a background process:
+
+```bash
+hzl serve --background       # Fork to background, write PID
+hzl serve --status           # Check if running
+hzl serve --stop             # Stop the background server
+```
+
+### Running as a service (systemd)
+
+For always-on access (e.g., on an OpenClaw box via Tailscale):
+
+```bash
+hzl serve --print-systemd > ~/.config/systemd/user/hzl-web.service
+systemctl --user daemon-reload
+systemctl --user enable --now hzl-web
+```
+
+The server binds to `0.0.0.0` by default, making it accessible over the network (including Tailscale). Use `--host 127.0.0.1` to restrict to localhost only.
 
 ---
 

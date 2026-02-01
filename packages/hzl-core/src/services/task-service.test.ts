@@ -557,4 +557,172 @@ describe('TaskService', () => {
       expect(checkpoints[0].name).toBe('step1');
     });
   });
+
+  describe('listTasks', () => {
+    it('returns tasks updated within the time window', () => {
+      taskService.createTask({ title: 'Task 1', project: 'inbox' });
+      taskService.createTask({ title: 'Task 2', project: 'inbox' });
+
+      const tasks = taskService.listTasks({ sinceDays: 3 });
+      expect(tasks).toHaveLength(2);
+    });
+
+    it('filters by project', () => {
+      taskService.createTask({ title: 'Task A', project: 'project-a' });
+      taskService.createTask({ title: 'Task B', project: 'project-b' });
+
+      const tasks = taskService.listTasks({ project: 'project-a' });
+      expect(tasks).toHaveLength(1);
+      expect(tasks[0].title).toBe('Task A');
+    });
+
+    it('excludes archived tasks', () => {
+      const task = taskService.createTask({ title: 'Archived', project: 'inbox' });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+      taskService.claimTask(task.task_id);
+      taskService.completeTask(task.task_id);
+      taskService.archiveTask(task.task_id);
+
+      const tasks = taskService.listTasks({});
+      expect(tasks.map(t => t.task_id)).not.toContain(task.task_id);
+    });
+
+    it('sorts by priority DESC, updated_at DESC', () => {
+      const low = taskService.createTask({ title: 'Low', project: 'inbox', priority: 1 });
+      const high = taskService.createTask({ title: 'High', project: 'inbox', priority: 3 });
+
+      const tasks = taskService.listTasks({});
+      expect(tasks[0].task_id).toBe(high.task_id);
+    });
+  });
+
+  describe('getBlockedByMap', () => {
+    it('returns empty map when no tasks are blocked', () => {
+      taskService.createTask({ title: 'Task', project: 'inbox' });
+      const map = taskService.getBlockedByMap();
+      expect(map.size).toBe(0);
+    });
+
+    it('returns blocked tasks with their blockers', () => {
+      const blocker = taskService.createTask({ title: 'Blocker', project: 'inbox' });
+      const blocked = taskService.createTask({
+        title: 'Blocked',
+        project: 'inbox',
+        depends_on: [blocker.task_id],
+      });
+      taskService.setStatus(blocked.task_id, TaskStatus.Ready);
+
+      const map = taskService.getBlockedByMap();
+      expect(map.has(blocked.task_id)).toBe(true);
+      expect(map.get(blocked.task_id)).toContain(blocker.task_id);
+    });
+
+    it('does not include tasks whose dependencies are done', () => {
+      const blocker = taskService.createTask({ title: 'Blocker', project: 'inbox' });
+      const blocked = taskService.createTask({
+        title: 'Blocked',
+        project: 'inbox',
+        depends_on: [blocker.task_id],
+      });
+      taskService.setStatus(blocker.task_id, TaskStatus.Ready);
+      taskService.claimTask(blocker.task_id);
+      taskService.completeTask(blocker.task_id);
+      taskService.setStatus(blocked.task_id, TaskStatus.Ready);
+
+      const map = taskService.getBlockedByMap();
+      expect(map.has(blocked.task_id)).toBe(false);
+    });
+  });
+
+  describe('getStats', () => {
+    it('returns total count and status breakdown', () => {
+      taskService.createTask({ title: 'Backlog', project: 'inbox' });
+      const ready = taskService.createTask({ title: 'Ready', project: 'inbox' });
+      taskService.setStatus(ready.task_id, TaskStatus.Ready);
+
+      const stats = taskService.getStats();
+      expect(stats.total).toBe(2);
+      expect(stats.byStatus.backlog).toBe(1);
+      expect(stats.byStatus.ready).toBe(1);
+    });
+
+    it('returns list of projects with tasks', () => {
+      taskService.createTask({ title: 'A', project: 'project-a' });
+      taskService.createTask({ title: 'B', project: 'project-b' });
+
+      const stats = taskService.getStats();
+      expect(stats.projects).toContain('project-a');
+      expect(stats.projects).toContain('project-b');
+    });
+
+    it('excludes archived tasks from counts', () => {
+      const task = taskService.createTask({ title: 'Archived', project: 'inbox' });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+      taskService.claimTask(task.task_id);
+      taskService.completeTask(task.task_id);
+      taskService.archiveTask(task.task_id);
+
+      const stats = taskService.getStats();
+      expect(stats.total).toBe(0);
+    });
+  });
+
+  describe('getBlockingDependencies', () => {
+    it('returns empty array when task has no dependencies', () => {
+      const task = taskService.createTask({ title: 'Task', project: 'inbox' });
+      const deps = taskService.getBlockingDependencies(task.task_id);
+      expect(deps).toEqual([]);
+    });
+
+    it('returns incomplete dependencies', () => {
+      const blocker = taskService.createTask({ title: 'Blocker', project: 'inbox' });
+      const task = taskService.createTask({
+        title: 'Task',
+        project: 'inbox',
+        depends_on: [blocker.task_id],
+      });
+
+      const deps = taskService.getBlockingDependencies(task.task_id);
+      expect(deps).toContain(blocker.task_id);
+    });
+
+    it('excludes completed dependencies', () => {
+      const blocker = taskService.createTask({ title: 'Blocker', project: 'inbox' });
+      const task = taskService.createTask({
+        title: 'Task',
+        project: 'inbox',
+        depends_on: [blocker.task_id],
+      });
+      taskService.setStatus(blocker.task_id, TaskStatus.Ready);
+      taskService.claimTask(blocker.task_id);
+      taskService.completeTask(blocker.task_id);
+
+      const deps = taskService.getBlockingDependencies(task.task_id);
+      expect(deps).toEqual([]);
+    });
+  });
+
+  describe('getTaskTitlesByIds', () => {
+    it('returns empty map for empty input', () => {
+      const map = taskService.getTaskTitlesByIds([]);
+      expect(map.size).toBe(0);
+    });
+
+    it('returns titles for multiple tasks', () => {
+      const task1 = taskService.createTask({ title: 'First Task', project: 'inbox' });
+      const task2 = taskService.createTask({ title: 'Second Task', project: 'inbox' });
+
+      const map = taskService.getTaskTitlesByIds([task1.task_id, task2.task_id]);
+      expect(map.get(task1.task_id)).toBe('First Task');
+      expect(map.get(task2.task_id)).toBe('Second Task');
+    });
+
+    it('ignores nonexistent task IDs', () => {
+      const task = taskService.createTask({ title: 'Real Task', project: 'inbox' });
+
+      const map = taskService.getTaskTitlesByIds([task.task_id, 'NONEXISTENT']);
+      expect(map.size).toBe(1);
+      expect(map.get(task.task_id)).toBe('Real Task');
+    });
+  });
 });

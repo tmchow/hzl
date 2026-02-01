@@ -1,0 +1,35 @@
+{
+  "name": "hzl-web",
+  "version": "1.7.6",
+  "description": "Web dashboard for HZL - A Kanban-style task monitoring UI.",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tmchow/hzl.git",
+    "directory": "packages/hzl-web"
+  },
+  "scripts": {
+    "build": "tsc -b && cp -r src/ui dist/",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "hzl-core": "^1.7.6"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0",
+    "vitest": "^4.0.18"
+  }
+}

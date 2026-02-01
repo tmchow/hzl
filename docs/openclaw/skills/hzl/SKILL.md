@@ -72,6 +72,12 @@ hzl validate
 hzl status   # database mode, paths, sync state
 hzl doctor   # health check for debugging
 
+# Web Dashboard (human visibility into task state)
+hzl serve                    # Start on port 3456 (network accessible)
+hzl serve --host 127.0.0.1   # Restrict to localhost only
+hzl serve --background       # Fork to background
+hzl serve --stop             # Stop background server
+
 # Multi-agent recovery
 hzl task claim <id> --author <agent-id> --lease 30
 hzl task stuck
@@ -135,6 +141,24 @@ Monitor:
 hzl task show <id> --json
 hzl task stuck
 hzl task steal <id> --if-expired --author orchestrator
+```
+
+## Web Dashboard
+
+HZL includes a built-in Kanban dashboard for monitoring task state:
+
+```bash
+hzl serve                    # Start on port 3456
+hzl serve --background       # Fork to background
+```
+
+The dashboard shows tasks in columns (Backlog → Blocked → Ready → In Progress → Done), with filtering by date and project. Useful for human visibility into what agents are working on.
+
+For always-on access (e.g., via Tailscale), run as a systemd service:
+
+```bash
+hzl serve --print-systemd > ~/.config/systemd/user/hzl-web.service
+systemctl --user enable --now hzl-web
 ```
 
 ## OpenClaw-specific notes
