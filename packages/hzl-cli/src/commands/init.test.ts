@@ -172,24 +172,40 @@ describe('hzl init command', () => {
   });
 
   describe('createInitCommand', () => {
+    // Helper to safely extract option long names from Commander
+    function getOptionLongNames(cmd: ReturnType<typeof createInitCommand>): string[] {
+      return cmd.options
+        .map((o) => {
+          const opt = o as unknown as Record<string, unknown>;
+          return typeof opt.long === 'string' ? opt.long : undefined;
+        })
+        .filter((x): x is string => x !== undefined);
+    }
+
     it('has sync options', () => {
       const cmd = createInitCommand();
-      const opts = cmd.options.map((o: unknown) => (o as { long: string }).long);
+      const opts = getOptionLongNames(cmd);
       expect(opts).toContain('--sync-url');
       expect(opts).toContain('--auth-token');
       expect(opts).toContain('--encryption-key');
       expect(opts).toContain('--local');
     });
 
-    it('has --reset-config option (non-destructive)', () => {
+    it('has --reset-config option without short flag (non-destructive)', () => {
       const cmd = createInitCommand();
-      const opts = cmd.options.map((o: unknown) => (o as { long: string }).long);
+      const opts = getOptionLongNames(cmd);
       expect(opts).toContain('--reset-config');
+      // Verify no -r short flag (could be confused with -r for recursive)
+      const resetConfigOpt = cmd.options.find((o) => {
+        const opt = o as unknown as Record<string, unknown>;
+        return opt.long === '--reset-config';
+      }) as Record<string, unknown> | undefined;
+      expect(resetConfigOpt?.short).toBeUndefined();
     });
 
     it('has --force and --yes options for destructive reset', () => {
       const cmd = createInitCommand();
-      const opts = cmd.options.map((o: unknown) => (o as { long: string }).long);
+      const opts = getOptionLongNames(cmd);
       expect(opts).toContain('--force');
       expect(opts).toContain('--yes');
     });
@@ -213,14 +229,15 @@ describe('hzl init command', () => {
       expect(fs.existsSync(cacheDbPath)).toBe(false);
     });
 
-    it('deletes WAL and SHM files if they exist', () => {
+    it('deletes WAL, SHM, and journal files if they exist', () => {
       const eventsDbPath = path.join(testDir, 'events.db');
       const cacheDbPath = path.join(testDir, 'cache.db');
 
-      // Create test files including WAL/SHM
+      // Create test files including WAL/SHM/journal
       fs.writeFileSync(eventsDbPath, 'test data');
       fs.writeFileSync(eventsDbPath + '-wal', 'wal data');
       fs.writeFileSync(eventsDbPath + '-shm', 'shm data');
+      fs.writeFileSync(eventsDbPath + '-journal', 'journal data');
       fs.writeFileSync(cacheDbPath, 'test data');
       fs.writeFileSync(cacheDbPath + '-wal', 'wal data');
 
@@ -229,6 +246,7 @@ describe('hzl init command', () => {
       expect(fs.existsSync(eventsDbPath)).toBe(false);
       expect(fs.existsSync(eventsDbPath + '-wal')).toBe(false);
       expect(fs.existsSync(eventsDbPath + '-shm')).toBe(false);
+      expect(fs.existsSync(eventsDbPath + '-journal')).toBe(false);
       expect(fs.existsSync(cacheDbPath)).toBe(false);
       expect(fs.existsSync(cacheDbPath + '-wal')).toBe(false);
     });
@@ -239,6 +257,37 @@ describe('hzl init command', () => {
 
       // Should not throw
       expect(() => deleteExistingDatabases(eventsDbPath, cacheDbPath)).not.toThrow();
+    });
+
+    it('deletes auxiliary files before main database (safe order)', () => {
+      const eventsDbPath = path.join(testDir, 'events.db');
+      const cacheDbPath = path.join(testDir, 'cache.db');
+
+      // Track deletion order
+      const deletionOrder: string[] = [];
+      const originalUnlink = fs.unlinkSync;
+      vi.spyOn(fs, 'unlinkSync').mockImplementation((p) => {
+        deletionOrder.push(path.basename(String(p)));
+        return originalUnlink(p);
+      });
+
+      // Create test files
+      fs.writeFileSync(eventsDbPath, 'test data');
+      fs.writeFileSync(eventsDbPath + '-wal', 'wal data');
+      fs.writeFileSync(eventsDbPath + '-shm', 'shm data');
+      fs.writeFileSync(cacheDbPath, 'test data');
+
+      deleteExistingDatabases(eventsDbPath, cacheDbPath);
+
+      // Verify auxiliary files deleted before main database
+      const eventsDbIndex = deletionOrder.indexOf('events.db');
+      const walIndex = deletionOrder.indexOf('events.db-wal');
+      const shmIndex = deletionOrder.indexOf('events.db-shm');
+
+      expect(walIndex).toBeLessThan(eventsDbIndex);
+      expect(shmIndex).toBeLessThan(eventsDbIndex);
+
+      vi.restoreAllMocks();
     });
   });
 });

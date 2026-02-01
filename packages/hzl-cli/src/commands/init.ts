@@ -17,6 +17,7 @@ import {
   deriveCachePath,
   type DbPathSource
 } from '../config.js';
+import { CLIError, ExitCode } from '../errors.js';
 import { GlobalOptionsSchema, type Config } from '../types.js';
 
 export interface InitResult {
@@ -89,25 +90,41 @@ async function confirmDestructiveAction(eventsDbPath: string, cacheDbPath: strin
 }
 
 /**
+ * Delete a SQLite database file and its WAL/SHM auxiliary files.
+ * Deletes auxiliary files FIRST to preserve recovery options if interrupted.
+ */
+function deleteDbWithAuxiliaryFiles(dbPath: string): void {
+  // Delete auxiliary files BEFORE main database - if interrupted, WAL can still be recovered
+  for (const suffix of ['-wal', '-shm', '-journal']) {
+    const auxPath = dbPath + suffix;
+    try {
+      if (fs.existsSync(auxPath)) fs.unlinkSync(auxPath);
+    } catch (err) {
+      // Continue with other files even if one fails
+      const message = err instanceof Error ? err.message : String(err);
+      throw new CLIError(`Failed to delete ${auxPath}: ${message}`, ExitCode.DatabaseError);
+    }
+  }
+  // Delete main database file last
+  try {
+    if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    throw new CLIError(`Failed to delete ${dbPath}: ${message}`, ExitCode.DatabaseError);
+  }
+}
+
+/**
  * Delete existing database files for --force operation.
  * Exported for testing.
+ *
+ * Note: Deletion is handled at the CLI layer (not in runInit) because it requires
+ * CLI-specific concerns: interactive confirmation prompts, TTY detection, and the
+ * ability to abort. runInit() remains idempotent and testable.
  */
 export function deleteExistingDatabases(eventsDbPath: string, cacheDbPath: string): void {
-  if (fs.existsSync(eventsDbPath)) {
-    fs.unlinkSync(eventsDbPath);
-    // Also delete WAL and SHM files if they exist
-    const walPath = eventsDbPath + '-wal';
-    const shmPath = eventsDbPath + '-shm';
-    if (fs.existsSync(walPath)) fs.unlinkSync(walPath);
-    if (fs.existsSync(shmPath)) fs.unlinkSync(shmPath);
-  }
-  if (fs.existsSync(cacheDbPath)) {
-    fs.unlinkSync(cacheDbPath);
-    const walPath = cacheDbPath + '-wal';
-    const shmPath = cacheDbPath + '-shm';
-    if (fs.existsSync(walPath)) fs.unlinkSync(walPath);
-    if (fs.existsSync(shmPath)) fs.unlinkSync(shmPath);
-  }
+  deleteDbWithAuxiliaryFiles(eventsDbPath);
+  deleteDbWithAuxiliaryFiles(cacheDbPath);
 }
 
 export function runInit(options: InitOptions): InitResult {
@@ -237,7 +254,7 @@ export function runInit(options: InitOptions): InitResult {
 export function createInitCommand(): Command {
   return new Command('init')
     .description('Initialize a new HZL database')
-    .option('-r, --reset-config', 'Reset config to default database location (non-destructive)')
+    .option('--reset-config', 'Reset config to default database location (non-destructive)')
     .option('-f, --force', 'DESTRUCTIVE: Delete existing database and create fresh. Prompts for confirmation.')
     .option('-y, --yes', 'Skip confirmation prompt (use with --force)')
     .option('--sync-url <url>', 'Turso sync URL (libsql://...)')
@@ -263,7 +280,7 @@ export function createInitCommand(): Command {
 
       // Validate flag combinations
       if (force && resetConfig) {
-        throw new Error('Cannot use --force and --reset-config together. Choose one.');
+        throw new CLIError('Cannot use --force and --reset-config together. Choose one.', ExitCode.InvalidUsage);
       }
 
       let eventsDbPath: string;
@@ -295,17 +312,19 @@ export function createInitCommand(): Command {
         if (dbExists) {
           // In JSON mode without --yes, we can't prompt interactively
           if (json && !yes) {
-            throw new Error(
+            throw new CLIError(
               'Cannot use --force with --json without --yes.\n' +
-              'Use --force --yes to confirm destruction, or remove --json to see the confirmation prompt.'
+              'Use --force --yes to confirm destruction, or remove --json to see the confirmation prompt.',
+              ExitCode.InvalidUsage
             );
           }
 
           // Check if we can prompt (TTY available)
           if (!yes && !process.stdin.isTTY) {
-            throw new Error(
+            throw new CLIError(
               'Cannot prompt for confirmation in non-interactive mode.\n' +
-              'Use --force --yes to confirm destruction without prompting.'
+              'Use --force --yes to confirm destruction without prompting.',
+              ExitCode.InvalidUsage
             );
           }
 
