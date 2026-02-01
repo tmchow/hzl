@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "baseUrl": ".",
+    "paths": {
+      "hzl-core/*": ["../hzl-core/src/*"]
+    },
+    "types": ["node", "vitest"],
+    "rootDir": "src",
+    "outDir": "dist"
+  },
+  "references": [
+    { "path": "../hzl-core" }
+  ],
+  "include": ["src/**/*"]
+}
