@@ -278,12 +278,13 @@ If your coding agent supports an instruction file (for example `CLAUDE.md`, `AGE
 ### Drop-in policy snippet
 
 ```md
-### HZL task ledger (complements built-in task tracking)
+### HZL task ledger (durable, cross-agent task tracking)
 
 HZL is a shared task database that persists across sessions and works across different agents.
 Use it when work spans multiple sessions, involves handoffs to other agents, or needs durable backup.
+If this agent has built-in task tracking, HZL complements it for cross-agent and multi-session work.
 
-When to use HZL (vs built-in task tracking):
+When to use HZL:
 - Multi-session work that must survive restarts
 - Coordination with other agents (Claude Code ↔ Codex ↔ Gemini, etc.)
 - Work delegated to sub-agents that need explicit handoff
