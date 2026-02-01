@@ -1,3 +1,10 @@
+## [1.7.1](https://github.com/tmchow/hzl/compare/v1.7.0...v1.7.1) (2026-02-01)
+
+
+### Bug Fixes
+
+* **init:** only persist dbPath when explicitly specified ([#29](https://github.com/tmchow/hzl/issues/29)) ([7e01b00](https://github.com/tmchow/hzl/commit/7e01b005bd921ab26648b4a73ff8ec937ddbb478))
+
 # [1.7.0](https://github.com/tmchow/hzl/compare/v1.6.0...v1.7.0) (2026-02-01)
 
 
