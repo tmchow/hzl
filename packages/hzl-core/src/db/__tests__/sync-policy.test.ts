@@ -22,7 +22,7 @@ describe('SyncPolicy', () => {
     });
 
     describe('opportunistic policy', () => {
-        const config: SyncConfig = {
+        const config: Partial<SyncConfig> = {
             policy: 'opportunistic',
             staleAfterMs: 60000,
             minIntervalMs: 15000,
@@ -100,7 +100,7 @@ describe('SyncPolicy', () => {
     });
 
     describe('strict policy', () => {
-        const config: SyncConfig = { policy: 'strict' };
+        const config: Partial<SyncConfig> = { policy: 'strict' };
 
         it('always triggers sync before reads', () => {
             const policy = createSyncPolicy(config);

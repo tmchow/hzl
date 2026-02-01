@@ -26,7 +26,7 @@ const DEFAULT_STALE_AFTER_MS = 60000;
 const DEFAULT_MIN_INTERVAL_MS = 15000;
 const DEFAULT_FAILURE_BACKOFF_MS = 60000;
 
-export function createSyncPolicy(config: SyncConfig = {}): SyncPolicy {
+export function createSyncPolicy(config: Partial<SyncConfig> = {}): SyncPolicy {
     const policyType = config.policy ?? 'opportunistic';
     const staleAfterMs = config.staleAfterMs ?? DEFAULT_STALE_AFTER_MS;
     const minIntervalMs = config.minIntervalMs ?? DEFAULT_MIN_INTERVAL_MS;
