@@ -10,6 +10,7 @@ import { createStatsCommand } from './commands/stats.js';
 import { createExportEventsCommand } from './commands/export-events.js';
 import { createSyncCommand } from './commands/sync.js';
 import { createStatusCommand } from './commands/status.js';
+import { createDoctorCommand } from './commands/doctor.js';
 import { createSampleProjectCommand } from './commands/sample-project.js';
 import { CLIError, ExitCode } from './errors.js';
 import { resolveDbPath, readConfig } from './config.js';
@@ -36,6 +37,7 @@ export function createProgram(): Command {
   program.addCommand(createSampleProjectCommand());
   program.addCommand(createSyncCommand());
   program.addCommand(createStatusCommand());
+  program.addCommand(createDoctorCommand());
 
   return program;
 }

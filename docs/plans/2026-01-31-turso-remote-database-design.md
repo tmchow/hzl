@@ -2670,7 +2670,7 @@ git commit -m "feat(cli): extend hzl init with sync options
 
 ---
 
-### Task 12: Add hzl doctor command
+### Task 12: Add hzl doctor command ✅
 
 **Files:**
 - Create: `packages/hzl-cli/src/commands/doctor.ts`

@@ -216,3 +216,26 @@ export function writeConfig(updates: Partial<Config>, configPath: string = getCo
     throw new Error(`Cannot write config file - your database preference won't persist`);
   }
 }
+
+/**
+ * Check if config file permissions are secure.
+ * Returns warning message if permissions are too permissive.
+ */
+export function checkConfigPermissions(configPath: string): string | null {
+  if (process.platform === 'win32') {
+    return null; // Skip on Windows
+  }
+
+  try {
+    const stats = fs.statSync(configPath);
+    const mode = stats.mode & 0o777;
+
+    if (mode & 0o077) {
+      return `Config file at ${configPath} is readable by other users (mode: ${mode.toString(8)}). ` +
+        `Consider running: chmod 600 "${configPath}"`;
+    }
+  } catch {
+    // File doesn't exist
+  }
+  return null;
+}

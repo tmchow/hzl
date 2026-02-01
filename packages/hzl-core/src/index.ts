@@ -17,6 +17,11 @@ export {
   withWriteTransaction,
 } from './db/connection.js';
 
+export {
+  DatabaseLock,
+  type LockMetadata
+} from './db/lock.js';
+
 export { runMigrations, getCurrentVersion, runMigrationsWithRollback } from './db/migrations.js';
 
 export {
