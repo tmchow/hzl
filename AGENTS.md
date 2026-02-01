@@ -197,3 +197,18 @@ Both packages are versioned together (linked versions).
 ## Documentation
 
 **README**: Edit `/README.md` (root) only. The release script copies it to `/packages/hzl-cli/README.md` for npm. Never edit the CLI README directly.
+
+### README Includes
+
+README.md includes content from external snippet files. This keeps reusable documentation in one place.
+
+**Source files:**
+- `docs/snippets/agent-policy.md` — Drop-in policy for coding agents
+
+**How it works:**
+1. Edit the source file in `docs/snippets/`
+2. Push to main
+3. GitHub Action (`.github/workflows/readme-sync.yml`) fills content between markers
+4. The action commits the updated README.md
+
+**To edit a snippet:** Edit the source file, not the README.
