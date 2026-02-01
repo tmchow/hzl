@@ -601,7 +601,7 @@ git commit -m "feat(db): add hzl_global_meta and hzl_local_meta tables
 
 ---
 
-### Task 5: Add append-only enforcement triggers
+### Task 5: Add append-only enforcement triggers ✅
 
 **Files:**
 - Modify: `packages/hzl-core/src/db/schema.ts`
