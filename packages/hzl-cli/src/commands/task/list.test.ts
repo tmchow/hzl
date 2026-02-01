@@ -93,10 +93,10 @@ describe('runList', () => {
   it('combines --root with --status', () => {
     services.projectService.createProject('myproject');
     const parent = services.taskService.createTask({ title: 'Parent', project: 'myproject' });
-    services.taskService.setStatus(parent.task_id, 'ready');
+    services.taskService.setStatus(parent.task_id, TaskStatus.Ready);
     services.taskService.createTask({ title: 'Standalone', project: 'myproject' }); // backlog
 
-    const result = runList({ services, rootOnly: true, status: 'ready', json: false });
+    const result = runList({ services, rootOnly: true, status: TaskStatus.Ready, json: false });
     expect(result.tasks).toHaveLength(1);
     expect(result.tasks[0].title).toBe('Parent');
   });
