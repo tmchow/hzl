@@ -36,10 +36,11 @@ Personal tasks: HZL is not a polished human to-do app, but it is usable for pers
 
 ## Core concepts
 
-- **Project**: a stable bucket for a body of work (often one per repo, initiative, or client)
-- **Task**: a unit of work, optionally with priority, tags, dependencies
-- **Checkpoint**: a short progress snapshot to support recovery
-- **Lease**: a time-limited claim (prevents orphaned work in multi-agent flows)
+- **Project**: stable container for a body of work. Typically one per repo or long-running initiative. Do not create per-feature projects.
+- **Task**: top-level work item (often a feature). Use `--depends-on` to sequence separate tasks.
+- **Subtask**: breakdown of a task into parts (`--parent <id>`). Max 1 level of nesting. Parent tasks are organizational containers—never returned by `hzl task next`.
+- **Checkpoint**: short progress snapshot to support recovery
+- **Lease**: time-limited claim (prevents orphaned work in multi-agent flows)
 
 ## ⚠️ DESTRUCTIVE COMMANDS - READ CAREFULLY
 
