@@ -73,4 +73,117 @@ describe('runUpdate', () => {
 
     expect(result.description).toBe('New description');
   });
+
+  it('sets parent on task', () => {
+    services.projectService.createProject('myproject');
+    const parent = services.taskService.createTask({ title: 'Parent', project: 'myproject' });
+    const child = services.taskService.createTask({ title: 'Child', project: 'myproject' });
+
+    runUpdate({
+      services,
+      taskId: child.task_id,
+      updates: { parent_id: parent.task_id },
+      json: false,
+    });
+
+    const updated = services.taskService.getTaskById(child.task_id);
+    expect(updated?.parent_id).toBe(parent.task_id);
+  });
+
+  it('moves task to parent project when setting parent', () => {
+    services.projectService.createProject('project-a');
+    services.projectService.createProject('project-b');
+    const parent = services.taskService.createTask({ title: 'Parent', project: 'project-a' });
+    const child = services.taskService.createTask({ title: 'Child', project: 'project-b' });
+
+    runUpdate({
+      services,
+      taskId: child.task_id,
+      updates: { parent_id: parent.task_id },
+      json: false,
+    });
+
+    const updated = services.taskService.getTaskById(child.task_id);
+    expect(updated?.parent_id).toBe(parent.task_id);
+    expect(updated?.project).toBe('project-a');
+  });
+
+  it('removes parent when set to null', () => {
+    services.projectService.createProject('myproject');
+    const parent = services.taskService.createTask({ title: 'Parent', project: 'myproject' });
+    const child = services.taskService.createTask({
+      title: 'Child',
+      project: 'myproject',
+      parent_id: parent.task_id,
+    });
+
+    runUpdate({
+      services,
+      taskId: child.task_id,
+      updates: { parent_id: null },
+      json: false,
+    });
+
+    const updated = services.taskService.getTaskById(child.task_id);
+    expect(updated?.parent_id).toBeNull();
+    expect(updated?.project).toBe('myproject'); // stays in same project
+  });
+
+  it('errors when parent does not exist', () => {
+    const task = services.taskService.createTask({ title: 'Test', project: 'inbox' });
+
+    expect(() => runUpdate({
+      services,
+      taskId: task.task_id,
+      updates: { parent_id: 'nonexistent' },
+      json: false,
+    })).toThrow(/parent.*not found/i);
+  });
+
+  it('errors when setting self as parent', () => {
+    const task = services.taskService.createTask({ title: 'Test', project: 'inbox' });
+
+    expect(() => runUpdate({
+      services,
+      taskId: task.task_id,
+      updates: { parent_id: task.task_id },
+      json: false,
+    })).toThrow(/cannot be its own parent/i);
+  });
+
+  it('errors when parent already has a parent (max 1 level)', () => {
+    services.projectService.createProject('myproject');
+    const grandparent = services.taskService.createTask({ title: 'Grandparent', project: 'myproject' });
+    const parent = services.taskService.createTask({
+      title: 'Parent',
+      project: 'myproject',
+      parent_id: grandparent.task_id
+    });
+    const task = services.taskService.createTask({ title: 'Task', project: 'myproject' });
+
+    expect(() => runUpdate({
+      services,
+      taskId: task.task_id,
+      updates: { parent_id: parent.task_id },
+      json: false,
+    })).toThrow(/max.*level|subtask of a subtask/i);
+  });
+
+  it('errors when task has children (cannot make parent into subtask)', () => {
+    services.projectService.createProject('myproject');
+    const parent = services.taskService.createTask({ title: 'Parent', project: 'myproject' });
+    services.taskService.createTask({
+      title: 'Child',
+      project: 'myproject',
+      parent_id: parent.task_id
+    });
+    const newParent = services.taskService.createTask({ title: 'New Parent', project: 'myproject' });
+
+    expect(() => runUpdate({
+      services,
+      taskId: parent.task_id,
+      updates: { parent_id: newParent.task_id },
+      json: false,
+    })).toThrow(/has children|cannot make.*parent.*into.*subtask/i);
+  });
 });

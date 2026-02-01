@@ -21,7 +21,9 @@ Projects are long-lived. Do not create per-feature projects.
 - Priority (higher number = higher priority)
 - Tags for categorization
 - Dependencies on other tasks
-- Subtasks for decomposition
+- A parent task (creating a subtask relationship, max 1 level deep)
+
+**Parent tasks** are organizational containers. They are never returned by `hzl task next`—only leaf tasks (tasks without children) are claimable work.
 
 **Checkpoints** preserve progress. Use them liberally to enable recovery.
 
@@ -57,13 +59,49 @@ Use the repository name as the project name for consistency.
 
 ## Scenario: Breaking Down Work
 
-When facing a complex task or feature, decompose it into trackable units:
+When facing a complex task or feature, use subtasks for organization and dependencies for sequencing.
+
+### Using subtasks for organization
+
+Subtasks group related work under a parent:
 
 ```bash
-# Create the main task
+# Create the parent task (organizational container)
 hzl task add "Implement user authentication" -P myapp --priority 2
+# → Created task abc123
 
-# Add subtasks or related tasks with dependencies
+# Create subtasks (project inherited automatically)
+hzl task add "Set up database schema" --parent abc123
+hzl task add "Create auth endpoints" --parent abc123
+hzl task add "Write auth tests" --parent abc123
+
+# View the breakdown
+hzl task show abc123
+```
+
+**Key behavior:** Parent tasks are organizational containers. When you call `hzl task next`, only leaf tasks (tasks without children) are returned. The parent is never "available work"—it represents the umbrella.
+
+```bash
+# Get next available subtask
+hzl task next --project myapp
+# → Returns a subtask, never the parent
+
+# Scope to specific parent's subtasks
+hzl task next --parent abc123
+# → Returns next available subtask of abc123
+```
+
+When all subtasks are done, manually complete the parent:
+```bash
+hzl task complete abc123
+```
+
+### Using dependencies for sequencing
+
+Dependencies express "must complete before" relationships:
+
+```bash
+# Create tasks with sequencing
 hzl task add "Set up database schema" -P myapp --priority 2
 hzl task add "Create auth endpoints" -P myapp --depends-on <schema-task-id>
 hzl task add "Write auth tests" -P myapp --depends-on <endpoints-task-id>
@@ -72,13 +110,26 @@ hzl task add "Write auth tests" -P myapp --depends-on <endpoints-task-id>
 hzl validate
 ```
 
-**Work breakdown principles:**
-- Break work into tasks that can be completed in a single session
-- Use dependencies to express sequencing requirements
-- Use priority to indicate importance (not urgency)
-- Use tags to categorize (`--tags backend,auth`)
+### Combining subtasks and dependencies
 
-Work breakdown is independent of execution strategy. Tasks can be completed by one agent or distributed across multiple agents—HZL does not care who does the work.
+Subtasks can have dependencies on other subtasks:
+
+```bash
+hzl task add "Auth feature" -P myapp --priority 2
+# → parent123
+
+hzl task add "Database schema" --parent parent123
+# → schema456
+
+hzl task add "Auth endpoints" --parent parent123 --depends-on schema456
+hzl task add "Auth tests" --parent parent123 --depends-on <endpoints-id>
+```
+
+**Work breakdown principles:**
+- Use subtasks to group related work under a logical parent
+- Use dependencies to express sequencing requirements
+- Break work into tasks that can be completed in a single session
+- Parent tasks are never claimable—work happens on leaf tasks
 
 ## Scenario: Working on Tasks
 
@@ -229,12 +280,17 @@ Agents should check for comments before completing tasks (see "Check for steerin
 | List projects | `hzl project list` |
 | Create project | `hzl project create <name>` |
 | Add task | `hzl task add "<title>" -P <project>` |
+| Create subtask | `hzl task add "<title>" --parent <id>` |
 | List available | `hzl task list --project <p> --available --json` |
+| List subtasks | `hzl task list --parent <id>` |
+| List root tasks | `hzl task list --root` |
 | Claim task | `hzl task claim <id> --author <name>` |
 | Checkpoint | `hzl task checkpoint <id> "<message>"` |
 | Show task | `hzl task show <id> --json` |
 | Complete | `hzl task complete <id>` |
+| Next subtask | `hzl task next --parent <id>` |
 | Add dependency | `hzl task add-dep <task> <depends-on>` |
+| Archive cascade | `hzl task archive <id> --cascade` |
 | Validate | `hzl validate` |
 
 For complete command options, use `hzl <command> --help`.

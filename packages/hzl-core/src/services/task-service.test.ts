@@ -725,4 +725,148 @@ describe('TaskService', () => {
       expect(map.get(task.task_id)).toBe('Real Task');
     });
   });
+
+  describe('getSubtasks', () => {
+    it('returns subtasks of a task', () => {
+      projectService.createProject('myproject');
+      const parent = taskService.createTask({ title: 'Parent', project: 'myproject' });
+      const child1 = taskService.createTask({ title: 'Child 1', project: 'myproject', parent_id: parent.task_id });
+      const child2 = taskService.createTask({ title: 'Child 2', project: 'myproject', parent_id: parent.task_id });
+      taskService.createTask({ title: 'Other', project: 'myproject' });
+
+      const subtasks = taskService.getSubtasks(parent.task_id);
+      expect(subtasks).toHaveLength(2);
+      expect(subtasks.map(t => t.task_id).sort()).toEqual([child1.task_id, child2.task_id].sort());
+    });
+
+    it('returns empty array when no subtasks', () => {
+      const task = taskService.createTask({ title: 'Lonely', project: 'inbox' });
+      const subtasks = taskService.getSubtasks(task.task_id);
+      expect(subtasks).toHaveLength(0);
+    });
+  });
+
+  describe('archiveWithSubtasks', () => {
+    it('archives task without subtasks', () => {
+      const task = taskService.createTask({ title: 'Task', project: 'inbox' });
+      const result = taskService.archiveWithSubtasks(task.task_id);
+      expect(result.task.status).toBe(TaskStatus.Archived);
+      expect(result.archivedSubtaskCount).toBe(0);
+      expect(result.orphanedSubtaskCount).toBe(0);
+    });
+
+    it('errors when task has active subtasks without cascade or orphan', () => {
+      const parent = taskService.createTask({ title: 'Parent', project: 'inbox' });
+      taskService.createTask({ title: 'Child', project: 'inbox', parent_id: parent.task_id });
+
+      expect(() => taskService.archiveWithSubtasks(parent.task_id)).toThrow(/active subtask/);
+    });
+
+    it('cascade archives all active subtasks', () => {
+      const parent = taskService.createTask({ title: 'Parent', project: 'inbox' });
+      const child1 = taskService.createTask({ title: 'Child 1', project: 'inbox', parent_id: parent.task_id });
+      const child2 = taskService.createTask({ title: 'Child 2', project: 'inbox', parent_id: parent.task_id });
+
+      const result = taskService.archiveWithSubtasks(parent.task_id, { cascade: true });
+      expect(result.task.status).toBe(TaskStatus.Archived);
+      expect(result.archivedSubtaskCount).toBe(2);
+
+      expect(taskService.getTaskById(child1.task_id)?.status).toBe(TaskStatus.Archived);
+      expect(taskService.getTaskById(child2.task_id)?.status).toBe(TaskStatus.Archived);
+    });
+
+    it('orphan promotes subtasks to top-level', () => {
+      const parent = taskService.createTask({ title: 'Parent', project: 'inbox' });
+      const child = taskService.createTask({ title: 'Child', project: 'inbox', parent_id: parent.task_id });
+
+      const result = taskService.archiveWithSubtasks(parent.task_id, { orphan: true });
+      expect(result.task.status).toBe(TaskStatus.Archived);
+      expect(result.orphanedSubtaskCount).toBe(1);
+
+      const updatedChild = taskService.getTaskById(child.task_id);
+      expect(updatedChild?.parent_id).toBeNull();
+      expect(updatedChild?.status).toBe(TaskStatus.Backlog); // Not archived
+    });
+
+    it('errors when both cascade and orphan specified', () => {
+      const task = taskService.createTask({ title: 'Task', project: 'inbox' });
+      expect(() => taskService.archiveWithSubtasks(task.task_id, { cascade: true, orphan: true }))
+        .toThrow(/both cascade and orphan/);
+    });
+
+    it('allows archive with done subtasks without cascade', () => {
+      const parent = taskService.createTask({ title: 'Parent', project: 'inbox' });
+      const child = taskService.createTask({ title: 'Child', project: 'inbox', parent_id: parent.task_id });
+      taskService.setStatus(child.task_id, TaskStatus.Ready);
+      taskService.setStatus(child.task_id, TaskStatus.InProgress);
+      taskService.completeTask(child.task_id);
+
+      // Should not error because child is done (not active)
+      const result = taskService.archiveWithSubtasks(parent.task_id);
+      expect(result.task.status).toBe(TaskStatus.Archived);
+    });
+  });
+
+  describe('moveWithSubtasks', () => {
+    it('moves task and subtasks to new project', () => {
+      const parent = taskService.createTask({ title: 'Parent', project: 'project-a' });
+      const child1 = taskService.createTask({ title: 'Child 1', project: 'project-a', parent_id: parent.task_id });
+      const child2 = taskService.createTask({ title: 'Child 2', project: 'project-a', parent_id: parent.task_id });
+
+      const result = taskService.moveWithSubtasks(parent.task_id, 'project-b');
+      expect(result.task.project).toBe('project-b');
+      expect(result.subtaskCount).toBe(2);
+
+      expect(taskService.getTaskById(child1.task_id)?.project).toBe('project-b');
+      expect(taskService.getTaskById(child2.task_id)?.project).toBe('project-b');
+    });
+
+    it('returns zero subtask count when task has no subtasks', () => {
+      const task = taskService.createTask({ title: 'Task', project: 'project-a' });
+      const result = taskService.moveWithSubtasks(task.task_id, 'project-b');
+      expect(result.task.project).toBe('project-b');
+      expect(result.subtaskCount).toBe(0);
+    });
+
+    it('returns zero subtask count when moving to same project', () => {
+      const parent = taskService.createTask({ title: 'Parent', project: 'project-a' });
+      taskService.createTask({ title: 'Child', project: 'project-a', parent_id: parent.task_id });
+
+      const result = taskService.moveWithSubtasks(parent.task_id, 'project-a');
+      expect(result.task.project).toBe('project-a');
+      expect(result.subtaskCount).toBe(0);
+    });
+
+    it('errors when target project does not exist', () => {
+      const task = taskService.createTask({ title: 'Task', project: 'project-a' });
+      expect(() => taskService.moveWithSubtasks(task.task_id, 'nonexistent'))
+        .toThrow(ProjectNotFoundError);
+    });
+  });
+
+  describe('getAvailableTasks leafOnly', () => {
+    it('excludes parent tasks when leafOnly is true', () => {
+      const parent = taskService.createTask({ title: 'Parent', project: 'inbox' });
+      taskService.setStatus(parent.task_id, TaskStatus.Ready);
+      const child = taskService.createTask({ title: 'Child', project: 'inbox', parent_id: parent.task_id });
+      taskService.setStatus(child.task_id, TaskStatus.Ready);
+      const standalone = taskService.createTask({ title: 'Standalone', project: 'inbox' });
+      taskService.setStatus(standalone.task_id, TaskStatus.Ready);
+
+      const available = taskService.getAvailableTasks({ leafOnly: true });
+      expect(available).toHaveLength(2);
+      expect(available.map(t => t.title).sort()).toEqual(['Child', 'Standalone']);
+    });
+
+    it('includes parent tasks when leafOnly is false', () => {
+      const parent = taskService.createTask({ title: 'Parent', project: 'inbox' });
+      taskService.setStatus(parent.task_id, TaskStatus.Ready);
+      const child = taskService.createTask({ title: 'Child', project: 'inbox', parent_id: parent.task_id });
+      taskService.setStatus(child.task_id, TaskStatus.Ready);
+
+      const available = taskService.getAvailableTasks({ leafOnly: false });
+      expect(available).toHaveLength(2);
+      expect(available.map(t => t.title).sort()).toEqual(['Child', 'Parent']);
+    });
+  });
 });

@@ -63,4 +63,37 @@ describe('runShow', () => {
     expect(result!.checkpoints).toHaveLength(1);
     expect(result!.checkpoints[0].name).toBe('checkpoint-1');
   });
+
+  it('shows parent task info', () => {
+    services.projectService.createProject('myproject');
+    const parent = services.taskService.createTask({ title: 'Parent', project: 'myproject' });
+    const child = services.taskService.createTask({
+      title: 'Child',
+      project: 'myproject',
+      parent_id: parent.task_id,
+    });
+
+    const result = runShow({ services, taskId: child.task_id, json: false });
+    expect(result.task.parent_id).toBe(parent.task_id);
+  });
+
+  it('includes subtasks in output', () => {
+    services.projectService.createProject('myproject');
+    const parent = services.taskService.createTask({ title: 'Parent', project: 'myproject' });
+    services.taskService.createTask({ title: 'Child 1', project: 'myproject', parent_id: parent.task_id });
+    services.taskService.createTask({ title: 'Child 2', project: 'myproject', parent_id: parent.task_id });
+
+    const result = runShow({ services, taskId: parent.task_id, json: false });
+    expect(result.subtasks).toHaveLength(2);
+    expect(result.subtasks?.map(s => s.title).sort()).toEqual(['Child 1', 'Child 2']);
+  });
+
+  it('excludes subtasks with --no-subtasks', () => {
+    services.projectService.createProject('myproject');
+    const parent = services.taskService.createTask({ title: 'Parent', project: 'myproject' });
+    services.taskService.createTask({ title: 'Child', project: 'myproject', parent_id: parent.task_id });
+
+    const result = runShow({ services, taskId: parent.task_id, showSubtasks: false, json: false });
+    expect(result.subtasks).toBeUndefined();
+  });
 });

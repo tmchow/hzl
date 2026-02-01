@@ -53,4 +53,104 @@ describe('runArchive', () => {
 
     expect(result.status).toBe(TaskStatus.Archived);
   });
+
+  it('errors when archiving parent with active subtasks without flag', () => {
+    services.projectService.createProject('myproject');
+    const parent = services.taskService.createTask({ title: 'Parent', project: 'myproject' });
+    services.taskService.createTask({
+      title: 'Child',
+      project: 'myproject',
+      parent_id: parent.task_id
+    });
+
+    expect(() => runArchive({
+      services,
+      taskId: parent.task_id,
+      json: false,
+    })).toThrow(/active subtask/i);
+  });
+
+  it('archives parent and subtasks with --cascade', () => {
+    services.projectService.createProject('myproject');
+    const parent = services.taskService.createTask({ title: 'Parent', project: 'myproject' });
+    const child = services.taskService.createTask({
+      title: 'Child',
+      project: 'myproject',
+      parent_id: parent.task_id
+    });
+
+    runArchive({
+      services,
+      taskId: parent.task_id,
+      cascade: true,
+      json: false,
+    });
+
+    const archivedParent = services.taskService.getTaskById(parent.task_id);
+    const archivedChild = services.taskService.getTaskById(child.task_id);
+    expect(archivedParent?.status).toBe(TaskStatus.Archived);
+    expect(archivedChild?.status).toBe(TaskStatus.Archived);
+  });
+
+  it('archives parent and promotes subtasks with --orphan', () => {
+    services.projectService.createProject('myproject');
+    const parent = services.taskService.createTask({ title: 'Parent', project: 'myproject' });
+    const child = services.taskService.createTask({
+      title: 'Child',
+      project: 'myproject',
+      parent_id: parent.task_id
+    });
+
+    runArchive({
+      services,
+      taskId: parent.task_id,
+      orphan: true,
+      json: false,
+    });
+
+    const archivedParent = services.taskService.getTaskById(parent.task_id);
+    const promotedChild = services.taskService.getTaskById(child.task_id);
+    expect(archivedParent?.status).toBe(TaskStatus.Archived);
+    expect(promotedChild?.status).not.toBe(TaskStatus.Archived);
+    expect(promotedChild?.parent_id).toBeNull();
+  });
+
+  it('archives normally when no active subtasks', () => {
+    services.projectService.createProject('myproject');
+    const parent = services.taskService.createTask({ title: 'Parent', project: 'myproject' });
+    const child = services.taskService.createTask({
+      title: 'Child',
+      project: 'myproject',
+      parent_id: parent.task_id
+    });
+    services.taskService.setStatus(child.task_id, TaskStatus.Done);
+
+    // Should work without flags since child is done
+    runArchive({
+      services,
+      taskId: parent.task_id,
+      json: false,
+    });
+
+    const archivedParent = services.taskService.getTaskById(parent.task_id);
+    expect(archivedParent?.status).toBe(TaskStatus.Archived);
+  });
+
+  it('errors when both --cascade and --orphan specified', () => {
+    services.projectService.createProject('myproject');
+    const parent = services.taskService.createTask({ title: 'Parent', project: 'myproject' });
+    services.taskService.createTask({
+      title: 'Child',
+      project: 'myproject',
+      parent_id: parent.task_id
+    });
+
+    expect(() => runArchive({
+      services,
+      taskId: parent.task_id,
+      cascade: true,
+      orphan: true,
+      json: false,
+    })).toThrow(/cannot use both.*cascade.*orphan/i);
+  });
 });

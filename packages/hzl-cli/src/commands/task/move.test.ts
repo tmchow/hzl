@@ -65,4 +65,52 @@ describe('runMove', () => {
     expect(result.from_project).toBe('same-project');
     expect(result.to_project).toBe('same-project');
   });
+
+  it('cascades move to subtasks', () => {
+    services.projectService.createProject('project-a');
+    services.projectService.createProject('project-b');
+    const parent = services.taskService.createTask({ title: 'Parent', project: 'project-a' });
+    const child1 = services.taskService.createTask({
+      title: 'Child 1',
+      project: 'project-a',
+      parent_id: parent.task_id,
+    });
+    const child2 = services.taskService.createTask({
+      title: 'Child 2',
+      project: 'project-a',
+      parent_id: parent.task_id,
+    });
+
+    const result = runMove({
+      services,
+      taskId: parent.task_id,
+      toProject: 'project-b',
+      json: false,
+    });
+
+    expect(result.to_project).toBe('project-b');
+
+    // Verify subtasks moved too
+    const movedChild1 = services.taskService.getTaskById(child1.task_id);
+    const movedChild2 = services.taskService.getTaskById(child2.task_id);
+    expect(movedChild1?.project).toBe('project-b');
+    expect(movedChild2?.project).toBe('project-b');
+  });
+
+  it('moves task with no subtasks as before', () => {
+    services.projectService.createProject('old-project');
+    services.projectService.createProject('new-project');
+    const task = services.taskService.createTask({ title: 'Standalone', project: 'old-project' });
+
+    const result = runMove({
+      services,
+      taskId: task.task_id,
+      toProject: 'new-project',
+      json: false,
+    });
+
+    expect(result.to_project).toBe('new-project');
+    const moved = services.taskService.getTaskById(task.task_id);
+    expect(moved?.project).toBe('new-project');
+  });
 });

@@ -76,6 +76,7 @@ export interface AvailableTask {
   priority: number;
   created_at: string;
   tags: string[];
+  parent_id: string | null;
 }
 
 export interface Comment {
@@ -174,6 +175,7 @@ export class DependenciesNotDoneError extends Error {
 
 export class TaskService {
   private getIncompleteDepsStmt: Database.Statement;
+  private getSubtasksStmt: Database.Statement;
 
   constructor(
     private db: Database.Database,
@@ -187,6 +189,16 @@ export class TaskService {
       LEFT JOIN tasks_current tc ON tc.task_id = td.depends_on_id
       WHERE td.task_id = ?
         AND (tc.status IS NULL OR tc.status != 'done')
+    `);
+
+    this.getSubtasksStmt = db.prepare(`
+      SELECT task_id, title, project, status, parent_id, description,
+             links, tags, priority, due_at, metadata,
+             claimed_at, claimed_by_author, claimed_by_agent_id, lease_until,
+             created_at, updated_at
+      FROM tasks_current
+      WHERE parent_id = ?
+      ORDER BY priority DESC, created_at ASC
     `);
   }
 
@@ -261,6 +273,65 @@ export class TaskService {
       }
 
       return this.getTaskById(taskId)!;
+    });
+  }
+
+  /**
+   * Move a task and all its subtasks to a new project atomically.
+   * All operations happen within a single transaction to ensure consistency.
+   */
+  moveWithSubtasks(
+    taskId: string,
+    toProject: string,
+    ctx?: EventContext
+  ): { task: Task; subtaskCount: number } {
+    return withWriteTransaction(this.db, () => {
+      const task = this.getTaskById(taskId);
+      if (!task) throw new TaskNotFoundError(taskId);
+
+      if (this.projectService) {
+        this.projectService.requireProject(toProject);
+      }
+
+      const fromProject = task.project;
+      let subtaskCount = 0;
+
+      if (fromProject !== toProject) {
+        // Move the parent task
+        const moveEvent = this.eventStore.append({
+          task_id: taskId,
+          type: EventType.TaskMoved,
+          data: { from_project: fromProject, to_project: toProject },
+          author: ctx?.author,
+          agent_id: ctx?.agent_id,
+          session_id: ctx?.session_id,
+          correlation_id: ctx?.correlation_id,
+          causation_id: ctx?.causation_id,
+        });
+        this.projectionEngine.applyEvent(moveEvent);
+
+        // Move all subtasks (fetched inside transaction for consistency)
+        const subtasks = this.getSubtasks(taskId);
+        for (const subtask of subtasks) {
+          const subtaskMoveEvent = this.eventStore.append({
+            task_id: subtask.task_id,
+            type: EventType.TaskMoved,
+            data: { from_project: fromProject, to_project: toProject },
+            author: ctx?.author,
+            agent_id: ctx?.agent_id,
+            session_id: ctx?.session_id,
+            correlation_id: ctx?.correlation_id,
+            causation_id: ctx?.causation_id,
+          });
+          this.projectionEngine.applyEvent(subtaskMoveEvent);
+          subtaskCount++;
+        }
+      }
+
+      return {
+        task: this.getTaskById(taskId)!,
+        subtaskCount,
+      };
     });
   }
 
@@ -540,9 +611,9 @@ export class TaskService {
     return this.areAllDepsDone(taskId);
   }
 
-  getAvailableTasks(opts: { project?: string; tagsAny?: string[]; tagsAll?: string[]; limit?: number }): AvailableTask[] {
+  getAvailableTasks(opts: { project?: string; tagsAny?: string[]; tagsAll?: string[]; limit?: number; leafOnly?: boolean }): AvailableTask[] {
     let query = `
-      SELECT tc.task_id, tc.title, tc.project, tc.status, tc.priority, tc.created_at, tc.tags
+      SELECT tc.task_id, tc.title, tc.project, tc.status, tc.priority, tc.created_at, tc.tags, tc.parent_id
       FROM tasks_current tc
       WHERE tc.status = 'ready'
         AND NOT EXISTS (
@@ -552,6 +623,13 @@ export class TaskService {
         )
     `;
     const params: Array<string | number> = [];
+
+    // When leafOnly is true, exclude parent tasks (tasks that have children)
+    if (opts.leafOnly) {
+      query += ` AND NOT EXISTS (
+        SELECT 1 FROM tasks_current child WHERE child.parent_id = tc.task_id
+      )`;
+    }
 
     if (opts.project) {
       query += ' AND tc.project = ?';
@@ -583,6 +661,7 @@ export class TaskService {
       priority: number;
       created_at: string;
       tags: string | null;
+      parent_id: string | null;
     }>;
     return rows.map((row) => ({
       task_id: row.task_id,
@@ -592,7 +671,74 @@ export class TaskService {
       priority: row.priority,
       created_at: row.created_at,
       tags: JSON.parse(row.tags ?? '[]') as string[],
+      parent_id: row.parent_id,
     }));
+  }
+
+  /**
+   * Get the next available leaf task (task without children) in a single query.
+   * Optimized alternative to getAvailableTasks + filter pattern that avoids N+1 queries.
+   */
+  getNextLeafTask(opts: {
+    project?: string;
+    tagsAll?: string[];
+    parent?: string;
+  } = {}): AvailableTask | null {
+    let query = `
+      SELECT tc.task_id, tc.title, tc.project, tc.status, tc.priority, tc.created_at, tc.tags, tc.parent_id
+      FROM tasks_current tc
+      WHERE tc.status = 'ready'
+        AND NOT EXISTS (
+          SELECT 1 FROM task_dependencies td
+          JOIN tasks_current dep ON td.depends_on_id = dep.task_id
+          WHERE td.task_id = tc.task_id AND dep.status != 'done'
+        )
+        AND NOT EXISTS (
+          SELECT 1 FROM tasks_current child WHERE child.parent_id = tc.task_id
+        )
+    `;
+    const params: Array<string | number> = [];
+
+    if (opts.project) {
+      query += ' AND tc.project = ?';
+      params.push(opts.project);
+    }
+
+    if (opts.tagsAll?.length) {
+      query += ` AND (SELECT COUNT(DISTINCT tt.tag) FROM task_tags tt WHERE tt.task_id = tc.task_id AND tt.tag IN (${opts.tagsAll.map(() => '?').join(',')})) = ?`;
+      params.push(...opts.tagsAll, opts.tagsAll.length);
+    }
+
+    if (opts.parent) {
+      query += ' AND tc.parent_id = ?';
+      params.push(opts.parent);
+    }
+
+    query += ' ORDER BY tc.priority DESC, tc.created_at ASC, tc.task_id ASC LIMIT 1';
+
+    const row = this.db.prepare(query).get(...params) as {
+      task_id: string;
+      title: string;
+      project: string;
+      status: TaskStatus;
+      priority: number;
+      created_at: string;
+      tags: string | null;
+      parent_id: string | null;
+    } | undefined;
+
+    if (!row) return null;
+
+    return {
+      task_id: row.task_id,
+      title: row.title,
+      project: row.project,
+      status: row.status,
+      priority: row.priority,
+      created_at: row.created_at,
+      tags: JSON.parse(row.tags ?? '[]') as string[],
+      parent_id: row.parent_id,
+    };
   }
 
   getTaskById(taskId: string): Task | null {
@@ -601,6 +747,11 @@ export class TaskService {
     ).get(taskId) as TaskRow | undefined;
     if (!row) return null;
     return this.rowToTask(row);
+  }
+
+  getSubtasks(taskId: string): Task[] {
+    const rows = this.getSubtasksStmt.all(taskId) as TaskRow[];
+    return rows.map((row) => this.rowToTask(row));
   }
 
   addComment(taskId: string, text: string, opts?: EventContext): Comment {
@@ -808,6 +959,195 @@ export class TaskService {
       titleMap.set(row.task_id, row.title);
     }
     return titleMap;
+  }
+
+  setParent(taskId: string, parentId: string | null, opts?: EventContext): Task {
+    return withWriteTransaction(this.db, () => {
+      const task = this.getTaskById(taskId);
+      if (!task) throw new TaskNotFoundError(taskId);
+
+      if (parentId === null) {
+        // Removing parent - just emit event if parent_id is not already null
+        if (task.parent_id !== null) {
+          const event = this.eventStore.append({
+            task_id: taskId,
+            type: EventType.TaskUpdated,
+            data: { field: 'parent_id', old_value: task.parent_id, new_value: null },
+            author: opts?.author,
+            agent_id: opts?.agent_id,
+            session_id: opts?.session_id,
+            correlation_id: opts?.correlation_id,
+            causation_id: opts?.causation_id,
+          });
+          this.projectionEngine.applyEvent(event);
+        }
+        return this.getTaskById(taskId)!;
+      }
+
+      // Setting parent - validate
+      if (parentId === taskId) {
+        throw new Error('Task cannot be its own parent');
+      }
+
+      const parent = this.getTaskById(parentId);
+      if (!parent) throw new Error(`Parent task not found: ${parentId}`);
+
+      if (parent.status === TaskStatus.Archived) {
+        throw new Error(`Cannot set archived task as parent: ${parentId}`);
+      }
+
+      if (parent.parent_id) {
+        throw new Error('Cannot set parent: target is already a subtask (max 1 level of nesting)');
+      }
+
+      const children = this.getSubtasks(taskId);
+      if (children.length > 0) {
+        throw new Error('Cannot make a parent task into a subtask (task has children)');
+      }
+
+      // Move to parent's project if different (inline to avoid nested transaction)
+      if (task.project !== parent.project) {
+        if (this.projectService) {
+          this.projectService.requireProject(parent.project);
+        }
+        const moveEvent = this.eventStore.append({
+          task_id: taskId,
+          type: EventType.TaskMoved,
+          data: { from_project: task.project, to_project: parent.project },
+          author: opts?.author,
+          agent_id: opts?.agent_id,
+          session_id: opts?.session_id,
+          correlation_id: opts?.correlation_id,
+          causation_id: opts?.causation_id,
+        });
+        this.projectionEngine.applyEvent(moveEvent);
+      }
+
+      // Emit parent_id change event
+      if (task.parent_id !== parentId) {
+        const event = this.eventStore.append({
+          task_id: taskId,
+          type: EventType.TaskUpdated,
+          data: { field: 'parent_id', old_value: task.parent_id, new_value: parentId },
+          author: opts?.author,
+          agent_id: opts?.agent_id,
+          session_id: opts?.session_id,
+          correlation_id: opts?.correlation_id,
+          causation_id: opts?.causation_id,
+        });
+        this.projectionEngine.applyEvent(event);
+      }
+
+      return this.getTaskById(taskId)!;
+    });
+  }
+
+  orphanSubtasks(parentTaskId: string, opts?: EventContext): void {
+    const subtasks = this.getSubtasks(parentTaskId);
+    for (const subtask of subtasks) {
+      const event = this.eventStore.append({
+        task_id: subtask.task_id,
+        type: EventType.TaskUpdated,
+        data: { field: 'parent_id', old_value: parentTaskId, new_value: null },
+        author: opts?.author,
+        agent_id: opts?.agent_id,
+        session_id: opts?.session_id,
+        correlation_id: opts?.correlation_id,
+        causation_id: opts?.causation_id,
+      });
+      this.projectionEngine.applyEvent(event);
+    }
+  }
+
+  /**
+   * Archive a task with optional handling of subtasks.
+   * All operations happen atomically within a single transaction, with validation
+   * performed inside the transaction to prevent race conditions.
+   */
+  archiveWithSubtasks(
+    taskId: string,
+    opts: {
+      cascade?: boolean;
+      orphan?: boolean;
+      reason?: string;
+    } & EventContext = {}
+  ): { task: Task; archivedSubtaskCount: number; orphanedSubtaskCount: number } {
+    const { cascade, orphan, reason, ...ctx } = opts;
+
+    if (cascade && orphan) {
+      throw new Error('Cannot use both cascade and orphan options');
+    }
+
+    return withWriteTransaction(this.db, () => {
+      const task = this.getTaskById(taskId);
+      if (!task) throw new TaskNotFoundError(taskId);
+      if (task.status === TaskStatus.Archived) {
+        throw new Error('Task is already archived');
+      }
+
+      // Fetch subtasks inside transaction to prevent race conditions
+      const subtasks = this.getSubtasks(taskId);
+      const activeSubtasks = subtasks.filter(
+        st => st.status !== TaskStatus.Archived && st.status !== TaskStatus.Done
+      );
+
+      // Validate: if there are active subtasks, must specify cascade or orphan
+      if (activeSubtasks.length > 0 && !cascade && !orphan) {
+        throw new Error(
+          `Cannot archive task with ${activeSubtasks.length} active subtask(s). ` +
+          `Use cascade to archive all subtasks, or orphan to promote subtasks to top-level.`
+        );
+      }
+
+      let archivedSubtaskCount = 0;
+      let orphanedSubtaskCount = 0;
+
+      // Handle cascade: archive active subtasks
+      if (cascade && activeSubtasks.length > 0) {
+        for (const subtask of activeSubtasks) {
+          const archiveEvent = this.eventStore.append({
+            task_id: subtask.task_id,
+            type: EventType.TaskArchived,
+            data: { reason },
+            author: ctx.author,
+            agent_id: ctx.agent_id,
+          });
+          this.projectionEngine.applyEvent(archiveEvent);
+          archivedSubtaskCount++;
+        }
+      }
+
+      // Handle orphan: remove parent_id from all subtasks
+      if (orphan && subtasks.length > 0) {
+        for (const subtask of subtasks) {
+          const orphanEvent = this.eventStore.append({
+            task_id: subtask.task_id,
+            type: EventType.TaskUpdated,
+            data: { field: 'parent_id', old_value: taskId, new_value: null },
+            author: ctx.author,
+            agent_id: ctx.agent_id,
+          });
+          this.projectionEngine.applyEvent(orphanEvent);
+          orphanedSubtaskCount++;
+        }
+      }
+
+      // Archive the parent task
+      const archiveEvent = this.eventStore.append({
+        task_id: taskId,
+        type: EventType.TaskArchived,
+        data: { reason },
+        author: ctx.author,
+        agent_id: ctx.agent_id,
+      });
+      this.projectionEngine.applyEvent(archiveEvent);
+
+      return {
+        task: this.getTaskById(taskId)!,
+        archivedSubtaskCount,
+        orphanedSubtaskCount,
+      };
+    });
   }
 
   private rowToTask(row: TaskRow): Task {

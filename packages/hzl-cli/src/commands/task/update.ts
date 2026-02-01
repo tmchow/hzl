@@ -1,4 +1,4 @@
-// packages/hzl-cli/src/commands/update.ts
+// packages/hzl-cli/src/commands/task/update.ts
 import { Command } from 'commander';
 import { resolveDbPaths } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
@@ -19,6 +19,7 @@ export interface TaskUpdates {
   description?: string;
   priority?: number;
   tags?: string[];
+  parent_id?: string | null;
 }
 
 interface UpdateCommandOptions {
@@ -26,6 +27,7 @@ interface UpdateCommandOptions {
   desc?: string;
   priority?: string;
   tags?: string;
+  parent?: string;
 }
 
 export function runUpdate(options: {
@@ -40,6 +42,22 @@ export function runUpdate(options: {
   const task = services.taskService.getTaskById(taskId);
   if (!task) {
     throw new CLIError(`Task not found: ${taskId}`, ExitCode.NotFound);
+  }
+
+  // Handle parent_id update via service layer
+  if (updates.parent_id !== undefined) {
+    try {
+      services.taskService.setParent(taskId, updates.parent_id);
+    } catch (error) {
+      if (error instanceof Error) {
+        // Map service layer errors to appropriate exit codes
+        if (error.message.includes('not found')) {
+          throw new CLIError(error.message, ExitCode.NotFound);
+        }
+        throw new CLIError(error.message, ExitCode.InvalidInput);
+      }
+      throw error;
+    }
   }
 
   // Emit one task_updated event per field change
@@ -112,6 +130,7 @@ export function createUpdateCommand(): Command {
     .option('--desc <description>', 'New description')
     .option('-p, --priority <n>', 'New priority (0-3)')
     .option('-t, --tags <tags>', 'New tags (comma-separated)')
+    .option('--parent <taskId>', 'Set parent task (use "" to remove)')
     .action(function (this: Command, taskId: string, opts: UpdateCommandOptions) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
@@ -122,6 +141,9 @@ export function createUpdateCommand(): Command {
         if (opts.desc) updates.description = opts.desc;
         if (opts.priority !== undefined) updates.priority = parseInt(opts.priority, 10);
         if (opts.tags) updates.tags = opts.tags.split(',');
+        if (opts.parent !== undefined) {
+          updates.parent_id = opts.parent === '' ? null : opts.parent;
+        }
 
         runUpdate({ services, taskId, updates, json: globalOpts.json ?? false });
       } catch (e) {

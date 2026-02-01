@@ -68,6 +68,12 @@ hzl task add "<title>" -P <project>
 hzl task add "<title>" -P <project> --priority 2 --tags backend,auth
 hzl task add "<title>" -P <project> --depends-on <other-id>
 
+# Subtasks (organize related work)
+hzl task add "<title>" --parent <parent-id>   # Create subtask
+hzl task list --parent <parent-id>            # List subtasks
+hzl task list --root                          # Top-level tasks only
+hzl task next --parent <parent-id>            # Next subtask of parent
+
 # Find work
 hzl task list --project <project> --available
 hzl task next --project <project>
@@ -155,6 +161,34 @@ Monitor:
 hzl task show <id> --json
 hzl task stuck
 hzl task steal <id> --if-expired --author orchestrator
+```
+
+### Break down work with subtasks
+
+Use parent/subtask hierarchy to organize complex work:
+
+```bash
+# Create parent task
+hzl task add "Implement vacation booking" -P portland-trip --priority 2
+# → abc123
+
+# Create subtasks (project inherited automatically)
+hzl task add "Research flights" --parent abc123
+hzl task add "Book hotel" --parent abc123 --depends-on <flights-id>
+hzl task add "Plan activities" --parent abc123
+
+# View breakdown
+hzl task show abc123
+
+# Work through subtasks
+hzl task next --parent abc123
+```
+
+**Important:** `hzl task next` only returns leaf tasks (tasks without children). Parent tasks are organizational containers—they are never returned as "next available work."
+
+When all subtasks are done, manually complete the parent:
+```bash
+hzl task complete abc123
 ```
 
 ## Web Dashboard

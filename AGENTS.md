@@ -37,6 +37,17 @@ npm test -w hzl-core -- src/services/task-service.test.ts
 npm test -w hzl-cli -- --grep "claim"
 ```
 
+### After Refactoring
+
+When moving logic between layers (CLI → service) or changing error handling:
+
+1. Run tests for the specific modified files, not just the full suite:
+   ```bash
+   npm test -w hzl-cli -- src/commands/task/archive.test.ts
+   ```
+
+2. Verify error message patterns in tests still match - service layer errors won't include CLI flag prefixes (`--cascade` vs `cascade`)
+
 ### Testing the CLI
 
 ```bash
