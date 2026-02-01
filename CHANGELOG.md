@@ -1,3 +1,10 @@
+# [1.7.0](https://github.com/tmchow/hzl/compare/v1.6.0...v1.7.0) (2026-02-01)
+
+
+### Features
+
+* implement Turso Remote Database Sync ([#27](https://github.com/tmchow/hzl/issues/27)) ([ae38bfd](https://github.com/tmchow/hzl/commit/ae38bfdf6541c39921981c40e915f3d6458a9ce9))
+
 # [1.6.0](https://github.com/tmchow/hzl/compare/v1.5.1...v1.6.0) (2026-01-31)
 
 
