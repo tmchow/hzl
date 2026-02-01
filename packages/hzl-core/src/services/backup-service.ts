@@ -9,6 +9,7 @@ import { TagsProjector } from '../projections/tags.js';
 import { SearchProjector } from '../projections/search.js';
 import { CommentsCheckpointsProjector } from '../projections/comments-checkpoints.js';
 import { rebuildAllProjections } from '../projections/rebuild.js';
+import { EventType, validateEventData } from '../events/types.js';
 
 export interface ImportResult {
   imported: number;
@@ -141,6 +142,16 @@ export class BackupService {
           causation_id?: string;
           timestamp: string;
         };
+
+        // Validate event type and data before importing (prevents invalid data from entering the event store)
+        const eventType = event.type as EventType;
+        if (!Object.values(EventType).includes(eventType)) {
+          // Skip unknown event types - they would pollute the event store
+          errors += 1;
+          continue;
+        }
+        validateEventData(eventType, event.data ?? {});
+
         const result = insertStmt.run(
           event.event_id,
           event.task_id,
