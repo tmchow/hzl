@@ -381,6 +381,7 @@ https://raw.githubusercontent.com/tmchow/hzl/main/docs/openclaw/tools-prompt.md
 ```bash
 # Setup
 hzl init                                      # Initialize database (add --sync-url for cloud)
+hzl init --reset-config                       # Reset config to default database location
 
 # Projects
 hzl project create <name>                     # Create a project
@@ -405,6 +406,10 @@ hzl task show <id> --json                     # Task details (--json for scripti
 hzl sync                                      # Sync with cloud (if configured)
 hzl status                                    # Show database and sync state
 hzl doctor                                    # Health checks
+
+# ⚠️ DESTRUCTIVE - deletes all data
+hzl init --force                              # Prompts for confirmation before deleting
+hzl init --force --yes                        # Deletes WITHOUT confirmation (dangerous)
 
 # Web Dashboard
 hzl serve                                     # Start dashboard (network accessible)
@@ -458,6 +463,20 @@ systemctl --user enable --now hzl-web
 ```
 
 The server binds to `0.0.0.0` by default, making it accessible over the network (including Tailscale). Use `--host 127.0.0.1` to restrict to localhost only.
+
+---
+
+## Packages
+
+HZL is a monorepo with three packages:
+
+| Package | Description | Install |
+|---------|-------------|---------|
+| [`hzl-cli`](https://www.npmjs.com/package/hzl-cli) | CLI for task management (`hzl` command) | `npm install -g hzl-cli` |
+| [`hzl-core`](https://www.npmjs.com/package/hzl-core) | Core library for programmatic use | `npm install hzl-core` |
+| [`hzl-web`](https://www.npmjs.com/package/hzl-web) | Web server and Kanban dashboard | `npm install hzl-web` |
+
+Most users should install `hzl-cli`. Use `hzl-core` or `hzl-web` directly if you're building your own tooling or UI on top of HZL.
 
 ---
 

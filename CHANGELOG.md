@@ -1,3 +1,10 @@
+# [1.9.0](https://github.com/tmchow/hzl/compare/v1.8.2...v1.9.0) (2026-02-01)
+
+
+### Features
+
+* **cli:** add destructive --force flag to init command ([#39](https://github.com/tmchow/hzl/issues/39)) ([db85c17](https://github.com/tmchow/hzl/commit/db85c17be3e3b39250bff6f39e9b55139938fbbf))
+
 ## [1.8.2](https://github.com/tmchow/hzl/compare/v1.8.1...v1.8.2) (2026-02-01)
 
 
