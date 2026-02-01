@@ -40,7 +40,8 @@ describe('hzl init command', () => {
 
       try {
         const result = runInit({
-          dbPath: path.join(testDir, 'data.db'),
+          eventsDbPath: path.join(testDir, 'events.db'),
+          cacheDbPath: path.join(testDir, 'cache.db'),
           pathSource: 'cli',
           json: true,
           syncUrl: 'libsql://test.turso.io',
@@ -66,7 +67,8 @@ describe('hzl init command', () => {
       fs.writeFileSync(configPath, JSON.stringify({ syncUrl: 'old-url' }));
 
       const result = runInit({
-        dbPath: path.join(testDir, 'data.db'),
+        eventsDbPath: path.join(testDir, 'events.db'),
+        cacheDbPath: path.join(testDir, 'cache.db'),
         pathSource: 'cli',
         json: true,
         local: true,
@@ -79,7 +81,8 @@ describe('hzl init command', () => {
 
     it('accepts --encryption-key option', () => {
       const result = runInit({
-        dbPath: path.join(testDir, 'data.db'),
+        eventsDbPath: path.join(testDir, 'events.db'),
+        cacheDbPath: path.join(testDir, 'cache.db'),
         pathSource: 'cli',
         json: true,
         encryptionKey: 'secret-key',

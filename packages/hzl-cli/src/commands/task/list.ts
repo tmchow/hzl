@@ -1,6 +1,6 @@
 // packages/hzl-cli/src/commands/list.ts
 import { Command } from 'commander';
-import { resolveDbPath } from '../../config.js';
+import { resolveDbPaths } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError } from '../../errors.js';
 import { TaskStatus } from 'hzl-core/events/types.js';
@@ -40,7 +40,7 @@ interface ListCommandOptions {
 
 export function runList(options: ListOptions): ListResult {
   const { services, project, status, availableOnly, limit = 50, json } = options;
-  const db = services.db;
+  const db = services.cacheDb;
   
   // Build query with filters
   let query = `
@@ -105,8 +105,8 @@ export function createListCommand(): Command {
     .option('-l, --limit <n>', 'Limit results', '50')
     .action(function (this: Command, opts: ListCommandOptions) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
-      const dbPath = resolveDbPath(globalOpts.db);
-      const services = initializeDb(dbPath);
+      const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
+      const services = initializeDb({ eventsDbPath, cacheDbPath });
       try {
         const status = opts.status && validStatuses.includes(opts.status as TaskStatus)
           ? (opts.status as TaskStatus)

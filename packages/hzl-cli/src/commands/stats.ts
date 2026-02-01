@@ -1,6 +1,6 @@
 // packages/hzl-cli/src/commands/stats.ts
 import { Command } from 'commander';
-import { resolveDbPath } from '../config.js';
+import { resolveDbPaths } from '../config.js';
 import { initializeDb, closeDb, type Services } from '../db.js';
 import { handleError } from '../errors.js';
 import { GlobalOptionsSchema } from '../types.js';
@@ -22,10 +22,10 @@ export function runStats(options: {
   json: boolean;
 }): StatsResult {
   const { services, project, json } = options;
-  const { db } = services;
+  const { db: eventsDb, cacheDb } = services;
 
-  // Count by status
-  const statusRows = db.prepare(`
+  // Count by status (from cache database)
+  const statusRows = cacheDb.prepare(`
     SELECT status, COUNT(*) as count 
     FROM tasks_current 
     ${project ? 'WHERE project = ?' : ''}
@@ -43,10 +43,10 @@ export function runStats(options: {
     byStatus[row.status] = row.count;
   }
   
-  // Count by project
-  const projectRows = db.prepare(`
-    SELECT project, COUNT(*) as count 
-    FROM tasks_current 
+  // Count by project (from cache database)
+  const projectRows = cacheDb.prepare(`
+    SELECT project, COUNT(*) as count
+    FROM tasks_current
     GROUP BY project
   `).all() as { project: string; count: number }[];
   
@@ -58,8 +58,8 @@ export function runStats(options: {
   // Total tasks
   const total = Object.values(byStatus).reduce((a, b) => a + b, 0);
   
-  // Events count
-  const eventsRow = db.prepare('SELECT COUNT(*) as count FROM events').get() as { count: number };
+  // Events count (from events database)
+  const eventsRow = eventsDb.prepare('SELECT COUNT(*) as count FROM events').get() as { count: number };
   const eventsCount = eventsRow.count;
 
   const result: StatsResult = {
@@ -90,8 +90,8 @@ export function createStatsCommand(): Command {
     .option('-p, --project <project>', 'Filter by project')
     .action(function (this: Command, opts: StatsCommandOptions) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
-      const dbPath = resolveDbPath(globalOpts.db);
-      const services = initializeDb(dbPath);
+      const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
+      const services = initializeDb({ eventsDbPath, cacheDbPath });
       try {
         runStats({
           services,

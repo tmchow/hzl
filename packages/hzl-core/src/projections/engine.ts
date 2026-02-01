@@ -22,9 +22,14 @@ export class ProjectionEngine {
   private projectors: Projector[] = [];
   private getStateStmt: Database.Statement;
   private upsertStateStmt: Database.Statement;
-  private getEventsSinceStmt: Database.Statement;
+  private getEventsSinceStmt: Database.Statement | null = null;
 
-  constructor(private db: Database.Database) {
+  /**
+   * Creates a ProjectionEngine.
+   * @param db - The cache database (where projections are stored)
+   * @param eventsDb - Optional events database (defaults to db for combined database setups)
+   */
+  constructor(private db: Database.Database, private eventsDb?: Database.Database) {
     this.getStateStmt = db.prepare(
       'SELECT * FROM projection_state WHERE name = ?'
     );
@@ -35,9 +40,18 @@ export class ProjectionEngine {
         last_event_id = excluded.last_event_id,
         updated_at = excluded.updated_at
     `);
-    this.getEventsSinceStmt = db.prepare(`
-      SELECT * FROM events WHERE id > ? ORDER BY id ASC LIMIT ?
-    `);
+    // Don't prepare getEventsSince in constructor - it may fail if events table doesn't exist in cacheDb
+    // and we may be using split databases
+  }
+
+  private ensureGetEventsSinceStmt(): Database.Statement {
+    if (!this.getEventsSinceStmt) {
+      const targetDb = this.eventsDb ?? this.db;
+      this.getEventsSinceStmt = targetDb.prepare(`
+        SELECT * FROM events WHERE id > ? ORDER BY id ASC LIMIT ?
+      `);
+    }
+    return this.getEventsSinceStmt;
   }
 
   register(projector: Projector): void {
@@ -60,7 +74,8 @@ export class ProjectionEngine {
   }
 
   getEventsSince(afterId: number, limit: number): PersistedEventEnvelope[] {
-    const rows = this.getEventsSinceStmt.all(afterId, limit) as EventRow[];
+    const stmt = this.ensureGetEventsSinceStmt();
+    const rows = stmt.all(afterId, limit) as EventRow[];
     return rows.map((row) => ({
       rowid: row.id,
       event_id: row.event_id,

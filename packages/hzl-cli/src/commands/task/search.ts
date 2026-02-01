@@ -1,6 +1,6 @@
 // packages/hzl-cli/src/commands/search.ts
 import { Command } from 'commander';
-import { resolveDbPath } from '../../config.js';
+import { resolveDbPaths } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError } from '../../errors.js';
 import { GlobalOptionsSchema } from '../../types.js';
@@ -67,7 +67,7 @@ export function runSearch(options: {
     sql += ` LIMIT ? OFFSET ?`;
     params.push(limit, offset);
     
-    tasks = services.db.prepare(sql).all(...params) as SearchTask[];
+    tasks = services.cacheDb.prepare(sql).all(...params) as SearchTask[];
   }
 
   const result: SearchResult = {
@@ -100,8 +100,8 @@ export function createSearchCommand(): Command {
     .option('-l, --limit <n>', 'Max results', '20')
     .action(function (this: Command, query: string, opts: SearchCommandOptions) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
-      const dbPath = resolveDbPath(globalOpts.db);
-      const services = initializeDb(dbPath);
+      const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
+      const services = initializeDb({ eventsDbPath, cacheDbPath });
       try {
         runSearch({
           services,

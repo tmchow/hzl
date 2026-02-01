@@ -57,9 +57,9 @@ describe('runConfig', () => {
 
     // Platform-aware assertion: Windows uses AppData\Local, Unix uses .local/share
     if (process.platform === 'win32') {
-      expect(result.db.value).toMatch(/AppData[/\\]Local[/\\]hzl[/\\]data\.db$/);
+      expect(result.db.value).toMatch(/AppData[/\\]Local[/\\]hzl[/\\]events\.db$/);
     } else {
-      expect(result.db.value).toContain('.local/share/hzl/data.db');
+      expect(result.db.value).toContain('.local/share/hzl/events.db');
     }
     expect(result.db.source).toBe('default');
   });

@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import Database from 'libsql';
 import { ProjectionEngine } from './engine.js';
 import { Projector } from './types.js';
-import { runMigrations } from '../db/migrations.js';
+import { createTestDb } from '../db/test-utils.js';
 import { EventStore, PersistedEventEnvelope } from '../events/store.js';
 import { EventType } from '../events/types.js';
 
@@ -13,8 +13,8 @@ describe('ProjectionEngine', () => {
   let engine: ProjectionEngine;
 
   beforeEach(() => {
-    db = new Database(':memory:');
-    runMigrations(db);
+    db = createTestDb();
+    // Schema applied by createTestDb
     eventStore = new EventStore(db);
   });
 

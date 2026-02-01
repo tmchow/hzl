@@ -4,7 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { runValidate } from './validate.js';
-import { initializeDb, closeDb, type Services } from '../db.js';
+import { initializeDbFromPath, closeDb, type Services } from '../db.js';
 
 describe('runValidate', () => {
   let tempDir: string;
@@ -14,7 +14,7 @@ describe('runValidate', () => {
   beforeEach(() => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hzl-validate-test-'));
     dbPath = path.join(tempDir, 'test.db');
-    services = initializeDb(dbPath);
+    services = initializeDbFromPath(dbPath);
   });
 
   afterEach(() => {
@@ -37,7 +37,7 @@ describe('runValidate', () => {
     const task2 = services.taskService.createTask({ title: 'Task 2', project: 'inbox', depends_on: [task1.task_id] });
     
     // Manually create cycle using raw SQL
-    services.db.prepare('INSERT INTO task_dependencies (task_id, depends_on_id) VALUES (?, ?)').run(task1.task_id, task2.task_id);
+    services.cacheDb.prepare('INSERT INTO task_dependencies (task_id, depends_on_id) VALUES (?, ?)').run(task1.task_id, task2.task_id);
 
     const result = runValidate({ services, json: false });
     expect(result.isValid).toBe(false);

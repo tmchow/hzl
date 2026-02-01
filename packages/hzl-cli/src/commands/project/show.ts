@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { resolveDbPath } from '../../config.js';
+import { resolveDbPaths } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { CLIError, ExitCode, handleError } from '../../errors.js';
 import { GlobalOptionsSchema } from '../../types.js';
@@ -34,7 +34,7 @@ export function runProjectShow(options: ProjectShowOptions): ProjectShowResult {
     throw new CLIError(`Project not found: ${name}`, ExitCode.NotFound);
   }
 
-  const row = services.db
+  const row = services.cacheDb
     .prepare(
       `
       SELECT
@@ -99,8 +99,8 @@ export function createProjectShowCommand(): Command {
     .argument('<name>', 'Project name')
     .action(function (this: Command, name: string) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
-      const dbPath = resolveDbPath(globalOpts.db);
-      const services = initializeDb(dbPath);
+      const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
+      const services = initializeDb({ eventsDbPath, cacheDbPath });
       try {
         runProjectShow({ services, name, json: globalOpts.json ?? false });
       } catch (e) {

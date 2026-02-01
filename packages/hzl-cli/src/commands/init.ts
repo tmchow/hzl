@@ -1,24 +1,26 @@
 import { Command } from 'commander';
 import fs from 'fs';
+import path from 'path';
 import { z } from 'zod';
 import {
   createDatastore
 } from 'hzl-core';
 import {
-  resolveDbPathWithSource,
+  resolveDbPathsWithSource,
   getDefaultDbPath,
   ensureDbDirectory,
   writeConfig,
   readConfig,
   getConfigPath,
   isDevMode,
-  resolveDbPaths,
+  deriveCachePath,
   type DbPathSource
 } from '../config.js';
 import { GlobalOptionsSchema, type Config } from '../types.js';
 
 export interface InitResult {
-  path: string;
+  eventsDbPath: string;
+  cacheDbPath: string;
   created: boolean;
   source: DbPathSource;
   mode: string;
@@ -28,7 +30,8 @@ export interface InitResult {
 }
 
 export interface InitOptions {
-  dbPath: string;
+  eventsDbPath: string;
+  cacheDbPath: string;
   pathSource: DbPathSource;
   json: boolean;
   configPath?: string;
@@ -55,7 +58,8 @@ function formatSourceHint(source: DbPathSource): string {
 
 export function runInit(options: InitOptions): InitResult {
   const {
-    dbPath,
+    eventsDbPath,
+    cacheDbPath,
     pathSource,
     json,
     configPath = getConfigPath(),
@@ -68,20 +72,18 @@ export function runInit(options: InitOptions): InitResult {
 
   // Check for config conflict
   const existingConfig = readConfig(configPath);
-  if (existingConfig.dbPath && existingConfig.dbPath !== dbPath && !force) {
+  if (existingConfig.dbPath && existingConfig.dbPath !== eventsDbPath && !force) {
     throw new Error(
       `Config already points to: ${existingConfig.dbPath}\n` +
       `Use --force to reset to default location, or --db <path> to use a specific location`
     );
   }
 
-  const existed = fs.existsSync(dbPath);
+  const existed = fs.existsSync(eventsDbPath);
 
-  // Ensure the directory exists
-  ensureDbDirectory(dbPath);
-
-  // Use resolveDbPaths to treat dbPath as the events db and derive cache db
-  const { eventsDbPath, cacheDbPath } = resolveDbPaths(dbPath, configPath);
+  // Ensure the directories exist
+  ensureDbDirectory(eventsDbPath);
+  ensureDbDirectory(cacheDbPath);
 
   // Initialize DataStore which handles both databases and migrations
   const datastore = createDatastore({
@@ -108,7 +110,7 @@ export function runInit(options: InitOptions): InitResult {
     // Read existing config and remove sync-related keys
     const existing = readConfig(configPath);
     const cleanConfig: Partial<Config> = {
-      dbPath,
+      dbPath: eventsDbPath,
       defaultProject: existing.defaultProject,
       defaultAuthor: existing.defaultAuthor,
       leaseMinutes: existing.leaseMinutes,
@@ -117,7 +119,7 @@ export function runInit(options: InitOptions): InitResult {
     // Write the cleaned config (overwrites, removing sync keys)
     writeConfig(cleanConfig, configPath);
   } else {
-    const configUpdates: Partial<Config> = { dbPath };
+    const configUpdates: Partial<Config> = { dbPath: eventsDbPath };
     if (syncUrl) configUpdates.syncUrl = syncUrl;
     if (authToken) configUpdates.authToken = authToken;
     if (encryptionKey) configUpdates.encryptionKey = encryptionKey;
@@ -125,7 +127,8 @@ export function runInit(options: InitOptions): InitResult {
   }
 
   const result: InitResult = {
-    path: dbPath,
+    eventsDbPath,
+    cacheDbPath,
     created: !existed,
     source: pathSource,
     mode,
@@ -139,8 +142,8 @@ export function runInit(options: InitOptions): InitResult {
   } else {
     const sourceHint = formatSourceHint(pathSource);
     const message = result.created
-      ? `Initialized new database at ${result.path} ${sourceHint}`
-      : `Database already exists at ${result.path} ${sourceHint}`;
+      ? `Initialized new database at ${result.eventsDbPath} ${sourceHint}`
+      : `Database already exists at ${result.eventsDbPath} ${sourceHint}`;
     console.log(`✓ ${message}`);
     console.log(`  Mode: ${result.mode}`);
     console.log(`  Instance: ${result.instanceId}`);
@@ -171,27 +174,31 @@ export function createInitCommand(): Command {
       }).parse(this.opts());
       const force = opts.force ?? false;
 
-      let dbPath: string;
+      let eventsDbPath: string;
+      let cacheDbPath: string;
       let pathSource: DbPathSource;
 
       if (globalOpts.db) {
         // Explicit --db flag always wins
-        const resolved = resolveDbPathWithSource(globalOpts.db);
-        dbPath = resolved.path;
-        pathSource = resolved.source;
+        eventsDbPath = path.resolve(globalOpts.db);
+        cacheDbPath = deriveCachePath(eventsDbPath);
+        pathSource = 'cli';
       } else if (force) {
         // --force without --db resets to default (or dev path in dev mode)
-        dbPath = getDefaultDbPath();
+        eventsDbPath = getDefaultDbPath();
+        cacheDbPath = deriveCachePath(eventsDbPath);
         pathSource = isDevMode() ? 'dev' : 'default';
       } else {
         // Normal resolution (cli -> env -> config -> default)
-        const resolved = resolveDbPathWithSource();
-        dbPath = resolved.path;
+        const resolved = resolveDbPathsWithSource();
+        eventsDbPath = resolved.eventsDbPath;
+        cacheDbPath = resolved.cacheDbPath;
         pathSource = resolved.source;
       }
 
       runInit({
-        dbPath,
+        eventsDbPath,
+        cacheDbPath,
         pathSource,
         json: globalOpts.json ?? false,
         force,

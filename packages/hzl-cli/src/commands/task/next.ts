@@ -1,6 +1,6 @@
 // packages/hzl-cli/src/commands/next.ts
 import { Command } from 'commander';
-import { resolveDbPath } from '../../config.js';
+import { resolveDbPaths } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError } from '../../errors.js';
 import { GlobalOptionsSchema } from '../../types.js';
@@ -69,8 +69,8 @@ export function createNextCommand(): Command {
     .option('-t, --tags <tags>', 'Required tags (comma-separated)')
     .action(function (this: Command, opts: NextCommandOptions) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
-      const dbPath = resolveDbPath(globalOpts.db);
-      const services = initializeDb(dbPath);
+      const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
+      const services = initializeDb({ eventsDbPath, cacheDbPath });
       try {
         runNext({
           services,

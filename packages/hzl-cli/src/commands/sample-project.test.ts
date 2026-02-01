@@ -4,15 +4,17 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { runSampleProjectCreate, runSampleProjectReset } from './sample-project.js';
-import { initializeDb, closeDb, type Services } from '../db.js';
+import { initializeDbFromPath, closeDb, type Services } from '../db.js';
 
 describe('sample-project command', () => {
   let tempDir: string;
-  let dbPath: string;
+  let eventsDbPath: string;
+  let cacheDbPath: string;
 
   beforeEach(() => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hzl-sample-'));
-    dbPath = path.join(tempDir, 'test.db');
+    eventsDbPath = path.join(tempDir, 'events.db');
+    cacheDbPath = path.join(tempDir, 'cache.db');
   });
 
   afterEach(() => {
@@ -20,7 +22,7 @@ describe('sample-project command', () => {
   });
 
   function withDb<T>(fn: (services: Services) => T): T {
-    const services = initializeDb(dbPath);
+    const services = initializeDbFromPath(eventsDbPath);
     try {
       return fn(services);
     } finally {
@@ -30,13 +32,13 @@ describe('sample-project command', () => {
 
   describe('create', () => {
     it('creates sample project with tasks in various states', () => {
-      const result = runSampleProjectCreate({ dbPath, json: false });
+      const result = runSampleProjectCreate({ eventsDbPath, cacheDbPath, json: false });
 
       expect(result.project).toBe('sample-project');
       expect(result.tasksCreated).toBeGreaterThan(0);
 
-      withDb(({ db }) => {
-        const tasks = db
+      withDb(({ cacheDb }) => {
+        const tasks = cacheDb
           .prepare("SELECT * FROM tasks_current WHERE project = 'sample-project'")
           .all() as any[];
         expect(tasks.length).toBeGreaterThan(0);
@@ -47,20 +49,20 @@ describe('sample-project command', () => {
     });
 
     it('creates tasks with dependencies', () => {
-      runSampleProjectCreate({ dbPath, json: false });
+      runSampleProjectCreate({ eventsDbPath, cacheDbPath, json: false });
 
-      withDb(({ db }) => {
-        const deps = db.prepare('SELECT * FROM task_dependencies').all();
+      withDb(({ cacheDb }) => {
+        const deps = cacheDb.prepare('SELECT * FROM task_dependencies').all();
         expect(deps.length).toBeGreaterThan(0);
       });
     });
 
     it('creates tasks with tags and comments', () => {
-      runSampleProjectCreate({ dbPath, json: false });
+      runSampleProjectCreate({ eventsDbPath, cacheDbPath, json: false });
 
-      withDb(({ db }) => {
-        const tags = db.prepare('SELECT * FROM task_tags').all();
-        const comments = db.prepare('SELECT * FROM task_comments').all();
+      withDb(({ cacheDb }) => {
+        const tags = cacheDb.prepare('SELECT * FROM task_tags').all();
+        const comments = cacheDb.prepare('SELECT * FROM task_comments').all();
 
         expect(tags.length).toBeGreaterThan(0);
         expect(comments.length).toBeGreaterThan(0);
@@ -68,13 +70,13 @@ describe('sample-project command', () => {
     });
 
     it('is idempotent (does not duplicate on second run)', () => {
-      runSampleProjectCreate({ dbPath, json: false });
-      const result2 = runSampleProjectCreate({ dbPath, json: false });
+      runSampleProjectCreate({ eventsDbPath, cacheDbPath, json: false });
+      const result2 = runSampleProjectCreate({ eventsDbPath, cacheDbPath, json: false });
 
       expect(result2.skipped).toBe(true);
 
-      withDb(({ db }) => {
-        const taskCount = db
+      withDb(({ cacheDb }) => {
+        const taskCount = cacheDb
           .prepare("SELECT COUNT(*) as count FROM tasks_current WHERE project = 'sample-project'")
           .get() as { count: number };
         expect(taskCount.count).toBeLessThan(100);
@@ -82,7 +84,7 @@ describe('sample-project command', () => {
     });
 
     it('returns JSON output when requested', () => {
-      const result = runSampleProjectCreate({ dbPath, json: true });
+      const result = runSampleProjectCreate({ eventsDbPath, cacheDbPath, json: true });
       expect(typeof result.project).toBe('string');
       expect(typeof result.tasksCreated).toBe('number');
     });
@@ -90,20 +92,20 @@ describe('sample-project command', () => {
 
   describe('reset', () => {
     it('deletes and recreates sample project', () => {
-      runSampleProjectCreate({ dbPath, json: false });
+      runSampleProjectCreate({ eventsDbPath, cacheDbPath, json: false });
 
-      const originalIds = withDb(({ db }) =>
-        (db
+      const originalIds = withDb(({ cacheDb }) =>
+        (cacheDb
           .prepare("SELECT task_id FROM tasks_current WHERE project = 'sample-project'")
           .all() as { task_id: string }[]).map((t) => t.task_id)
       );
 
-      const result = runSampleProjectReset({ dbPath, json: false });
+      const result = runSampleProjectReset({ eventsDbPath, cacheDbPath, json: false });
       expect(result.deleted).toBeGreaterThan(0);
       expect(result.created).toBeGreaterThan(0);
 
-      const newIds = withDb(({ db }) =>
-        (db
+      const newIds = withDb(({ cacheDb }) =>
+        (cacheDb
           .prepare("SELECT task_id FROM tasks_current WHERE project = 'sample-project'")
           .all() as { task_id: string }[]).map((t) => t.task_id)
       );
@@ -113,7 +115,7 @@ describe('sample-project command', () => {
     });
 
     it('handles reset when project does not exist', () => {
-      const result = runSampleProjectReset({ dbPath, json: false });
+      const result = runSampleProjectReset({ eventsDbPath, cacheDbPath, json: false });
       expect(result.deleted).toBe(0);
       expect(result.created).toBeGreaterThan(0);
     });

@@ -14,7 +14,7 @@ import { createDoctorCommand } from './commands/doctor.js';
 import { createLockCommand } from './commands/lock.js';
 import { createSampleProjectCommand } from './commands/sample-project.js';
 import { CLIError, ExitCode } from './errors.js';
-import { resolveDbPath, readConfig } from './config.js';
+import { resolveDbPaths, readConfig } from './config.js';
 import { formatOutput, printSuccess, printError, printTable } from './output.js';
 
 export function createProgram(): Command {
@@ -52,7 +52,7 @@ export async function run(argv: string[] = process.argv): Promise<void> {
 export {
   CLIError,
   ExitCode,
-  resolveDbPath,
+  resolveDbPaths,
   readConfig,
   formatOutput,
   printSuccess,

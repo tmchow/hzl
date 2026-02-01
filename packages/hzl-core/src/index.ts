@@ -11,18 +11,19 @@
 // Database
 // ============================================================================
 
-export {
-  createConnection,
-  getDefaultDbPath,
-  withWriteTransaction,
-} from './db/connection.js';
+export { withWriteTransaction } from './db/transaction.js';
 
 export {
   DatabaseLock,
   type LockMetadata
 } from './db/lock.js';
 
-export { runMigrations, getCurrentVersion, runMigrationsWithRollback } from './db/migrations.js';
+export {
+  runMigrationsWithRollback,
+  MigrationError,
+  type Migration,
+  type MigrationResult,
+} from './db/migrations.js';
 
 export {
   createDatastore,

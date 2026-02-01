@@ -1,41 +1,39 @@
 // packages/hzl-cli/src/commands/which-db.ts
 import fs from 'fs';
 import { Command } from 'commander';
-import { resolveDbPathWithSource, type DbPathSource } from '../config.js';
+import { resolveDbPaths } from '../config.js';
 import { GlobalOptionsSchema } from '../types.js';
 
 export interface WhichDbResult {
-  path: string;
-  source: DbPathSource;
-  exists: boolean;
+  eventsDbPath: string;
+  cacheDbPath: string;
+  eventsDbExists: boolean;
+  cacheDbExists: boolean;
 }
 
 export function runWhichDb(options: { cliPath?: string; json: boolean }): WhichDbResult {
   const { cliPath, json } = options;
 
-  // Use centralized resolution logic
-  const resolved = resolveDbPathWithSource(cliPath);
-  const { path, source } = resolved;
+  const { eventsDbPath, cacheDbPath } = resolveDbPaths(cliPath);
 
-  // Check if file exists
-  const exists = fs.existsSync(path);
+  const eventsDbExists = fs.existsSync(eventsDbPath);
+  const cacheDbExists = fs.existsSync(cacheDbPath);
 
-  const result: WhichDbResult = { path, source, exists };
-  
+  const result: WhichDbResult = { eventsDbPath, cacheDbPath, eventsDbExists, cacheDbExists };
+
   if (json) {
     console.log(JSON.stringify(result));
   } else {
-    console.log(`Database: ${path}`);
-    console.log(`Source: ${source}`);
-    console.log(`Exists: ${exists ? 'yes' : 'no'}`);
+    console.log(`Events database: ${eventsDbPath} (${eventsDbExists ? 'exists' : 'missing'})`);
+    console.log(`Cache database:  ${cacheDbPath} (${cacheDbExists ? 'exists' : 'missing'})`);
   }
-  
+
   return result;
 }
 
 export function createWhichDbCommand(): Command {
   return new Command('which-db')
-    .description('Show resolved database path')
+    .description('Show resolved database paths')
     .action(function (this: Command) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       runWhichDb({

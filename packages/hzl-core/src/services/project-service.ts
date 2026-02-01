@@ -2,7 +2,7 @@ import type Database from 'libsql';
 import { EventStore } from '../events/store.js';
 import { EventType, PROJECT_EVENT_TASK_ID } from '../events/types.js';
 import { ProjectionEngine } from '../projections/engine.js';
-import { withWriteTransaction } from '../db/connection.js';
+import { withWriteTransaction } from '../db/transaction.js';
 
 export interface Project {
   name: string;

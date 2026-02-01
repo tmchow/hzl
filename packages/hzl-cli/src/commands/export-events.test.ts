@@ -4,7 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { runExportEvents } from './export-events.js';
-import { initializeDb, closeDb, type Services } from '../db.js';
+import { initializeDbFromPath, closeDb, type Services } from '../db.js';
 
 describe('runExportEvents', () => {
   let tempDir: string;
@@ -14,7 +14,7 @@ describe('runExportEvents', () => {
   beforeEach(() => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hzl-export-test-'));
     dbPath = path.join(tempDir, 'test.db');
-    services = initializeDb(dbPath);
+    services = initializeDbFromPath(dbPath);
   });
 
   afterEach(() => {

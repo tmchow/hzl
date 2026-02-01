@@ -4,7 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { runStats } from './stats.js';
-import { initializeDb, closeDb, type Services } from '../db.js';
+import { initializeDbFromPath, closeDb, type Services } from '../db.js';
 
 describe('runStats', () => {
   let tempDir: string;
@@ -14,7 +14,7 @@ describe('runStats', () => {
   beforeEach(() => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hzl-stats-test-'));
     dbPath = path.join(tempDir, 'test.db');
-    services = initializeDb(dbPath);
+    services = initializeDbFromPath(dbPath);
   });
 
   afterEach(() => {

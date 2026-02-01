@@ -8,7 +8,7 @@ import {
   type TaskCreatedData,
 } from '../events/types.js';
 import { ProjectionEngine } from '../projections/engine.js';
-import { withWriteTransaction } from '../db/connection.js';
+import { withWriteTransaction } from '../db/transaction.js';
 import { generateId } from '../utils/id.js';
 import { ProjectService } from './project-service.js';
 

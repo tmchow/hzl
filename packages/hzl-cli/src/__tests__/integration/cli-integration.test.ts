@@ -4,7 +4,7 @@ import path from 'path';
 import { execSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import Database from 'libsql';
-import { initializeDb, closeDb } from '../../db.js';
+import { initializeDbFromPath, closeDb } from '../../db.js';
 import {
   createTestContext,
   hzlJson,
@@ -45,32 +45,32 @@ describe('CLI Integration Tests', () => {
 
   describe('init command', () => {
     it('creates database file', () => {
-      const result = hzlJson<{ path: string; created: boolean }>(ctx, 'init');
+      const result = hzlJson<{ eventsDbPath: string; created: boolean }>(ctx, 'init');
       expect(result.created).toBe(true);
-      expect(result.path).toBe(ctx.dbPath);
+      expect(result.eventsDbPath).toBe(ctx.dbPath);
       expect(fs.existsSync(ctx.dbPath)).toBe(true);
     });
 
     it('is idempotent', () => {
-      const first = hzlJson<{ path: string; created: boolean }>(ctx, 'init');
-      const second = hzlJson<{ path: string; created: boolean }>(ctx, 'init');
+      const first = hzlJson<{ eventsDbPath: string; created: boolean }>(ctx, 'init');
+      const second = hzlJson<{ eventsDbPath: string; created: boolean }>(ctx, 'init');
       expect(first.created).toBe(true);
       expect(second.created).toBe(false);
       expect(fs.existsSync(ctx.dbPath)).toBe(true);
     });
 
     it('returns path information', () => {
-      const result = hzlJson<{ path: string; created: boolean }>(ctx, 'init');
-      expect(result.path).toBe(ctx.dbPath);
+      const result = hzlJson<{ eventsDbPath: string; created: boolean }>(ctx, 'init');
+      expect(result.eventsDbPath).toBe(ctx.dbPath);
       expect(result.created).toBe(true);
     });
   });
 
   describe('which-db command', () => {
     it('returns resolved database path', () => {
-      const result = hzlJson<{ path: string; source: string }>(ctx, 'which-db');
-      expect(result.path).toBe(ctx.dbPath);
-      expect(result.source).toBe('cli');
+      const result = hzlJson<{ eventsDbPath: string; cacheDbPath: string }>(ctx, 'which-db');
+      expect(result.eventsDbPath).toBe(ctx.dbPath);
+      expect(result.cacheDbPath).toBe(ctx.cachePath);
     });
   });
 
@@ -154,7 +154,7 @@ describe('CLI Integration Tests', () => {
       expect(addResult.task_id).toBe(task2.task_id);
       expect(addResult.depends_on_id).toBe(task1.task_id);
 
-      const db = new Database(ctx.dbPath);
+      const db = new Database(ctx.cachePath);
       const deps = db
         .prepare('SELECT depends_on_id FROM task_dependencies WHERE task_id = ?')
         .all(task2.task_id) as { depends_on_id: string }[];
@@ -163,7 +163,7 @@ describe('CLI Integration Tests', () => {
 
       hzlJson(ctx, `task remove-dep ${task2.task_id} ${task1.task_id}`);
 
-      const dbAfter = new Database(ctx.dbPath);
+      const dbAfter = new Database(ctx.cachePath);
       const depsAfter = dbAfter
         .prepare('SELECT depends_on_id FROM task_dependencies WHERE task_id = ?')
         .all(task2.task_id) as { depends_on_id: string }[];
@@ -347,6 +347,7 @@ describe('CLI Integration Tests', () => {
       expect(fs.existsSync(exportPath)).toBe(true);
       const content = fs.readFileSync(exportPath, 'utf-8');
       const lines = content.trim().split('\n').filter((line) => line.length > 0);
+      // 1 project_created (inbox) + 2 task_created events
       expect(lines).toHaveLength(3);
 
       const events = lines.map((line) => JSON.parse(line));
@@ -402,7 +403,7 @@ describe('CLI Integration Tests', () => {
       hzlJson(ctx, `task set-status ${task.task_id} ready`);
 
       const pastLease = new Date(Date.now() - 60000).toISOString();
-      const services = initializeDb(ctx.dbPath);
+      const services = initializeDbFromPath(ctx.dbPath);
       try {
         services.taskService.claimTask(task.task_id, {
           author: 'stalled-agent',

@@ -1,6 +1,6 @@
 // packages/hzl-cli/src/commands/add.ts
 import { Command } from 'commander';
-import { resolveDbPath } from '../../config.js';
+import { resolveDbPaths } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError } from '../../errors.js';
 import { GlobalOptionsSchema } from '../../types.js';
@@ -74,8 +74,8 @@ export function createAddCommand(): Command {
     .option('--depends-on <ids>', 'Comma-separated task IDs this depends on')
     .action(function (this: Command, title: string, opts: AddCommandOptions) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
-      const dbPath = resolveDbPath(globalOpts.db);
-      const services = initializeDb(dbPath);
+      const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
+      const services = initializeDb({ eventsDbPath, cacheDbPath });
       try {
         runAdd({
           services,

@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import Database from 'libsql';
 import { SearchService } from './search-service.js';
-import { runMigrations } from '../db/migrations.js';
+import { createTestDb } from '../db/test-utils.js';
 import { EventStore } from '../events/store.js';
 import { ProjectionEngine } from '../projections/engine.js';
 import { TasksCurrentProjector } from '../projections/tasks-current.js';
@@ -16,8 +16,8 @@ describe('SearchService', () => {
   let searchService: SearchService;
 
   beforeEach(() => {
-    db = new Database(':memory:');
-    runMigrations(db);
+    db = createTestDb();
+    // Schema applied by createTestDb
     eventStore = new EventStore(db);
     engine = new ProjectionEngine(db);
     engine.register(new TasksCurrentProjector());

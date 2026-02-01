@@ -6,7 +6,7 @@ import os from 'os';
 import { execSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import Database from 'libsql';
-import { createConnection } from '../../db/connection.js';
+import { createTestDbAtPath } from '../../db/test-utils.js';
 import { EventStore } from '../../events/store.js';
 import { ProjectionEngine } from '../../projections/engine.js';
 import { TasksCurrentProjector } from '../../projections/tasks-current.js';
@@ -87,7 +87,7 @@ describe('Concurrency Stress Tests', () => {
   beforeEach(() => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hzl-stress-'));
     dbPath = path.join(tempDir, 'test.db');
-    db = createConnection(dbPath);
+    db = createTestDbAtPath(dbPath);
     db.pragma('journal_mode = WAL');
     db.pragma('busy_timeout = 5000');
     const services = setupServices(db);

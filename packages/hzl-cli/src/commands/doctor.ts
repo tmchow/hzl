@@ -1,5 +1,6 @@
 import { Command } from 'commander';
 import fs from 'fs';
+import path from 'path';
 import { createDatastore, getInstanceId, DatabaseLock } from 'hzl-core';
 import { GlobalOptionsSchema } from '../types.js';
 import { resolveDbPaths, getConfigPath, readConfig, checkConfigPermissions } from '../config.js';
@@ -26,6 +27,7 @@ export interface DoctorResult {
         lock: Check;
         connectivity?: Check;
         identity?: Check;
+        orphanedDatabase?: Check;
     };
 }
 
@@ -212,6 +214,23 @@ export async function runDoctor(options: DoctorOptions): Promise<DoctorResult> {
             message: 'Cannot read/write database',
             actions: [{ command: `chmod 644 ${eventsDbPath}`, description: 'Fix permissions' }],
         };
+    }
+
+    // Check for orphaned data.db from old installation
+    const eventsDir = path.dirname(eventsDbPath);
+    const legacyDataDbPath = path.join(eventsDir, 'data.db');
+    if (eventsDbPath.endsWith('/events.db') || eventsDbPath.endsWith('\\events.db')) {
+        if (fs.existsSync(legacyDataDbPath)) {
+            checks.orphanedDatabase = {
+                status: 'warn',
+                message: `Legacy data.db found alongside events.db`,
+                path: legacyDataDbPath,
+                actions: [
+                    { command: `rm "${legacyDataDbPath}"`, description: 'Remove orphaned legacy database' },
+                    { command: 'backup first if needed', description: 'Data from old schema is not migrated' },
+                ],
+            };
+        }
     }
 
     // Determine overall health

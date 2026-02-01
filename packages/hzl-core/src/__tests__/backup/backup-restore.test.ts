@@ -2,7 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { createConnection } from '../../db/connection.js';
+import Database from 'libsql';
+import { createTestDbAtPath } from '../../db/test-utils.js';
 import { EventStore } from '../../events/store.js';
 import { ProjectionEngine } from '../../projections/engine.js';
 import { TasksCurrentProjector } from '../../projections/tasks-current.js';
@@ -13,7 +14,6 @@ import { CommentsCheckpointsProjector } from '../../projections/comments-checkpo
 import { TaskService } from '../../services/task-service.js';
 import { BackupService } from '../../services/backup-service.js';
 import { TaskStatus } from '../../events/types.js';
-import Database from 'libsql';
 
 describe('Backup/Restore Round-Trip Tests', () => {
   let tempDir: string;
@@ -44,7 +44,7 @@ describe('Backup/Restore Round-Trip Tests', () => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hzl-backup-'));
     dbPath = path.join(tempDir, 'test.db');
     backupPath = path.join(tempDir, 'backup.db');
-    db = createConnection(dbPath);
+    db = createTestDbAtPath(dbPath);
     const services = setupServices(db);
     taskService = services.taskService;
     backupService = services.backupService;
@@ -96,7 +96,8 @@ describe('Backup/Restore Round-Trip Tests', () => {
         .prepare('SELECT COUNT(*) as count FROM tasks_current')
         .get() as { count: number };
 
-      expect(eventCount.count).toBe(101);
+      // 100 task_created events (no project_created events anymore)
+      expect(eventCount.count).toBe(100);
       expect(taskCount.count).toBe(100);
       backupDb.close();
     });
@@ -119,7 +120,7 @@ describe('Backup/Restore Round-Trip Tests', () => {
 
       await backupService.restore(backupPath, dbPath);
 
-      const restoredDb = createConnection(dbPath);
+      const restoredDb = createTestDbAtPath(dbPath);
 
       const tasks = restoredDb.prepare('SELECT * FROM tasks_current').all() as any[];
       expect(tasks).toHaveLength(1);
@@ -172,7 +173,7 @@ describe('Backup/Restore Round-Trip Tests', () => {
       const restorePath = path.join(tempDir, 'restored.db');
       await backupService.restore(backupPath, restorePath);
 
-      const restoredDb = createConnection(restorePath);
+      const restoredDb = createTestDbAtPath(restorePath);
 
       const restoredTask = restoredDb
         .prepare('SELECT * FROM tasks_current WHERE task_id = ?')
@@ -233,7 +234,7 @@ describe('Backup/Restore Round-Trip Tests', () => {
       const restorePath = path.join(tempDir, 'restored.db');
       await backupService.restore(backupPath, restorePath);
 
-      const restoredDb = createConnection(restorePath);
+      const restoredDb = createTestDbAtPath(restorePath);
       const restoredEvents = restoredDb
         .prepare('SELECT event_id, type FROM events ORDER BY id')
         .all() as { event_id: string; type: string }[];

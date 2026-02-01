@@ -24,18 +24,18 @@ describe('runWhichDb', () => {
   });
 
   it('returns CLI option when provided', () => {
-    const dbPath = path.join(tempDir, 'test.db');
+    const dbPath = path.join(tempDir, 'events.db');
     const result = runWhichDb({ cliPath: dbPath, json: false });
-    expect(result.path).toBe(dbPath);
-    expect(result.source).toBe('cli');
+    expect(result.eventsDbPath).toBe(dbPath);
+    expect(result.cacheDbPath).toBe(path.join(tempDir, 'cache.db'));
   });
 
   it('returns env var path when HZL_DB is set', () => {
     const dbPath = path.join(tempDir, 'env.db');
     process.env.HZL_DB = dbPath;
     const result = runWhichDb({ cliPath: undefined, json: false });
-    expect(result.path).toBe(dbPath);
-    expect(result.source).toBe('env');
+    expect(result.eventsDbPath).toBe(dbPath);
+    expect(result.cacheDbPath).toBe(dbPath.replace('.db', '-cache.db'));
   });
 
   it('returns default path when nothing specified', () => {
@@ -43,10 +43,11 @@ describe('runWhichDb', () => {
     const result = runWhichDb({ cliPath: undefined, json: false });
     // Platform-aware assertion: Windows uses AppData\Local, Unix uses .local/share
     if (process.platform === 'win32') {
-      expect(result.path).toMatch(/AppData[/\\]Local[/\\]hzl/);
+      expect(result.eventsDbPath).toMatch(/AppData[/\\]Local[/\\]hzl/);
     } else {
-      expect(result.path).toContain('.local/share/hzl');
+      expect(result.eventsDbPath).toContain('.local/share/hzl');
     }
-    expect(result.source).toBe('default');
+    expect(result.eventsDbPath).toContain('events.db');
+    expect(result.cacheDbPath).toContain('cache.db');
   });
 });

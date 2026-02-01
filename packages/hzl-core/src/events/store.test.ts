@@ -2,15 +2,14 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import Database from 'libsql';
 import { EventStore } from './store.js';
 import { EventType, TaskStatus } from './types.js';
-import { runMigrations } from '../db/migrations.js';
+import { createTestDb } from '../db/test-utils.js';
 
 describe('EventStore', () => {
   let db: Database.Database;
   let store: EventStore;
 
   beforeEach(() => {
-    db = new Database(':memory:');
-    runMigrations(db);
+    db = createTestDb();
     store = new EventStore(db);
   });
 

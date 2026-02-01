@@ -8,7 +8,7 @@ import { DependenciesProjector } from './dependencies.js';
 import { TagsProjector } from './tags.js';
 import { CommentsCheckpointsProjector } from './comments-checkpoints.js';
 import { SearchProjector } from './search.js';
-import { runMigrations } from '../db/migrations.js';
+import { createTestDb } from '../db/test-utils.js';
 import { EventStore } from '../events/store.js';
 import { EventType, TaskStatus } from '../events/types.js';
 
@@ -18,8 +18,8 @@ describe('rebuildAllProjections', () => {
   let engine: ProjectionEngine;
 
   beforeEach(() => {
-    db = new Database(':memory:');
-    runMigrations(db);
+    db = createTestDb();
+    // Schema applied by createTestDb
     eventStore = new EventStore(db);
     engine = new ProjectionEngine(db);
     engine.register(new TasksCurrentProjector());

@@ -117,9 +117,9 @@ function getXdgConfigHome(): string {
 export function getDefaultDbPath(): string {
   // Running from source repo? Use project-local storage
   if (isDevMode()) {
-    return path.join(getDevDataDir(), 'data.db');
+    return path.join(getDevDataDir(), 'events.db');
   }
-  return path.join(getXdgDataHome(), 'hzl', 'data.db');
+  return path.join(getXdgDataHome(), 'hzl', 'events.db');
 }
 
 export function getConfigPath(): string {
@@ -140,9 +140,15 @@ function expandTilde(filePath: string): string {
 
 /**
  * Derive cache database path from events database path.
- * Handles paths with and without .db extension.
+ * For events.db, returns cache.db in the same directory.
+ * For other paths, appends -cache suffix.
  */
-function deriveCachePath(eventsPath: string): string {
+export function deriveCachePath(eventsPath: string): string {
+  // Standard case: events.db -> cache.db
+  if (eventsPath.endsWith('/events.db') || eventsPath.endsWith('\\events.db')) {
+    return eventsPath.replace(/events\.db$/, 'cache.db');
+  }
+  // Generic case: append -cache suffix
   if (eventsPath.endsWith('.db')) {
     return eventsPath.replace(/\.db$/, '-cache.db');
   }
@@ -152,38 +158,23 @@ function deriveCachePath(eventsPath: string): string {
 
 export type DbPathSource = 'cli' | 'env' | 'config' | 'default' | 'dev';
 
-export interface ResolvedDbPath {
-  path: string;
-  source: DbPathSource;
-}
-
-export function resolveDbPathWithSource(cliOption?: string, configPath: string = getConfigPath()): ResolvedDbPath {
-  if (cliOption) return { path: expandTilde(cliOption), source: 'cli' };
-  if (process.env.HZL_DB) return { path: expandTilde(process.env.HZL_DB), source: 'env' };
-
-  const config = readConfig(configPath);
-  if (config.dbPath) return { path: expandTilde(config.dbPath), source: 'config' };
-
-  // Dev mode returns 'dev' source, otherwise 'default'
-  return { path: getDefaultDbPath(), source: isDevMode() ? 'dev' : 'default' };
-}
-
-export function resolveDbPath(cliOption?: string, configPath: string = getConfigPath()): string {
-  return resolveDbPathWithSource(cliOption, configPath).path;
-}
-
 export interface ResolvedDbPaths {
   eventsDbPath: string;
   cacheDbPath: string;
 }
 
-export function resolveDbPaths(cliOption?: string, configPath: string = getConfigPath()): ResolvedDbPaths {
+export interface ResolvedDbPathsWithSource extends ResolvedDbPaths {
+  source: DbPathSource;
+}
+
+export function resolveDbPathsWithSource(cliOption?: string, configPath: string = getConfigPath()): ResolvedDbPathsWithSource {
   // CLI option overrides everything
   if (cliOption) {
     const expanded = expandTilde(cliOption);
     return {
       eventsDbPath: expanded,
       cacheDbPath: deriveCachePath(expanded),
+      source: 'cli',
     };
   }
 
@@ -193,6 +184,7 @@ export function resolveDbPaths(cliOption?: string, configPath: string = getConfi
     return {
       eventsDbPath: eventsPath,
       cacheDbPath: expandTilde(process.env.HZL_DB_CACHE_PATH ?? deriveCachePath(eventsPath)),
+      source: 'env',
     };
   }
 
@@ -202,6 +194,7 @@ export function resolveDbPaths(cliOption?: string, configPath: string = getConfi
     return {
       eventsDbPath: expanded,
       cacheDbPath: deriveCachePath(expanded),
+      source: 'env',
     };
   }
 
@@ -214,6 +207,7 @@ export function resolveDbPaths(cliOption?: string, configPath: string = getConfi
     return {
       eventsDbPath: eventsPath,
       cacheDbPath: expandTilde(config.db.cache?.path ?? deriveCachePath(eventsPath)),
+      source: 'config',
     };
   }
 
@@ -223,6 +217,7 @@ export function resolveDbPaths(cliOption?: string, configPath: string = getConfi
     return {
       eventsDbPath: expanded,
       cacheDbPath: deriveCachePath(expanded),
+      source: 'config',
     };
   }
 
@@ -231,7 +226,13 @@ export function resolveDbPaths(cliOption?: string, configPath: string = getConfi
   return {
     eventsDbPath: defaultEventsPath,
     cacheDbPath: deriveCachePath(defaultEventsPath),
+    source: isDevMode() ? 'dev' : 'default',
   };
+}
+
+export function resolveDbPaths(cliOption?: string, configPath: string = getConfigPath()): ResolvedDbPaths {
+  const { eventsDbPath, cacheDbPath } = resolveDbPathsWithSource(cliOption, configPath);
+  return { eventsDbPath, cacheDbPath };
 }
 
 export function readConfig(configPath: string = getConfigPath()): Config {
