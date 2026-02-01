@@ -2,6 +2,9 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+<!-- START docs/snippets/agent-policy.md -->
+<!-- END docs/snippets/agent-policy.md -->
+
 ## Build & Test Commands
 
 ```bash
@@ -12,19 +15,6 @@ npm run test:watch   # Watch mode
 npm run typecheck    # TypeScript type checking
 npm run lint         # ESLint
 npm run lint:fix     # ESLint with auto-fix
-```
-
-## Installation
-
-Users can install HZL via NPM or Homebrew:
-
-```bash
-# NPM
-npm install -g hzl-cli
-
-# Homebrew
-brew tap tmchow/hzl
-brew install hzl
 ```
 
 ### Running Single Tests
@@ -63,7 +53,7 @@ hzl --help
 
 ## Architecture
 
-HZL is an event-sourced task coordination system. The codebase is a monorepo with two packages:
+HZL is an event-sourced task coordination system. The codebase is a monorepo with three packages:
 
 ### hzl-core (`packages/hzl-core/`)
 
@@ -83,6 +73,10 @@ CLI wrapper using Commander.js. Each command in `src/commands/` is a thin layer 
 1. Parses arguments
 2. Calls into `hzl-core` services
 3. Formats output (human-readable or `--json`)
+
+### hzl-web (`packages/hzl-web/`)
+
+Web dashboard server. Serves the Kanban board UI at `http://localhost:3456`. Uses hzl-core for data access.
 
 ## Key Patterns
 
@@ -198,17 +192,17 @@ Both packages are versioned together (linked versions).
 
 **README**: Edit `/README.md` (root) only. The release script copies it to `/packages/hzl-cli/README.md` for npm. Never edit the CLI README directly.
 
-### README Includes
+### Documentation Includes
 
-README.md includes content from external snippet files. This keeps reusable documentation in one place.
+README.md and AGENTS.md include content from external snippet files. This keeps reusable documentation in one place.
 
-**Source files:**
-- `docs/snippets/agent-policy.md` — Drop-in policy for coding agents
+**Source file:**
+- `docs/snippets/agent-policy.md` — HZL policy for coding agents
 
 **How it works:**
 1. Edit the source file in `docs/snippets/`
 2. Push to main
 3. GitHub Action (`.github/workflows/readme-sync.yml`) fills content between markers
-4. The action commits the updated README.md
+4. The action commits the updated files
 
-**To edit a snippet:** Edit the source file, not the README.
+**To edit the snippet:** Edit `docs/snippets/agent-policy.md`, not the content between markers.
