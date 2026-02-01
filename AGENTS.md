@@ -149,3 +149,7 @@ test: add concurrency stress tests
 - `docs:`, `chore:`, `test:`, etc. → no release
 
 Both packages are versioned together (linked versions).
+
+## Documentation
+
+**README**: Edit `/README.md` (root) only. The release script copies it to `/packages/hzl-cli/README.md` for npm. Never edit the CLI README directly.
