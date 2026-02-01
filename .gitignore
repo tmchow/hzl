@@ -146,3 +146,6 @@ vite.config.ts.timestamp-*
 # Claude Code local settings (user-specific, not shared)
 .claude/settings.local.json
 packages/*/.claude/
+
+# Conductor workspace context
+.context/
