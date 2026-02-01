@@ -119,6 +119,8 @@ export {
   type AvailableTask,
   type Comment,
   type Checkpoint,
+  type TaskListItem,
+  type TaskStats,
 } from './services/task-service.js';
 
 export {

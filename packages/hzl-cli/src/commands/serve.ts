@@ -207,8 +207,8 @@ async function runForeground(port: number, host: string, dbOption?: string): Pro
   const server = createWebServer({
     port,
     host,
-    cacheDb: services.cacheDb,
-    eventsDb: services.db,
+    taskService: services.taskService,
+    eventStore: services.eventStore,
   });
 
   // Write PID file for --status to detect

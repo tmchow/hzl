@@ -137,6 +137,37 @@ export class EventStore {
     return rows.map(row => this.rowToEnvelope(row));
   }
 
+  /**
+   * Get recent events of specified types since a given event ID.
+   * Used by the web dashboard for the activity feed.
+   */
+  getRecentEvents(opts: {
+    sinceId?: number;
+    limit?: number;
+    types?: EventType[];
+  } = {}): PersistedEventEnvelope[] {
+    const { sinceId = 0, limit = 50, types } = opts;
+
+    // Default to activity-related event types
+    const eventTypes = types ?? [
+      EventType.TaskCreated,
+      EventType.StatusChanged,
+      EventType.CommentAdded,
+      EventType.CheckpointRecorded,
+    ];
+
+    const placeholders = eventTypes.map(() => '?').join(',');
+    const rows = this.db.prepare(`
+      SELECT * FROM events
+      WHERE type IN (${placeholders})
+        AND id > ?
+      ORDER BY id DESC
+      LIMIT ?
+    `).all(...eventTypes, sinceId, limit) as EventRow[];
+
+    return rows.map(row => this.rowToEnvelope(row));
+  }
+
   private rowToEnvelope(row: EventRow): PersistedEventEnvelope {
     return {
       rowid: row.id,

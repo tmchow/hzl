@@ -1,12 +1,16 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'http';
-import type { Database } from 'libsql';
+import {
+  TaskService,
+  EventStore,
+  type TaskListItem as CoreTaskListItem,
+} from 'hzl-core';
 import { DASHBOARD_HTML } from './ui-embed.js';
 
 export interface ServerOptions {
   port: number;
   host?: string; // Default: '0.0.0.0' (all interfaces for network/Tailscale access)
-  cacheDb: Database;
-  eventsDb: Database;
+  taskService: TaskService;
+  eventStore: EventStore;
 }
 
 export interface ServerHandle {
@@ -25,19 +29,12 @@ const DATE_PRESETS: Record<string, number> = {
   '30d': 30,
 };
 
-interface TaskListItem {
-  task_id: string;
-  title: string;
-  project: string;
-  status: string;
-  priority: number;
-  claimed_by_agent_id: string | null;
-  lease_until: string | null;
-  updated_at: string;
+// Response types for the API
+interface TaskListItemResponse extends CoreTaskListItem {
   blocked_by: string[] | null;
 }
 
-interface TaskDetail {
+interface TaskDetailResponse {
   task_id: string;
   title: string;
   project: string;
@@ -58,24 +55,7 @@ interface TaskDetail {
   blocked_by: string[];
 }
 
-interface Comment {
-  event_rowid: number;
-  task_id: string;
-  author: string | null;
-  agent_id: string | null;
-  text: string;
-  timestamp: string;
-}
-
-interface Checkpoint {
-  event_rowid: number;
-  task_id: string;
-  name: string;
-  data: Record<string, unknown>;
-  timestamp: string;
-}
-
-interface Event {
+interface EventResponse {
   id: number;
   event_id: string;
   task_id: string;
@@ -87,7 +67,7 @@ interface Event {
   task_title: string | null;
 }
 
-interface Stats {
+interface StatsResponse {
   total: number;
   by_status: Record<string, number>;
   projects: string[];
@@ -121,132 +101,26 @@ function serverError(res: ServerResponse, error: unknown): void {
   json(res, { error: message }, 500);
 }
 
-// Safe JSON parser that returns fallback on parse errors
-function safeJsonParse<T>(value: string | null | undefined, fallback: T): T {
-  if (!value) return fallback;
-  try {
-    return JSON.parse(value) as T;
-  } catch {
-    return fallback;
-  }
-}
-
 export function createWebServer(options: ServerOptions): ServerHandle {
-  const { port, host = '0.0.0.0', cacheDb, eventsDb } = options;
-
-  // Prepare statements
-  const listTasksStmt = cacheDb.prepare(`
-    SELECT task_id, title, project, status, priority,
-           claimed_by_agent_id, lease_until, updated_at
-    FROM tasks_current
-    WHERE status != 'archived'
-      AND updated_at >= datetime('now', ?)
-    ORDER BY priority DESC, updated_at DESC
-  `);
-
-  const listTasksWithProjectStmt = cacheDb.prepare(`
-    SELECT task_id, title, project, status, priority,
-           claimed_by_agent_id, lease_until, updated_at
-    FROM tasks_current
-    WHERE status != 'archived'
-      AND updated_at >= datetime('now', ?)
-      AND project = ?
-    ORDER BY priority DESC, updated_at DESC
-  `);
-
-  const blockedTasksStmt = cacheDb.prepare(`
-    SELECT tc.task_id, GROUP_CONCAT(td.depends_on_id) as blocked_by
-    FROM tasks_current tc
-    JOIN task_dependencies td ON tc.task_id = td.task_id
-    JOIN tasks_current dep ON td.depends_on_id = dep.task_id
-    WHERE tc.status = 'ready' AND dep.status != 'done'
-    GROUP BY tc.task_id
-  `);
-
-  const getTaskStmt = cacheDb.prepare(`
-    SELECT task_id, title, project, status, priority, parent_id,
-           description, links, tags, due_at, metadata,
-           claimed_at, claimed_by_author, claimed_by_agent_id, lease_until,
-           created_at, updated_at
-    FROM tasks_current
-    WHERE task_id = ?
-  `);
-
-  const getTaskDepsStmt = cacheDb.prepare(`
-    SELECT td.depends_on_id
-    FROM task_dependencies td
-    JOIN tasks_current dep ON td.depends_on_id = dep.task_id
-    WHERE td.task_id = ? AND dep.status != 'done'
-  `);
-
-  const getCommentsStmt = cacheDb.prepare(`
-    SELECT event_rowid, task_id, author, agent_id, text, timestamp
-    FROM task_comments
-    WHERE task_id = ?
-    ORDER BY event_rowid ASC
-  `);
-
-  const getCheckpointsStmt = cacheDb.prepare(`
-    SELECT event_rowid, task_id, name, data, timestamp
-    FROM task_checkpoints
-    WHERE task_id = ?
-    ORDER BY event_rowid ASC
-  `);
-
-  const getEventsStmt = eventsDb.prepare(`
-    SELECT e.id, e.event_id, e.task_id, e.type, e.data, e.author, e.agent_id, e.timestamp
-    FROM events e
-    WHERE e.type IN ('status_changed', 'comment_added', 'checkpoint_recorded', 'task_created')
-      AND e.id > ?
-    ORDER BY e.id DESC
-    LIMIT 50
-  `);
-
-  const getStatsStmt = cacheDb.prepare(`
-    SELECT status, COUNT(*) as count
-    FROM tasks_current
-    WHERE status != 'archived'
-    GROUP BY status
-  `);
-
-  const getProjectsStmt = cacheDb.prepare(`
-    SELECT DISTINCT project FROM tasks_current WHERE status != 'archived' ORDER BY project
-  `);
+  const { port, host = '0.0.0.0', taskService, eventStore } = options;
 
   // Route handlers
   function handleTasks(params: URLSearchParams, res: ServerResponse): void {
     const since = params.get('since') || '3d';
     const project = params.get('project');
     const days = DATE_PRESETS[since] ?? 3;
-    const dateOffset = `-${days} days`;
 
-    // Get tasks
-    let rows: Array<{
-      task_id: string;
-      title: string;
-      project: string;
-      status: string;
-      priority: number;
-      claimed_by_agent_id: string | null;
-      lease_until: string | null;
-      updated_at: string;
-    }>;
+    // Get tasks from service
+    const rows = taskService.listTasks({
+      sinceDays: days,
+      project: project ?? undefined,
+    });
 
-    if (project) {
-      rows = listTasksWithProjectStmt.all(dateOffset, project) as typeof rows;
-    } else {
-      rows = listTasksStmt.all(dateOffset) as typeof rows;
-    }
-
-    // Get blocked tasks
-    const blockedRows = blockedTasksStmt.all() as Array<{ task_id: string; blocked_by: string }>;
-    const blockedMap = new Map<string, string[]>();
-    for (const row of blockedRows) {
-      blockedMap.set(row.task_id, row.blocked_by.split(','));
-    }
+    // Get blocked tasks map from service
+    const blockedMap = taskService.getBlockedByMap();
 
     // Merge blocked info into tasks
-    const tasks: TaskListItem[] = rows.map((row) => ({
+    const tasks: TaskListItemResponse[] = rows.map((row) => ({
       ...row,
       blocked_by: blockedMap.get(row.task_id) ?? null,
     }));
@@ -255,141 +129,94 @@ export function createWebServer(options: ServerOptions): ServerHandle {
   }
 
   function handleTaskDetail(taskId: string, res: ServerResponse): void {
-    const row = getTaskStmt.get(taskId) as {
-      task_id: string;
-      title: string;
-      project: string;
-      status: string;
-      priority: number;
-      parent_id: string | null;
-      description: string | null;
-      links: string;
-      tags: string;
-      due_at: string | null;
-      metadata: string;
-      claimed_at: string | null;
-      claimed_by_author: string | null;
-      claimed_by_agent_id: string | null;
-      lease_until: string | null;
-      created_at: string;
-      updated_at: string;
-    } | undefined;
+    const task = taskService.getTaskById(taskId);
 
-    if (!row) {
+    if (!task) {
       notFound(res, `Task not found: ${taskId}`);
       return;
     }
 
-    // Get blocking dependencies
-    const depRows = getTaskDepsStmt.all(taskId) as Array<{ depends_on_id: string }>;
-    const blocked_by = depRows.map((r) => r.depends_on_id);
+    // Get blocking dependencies from service
+    const blocked_by = taskService.getBlockingDependencies(taskId);
 
-    const task: TaskDetail = {
-      task_id: row.task_id,
-      title: row.title,
-      project: row.project,
-      status: row.status,
-      priority: row.priority,
-      parent_id: row.parent_id,
-      description: row.description,
-      links: safeJsonParse<string[]>(row.links, []),
-      tags: safeJsonParse<string[]>(row.tags, []),
-      due_at: row.due_at,
-      metadata: safeJsonParse<Record<string, unknown>>(row.metadata, {}),
-      claimed_at: row.claimed_at,
-      claimed_by_author: row.claimed_by_author,
-      claimed_by_agent_id: row.claimed_by_agent_id,
-      lease_until: row.lease_until,
-      created_at: row.created_at,
-      updated_at: row.updated_at,
+    const taskDetail: TaskDetailResponse = {
+      task_id: task.task_id,
+      title: task.title,
+      project: task.project,
+      status: task.status,
+      priority: task.priority,
+      parent_id: task.parent_id,
+      description: task.description,
+      links: task.links,
+      tags: task.tags,
+      due_at: task.due_at,
+      metadata: task.metadata,
+      claimed_at: task.claimed_at,
+      claimed_by_author: task.claimed_by_author,
+      claimed_by_agent_id: task.claimed_by_agent_id,
+      lease_until: task.lease_until,
+      created_at: task.created_at,
+      updated_at: task.updated_at,
       blocked_by,
     };
 
-    json(res, { task });
+    json(res, { task: taskDetail });
   }
 
   function handleComments(taskId: string, res: ServerResponse): void {
-    const rows = getCommentsStmt.all(taskId) as Comment[];
-    json(res, { comments: rows });
+    const comments = taskService.getComments(taskId);
+    // Map to response format (convert undefined to null for JSON)
+    const response = comments.map((c) => ({
+      event_rowid: c.event_rowid,
+      task_id: c.task_id,
+      author: c.author ?? null,
+      agent_id: c.agent_id ?? null,
+      text: c.text,
+      timestamp: c.timestamp,
+    }));
+    json(res, { comments: response });
   }
 
   function handleCheckpoints(taskId: string, res: ServerResponse): void {
-    const rows = getCheckpointsStmt.all(taskId) as Array<{
-      event_rowid: number;
-      task_id: string;
-      name: string;
-      data: string;
-      timestamp: string;
-    }>;
-    const checkpoints: Checkpoint[] = rows.map((r) => ({
-      event_rowid: r.event_rowid,
-      task_id: r.task_id,
-      name: r.name,
-      data: safeJsonParse<Record<string, unknown>>(r.data, {}),
-      timestamp: r.timestamp,
-    }));
+    const checkpoints = taskService.getCheckpoints(taskId);
     json(res, { checkpoints });
   }
 
   function handleEvents(params: URLSearchParams, res: ServerResponse): void {
     const sinceId = parseInt(params.get('since') || '0', 10);
-    const rows = getEventsStmt.all(sinceId) as Array<{
-      id: number;
-      event_id: string;
-      task_id: string;
-      type: string;
-      data: string;
-      author: string | null;
-      agent_id: string | null;
-      timestamp: string;
-    }>;
+
+    // Get events from EventStore
+    const rawEvents = eventStore.getRecentEvents({ sinceId, limit: 50 });
 
     // Get task titles for these events (batched query to avoid N+1)
-    const taskIds = [...new Set(rows.map((r) => r.task_id).filter(Boolean))];
-    const titleMap = new Map<string, string>();
-    if (taskIds.length > 0) {
-      const placeholders = taskIds.map(() => '?').join(',');
-      const titleRows = cacheDb
-        .prepare(`SELECT task_id, title FROM tasks_current WHERE task_id IN (${placeholders})`)
-        .all(...taskIds) as Array<{ task_id: string; title: string }>;
-      for (const row of titleRows) {
-        titleMap.set(row.task_id, row.title);
-      }
-    }
+    const taskIds = [...new Set(rawEvents.map((e) => e.task_id).filter(Boolean))];
+    const titleMap = taskService.getTaskTitlesByIds(taskIds);
 
-    const events: Event[] = rows.map((r) => ({
-      id: r.id,
-      event_id: r.event_id,
-      task_id: r.task_id,
-      type: r.type,
-      data: safeJsonParse<Record<string, unknown>>(r.data, {}),
-      author: r.author,
-      agent_id: r.agent_id,
-      timestamp: r.timestamp,
-      task_title: titleMap.get(r.task_id) ?? null,
+    const events: EventResponse[] = rawEvents.map((e) => ({
+      id: e.rowid,
+      event_id: e.event_id,
+      task_id: e.task_id,
+      type: e.type,
+      data: e.data,
+      author: e.author ?? null,
+      agent_id: e.agent_id ?? null,
+      timestamp: e.timestamp,
+      task_title: titleMap.get(e.task_id) ?? null,
     }));
 
     json(res, { events });
   }
 
   function handleStats(res: ServerResponse): void {
-    const statusRows = getStatsStmt.all() as Array<{ status: string; count: number }>;
-    const projectRows = getProjectsStmt.all() as Array<{ project: string }>;
+    const stats = taskService.getStats();
 
-    const by_status: Record<string, number> = {};
-    let total = 0;
-    for (const row of statusRows) {
-      by_status[row.status] = row.count;
-      total += row.count;
-    }
-
-    const stats: Stats = {
-      total,
-      by_status,
-      projects: projectRows.map((r) => r.project),
+    const response: StatsResponse = {
+      total: stats.total,
+      by_status: stats.byStatus,
+      projects: stats.projects,
     };
 
-    json(res, stats);
+    json(res, response);
   }
 
   function handleRoot(res: ServerResponse): void {

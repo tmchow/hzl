@@ -95,6 +95,23 @@ export interface Checkpoint {
   timestamp: string;
 }
 
+export interface TaskListItem {
+  task_id: string;
+  title: string;
+  project: string;
+  status: TaskStatus;
+  priority: number;
+  claimed_by_agent_id: string | null;
+  lease_until: string | null;
+  updated_at: string;
+}
+
+export interface TaskStats {
+  total: number;
+  byStatus: Record<string, number>;
+  projects: string[];
+}
+
 export interface Task {
   task_id: string;
   title: string;
@@ -663,6 +680,134 @@ export class TaskService {
       data: JSON.parse(r.data) as Record<string, unknown>,
       timestamp: r.timestamp,
     }));
+  }
+
+  /**
+   * List tasks with optional filtering by date range and project.
+   * Used by the web dashboard.
+   */
+  listTasks(opts: { sinceDays?: number; project?: string } = {}): TaskListItem[] {
+    const { sinceDays = 3, project } = opts;
+    const dateOffset = `-${sinceDays} days`;
+
+    let rows: TaskRow[];
+    if (project) {
+      rows = this.db.prepare(`
+        SELECT task_id, title, project, status, priority,
+               claimed_by_agent_id, lease_until, updated_at,
+               parent_id, description, links, tags, due_at, metadata,
+               claimed_at, claimed_by_author, created_at
+        FROM tasks_current
+        WHERE status != 'archived'
+          AND updated_at >= datetime('now', ?)
+          AND project = ?
+        ORDER BY priority DESC, updated_at DESC
+      `).all(dateOffset, project) as TaskRow[];
+    } else {
+      rows = this.db.prepare(`
+        SELECT task_id, title, project, status, priority,
+               claimed_by_agent_id, lease_until, updated_at,
+               parent_id, description, links, tags, due_at, metadata,
+               claimed_at, claimed_by_author, created_at
+        FROM tasks_current
+        WHERE status != 'archived'
+          AND updated_at >= datetime('now', ?)
+        ORDER BY priority DESC, updated_at DESC
+      `).all(dateOffset) as TaskRow[];
+    }
+
+    return rows.map((row) => ({
+      task_id: row.task_id,
+      title: row.title,
+      project: row.project,
+      status: row.status,
+      priority: row.priority,
+      claimed_by_agent_id: row.claimed_by_agent_id,
+      lease_until: row.lease_until,
+      updated_at: row.updated_at,
+    }));
+  }
+
+  /**
+   * Get a map of task_id -> array of blocking task ids.
+   * A task is blocked if it's in 'ready' status but has incomplete dependencies.
+   */
+  getBlockedByMap(): Map<string, string[]> {
+    const rows = this.db.prepare(`
+      SELECT tc.task_id, GROUP_CONCAT(td.depends_on_id) as blocked_by
+      FROM tasks_current tc
+      JOIN task_dependencies td ON tc.task_id = td.task_id
+      JOIN tasks_current dep ON td.depends_on_id = dep.task_id
+      WHERE tc.status = 'ready' AND dep.status != 'done'
+      GROUP BY tc.task_id
+    `).all() as Array<{ task_id: string; blocked_by: string }>;
+
+    const map = new Map<string, string[]>();
+    for (const row of rows) {
+      map.set(row.task_id, row.blocked_by.split(','));
+    }
+    return map;
+  }
+
+  /**
+   * Get task statistics: total count, count by status, and list of projects.
+   */
+  getStats(): TaskStats {
+    const statusRows = this.db.prepare(`
+      SELECT status, COUNT(*) as count
+      FROM tasks_current
+      WHERE status != 'archived'
+      GROUP BY status
+    `).all() as Array<{ status: string; count: number }>;
+
+    const projectRows = this.db.prepare(`
+      SELECT DISTINCT project FROM tasks_current WHERE status != 'archived' ORDER BY project
+    `).all() as Array<{ project: string }>;
+
+    const byStatus: Record<string, number> = {};
+    let total = 0;
+    for (const row of statusRows) {
+      byStatus[row.status] = row.count;
+      total += row.count;
+    }
+
+    return {
+      total,
+      byStatus,
+      projects: projectRows.map((r) => r.project),
+    };
+  }
+
+  /**
+   * Get incomplete (blocking) dependencies for a task.
+   */
+  getBlockingDependencies(taskId: string): string[] {
+    const rows = this.db.prepare(`
+      SELECT td.depends_on_id
+      FROM task_dependencies td
+      JOIN tasks_current dep ON td.depends_on_id = dep.task_id
+      WHERE td.task_id = ? AND dep.status != 'done'
+    `).all(taskId) as Array<{ depends_on_id: string }>;
+    return rows.map((r) => r.depends_on_id);
+  }
+
+  /**
+   * Get task titles for multiple task IDs in a single batched query.
+   * Used by the web dashboard to avoid N+1 queries when fetching event titles.
+   */
+  getTaskTitlesByIds(taskIds: string[]): Map<string, string> {
+    const titleMap = new Map<string, string>();
+    if (taskIds.length === 0) return titleMap;
+
+    const placeholders = taskIds.map(() => '?').join(',');
+    const rows = this.db.prepare(`
+      SELECT task_id, title FROM tasks_current WHERE task_id IN (${placeholders})
+    `).all(...taskIds) as Array<{ task_id: string; title: string }>;
+
+    for (const row of rows) {
+      titleMap.set(row.task_id, row.title);
+    }
+    return titleMap;
   }
 
   private rowToTask(row: TaskRow): Task {

@@ -45,7 +45,7 @@ describe('hzl-web server', () => {
   });
 
   function createServer(port: number, host = '127.0.0.1'): ServerHandle {
-    server = createWebServer({ port, host, cacheDb: db, eventsDb: db });
+    server = createWebServer({ port, host, taskService, eventStore });
     return server;
   }
 
