@@ -1,3 +1,10 @@
+## [1.7.5](https://github.com/tmchow/hzl/compare/v1.7.4...v1.7.5) (2026-02-01)
+
+
+### Bug Fixes
+
+* read CLI version from package.json and update descriptions ([#33](https://github.com/tmchow/hzl/issues/33)) ([405e16d](https://github.com/tmchow/hzl/commit/405e16dc1a4f2c1f6898efd9377e50f0fd48a1c5))
+
 ## [1.7.4](https://github.com/tmchow/hzl/compare/v1.7.3...v1.7.4) (2026-02-01)
 
 
