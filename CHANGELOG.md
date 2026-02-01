@@ -1,3 +1,10 @@
+# [1.8.0](https://github.com/tmchow/hzl/compare/v1.7.6...v1.8.0) (2026-02-01)
+
+
+### Features
+
+* **hzl-web:** add Kanban-style web dashboard ([#35](https://github.com/tmchow/hzl/issues/35)) ([983de00](https://github.com/tmchow/hzl/commit/983de0082552e616b1f58353311d58c4a06d4490))
+
 ## [1.7.6](https://github.com/tmchow/hzl/compare/v1.7.5...v1.7.6) (2026-02-01)
 
 
