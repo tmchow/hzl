@@ -67,7 +67,7 @@ describe('runArchive', () => {
       services,
       taskId: parent.task_id,
       json: false,
-    })).toThrow(/active subtasks|--cascade|--orphan/i);
+    })).toThrow(/active subtask/i);
   });
 
   it('archives parent and subtasks with --cascade', () => {
@@ -151,6 +151,6 @@ describe('runArchive', () => {
       cascade: true,
       orphan: true,
       json: false,
-    })).toThrow(/cannot use both.*--cascade.*--orphan|only one of/i);
+    })).toThrow(/cannot use both.*cascade.*orphan/i);
   });
 });
