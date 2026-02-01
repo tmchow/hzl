@@ -20,7 +20,7 @@
     "directory": "packages/hzl-web"
   },
   "scripts": {
-    "build": "tsc -b",
+    "build": "tsc -b && cp -r src/ui dist/",
     "test": "vitest run",
     "test:watch": "vitest"
   },

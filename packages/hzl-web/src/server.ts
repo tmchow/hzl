@@ -1,5 +1,6 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'http';
 import type { Database } from 'libsql';
+import { DASHBOARD_HTML } from './ui-embed.js';
 
 export interface ServerOptions {
   port: number;
@@ -377,24 +378,8 @@ export function createWebServer(options: ServerOptions): ServerHandle {
   }
 
   function handleRoot(res: ServerResponse): void {
-    // TODO: Serve embedded HTML in Phase 4
-    res.writeHead(200, { 'Content-Type': 'text/html' });
-    res.end(`
-      <!DOCTYPE html>
-      <html>
-        <head><title>hzl dashboard</title></head>
-        <body style="background:#1a1a1a;color:#fff;font-family:monospace;padding:2rem;">
-          <h1>hzl dashboard</h1>
-          <p>Coming soon...</p>
-          <h2>API Endpoints</h2>
-          <ul>
-            <li><a href="/api/tasks" style="color:#f59e0b">/api/tasks</a></li>
-            <li><a href="/api/events" style="color:#f59e0b">/api/events</a></li>
-            <li><a href="/api/stats" style="color:#f59e0b">/api/stats</a></li>
-          </ul>
-        </body>
-      </html>
-    `);
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    res.end(DASHBOARD_HTML);
   }
 
   // Request handler
