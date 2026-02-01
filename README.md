@@ -82,7 +82,7 @@ Same idea: once you are switching tools/models, you need a shared ledger.
 
 ```mermaid
 flowchart LR
-  U[You] --> A[Coding agent]
+  U[You] --> A["Coding agent<br>(Claude Code, Codex, etc)"]
   A <--> HZL
   A --> R[Repo / files]
 ```
@@ -93,7 +93,7 @@ Use HZL to persist "what's next" and "what changed" between sessions.
 
 ```mermaid
 flowchart LR
-  UI[Your lightweight web app] --> HZL
+  UI[Lightweight web app] --> HZL
   Agents[Agents + scripts] --> HZL
 ```
 
@@ -151,7 +151,7 @@ hzl task add "Implement auth flow per design" -P myapp --priority 3 \
 
 # The agent reads linked files for context, task stays focused on the work
 hzl task show <id> --json
-# → { "links": ["docs/designs/auth-flow.md", "docs/brainstorm/2026-01-auth-options.md"], ... }
+# → { "links": ["docs/designs/auth-flow.md", "https://somedomain/resource.md"], ... }
 ```
 
 This pattern keeps tasks actionable while pointing agents to richer context stored elsewhere.
@@ -379,26 +379,32 @@ https://raw.githubusercontent.com/tmchow/hzl/main/docs/openclaw/tools-prompt.md
 ## CLI reference (short)
 
 ```bash
-hzl init
+# Setup
+hzl init                                      # Initialize database (add --sync-url for cloud)
 
-hzl project create <name>
-hzl project list
+# Projects
+hzl project create <name>                     # Create a project
+hzl project list                              # List all projects
 
-hzl task add "<title>" -P <project>
-hzl task list --project <project>
-hzl task next --project <project>
+# Tasks
+hzl task add "<title>" -P <project>           # Create task (--depends-on, --links, --priority)
+hzl task list --project <project>             # List tasks (--available for claimable only)
+hzl task next --project <project>             # Get highest priority available task
 
-hzl task claim <id> --author <name> [--lease <minutes>]
-hzl task checkpoint <id> "<message>"
-hzl task complete <id>
+# Working
+hzl task claim <id> --author <name>           # Claim task (--lease <minutes> for expiry)
+hzl task checkpoint <id> "<message>"          # Save progress snapshot
+hzl task complete <id>                        # Mark done
 
-hzl task stuck
-hzl task steal <id> --if-expired
-hzl task show <id> --json
+# Coordination
+hzl task stuck                                # Find expired leases
+hzl task steal <id> --if-expired              # Take over abandoned task
+hzl task show <id> --json                     # Task details (--json for scripting)
 
-hzl sync
-hzl status
-hzl doctor
+# Diagnostics
+hzl sync                                      # Sync with cloud (if configured)
+hzl status                                    # Show database and sync state
+hzl doctor                                    # Health checks
 ```
 
 ---
