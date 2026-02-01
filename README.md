@@ -123,6 +123,15 @@ HZL includes a basic [Kanban dashboard](#web-dashboard) for human visibility. Fo
 
 Requires Node.js 22.14+.
 
+#### Via Homebrew (macOS/Linux)
+
+```bash
+brew tap tmchow/hzl
+brew install hzl
+```
+
+#### Via NPM
+
 ```bash
 npm install -g hzl-cli
 hzl init
@@ -488,7 +497,7 @@ HZL is a monorepo with three packages:
 
 | Package | Description | Install |
 |---------|-------------|---------|
-| [`hzl-cli`](https://www.npmjs.com/package/hzl-cli) | CLI for task management (`hzl` command) | `npm install -g hzl-cli` |
+| [`hzl-cli`](https://www.npmjs.com/package/hzl-cli) | CLI for task management (`hzl` command) | `brew install hzl`<br/>`npm install -g hzl-cli` |
 | [`hzl-core`](https://www.npmjs.com/package/hzl-core) | Core library for programmatic use | `npm install hzl-core` |
 | [`hzl-web`](https://www.npmjs.com/package/hzl-web) | Web server and Kanban dashboard | `npm install hzl-web` |
 
