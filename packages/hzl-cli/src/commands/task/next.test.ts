@@ -123,4 +123,12 @@ describe('runNext', () => {
     const result = runNext({ services, project: 'myproject', json: false });
     expect(result).toBeNull(); // No available leaf tasks
   });
+
+  it('errors when parent task does not exist', () => {
+    expect(() => runNext({
+      services,
+      parent: 'nonexistent_task_id',
+      json: false,
+    })).toThrow(/parent.*not found/i);
+  });
 });

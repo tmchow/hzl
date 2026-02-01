@@ -2,7 +2,7 @@
 import { Command } from 'commander';
 import { resolveDbPaths } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
-import { handleError } from '../../errors.js';
+import { handleError, CLIError, ExitCode } from '../../errors.js';
 import { GlobalOptionsSchema } from '../../types.js';
 
 export interface NextResult {
@@ -29,6 +29,14 @@ interface NextCommandOptions {
 
 export function runNext(options: NextOptions): NextResult | null {
   const { services, project, tags, parent, json } = options;
+
+  // Validate parent exists if specified
+  if (parent) {
+    const parentTask = services.taskService.getTaskById(parent);
+    if (!parentTask) {
+      throw new CLIError(`Parent task not found: ${parent}`, ExitCode.NotFound);
+    }
+  }
 
   // Get available tasks using the service's getAvailableTasks method
   const availableTasks = services.taskService.getAvailableTasks({
