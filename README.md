@@ -41,7 +41,7 @@ Using OpenClaw? Start here: [OpenClaw integration](#openclaw-integration)
 
 Using Claude Code, Codex, or Gemini? See: [Using HZL with coding agents](#using-hzl-with-claude-code-codex-gemini-cli-or-any-coding-agent)
 
-Data is stored in SQLite. Default location: `$XDG_DATA_HOME/hzl/data.db` (fallback `~/.local/share/hzl/data.db`); Windows: `%LOCALAPPDATA%\\hzl\\data.db`.
+Data is stored in SQLite. Default location: `$XDG_DATA_HOME/hzl/` (fallback `~/.local/share/hzl/`); Windows: `%LOCALAPPDATA%\\hzl\\`. Contains `events.db` (source of truth) and `cache.db` (projections).
 
 ---
 
@@ -78,7 +78,7 @@ flowchart LR
 
 OpenClaw coordinates the work. HZL is the shared, durable task board that OpenClaw and its sub-agents can use across sessions.
 
-### 2) Any poly-agent system (no OpenClaw required)
+### 2) Any multi-agent system (no OpenClaw required)
 
 ```mermaid
 flowchart LR
@@ -238,7 +238,7 @@ flowchart TD
 
 ## Patterns
 
-### Pattern: Poly-agent backlog (recommended)
+### Pattern: Multi-agent backlog (recommended)
 
 Conventions that help:
 

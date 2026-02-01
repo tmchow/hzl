@@ -27,7 +27,7 @@ export function createProgram(): Command {
 
   program
     .name('hzl')
-    .description('A shared task ledger for OpenClaw and poly-agent workflows.')
+    .description('External task ledger for coding agents and OpenClaw.')
     .version(pkg.version)
     .option('--db <path>', 'Path to database file')
     .option('--json', 'Output in JSON format', false);

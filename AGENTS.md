@@ -91,7 +91,7 @@ The `--available` flag in `hzl task list` filters to claimable tasks.
 
 Uses [XDG Base Directory](https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html) paths:
 
-- Database: `$XDG_DATA_HOME/hzl/data.db` (defaults to `~/.local/share/hzl/data.db`)
+- Database: `$XDG_DATA_HOME/hzl/` (defaults to `~/.local/share/hzl/`) containing `events.db` and `cache.db`
 - Config: `$XDG_CONFIG_HOME/hzl/config.json` (defaults to `~/.config/hzl/config.json`)
 
 Resolution order: `--db` flag → `HZL_DB` env → config file → default.
@@ -100,7 +100,7 @@ Resolution order: `--db` flag → `HZL_DB` env → config file → default.
 
 **Dev mode is automatic.** When running the CLI from this repo (e.g., `node packages/hzl-cli/dist/cli.js`), hzl detects it's in the source tree and uses project-local storage:
 
-- Database: `.local/hzl/data.db` (in repo root)
+- Database: `.local/hzl/` (in repo root) containing `events.db` and `cache.db`
 - Config: `.config/hzl/config.json` (in repo root)
 
 This isolation is automatic - no env vars or setup required. The CLI shows `(dev mode - isolated from production)` in output to confirm.

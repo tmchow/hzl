@@ -1,7 +1,7 @@
 {
   "name": "hzl-cli",
   "version": "1.9.0",
-  "description": "CLI for HZL - A shared task ledger for OpenClaw and poly-agent workflows.",
+  "description": "CLI for HZL - External task ledger for coding agents and OpenClaw.",
   "type": "module",
   "bin": {
     "hzl": "dist/cli.js"
