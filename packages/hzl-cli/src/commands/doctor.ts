@@ -138,7 +138,7 @@ export async function runDoctor(options: DoctorOptions): Promise<DoctorResult> {
                 checks.lock = {
                     status: 'warn',
                     message: `Stale lock from PID ${metadata.pid}`,
-                    actions: [{ command: `rm "${lockPath}"`, description: 'Remove stale lock file (only if no hzl process is using the database)' }],
+                    actions: [{ command: 'hzl lock clear', description: 'Clear stale lock' }],
                 };
             } else {
                 checks.lock = {
