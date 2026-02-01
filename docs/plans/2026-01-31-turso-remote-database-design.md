@@ -853,7 +853,7 @@ git commit -m "feat(db): add append-only enforcement triggers and split schema
 
 ---
 
-### Task 5b: Add migration system with rollback support
+### Task 5b: Add migration system with rollback support ✅
 
 **Files:**
 - Create: `packages/hzl-core/src/db/migrations.ts`
