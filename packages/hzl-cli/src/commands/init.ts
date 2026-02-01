@@ -15,7 +15,7 @@ import {
   resolveDbPaths,
   type DbPathSource
 } from '../config.js';
-import { GlobalOptionsSchema } from '../types.js';
+import { GlobalOptionsSchema, type Config } from '../types.js';
 
 export interface InitResult {
   path: string;
@@ -53,7 +53,7 @@ function formatSourceHint(source: DbPathSource): string {
   }
 }
 
-export async function runInit(options: InitOptions): Promise<InitResult> {
+export function runInit(options: InitOptions): InitResult {
   const {
     dbPath,
     pathSource,
@@ -107,17 +107,17 @@ export async function runInit(options: InitOptions): Promise<InitResult> {
   if (local) {
     // Read existing config and remove sync-related keys
     const existing = readConfig(configPath);
-    const { syncUrl: _s, authToken: _a, ...cleanConfig } = existing;
-    // Preserve encryption key if provided or existing
-    const finalConfig = {
-      ...cleanConfig,
+    const cleanConfig: Partial<Config> = {
       dbPath,
-      ...(encryptionKey ? { encryptionKey } : {}),
+      defaultProject: existing.defaultProject,
+      defaultAuthor: existing.defaultAuthor,
+      leaseMinutes: existing.leaseMinutes,
+      encryptionKey: encryptionKey ?? existing.encryptionKey,
     };
     // Write the cleaned config (overwrites, removing sync keys)
-    writeConfig(finalConfig, configPath);
+    writeConfig(cleanConfig, configPath);
   } else {
-    const configUpdates: any = { dbPath };
+    const configUpdates: Partial<Config> = { dbPath };
     if (syncUrl) configUpdates.syncUrl = syncUrl;
     if (authToken) configUpdates.authToken = authToken;
     if (encryptionKey) configUpdates.encryptionKey = encryptionKey;
@@ -160,7 +160,7 @@ export function createInitCommand(): Command {
     .option('--auth-token <token>', 'Turso auth token')
     .option('--encryption-key <key>', 'Local encryption key')
     .option('--local', 'Explicit local-only mode, don\'t configure sync')
-    .action(async function (this: Command) {
+    .action(function (this: Command) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const opts = z.object({
         force: z.boolean().optional(),
@@ -190,7 +190,7 @@ export function createInitCommand(): Command {
         pathSource = resolved.source;
       }
 
-      await runInit({
+      runInit({
         dbPath,
         pathSource,
         json: globalOpts.json ?? false,

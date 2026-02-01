@@ -36,7 +36,7 @@ export interface StatusOptions {
     authToken?: string;
 }
 
-export async function runStatus(options: StatusOptions): Promise<StatusResult> {
+export function runStatus(options: StatusOptions): StatusResult {
     const { eventsDbPath, cacheDbPath, json, syncUrl, authToken } = options;
 
     const datastore = createDatastore({
@@ -103,7 +103,7 @@ export async function runStatus(options: StatusOptions): Promise<StatusResult> {
 export function createStatusCommand(): Command {
     return new Command('status')
         .description('Show database connection status and sync information')
-        .action(async function (this: Command) {
+        .action(function (this: Command) {
             const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
             const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
             const config = readConfig(getConfigPath());
@@ -112,7 +112,7 @@ export function createStatusCommand(): Command {
             const syncUrl = process.env.HZL_SYNC_URL ?? config.syncUrl ?? config.db?.events?.syncUrl;
             const authToken = process.env.HZL_AUTH_TOKEN ?? config.authToken ?? config.db?.events?.authToken;
 
-            const result = await runStatus({
+            const result = runStatus({
                 eventsDbPath,
                 cacheDbPath,
                 json: globalOpts.json,

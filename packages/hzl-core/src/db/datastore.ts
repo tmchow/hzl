@@ -45,21 +45,21 @@ export function createDatastore(config: DbConfig): Datastore {
     if (cachePath !== ':memory:') ensureDirectory(cachePath);
 
     // Build events.db options
-    const eventsOpts: any = {};
-    if (config.events?.syncUrl) {
-        eventsOpts.syncUrl = config.events.syncUrl;
+    interface DatabaseOptions {
+        syncUrl?: string;
+        authToken?: string;
+        encryptionKey?: string;
+        timeout?: number;
+        syncPeriod?: number;
     }
-    if (config.events?.authToken) {
-        eventsOpts.authToken = config.events.authToken;
-    }
-    if (config.events?.encryptionKey) {
-        eventsOpts.encryptionKey = config.events.encryptionKey;
-    }
-    if (config.timeoutSec) {
-        eventsOpts.timeout = config.timeoutSec;
-    }
-    // Use configured syncPeriod, default to 0 (disabled) for CLI use cases
-    eventsOpts.syncPeriod = config.syncPeriod ?? 0;
+    const eventsOpts: DatabaseOptions = {
+        syncUrl: config.events?.syncUrl,
+        authToken: config.events?.authToken,
+        encryptionKey: config.events?.encryptionKey,
+        timeout: config.timeoutSec,
+        // Use configured syncPeriod, default to 0 (disabled) for CLI use cases
+        syncPeriod: config.syncPeriod ?? 0,
+    };
 
     // Create connections
     const eventsDb = new Database(eventsPath, eventsOpts);
@@ -70,13 +70,14 @@ export function createDatastore(config: DbConfig): Datastore {
 
     try {
         eventsDb.exec(PRAGMAS);
-    } catch (err: any) {
+    } catch (err: unknown) {
         // In sync mode (embedded replica), some pragmas like journal_mode might be restricted
         // or handled by the engine. We ignore 'Sqlite3UnsupportedStatement' in this context.
         // The library throws generic Error with message or name equivalent to the code.
+        const errorObj = err as { code?: string; message?: string };
         const isUnsupported =
-            err.code === 'Sqlite3UnsupportedStatement' ||
-            err.message === 'Sqlite3UnsupportedStatement' ||
+            errorObj.code === 'Sqlite3UnsupportedStatement' ||
+            errorObj.message === 'Sqlite3UnsupportedStatement' ||
             String(err).includes('Sqlite3UnsupportedStatement');
 
         if (!isUnsupported) {
@@ -160,7 +161,7 @@ export function createDatastore(config: DbConfig): Datastore {
                         resolve({ frames_synced: 0, frame_no: 0 }); // Mock result since binding might not return it
                     } catch (err) {
                         clearTimeout(timeout);
-                        reject(err);
+                        reject(err instanceof Error ? err : new Error(String(err)));
                     }
                 });
 

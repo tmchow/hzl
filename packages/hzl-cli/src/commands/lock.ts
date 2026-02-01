@@ -24,7 +24,7 @@ export interface LockClearOptions {
     force?: boolean;
 }
 
-export async function runLockClear(options: LockClearOptions): Promise<LockClearResult> {
+export function runLockClear(options: LockClearOptions): LockClearResult {
     const { eventsDbPath, json, force = false } = options;
     const lockPath = `${eventsDbPath}.lock`;
     const lock = new DatabaseLock(lockPath);
@@ -110,7 +110,7 @@ export interface LockStatusOptions {
     json: boolean;
 }
 
-export async function runLockStatus(options: LockStatusOptions): Promise<LockStatusResult> {
+export function runLockStatus(options: LockStatusOptions): LockStatusResult {
     const { eventsDbPath, json } = options;
     const lockPath = `${eventsDbPath}.lock`;
     const lock = new DatabaseLock(lockPath);
@@ -167,11 +167,11 @@ export function createLockCommand(): Command {
     lockCommand
         .command('status')
         .description('Show current lock status')
-        .action(async function (this: Command) {
+        .action(function (this: Command) {
             const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
             const { eventsDbPath } = resolveDbPaths(globalOpts.db);
 
-            const result = await runLockStatus({
+            const result = runLockStatus({
                 eventsDbPath,
                 json: globalOpts.json,
             });
@@ -185,7 +185,7 @@ export function createLockCommand(): Command {
         .command('clear')
         .description('Clear a stale database lock')
         .option('-f, --force', 'Clear lock even if process appears active (dangerous)')
-        .action(async function (this: Command) {
+        .action(function (this: Command) {
             const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
             const localOpts = z.object({
                 force: z.boolean().optional(),
@@ -193,7 +193,7 @@ export function createLockCommand(): Command {
 
             const { eventsDbPath } = resolveDbPaths(globalOpts.db);
 
-            const result = await runLockClear({
+            const result = runLockClear({
                 eventsDbPath,
                 json: globalOpts.json,
                 force: localOpts.force,

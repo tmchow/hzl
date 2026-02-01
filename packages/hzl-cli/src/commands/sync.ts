@@ -5,7 +5,6 @@ import {
     type Datastore,
     type ConflictStrategy,
     type SyncStats,
-    type SyncResult as CoreSyncResult,
     getDirtySince,
     getLastSyncFrameNo,
     clearDirtySince
@@ -96,11 +95,11 @@ function detectConflict(datastore: Datastore): {
  * - discard-local: Drop local changes since last sync, pull remote
  * - fail: Abort with error, let user decide
  */
-async function resolveConflict(
+function resolveConflict(
     datastore: Datastore,
     strategy: ConflictStrategy,
     conflictInfo: { localEventCount: number; dirtySince: number | null }
-): Promise<{ resolved: boolean; action: string }> {
+): { resolved: boolean; action: string } {
     switch (strategy) {
         case 'merge':
             // For append-only events, merge is safe - just sync and both sides get all events
@@ -122,11 +121,6 @@ async function resolveConflict(
                 0, // Will be filled by sync
                 getLastSyncFrameNo(datastore.cacheDb)
             );
-
-        default: {
-            const _exhaustive: never = strategy;
-            throw new Error(`Unknown conflict strategy: ${strategy}`);
-        }
     }
 }
 
@@ -175,7 +169,7 @@ export async function runSync(options: SyncOptions): Promise<SyncResult> {
         const conflictInfo = detectConflict(datastore);
         if (conflictInfo.hasLocalChanges && !force) {
             try {
-                const resolution = await resolveConflict(datastore, conflictStrategy, conflictInfo);
+                const resolution = resolveConflict(datastore, conflictStrategy, conflictInfo);
                 if (!json) {
                     console.log(`ℹ Conflict resolution: ${resolution.action} (${conflictInfo.localEventCount} local events)`);
                 }

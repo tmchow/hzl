@@ -14,12 +14,12 @@ describe('project workflow integration', () => {
   let configPath: string;
   let services: Services;
 
-  beforeEach(async () => {
+  beforeEach(() => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hzl-project-workflow-'));
     dbPath = path.join(tempDir, 'data.db');
     configPath = path.join(tempDir, 'config.json');
 
-    await runInit({ dbPath, pathSource: 'cli', json: false, configPath });
+    runInit({ dbPath, pathSource: 'cli', json: false, configPath });
     services = initializeDb(dbPath);
   });
 

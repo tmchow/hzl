@@ -32,7 +32,7 @@ type ExportEventRow = {
 export class BackupService {
   constructor(private db: Database.Database) { }
 
-  async backup(destPath: string): Promise<void> {
+  backup(destPath: string): void {
     const dir = path.dirname(destPath);
     fs.mkdirSync(dir, { recursive: true });
     if (fs.existsSync(destPath)) {

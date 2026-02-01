@@ -68,7 +68,7 @@ describe('Backup/Restore Round-Trip Tests', () => {
       taskService.addComment(task1.task_id, 'Working on it');
       taskService.addCheckpoint(task1.task_id, 'step1', { progress: 50 });
 
-      await backupService.backup(backupPath);
+      backupService.backup(backupPath);
 
       expect(fs.existsSync(backupPath)).toBe(true);
 
@@ -86,7 +86,7 @@ describe('Backup/Restore Round-Trip Tests', () => {
         taskService.createTask({ title: `Task ${i}`, project: 'inbox' });
       }
 
-      await backupService.backup(backupPath);
+      backupService.backup(backupPath);
 
       const backupDb = new Database(backupPath, { readonly: true });
       const eventCount = backupDb
@@ -108,7 +108,7 @@ describe('Backup/Restore Round-Trip Tests', () => {
       taskService.setStatus(task1.task_id, TaskStatus.Ready);
       taskService.addComment(task1.task_id, 'Original comment');
 
-      await backupService.backup(backupPath);
+      backupService.backup(backupPath);
 
       taskService.createTask({ title: 'New task after backup', project: 'inbox' });
       taskService.claimTask(task1.task_id, { author: 'agent-1' });
@@ -166,7 +166,7 @@ describe('Backup/Restore Round-Trip Tests', () => {
       taskService.addComment(task.task_id, 'Comment with unicode: 你好世界 🎉');
       taskService.addCheckpoint(task.task_id, 'checkpoint1', { data: { complex: true } });
 
-      await backupService.backup(backupPath);
+      backupService.backup(backupPath);
       db.close();
 
       const restorePath = path.join(tempDir, 'restored.db');
@@ -227,7 +227,7 @@ describe('Backup/Restore Round-Trip Tests', () => {
         .prepare('SELECT event_id, type FROM events ORDER BY id')
         .all() as { event_id: string; type: string }[];
 
-      await backupService.backup(backupPath);
+      backupService.backup(backupPath);
       db.close();
 
       const restorePath = path.join(tempDir, 'restored.db');

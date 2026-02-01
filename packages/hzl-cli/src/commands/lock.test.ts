@@ -18,8 +18,8 @@ describe('hzl lock command', () => {
     });
 
     describe('runLockStatus', () => {
-        it('reports no lock when none exists', async () => {
-            const result = await runLockStatus({
+        it('reports no lock when none exists', () => {
+            const result = runLockStatus({
                 eventsDbPath: eventsDb,
                 json: true,
             });
@@ -28,7 +28,7 @@ describe('hzl lock command', () => {
             expect(result.locked).toBe(false);
         });
 
-        it('reports lock details when lock exists', async () => {
+        it('reports lock details when lock exists', () => {
             // Create a lock file manually (simulating a stale lock from dead process)
             const metadata = {
                 pid: 99999, // Non-existent PID
@@ -38,7 +38,7 @@ describe('hzl lock command', () => {
             };
             fs.writeFileSync(lockPath, JSON.stringify(metadata, null, 2));
 
-            const result = await runLockStatus({
+            const result = runLockStatus({
                 eventsDbPath: eventsDb,
                 json: true,
             });
@@ -51,8 +51,8 @@ describe('hzl lock command', () => {
     });
 
     describe('runLockClear', () => {
-        it('reports no lock when none exists', async () => {
-            const result = await runLockClear({
+        it('reports no lock when none exists', () => {
+            const result = runLockClear({
                 eventsDbPath: eventsDb,
                 json: true,
             });
@@ -62,7 +62,7 @@ describe('hzl lock command', () => {
             expect(result.message).toContain('No lock file exists');
         });
 
-        it('clears stale lock without --force', async () => {
+        it('clears stale lock without --force', () => {
             // Create a stale lock (non-existent PID)
             const metadata = {
                 pid: 99999,
@@ -72,7 +72,7 @@ describe('hzl lock command', () => {
             };
             fs.writeFileSync(lockPath, JSON.stringify(metadata, null, 2));
 
-            const result = await runLockClear({
+            const result = runLockClear({
                 eventsDbPath: eventsDb,
                 json: true,
             });
@@ -83,7 +83,7 @@ describe('hzl lock command', () => {
             expect(fs.existsSync(lockPath)).toBe(false);
         });
 
-        it('refuses to clear active lock without --force', async () => {
+        it('refuses to clear active lock without --force', () => {
             // Create a lock with current process PID (definitely active)
             const metadata = {
                 pid: process.pid,
@@ -93,7 +93,7 @@ describe('hzl lock command', () => {
             };
             fs.writeFileSync(lockPath, JSON.stringify(metadata, null, 2));
 
-            const result = await runLockClear({
+            const result = runLockClear({
                 eventsDbPath: eventsDb,
                 json: true,
                 force: false,
@@ -105,7 +105,7 @@ describe('hzl lock command', () => {
             expect(fs.existsSync(lockPath)).toBe(true);
         });
 
-        it('clears active lock with --force', async () => {
+        it('clears active lock with --force', () => {
             // Create a lock with current process PID
             const metadata = {
                 pid: process.pid,
@@ -115,7 +115,7 @@ describe('hzl lock command', () => {
             };
             fs.writeFileSync(lockPath, JSON.stringify(metadata, null, 2));
 
-            const result = await runLockClear({
+            const result = runLockClear({
                 eventsDbPath: eventsDb,
                 json: true,
                 force: true,
@@ -136,15 +136,15 @@ describe('hzl lock command', () => {
 
         it('has status and clear subcommands', () => {
             const cmd = createLockCommand();
-            const subcommands = cmd.commands.map((c: any) => c.name());
+            const subcommands = cmd.commands.map((c: unknown) => (c as { name: () => string }).name());
             expect(subcommands).toContain('status');
             expect(subcommands).toContain('clear');
         });
 
         it('clear subcommand has --force option', () => {
             const cmd = createLockCommand();
-            const clearCmd = cmd.commands.find((c: any) => c.name() === 'clear');
-            const opts = clearCmd?.options.map((o: any) => o.long);
+            const clearCmd = cmd.commands.find((c: unknown) => (c as { name: () => string }).name() === 'clear') as { options: { long: string }[] } | undefined;
+            const opts = clearCmd?.options.map((o) => o.long);
             expect(opts).toContain('--force');
         });
     });

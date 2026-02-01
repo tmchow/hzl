@@ -18,8 +18,8 @@ describe('hzl status command', () => {
     });
 
     describe('runStatus', () => {
-        it('returns database status', async () => {
-            const result = await runStatus({
+        it('returns database status', () => {
+            const result = runStatus({
                 eventsDbPath: eventsDb,
                 cacheDbPath: cacheDb,
                 json: true,
@@ -33,8 +33,8 @@ describe('hzl status command', () => {
             expect(result.data.deviceId).toBeDefined();
         });
 
-        it('shows no sync info for local-only mode', async () => {
-            const result = await runStatus({
+        it('shows no sync info for local-only mode', () => {
+            const result = runStatus({
                 eventsDbPath: eventsDb,
                 cacheDbPath: cacheDb,
                 json: true,
