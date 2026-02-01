@@ -172,7 +172,7 @@ API-compatible change - no functional differences for local-only mode"
 
 ---
 
-### Task 3: Add sync configuration types
+### Task 3: Add sync configuration types ✅
 
 **Files:**
 - Modify: `packages/hzl-cli/src/types.ts`
