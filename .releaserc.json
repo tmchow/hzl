@@ -7,7 +7,7 @@
       "changelogFile": "CHANGELOG.md"
     }],
     ["@semantic-release/exec", {
-      "prepareCmd": "node scripts/sync-versions.js ${nextRelease.version}"
+      "prepareCmd": "node scripts/sync-versions.js ${nextRelease.version} && npm install --package-lock-only"
     }],
     ["@semantic-release/npm", {
       "pkgRoot": "packages/hzl-core",
@@ -25,6 +25,7 @@
       "assets": [
         "CHANGELOG.md",
         "package.json",
+        "package-lock.json",
         "packages/*/package.json",
         "packages/hzl-cli/README.md"
       ],
