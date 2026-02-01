@@ -133,22 +133,69 @@ Add `hzl serve` command to hzl-cli.
 
 **Usage:**
 ```bash
-hzl serve              # Start on default port 3456
-hzl serve --port 8080  # Start on custom port
+hzl serve                # Start foreground on default port 3456
+hzl serve --port 8080    # Start on custom port
+hzl serve --background   # Fork to background, write PID
+hzl serve --stop         # Stop background server
+hzl serve --status       # Check if running
+hzl serve --print-systemd  # Output systemd unit file for OpenClaw
 ```
 
-**Startup Output:**
+**Foreground Output:**
 ```
 hzl dashboard running at http://localhost:3456
 Listening on 0.0.0.0:3456 (accessible from network)
 Press Ctrl+C to stop
 ```
 
+**Background Output:**
+```
+hzl dashboard started in background
+  URL: http://localhost:3456
+  PID: 12345
+  Log: ~/.local/share/hzl/serve.log
+
+Run 'hzl serve --stop' to stop
+```
+
+**Background Mode Implementation:**
+- PID stored in `$XDG_DATA_HOME/hzl/serve.pid` (or `.local/hzl/serve.pid` in dev mode)
+- Logs to `serve.log` in same directory
+- `--background` uses `spawn(..., { detached: true, stdio: 'ignore' })`
+- `--stop` reads PID file and sends SIGTERM
+- `--status` checks if PID is running and shows port
+
+**systemd Helper (--print-systemd):**
+```ini
+[Unit]
+Description=hzl task dashboard
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/hzl serve --port 3456
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
+```
+
+User installs with:
+```bash
+hzl serve --print-systemd > ~/.config/systemd/user/hzl-web.service
+systemctl --user daemon-reload
+systemctl --user enable --now hzl-web
+```
+
 **Tasks:**
 - [ ] Create `packages/hzl-cli/src/commands/serve.ts`
 - [ ] Register command in `packages/hzl-cli/src/index.ts`
+- [ ] Implement foreground mode with graceful shutdown
+- [ ] Implement `--background` with PID/log management
+- [ ] Implement `--stop` to kill background process
+- [ ] Implement `--status` to check running state
+- [ ] Implement `--print-systemd` to output unit file
 - [ ] Handle port-in-use error gracefully
-- [ ] Add graceful shutdown on SIGINT/SIGTERM
 - [ ] Add `hzl-web` dependency to hzl-cli package.json
 
 **Files:**
@@ -305,6 +352,10 @@ document.addEventListener('visibilitychange', () => {
 
 ### Functional Requirements
 - [ ] `hzl serve` starts HTTP server on specified port
+- [ ] `hzl serve --background` forks to background with PID management
+- [ ] `hzl serve --stop` stops background server
+- [ ] `hzl serve --status` shows running state
+- [ ] `hzl serve --print-systemd` outputs valid unit file
 - [ ] Dashboard shows Kanban board with 5 columns
 - [ ] Date filter limits tasks by updated_at
 - [ ] Project filter limits tasks to selected project

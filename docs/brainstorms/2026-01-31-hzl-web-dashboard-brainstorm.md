@@ -26,6 +26,7 @@ A lightweight Kanban-style web dashboard for monitoring hzl tasks in near real-t
 |----------|--------|
 | Location | New `hzl-web` package in monorepo |
 | Startup | `hzl serve --port 3456` CLI command |
+| Background mode | `--background` for dev, `--print-systemd` for OpenClaw services |
 | UI stack | Single HTML file, vanilla JS, no build step |
 | Style | Dark background, amber/orange accent, monospace font |
 | Layout | Kanban: backlog → blocked → ready → in_progress → done |
