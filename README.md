@@ -461,6 +461,20 @@ The server binds to `0.0.0.0` by default, making it accessible over the network 
 
 ---
 
+## Packages
+
+HZL is a monorepo with three packages:
+
+| Package | Description | Install |
+|---------|-------------|---------|
+| [`hzl-cli`](https://www.npmjs.com/package/hzl-cli) | CLI for task management (`hzl` command) | `npm install -g hzl-cli` |
+| [`hzl-core`](https://www.npmjs.com/package/hzl-core) | Core library for programmatic use | `npm install hzl-core` |
+| [`hzl-web`](https://www.npmjs.com/package/hzl-web) | Web server and Kanban dashboard | `npm install hzl-web` |
+
+Most users should install `hzl-cli`. Use `hzl-core` or `hzl-web` directly if you're building your own tooling or UI on top of HZL.
+
+---
+
 ## License
 
 MIT
