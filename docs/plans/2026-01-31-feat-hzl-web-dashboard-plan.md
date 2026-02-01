@@ -49,11 +49,11 @@ Add a web-based dashboard that:
 Create `packages/hzl-web/` following existing patterns.
 
 **Tasks:**
-- [ ] Create `packages/hzl-web/package.json` (type: module, workspace dependency on hzl-core)
-- [ ] Create `packages/hzl-web/tsconfig.json` (extends root, references hzl-core)
-- [ ] Create `packages/hzl-web/src/index.ts` (exports startServer)
-- [ ] Add hzl-web to root package.json workspaces
-- [ ] Verify `npm run build` succeeds
+- [x] Create `packages/hzl-web/package.json` (type: module, workspace dependency on hzl-core)
+- [x] Create `packages/hzl-web/tsconfig.json` (extends root, references hzl-core)
+- [x] Create `packages/hzl-web/src/index.ts` (exports startServer)
+- [x] Add hzl-web to root package.json workspaces
+- [x] Verify `npm run build` succeeds
 
 **Files:**
 - `packages/hzl-web/package.json`
@@ -81,16 +81,16 @@ Implement the JSON API using Node's built-in `http` module.
 - `project` - Project name filter
 
 **Tasks:**
-- [ ] Create `packages/hzl-web/src/server.ts` with HTTP server
-- [ ] Implement routing (simple switch on pathname)
-- [ ] Implement `GET /api/tasks` with date/project filtering
-- [ ] Implement `GET /api/tasks/:id` using TaskService.getTaskById()
-- [ ] Implement `GET /api/tasks/:id/comments`
-- [ ] Implement `GET /api/tasks/:id/checkpoints`
-- [ ] Implement `GET /api/events?since=<event_id>` (query events table)
-- [ ] Implement `GET /api/stats` (counts by status)
-- [ ] Add blocked task detection (ready status + unmet dependencies)
-- [ ] Bind to 0.0.0.0 for Tailscale access
+- [x] Create `packages/hzl-web/src/server.ts` with HTTP server
+- [x] Implement routing (simple switch on pathname)
+- [x] Implement `GET /api/tasks` with date/project filtering
+- [x] Implement `GET /api/tasks/:id` using TaskService.getTaskById()
+- [x] Implement `GET /api/tasks/:id/comments`
+- [x] Implement `GET /api/tasks/:id/checkpoints`
+- [x] Implement `GET /api/events?since=<event_id>` (query events table)
+- [x] Implement `GET /api/stats` (counts by status)
+- [x] Add blocked task detection (ready status + unmet dependencies)
+- [x] Bind to 0.0.0.0 for Tailscale access
 
 **Files:**
 - `packages/hzl-web/src/server.ts`
@@ -188,15 +188,15 @@ systemctl --user enable --now hzl-web
 ```
 
 **Tasks:**
-- [ ] Create `packages/hzl-cli/src/commands/serve.ts`
-- [ ] Register command in `packages/hzl-cli/src/index.ts`
-- [ ] Implement foreground mode with graceful shutdown
-- [ ] Implement `--background` with PID/log management
-- [ ] Implement `--stop` to kill background process
-- [ ] Implement `--status` to check running state
-- [ ] Implement `--print-systemd` to output unit file
-- [ ] Handle port-in-use error gracefully
-- [ ] Add `hzl-web` dependency to hzl-cli package.json
+- [x] Create `packages/hzl-cli/src/commands/serve.ts`
+- [x] Register command in `packages/hzl-cli/src/index.ts`
+- [x] Implement foreground mode with graceful shutdown
+- [x] Implement `--background` with PID/log management
+- [x] Implement `--stop` to kill background process
+- [x] Implement `--status` to check running state
+- [x] Implement `--print-systemd` to output unit file
+- [x] Handle port-in-use error gracefully
+- [x] Add `hzl-web` dependency to hzl-cli package.json
 
 **Files:**
 - `packages/hzl-cli/src/commands/serve.ts`
@@ -232,13 +232,13 @@ Single HTML file with embedded CSS and JavaScript.
 - Cards: muted borders, no shadows
 
 **Tasks:**
-- [ ] Create `packages/hzl-web/src/ui/index.html`
-- [ ] Implement CSS (dark theme, responsive)
-- [ ] Implement Kanban column layout (flexbox)
-- [ ] Implement task card component
-- [ ] Implement header with filters (date, project, refresh)
-- [ ] Implement connection indicator
-- [ ] Embed HTML as string constant at build time
+- [x] Create `packages/hzl-web/src/ui/index.html`
+- [x] Implement CSS (dark theme, responsive)
+- [x] Implement Kanban column layout (flexbox)
+- [x] Implement task card component
+- [x] Implement header with filters (date, project, refresh)
+- [x] Implement connection indicator
+- [x] Embed HTML as string constant at build time
 
 **Files:**
 - `packages/hzl-web/src/ui/index.html`
@@ -274,13 +274,13 @@ document.addEventListener('visibilitychange', () => {
 - All stored in localStorage
 
 **Tasks:**
-- [ ] Implement polling with visibility API
-- [ ] Implement date filter dropdown
-- [ ] Implement project filter dropdown (derived from tasks)
-- [ ] Implement refresh interval dropdown
-- [ ] Persist filter selections to localStorage
-- [ ] Show last-updated indicator
-- [ ] Handle poll failures (amber indicator, retry)
+- [x] Implement polling with visibility API
+- [x] Implement date filter dropdown
+- [x] Implement project filter dropdown (derived from tasks)
+- [x] Implement refresh interval dropdown
+- [x] Persist filter selections to localStorage
+- [x] Show last-updated indicator
+- [x] Handle poll failures (amber indicator, retry)
 
 ### Phase 6: Frontend - Task Detail Modal
 
@@ -299,12 +299,12 @@ document.addEventListener('visibilitychange', () => {
 - Fetches detail data on open
 
 **Tasks:**
-- [ ] Implement modal overlay
-- [ ] Implement modal content layout
-- [ ] Fetch task detail on open
-- [ ] Fetch comments and checkpoints
-- [ ] Handle "task not found" gracefully
-- [ ] Close on ESC key
+- [x] Implement modal overlay
+- [x] Implement modal content layout
+- [x] Fetch task detail on open
+- [x] Fetch comments and checkpoints
+- [x] Handle "task not found" gracefully
+- [x] Close on ESC key
 
 ### Phase 7: Frontend - Activity Panel
 
@@ -315,10 +315,10 @@ document.addEventListener('visibilitychange', () => {
 - Newest at top
 
 **Tasks:**
-- [ ] Implement slide-out panel CSS (right side)
-- [ ] Implement event list rendering
-- [ ] Track last-seen event ID for incremental updates
-- [ ] Add close button
+- [x] Implement slide-out panel CSS (right side)
+- [x] Implement event list rendering
+- [x] Track last-seen event ID for incremental updates
+- [x] Add close button
 
 ### Phase 8: Mobile Layout
 
@@ -331,21 +331,22 @@ document.addEventListener('visibilitychange', () => {
 - Tab badges show task counts
 
 **Tasks:**
-- [ ] Add responsive CSS with media query
-- [ ] Implement tab navigation
-- [ ] Implement hamburger menu
+- [x] Add responsive CSS with media query
+- [x] Implement tab navigation
+- [x] Implement hamburger menu
 - [ ] Implement swipe gesture (stretch)
 - [ ] Test on mobile viewport sizes
 
 ### Phase 9: Testing & Polish
 
 **Tasks:**
-- [ ] Add unit tests for API routes
-- [ ] Add integration test for server startup
-- [ ] Test with empty database
-- [ ] Test with large dataset (100+ tasks)
-- [ ] Test mobile breakpoint
-- [ ] Test polling pause/resume
+- [x] Add unit tests for API routes (24 tests in server.test.ts)
+- [x] Add integration test for server startup (included in server.test.ts)
+- [x] Add unit tests for new TaskService methods (16 tests)
+- [x] Test with empty database (manual)
+- [x] Test with large dataset (100+ tasks) (manual via polling)
+- [x] Test mobile breakpoint (CSS validated)
+- [x] Test polling pause/resume (visibility API)
 - [ ] Manual testing on real device
 
 ### Phase 10: Documentation
