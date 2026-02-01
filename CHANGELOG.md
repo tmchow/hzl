@@ -1,3 +1,10 @@
+## [1.9.1](https://github.com/tmchow/hzl/compare/v1.9.0...v1.9.1) (2026-02-01)
+
+
+### Bug Fixes
+
+* **docs:** Update README and positioning throughout docs ([#43](https://github.com/tmchow/hzl/issues/43)) ([3cf23ce](https://github.com/tmchow/hzl/commit/3cf23ce92dbe3de95632e370b1844d57d8c3215d))
+
 # [1.9.0](https://github.com/tmchow/hzl/compare/v1.8.2...v1.9.0) (2026-02-01)
 
 
