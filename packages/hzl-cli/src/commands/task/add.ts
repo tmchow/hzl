@@ -3,6 +3,7 @@ import { Command } from 'commander';
 import { resolveDbPaths } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { CLIError, ExitCode, handleError } from '../../errors.js';
+import { TaskStatus } from 'hzl-core/events/types.js';
 import { GlobalOptionsSchema } from '../../types.js';
 
 export interface AddResult {
@@ -45,7 +46,7 @@ export function runAdd(options: AddOptions): AddResult {
     if (!parentTask) {
       throw new CLIError(`Parent task not found: ${parent}`, ExitCode.NotFound);
     }
-    if (parentTask.status === 'archived') {
+    if (parentTask.status === TaskStatus.Archived) {
       throw new CLIError(`Cannot create subtask of archived parent: ${parent}`, ExitCode.InvalidInput);
     }
     if (parentTask.parent_id) {

@@ -4,6 +4,7 @@ import { resolveDbPaths } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { CLIError, ExitCode, handleError } from '../../errors.js';
 import { GlobalOptionsSchema } from '../../types.js';
+import { TaskStatus } from 'hzl-core/events/types.js';
 import type { Comment, Checkpoint } from 'hzl-core/services/task-service.js';
 
 export interface ShowResult {
@@ -110,7 +111,7 @@ export function runShow(options: {
     if (subtasks && subtasks.length > 0) {
       console.log(`\nSubtasks (${subtasks.length}):`);
       for (const st of subtasks) {
-        const icon = st.status === 'done' ? '✓' : st.status === 'in_progress' ? '→' : '○';
+        const icon = st.status === TaskStatus.Done ? '✓' : st.status === TaskStatus.InProgress ? '→' : '○';
         console.log(`  ${icon} [${st.task_id.slice(0, 8)}] ${st.title} (${st.status})`);
       }
     }

@@ -3,7 +3,7 @@ import { Command } from 'commander';
 import { resolveDbPaths } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError, CLIError, ExitCode } from '../../errors.js';
-import { EventType } from 'hzl-core/events/types.js';
+import { EventType, TaskStatus } from 'hzl-core/events/types.js';
 import { GlobalOptionsSchema } from '../../types.js';
 
 export interface UpdateResult {
@@ -67,7 +67,7 @@ export function runUpdate(options: {
         throw new CLIError(`Parent task not found: ${updates.parent_id}`, ExitCode.NotFound);
       }
 
-      if (parentTask.status === 'archived') {
+      if (parentTask.status === TaskStatus.Archived) {
         throw new CLIError(`Cannot set archived task as parent: ${updates.parent_id}`, ExitCode.InvalidInput);
       }
 
