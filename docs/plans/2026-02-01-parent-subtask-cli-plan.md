@@ -1323,12 +1323,236 @@ git commit -m "feat(cli): add --cascade and --orphan flags to task archive"
 - Modify: `docs/openclaw/skills/hzl/SKILL.md`
 - Modify: `packages/hzl-marketplace/plugins/hzl-skills/skills/hzl-task-management/SKILL.md`
 
-Add subtask documentation including:
-- `--parent` option for add, update, list, next
-- `--root` filter for list
-- `--cascade` and `--orphan` for archive
-- Max 1 level of nesting
-- Parent tasks are organizational only (never returned by `next`)
+### Step 1: Update README.md
+
+**Add new "Pattern: Breaking down work with subtasks" section after the "Pattern: Multi-agent backlog" section (~line 269):**
+
+```markdown
+### Pattern: Breaking down work with subtasks
+
+HZL supports one level of parent/subtask hierarchy for organizing related work.
+
+**Key behavior: Parent tasks are organizational containers, not actionable work.**
+
+When you call `hzl task next`, only leaf tasks (tasks without children) are returned. Parent tasks are never returned because they represent the umbrella—work happens on the subtasks.
+
+```bash
+# Create parent task
+hzl task add "Implement user authentication" -P myapp --priority 2
+# → Created task abc123
+
+# Create subtasks (project inherited automatically from parent)
+hzl task add "Add login endpoint" --parent abc123
+hzl task add "Add logout endpoint" --parent abc123
+hzl task add "Add session management" --parent abc123
+
+# View the breakdown
+hzl task show abc123
+# Shows task details plus list of subtasks
+
+# Get next available subtask (parent is never returned)
+hzl task next --project myapp
+# → [def456] Add login endpoint
+
+# Scope work to a specific parent's subtasks
+hzl task next --parent abc123
+# → [def456] Add login endpoint
+
+# When all subtasks done, manually complete the parent
+hzl task complete abc123
+```
+
+**Constraints:**
+- Maximum 1 level of nesting (subtasks cannot have their own subtasks)
+- Subtasks are always in the same project as parent (auto-inherited)
+- Moving a parent moves all subtasks atomically
+
+**Filtering:**
+```bash
+# See all subtasks of a task
+hzl task list --parent abc123
+
+# See only top-level tasks (no parent)
+hzl task list --root
+
+# Combine with other filters
+hzl task list --root --status ready
+```
+
+**Archiving:**
+```bash
+# Archive parent with all subtasks
+hzl task archive abc123 --cascade
+
+# Archive parent only (subtasks promoted to top-level)
+hzl task archive abc123 --orphan
+```
+```
+
+**Update CLI reference (short) section (~line 416) to add subtask commands:**
+
+After the existing task commands, add:
+
+```markdown
+# Subtasks (organization)
+hzl task add "<title>" --parent <id>             # Create subtask (inherits project)
+hzl task list --parent <id>                      # List subtasks of a task
+hzl task list --root                             # List only top-level tasks
+hzl task next --parent <id>                      # Next available subtask
+hzl task show <id>                               # Shows subtasks inline
+hzl task archive <id> --cascade                  # Archive parent and all subtasks
+hzl task archive <id> --orphan                   # Archive parent, promote subtasks
+```
+
+### Step 2: Update OpenClaw skill (docs/openclaw/skills/hzl/SKILL.md)
+
+**Add to Quick reference section (~line 68) after "Create tasks":**
+
+```markdown
+# Subtasks (organize related work)
+hzl task add "<title>" --parent <parent-id>       # Create subtask
+hzl task list --parent <parent-id>                # List subtasks
+hzl task list --root                              # Top-level tasks only
+hzl task next --parent <parent-id>                # Next subtask of parent
+```
+
+**Add new pattern section after "Coordinate sub-agents with leases" (~line 158):**
+
+```markdown
+### Break down work with subtasks
+
+Use parent/subtask hierarchy to organize complex work:
+
+```bash
+# Create parent task
+hzl task add "Implement vacation booking" -P portland-trip --priority 2
+# → abc123
+
+# Create subtasks (project inherited automatically)
+hzl task add "Research flights" --parent abc123
+hzl task add "Book hotel" --parent abc123 --depends-on <flights-id>
+hzl task add "Plan activities" --parent abc123
+
+# View breakdown
+hzl task show abc123
+
+# Work through subtasks
+hzl task next --parent abc123
+```
+
+**Important:** `hzl task next` only returns leaf tasks (tasks without children). Parent tasks are organizational containers—they are never returned as "next available work."
+
+When all subtasks are done, manually complete the parent:
+```bash
+hzl task complete abc123
+```
+```
+
+### Step 3: Update hzl-task-management skill
+
+**Update Core Concepts section (~line 20) to clarify task hierarchy:**
+
+Replace the **Tasks** bullet with:
+
+```markdown
+**Tasks** are units of work within projects. Tasks can have:
+- Priority (higher number = higher priority)
+- Tags for categorization
+- Dependencies on other tasks
+- A parent task (creating a subtask relationship, max 1 level deep)
+
+**Parent tasks** are organizational containers. They are never returned by `hzl task next`—only leaf tasks (tasks without children) are claimable work.
+```
+
+**Replace "Scenario: Breaking Down Work" section (~line 58) with expanded version:**
+
+```markdown
+## Scenario: Breaking Down Work
+
+When facing a complex task or feature, use subtasks for organization and dependencies for sequencing.
+
+### Using subtasks for organization
+
+Subtasks group related work under a parent:
+
+```bash
+# Create the parent task (organizational container)
+hzl task add "Implement user authentication" -P myapp --priority 2
+# → Created task abc123
+
+# Create subtasks (project inherited automatically)
+hzl task add "Set up database schema" --parent abc123
+hzl task add "Create auth endpoints" --parent abc123
+hzl task add "Write auth tests" --parent abc123
+
+# View the breakdown
+hzl task show abc123
+```
+
+**Key behavior:** Parent tasks are organizational containers. When you call `hzl task next`, only leaf tasks (tasks without children) are returned. The parent is never "available work"—it represents the umbrella.
+
+```bash
+# Get next available subtask
+hzl task next --project myapp
+# → Returns a subtask, never the parent
+
+# Scope to specific parent's subtasks
+hzl task next --parent abc123
+# → Returns next available subtask of abc123
+```
+
+When all subtasks are done, manually complete the parent:
+```bash
+hzl task complete abc123
+```
+
+### Using dependencies for sequencing
+
+Dependencies express "must complete before" relationships:
+
+```bash
+# Create tasks with sequencing
+hzl task add "Set up database schema" -P myapp --priority 2
+hzl task add "Create auth endpoints" -P myapp --depends-on <schema-task-id>
+hzl task add "Write auth tests" -P myapp --depends-on <endpoints-task-id>
+
+# Validate no circular dependencies
+hzl validate
+```
+
+### Combining subtasks and dependencies
+
+Subtasks can have dependencies on other subtasks:
+
+```bash
+hzl task add "Auth feature" -P myapp --priority 2
+# → parent123
+
+hzl task add "Database schema" --parent parent123
+# → schema456
+
+hzl task add "Auth endpoints" --parent parent123 --depends-on schema456
+hzl task add "Auth tests" --parent parent123 --depends-on <endpoints-id>
+```
+
+**Work breakdown principles:**
+- Use subtasks to group related work under a logical parent
+- Use dependencies to express sequencing requirements
+- Break work into tasks that can be completed in a single session
+- Parent tasks are never claimable—work happens on leaf tasks
+```
+
+**Update Command Quick Reference table (~line 227):**
+
+Add these rows to the table:
+
+```markdown
+| Create subtask | `hzl task add "<title>" --parent <id>` |
+| List subtasks | `hzl task list --parent <id>` |
+| List root tasks | `hzl task list --root` |
+| Next subtask | `hzl task next --parent <id>` |
+| Archive cascade | `hzl task archive <id> --cascade` |
+```
 
 **Commit:**
 ```bash
