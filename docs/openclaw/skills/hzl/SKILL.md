@@ -73,7 +73,8 @@ hzl status   # database mode, paths, sync state
 hzl doctor   # health check for debugging
 
 # Web Dashboard (human visibility into task state)
-hzl serve                    # Start Kanban dashboard on port 3456
+hzl serve                    # Start on localhost:3456 (local only)
+hzl serve --host 0.0.0.0     # Allow network/Tailscale access
 hzl serve --background       # Fork to background
 hzl serve --stop             # Stop background server
 

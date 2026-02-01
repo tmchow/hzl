@@ -14,6 +14,7 @@ const DEFAULT_PORT = 3456;
 
 interface ServeCommandOptions {
   port?: string;
+  host?: string;
   background?: boolean;
   stop?: boolean;
   status?: boolean;
@@ -104,7 +105,7 @@ function removePidFile(): void {
   }
 }
 
-function printSystemdUnit(port: number): void {
+function printSystemdUnit(port: number, host: string): void {
   // Find the hzl binary path
   const hzlPath = process.argv[1].replace(/\.js$/, '');
   const unit = `[Unit]
@@ -113,7 +114,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=${hzlPath} serve --port ${port}
+ExecStart=${hzlPath} serve --port ${port} --host ${host}
 Restart=on-failure
 RestartSec=5
 
@@ -122,9 +123,13 @@ WantedBy=default.target
 `;
   console.log(unit);
   console.log('# Install with:');
-  console.log(`#   hzl serve --print-systemd > ~/.config/systemd/user/hzl-web.service`);
+  console.log(`#   hzl serve --print-systemd --host 0.0.0.0 > ~/.config/systemd/user/hzl-web.service`);
   console.log('#   systemctl --user daemon-reload');
   console.log('#   systemctl --user enable --now hzl-web');
+  if (host !== '0.0.0.0') {
+    console.log('#');
+    console.log('# Note: Use --host 0.0.0.0 to allow network/Tailscale access');
+  }
 }
 
 function runStatus(): void {
@@ -155,7 +160,7 @@ function runStop(): void {
   }
 }
 
-function runBackground(port: number, dbOption?: string): void {
+function runBackground(port: number, host: string, dbOption?: string): void {
   const existing = readPidFile();
   if (existing) {
     console.log(`hzl dashboard is already running on port ${existing.port} (PID: ${existing.pid})`);
@@ -167,7 +172,7 @@ function runBackground(port: number, dbOption?: string): void {
   ensureDir(path.dirname(logPath));
 
   // Build args for child process
-  const args = ['serve', '--port', String(port)];
+  const args = ['serve', '--port', String(port), '--host', host];
   if (dbOption) {
     args.unshift('--db', dbOption);
   }
@@ -195,12 +200,13 @@ function runBackground(port: number, dbOption?: string): void {
   console.log(`Run 'hzl serve --stop' to stop`);
 }
 
-async function runForeground(port: number, dbOption?: string): Promise<void> {
+async function runForeground(port: number, host: string, dbOption?: string): Promise<void> {
   const { eventsDbPath, cacheDbPath } = resolveDbPaths(dbOption);
   const services = initializeDb({ eventsDbPath, cacheDbPath });
 
   const server = createWebServer({
     port,
+    host,
     cacheDb: services.cacheDb,
     eventsDb: services.db,
   });
@@ -210,7 +216,11 @@ async function runForeground(port: number, dbOption?: string): Promise<void> {
 
   const devIndicator = isDevMode() ? ' (dev mode)' : '';
   console.log(`hzl dashboard running at ${server.url}${devIndicator}`);
-  console.log(`Listening on 0.0.0.0:${port} (accessible from network)`);
+  if (host === '0.0.0.0') {
+    console.log(`Listening on 0.0.0.0:${port} (accessible from network/Tailscale)`);
+  } else {
+    console.log(`Listening on ${host}:${port} (localhost only - use --host 0.0.0.0 for network access)`);
+  }
   console.log('Press Ctrl+C to stop');
 
   // Handle shutdown
@@ -229,10 +239,13 @@ async function runForeground(port: number, dbOption?: string): Promise<void> {
   await new Promise(() => {});
 }
 
+const DEFAULT_HOST = '127.0.0.1';
+
 export function createServeCommand(): Command {
   return new Command('serve')
     .description('Start the web dashboard server')
     .option('-p, --port <port>', `Port to listen on (default: ${DEFAULT_PORT})`)
+    .option('-H, --host <host>', `Host to bind to (default: ${DEFAULT_HOST}, use 0.0.0.0 for network/Tailscale)`)
     .option('-b, --background', 'Run in background')
     .option('--stop', 'Stop the background server')
     .option('--status', 'Check if server is running')
@@ -240,10 +253,11 @@ export function createServeCommand(): Command {
     .action(async function (this: Command, opts: ServeCommandOptions) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const port = parseInt(opts.port ?? String(DEFAULT_PORT), 10);
+      const host = opts.host ?? DEFAULT_HOST;
 
       try {
         if (opts.printSystemd) {
-          printSystemdUnit(port);
+          printSystemdUnit(port, host);
           return;
         }
 
@@ -260,15 +274,15 @@ export function createServeCommand(): Command {
         if (opts.background) {
           // Don't re-fork if we're already the background process
           if (process.env.HZL_SERVE_BACKGROUND === '1') {
-            await runForeground(port, globalOpts.db);
+            await runForeground(port, host, globalOpts.db);
           } else {
-            runBackground(port, globalOpts.db);
+            runBackground(port, host, globalOpts.db);
           }
           return;
         }
 
         // Default: foreground mode
-        await runForeground(port, globalOpts.db);
+        await runForeground(port, host, globalOpts.db);
       } catch (e) {
         handleError(e, globalOpts.json);
       }

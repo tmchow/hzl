@@ -814,7 +814,8 @@
       `;
     }
 
-    function renderBoard() {
+    // Group tasks into Kanban columns, treating ready tasks with unmet dependencies as blocked
+    function groupTasksByStatus(taskList) {
       const columns = {
         backlog: [],
         blocked: [],
@@ -822,14 +823,18 @@
         in_progress: [],
         done: [],
       };
-
-      for (const task of tasks) {
+      for (const task of taskList) {
         const isBlocked = task.blocked_by && task.blocked_by.length > 0;
         const status = isBlocked && task.status === 'ready' ? 'blocked' : task.status;
         if (columns[status]) {
           columns[status].push(task);
         }
       }
+      return columns;
+    }
+
+    function renderBoard() {
+      const columns = groupTasksByStatus(tasks);
 
       for (const [status, statusTasks] of Object.entries(columns)) {
         const container = document.getElementById(`cards-${status}`);
@@ -860,21 +865,7 @@
       const container = document.getElementById('mobileCardsContainer');
       if (!container) return;
 
-      const columns = {
-        backlog: [],
-        blocked: [],
-        ready: [],
-        in_progress: [],
-        done: [],
-      };
-
-      for (const task of tasks) {
-        const isBlocked = task.blocked_by && task.blocked_by.length > 0;
-        const status = isBlocked && task.status === 'ready' ? 'blocked' : task.status;
-        if (columns[status]) {
-          columns[status].push(task);
-        }
-      }
+      const columns = groupTasksByStatus(tasks);
 
       container.innerHTML = Object.entries(columns).map(([status, statusTasks]) => `
         <div class="mobile-cards ${status === activeTab ? 'active' : ''}" data-status="${status}">
@@ -1105,15 +1096,21 @@
       return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
+    // Time constants in milliseconds
+    const MS_PER_SECOND = 1000;
+    const MS_PER_MINUTE = 60 * MS_PER_SECOND;
+    const MS_PER_HOUR = 60 * MS_PER_MINUTE;
+    const MS_PER_DAY = 24 * MS_PER_HOUR;
+
     function formatTime(isoString) {
       if (!isoString) return '';
       const date = new Date(isoString);
       const now = new Date();
       const diff = now - date;
 
-      if (diff < 60000) return 'just now';
-      if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
-      if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+      if (diff < MS_PER_MINUTE) return 'just now';
+      if (diff < MS_PER_HOUR) return `${Math.floor(diff / MS_PER_MINUTE)}m ago`;
+      if (diff < MS_PER_DAY) return `${Math.floor(diff / MS_PER_HOUR)}h ago`;
       return date.toLocaleDateString();
     }
 
@@ -1124,9 +1121,9 @@
       const diff = date - now;
 
       if (diff <= 0) return 'expired';
-      if (diff < 60000) return `${Math.floor(diff / 1000)}s left`;
-      if (diff < 3600000) return `${Math.floor(diff / 60000)}m left`;
-      return `${Math.floor(diff / 3600000)}h left`;
+      if (diff < MS_PER_MINUTE) return `${Math.floor(diff / MS_PER_SECOND)}s left`;
+      if (diff < MS_PER_HOUR) return `${Math.floor(diff / MS_PER_MINUTE)}m left`;
+      return `${Math.floor(diff / MS_PER_HOUR)}h left`;
     }
 
     function formatEventType(type) {

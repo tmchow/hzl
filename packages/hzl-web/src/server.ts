@@ -4,6 +4,7 @@ import { DASHBOARD_HTML } from './ui-embed.js';
 
 export interface ServerOptions {
   port: number;
+  host?: string; // Default: '127.0.0.1' (localhost only for security)
   cacheDb: Database;
   eventsDb: Database;
 }
@@ -11,6 +12,7 @@ export interface ServerOptions {
 export interface ServerHandle {
   close: () => Promise<void>;
   port: number;
+  host: string;
   url: string;
 }
 
@@ -105,7 +107,7 @@ function parseUrl(url: string): { pathname: string; params: URLSearchParams } {
 function json(res: ServerResponse, data: unknown, status = 200): void {
   res.writeHead(status, {
     'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
+    // No CORS header - dashboard is served from same origin
   });
   res.end(JSON.stringify(data));
 }
@@ -119,8 +121,18 @@ function serverError(res: ServerResponse, error: unknown): void {
   json(res, { error: message }, 500);
 }
 
+// Safe JSON parser that returns fallback on parse errors
+function safeJsonParse<T>(value: string | null | undefined, fallback: T): T {
+  if (!value) return fallback;
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return fallback;
+  }
+}
+
 export function createWebServer(options: ServerOptions): ServerHandle {
-  const { port, cacheDb, eventsDb } = options;
+  const { port, host = '127.0.0.1', cacheDb, eventsDb } = options;
 
   // Prepare statements
   const listTasksStmt = cacheDb.prepare(`
@@ -280,10 +292,10 @@ export function createWebServer(options: ServerOptions): ServerHandle {
       priority: row.priority,
       parent_id: row.parent_id,
       description: row.description,
-      links: JSON.parse(row.links) as string[],
-      tags: JSON.parse(row.tags) as string[],
+      links: safeJsonParse<string[]>(row.links, []),
+      tags: safeJsonParse<string[]>(row.tags, []),
       due_at: row.due_at,
-      metadata: JSON.parse(row.metadata) as Record<string, unknown>,
+      metadata: safeJsonParse<Record<string, unknown>>(row.metadata, {}),
       claimed_at: row.claimed_at,
       claimed_by_author: row.claimed_by_author,
       claimed_by_agent_id: row.claimed_by_agent_id,
@@ -313,7 +325,7 @@ export function createWebServer(options: ServerOptions): ServerHandle {
       event_rowid: r.event_rowid,
       task_id: r.task_id,
       name: r.name,
-      data: JSON.parse(r.data) as Record<string, unknown>,
+      data: safeJsonParse<Record<string, unknown>>(r.data, {}),
       timestamp: r.timestamp,
     }));
     json(res, { checkpoints });
@@ -332,13 +344,16 @@ export function createWebServer(options: ServerOptions): ServerHandle {
       timestamp: string;
     }>;
 
-    // Get task titles for these events
-    const taskIds = [...new Set(rows.map((r) => r.task_id))];
+    // Get task titles for these events (batched query to avoid N+1)
+    const taskIds = [...new Set(rows.map((r) => r.task_id).filter(Boolean))];
     const titleMap = new Map<string, string>();
-    for (const tid of taskIds) {
-      const task = getTaskStmt.get(tid) as { title: string } | undefined;
-      if (task) {
-        titleMap.set(tid, task.title);
+    if (taskIds.length > 0) {
+      const placeholders = taskIds.map(() => '?').join(',');
+      const titleRows = cacheDb
+        .prepare(`SELECT task_id, title FROM tasks_current WHERE task_id IN (${placeholders})`)
+        .all(...taskIds) as Array<{ task_id: string; title: string }>;
+      for (const row of titleRows) {
+        titleMap.set(row.task_id, row.title);
       }
     }
 
@@ -347,7 +362,7 @@ export function createWebServer(options: ServerOptions): ServerHandle {
       event_id: r.event_id,
       task_id: r.task_id,
       type: r.type,
-      data: JSON.parse(r.data) as Record<string, unknown>,
+      data: safeJsonParse<Record<string, unknown>>(r.data, {}),
       author: r.author,
       agent_id: r.agent_id,
       timestamp: r.timestamp,
@@ -378,7 +393,13 @@ export function createWebServer(options: ServerOptions): ServerHandle {
   }
 
   function handleRoot(res: ServerResponse): void {
-    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    res.writeHead(200, {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Content-Security-Policy': "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'",
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY',
+      'Referrer-Policy': 'no-referrer',
+    });
     res.end(DASHBOARD_HTML);
   }
 
@@ -435,7 +456,7 @@ export function createWebServer(options: ServerOptions): ServerHandle {
 
   const server = createServer(handleRequest);
 
-  server.listen(port, '0.0.0.0');
+  server.listen(port, host);
 
   return {
     close: () =>
@@ -446,6 +467,7 @@ export function createWebServer(options: ServerOptions): ServerHandle {
         });
       }),
     port,
-    url: `http://localhost:${port}`,
+    host,
+    url: `http://${host === '0.0.0.0' ? 'localhost' : host}:${port}`,
   };
 }
