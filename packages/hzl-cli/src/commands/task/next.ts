@@ -38,34 +38,14 @@ export function runNext(options: NextOptions): NextResult | null {
     }
   }
 
-  // Get available tasks using the service's getAvailableTasks method
-  const availableTasks = services.taskService.getAvailableTasks({
+  // Single optimized query for next available leaf task (replaces N+1 pattern)
+  const task = services.taskService.getNextLeafTask({
     project,
     tagsAll: tags,
-    limit: 100, // Get more to filter for leaf tasks
+    parent,
   });
 
-  // Filter to leaf tasks only (tasks without children)
-  // If parent filter is specified, also filter to that parent
-  const leafTasks = availableTasks.filter((task) => {
-    // Check if this task has children
-    const subtasks = services.taskService.getSubtasks(task.task_id);
-    if (subtasks.length > 0) {
-      return false; // Skip parent tasks
-    }
-
-    // If parent filter specified, only return subtasks of that parent
-    if (parent) {
-      const fullTask = services.taskService.getTaskById(task.task_id);
-      if (fullTask?.parent_id !== parent) {
-        return false;
-      }
-    }
-
-    return true;
-  });
-
-  if (leafTasks.length === 0) {
+  if (!task) {
     if (json) {
       console.log(JSON.stringify(null));
     } else {
@@ -73,8 +53,6 @@ export function runNext(options: NextOptions): NextResult | null {
     }
     return null;
   }
-
-  const task = leafTasks[0];
   const result: NextResult = {
     task_id: task.task_id,
     title: task.title,

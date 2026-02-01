@@ -58,9 +58,9 @@ export function runArchive(options: {
     );
   }
 
-  // Handle cascade: archive all subtasks
+  // Handle cascade: archive active subtasks (done/archived ones don't need archiving)
   if (cascade) {
-    for (const subtask of subtasks) {
+    for (const subtask of activeSubtasks) {
       services.taskService.archiveTask(subtask.task_id, { reason, author });
     }
   }
@@ -91,8 +91,8 @@ export function runArchive(options: {
     console.log(JSON.stringify(result));
   } else {
     console.log(`✓ Archived task ${archivedTask.task_id}: ${archivedTask.title}`);
-    if (cascade) {
-      console.log(`  Also archived ${subtasks.length} subtask(s)`);
+    if (cascade && activeSubtasks.length > 0) {
+      console.log(`  Also archived ${activeSubtasks.length} subtask(s)`);
     } else if (orphan) {
       console.log(`  Promoted ${subtasks.length} subtask(s) to top-level`);
     }

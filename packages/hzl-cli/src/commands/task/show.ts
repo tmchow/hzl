@@ -80,7 +80,7 @@ export function runShow(options: {
   };
 
   if (json) {
-    console.log(JSON.stringify(result, null, 2));
+    console.log(JSON.stringify(result));
   } else {
     console.log(`Task: ${task.task_id}`);
     console.log(`Title: ${task.title}`);

@@ -606,6 +606,70 @@ export class TaskService {
     }));
   }
 
+  /**
+   * Get the next available leaf task (task without children) in a single query.
+   * Optimized alternative to getAvailableTasks + filter pattern that avoids N+1 queries.
+   */
+  getNextLeafTask(opts: {
+    project?: string;
+    tagsAll?: string[];
+    parent?: string;
+  } = {}): AvailableTask | null {
+    let query = `
+      SELECT tc.task_id, tc.title, tc.project, tc.status, tc.priority, tc.created_at, tc.tags
+      FROM tasks_current tc
+      WHERE tc.status = 'ready'
+        AND NOT EXISTS (
+          SELECT 1 FROM task_dependencies td
+          JOIN tasks_current dep ON td.depends_on_id = dep.task_id
+          WHERE td.task_id = tc.task_id AND dep.status != 'done'
+        )
+        AND NOT EXISTS (
+          SELECT 1 FROM tasks_current child WHERE child.parent_id = tc.task_id
+        )
+    `;
+    const params: Array<string | number> = [];
+
+    if (opts.project) {
+      query += ' AND tc.project = ?';
+      params.push(opts.project);
+    }
+
+    if (opts.tagsAll?.length) {
+      query += ` AND (SELECT COUNT(DISTINCT tt.tag) FROM task_tags tt WHERE tt.task_id = tc.task_id AND tt.tag IN (${opts.tagsAll.map(() => '?').join(',')})) = ?`;
+      params.push(...opts.tagsAll, opts.tagsAll.length);
+    }
+
+    if (opts.parent) {
+      query += ' AND tc.parent_id = ?';
+      params.push(opts.parent);
+    }
+
+    query += ' ORDER BY tc.priority DESC, tc.created_at ASC, tc.task_id ASC LIMIT 1';
+
+    const row = this.db.prepare(query).get(...params) as {
+      task_id: string;
+      title: string;
+      project: string;
+      status: TaskStatus;
+      priority: number;
+      created_at: string;
+      tags: string | null;
+    } | undefined;
+
+    if (!row) return null;
+
+    return {
+      task_id: row.task_id,
+      title: row.title,
+      project: row.project,
+      status: row.status,
+      priority: row.priority,
+      created_at: row.created_at,
+      tags: JSON.parse(row.tags ?? '[]') as string[],
+    };
+  }
+
   getTaskById(taskId: string): Task | null {
     const row = this.db.prepare(
       'SELECT * FROM tasks_current WHERE task_id = ?'
