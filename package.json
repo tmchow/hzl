@@ -1,7 +1,7 @@
 {
   "name": "hzl-workspace",
   "private": true,
-  "description": "Lightweight task tracking for AI agents and swarms",
+  "description": "A shared task ledger for OpenClaw and poly-agent workflows.",
   "workspaces": [
     "packages/*"
   ],
