@@ -1,3 +1,10 @@
+## [1.7.4](https://github.com/tmchow/hzl/compare/v1.7.3...v1.7.4) (2026-02-01)
+
+
+### Bug Fixes
+
+* improve OpenClaw skill frontmatter formatting and description ([#32](https://github.com/tmchow/hzl/issues/32)) ([4e89850](https://github.com/tmchow/hzl/commit/4e898503373dda49526544fad05906a957dfd3fb))
+
 ## [1.7.3](https://github.com/tmchow/hzl/compare/v1.7.2...v1.7.3) (2026-02-01)
 
 
