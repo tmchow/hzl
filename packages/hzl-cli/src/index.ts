@@ -8,6 +8,7 @@ import { createTaskCommand } from './commands/task/index.js';
 import { createValidateCommand } from './commands/validate.js';
 import { createStatsCommand } from './commands/stats.js';
 import { createExportEventsCommand } from './commands/export-events.js';
+import { createSyncCommand } from './commands/sync.js';
 import { createSampleProjectCommand } from './commands/sample-project.js';
 import { CLIError, ExitCode } from './errors.js';
 import { resolveDbPath, readConfig } from './config.js';
@@ -32,6 +33,7 @@ export function createProgram(): Command {
   program.addCommand(createStatsCommand());
   program.addCommand(createExportEventsCommand());
   program.addCommand(createSampleProjectCommand());
+  program.addCommand(createSyncCommand());
 
   return program;
 }

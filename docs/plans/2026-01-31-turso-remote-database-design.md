@@ -1946,7 +1946,7 @@ git commit -m "feat(db): implement sync policy engine
 
 ## Phase 3: CLI Commands
 
-### Task 9: Add hzl sync command
+### Task 9: Add hzl sync command ✅
 
 **Files:**
 - Create: `packages/hzl-cli/src/commands/sync.ts`

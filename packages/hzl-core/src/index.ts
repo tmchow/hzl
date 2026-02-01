@@ -17,7 +17,37 @@ export {
   withWriteTransaction,
 } from './db/connection.js';
 
-export { runMigrations, getCurrentVersion } from './db/migrations.js';
+export { runMigrations, getCurrentVersion, runMigrationsWithRollback } from './db/migrations.js';
+
+export {
+  createDatastore,
+  type Datastore,
+  type ConnectionMode,
+} from './db/datastore.js';
+
+export {
+  type DbConfig,
+  type SyncConfig,
+  type SyncResult,
+  type SyncStats,
+  type ConflictStrategy,
+} from './db/types.js';
+
+export {
+  createSyncPolicy,
+  type SyncPolicy,
+} from './db/sync-policy.js';
+
+export {
+  getInstanceId,
+  getDeviceId,
+  getDirtySince,
+  clearDirtySince,
+  getLastSyncAt,
+  getLastSyncError,
+  getLastSyncFrameNo,
+  getLastSyncAttemptAt,
+} from './db/meta.js';
 
 // ============================================================================
 // Events

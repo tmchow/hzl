@@ -137,6 +137,20 @@ export function resolveDbPath(cliOption?: string, configPath: string = getConfig
   return resolveDbPathWithSource(cliOption, configPath).path;
 }
 
+export function resolveDbPaths(cliOption?: string, configPath: string = getConfigPath()): { eventsDbPath: string; cacheDbPath: string } {
+  const eventsDbPath = resolveDbPath(cliOption, configPath);
+  // Derive cache path from events path:
+  // /path/to/events.db -> /path/to/events.cache.db
+  // /path/to/data.db -> /path/to/data.cache.db
+  // /path/to/mydb -> /path/to/mydb.cache.db
+  const dir = path.dirname(eventsDbPath);
+  const ext = path.extname(eventsDbPath);
+  const base = path.basename(eventsDbPath, ext);
+  const cacheDbPath = path.join(dir, `${base}.cache${ext}`);
+
+  return { eventsDbPath, cacheDbPath };
+}
+
 export function readConfig(configPath: string = getConfigPath()): Config {
   if (!fs.existsSync(configPath)) {
     return {};
