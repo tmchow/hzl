@@ -19,6 +19,7 @@ export interface TaskUpdates {
   description?: string;
   priority?: number;
   tags?: string[];
+  parent_id?: string | null;
 }
 
 interface UpdateCommandOptions {
@@ -26,6 +27,7 @@ interface UpdateCommandOptions {
   desc?: string;
   priority?: string;
   tags?: string;
+  parent?: string;
 }
 
 export function runUpdate(options: {
@@ -40,6 +42,65 @@ export function runUpdate(options: {
   const task = services.taskService.getTaskById(taskId);
   if (!task) {
     throw new CLIError(`Task not found: ${taskId}`, ExitCode.NotFound);
+  }
+
+  // Handle parent_id update with validation
+  if (updates.parent_id !== undefined) {
+    if (updates.parent_id === null) {
+      // Remove parent
+      if (task.parent_id !== null) {
+        const event = eventStore.append({
+          task_id: taskId,
+          type: EventType.TaskUpdated,
+          data: { field: 'parent_id', old_value: task.parent_id, new_value: null },
+        });
+        projectionEngine.applyEvent(event);
+      }
+    } else {
+      // Set parent - validate
+      if (updates.parent_id === taskId) {
+        throw new CLIError('A task cannot be its own parent', ExitCode.InvalidInput);
+      }
+
+      const parentTask = services.taskService.getTaskById(updates.parent_id);
+      if (!parentTask) {
+        throw new CLIError(`Parent task not found: ${updates.parent_id}`, ExitCode.NotFound);
+      }
+
+      if (parentTask.status === 'archived') {
+        throw new CLIError(`Cannot set archived task as parent: ${updates.parent_id}`, ExitCode.InvalidInput);
+      }
+
+      if (parentTask.parent_id) {
+        throw new CLIError(
+          'Cannot set parent: target is already a subtask (max 1 level of nesting)',
+          ExitCode.InvalidInput
+        );
+      }
+
+      // Check if task has children
+      const children = services.taskService.getSubtasks(taskId);
+      if (children.length > 0) {
+        throw new CLIError(
+          'Cannot make a parent task into a subtask (task has children)',
+          ExitCode.InvalidInput
+        );
+      }
+
+      // Move to parent's project if different
+      if (task.project !== parentTask.project) {
+        services.taskService.moveTask(taskId, parentTask.project);
+      }
+
+      if (task.parent_id !== updates.parent_id) {
+        const event = eventStore.append({
+          task_id: taskId,
+          type: EventType.TaskUpdated,
+          data: { field: 'parent_id', old_value: task.parent_id, new_value: updates.parent_id },
+        });
+        projectionEngine.applyEvent(event);
+      }
+    }
   }
 
   // Emit one task_updated event per field change
@@ -112,6 +173,7 @@ export function createUpdateCommand(): Command {
     .option('--desc <description>', 'New description')
     .option('-p, --priority <n>', 'New priority (0-3)')
     .option('-t, --tags <tags>', 'New tags (comma-separated)')
+    .option('--parent <taskId>', 'Set parent task (use "" to remove)')
     .action(function (this: Command, taskId: string, opts: UpdateCommandOptions) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
@@ -122,6 +184,9 @@ export function createUpdateCommand(): Command {
         if (opts.desc) updates.description = opts.desc;
         if (opts.priority !== undefined) updates.priority = parseInt(opts.priority, 10);
         if (opts.tags) updates.tags = opts.tags.split(',');
+        if (opts.parent !== undefined) {
+          updates.parent_id = opts.parent === '' ? null : opts.parent;
+        }
 
         runUpdate({ services, taskId, updates, json: globalOpts.json ?? false });
       } catch (e) {
