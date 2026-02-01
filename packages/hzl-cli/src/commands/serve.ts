@@ -156,7 +156,7 @@ function runStop(): void {
     removePidFile();
     console.log(`hzl dashboard stopped (PID: ${info.pid})`);
   } catch (error) {
-    console.error(`Failed to stop process: ${error}`);
+    console.error(`Failed to stop process: ${String(error)}`);
   }
 }
 
@@ -232,8 +232,8 @@ async function runForeground(port: number, host: string, dbOption?: string): Pro
     process.exit(0);
   };
 
-  process.on('SIGINT', shutdown);
-  process.on('SIGTERM', shutdown);
+  process.on('SIGINT', () => void shutdown());
+  process.on('SIGTERM', () => void shutdown());
 
   // Keep process alive
   await new Promise(() => {});
