@@ -11,7 +11,8 @@
     "outDir": "dist"
   },
   "references": [
-    { "path": "../hzl-core" }
+    { "path": "../hzl-core" },
+    { "path": "../hzl-web" }
   ],
   "include": ["src/**/*"]
 }
