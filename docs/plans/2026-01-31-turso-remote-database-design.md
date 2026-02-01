@@ -1660,7 +1660,7 @@ git commit -m "feat(db): add dual-database datastore factory
 
 ## Phase 2: Sync Orchestration
 
-### Task 8: Implement sync policy engine
+### Task 8: Implement sync policy engine ✅
 
 **Files:**
 - Create: `packages/hzl-core/src/db/sync-policy.ts`
