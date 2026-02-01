@@ -97,7 +97,7 @@ flowchart LR
   Agents[Agents + scripts] --> HZL
 ```
 
-HZL includes a built-in [Kanban dashboard](#web-dashboard) for human visibility, while staying the durable backend that both humans and agents can use.
+HZL includes a basic [Kanban dashboard](#web-dashboard) for human visibility. For richer interfaces, build your own frontend using `hzl-core` directly—HZL stays the durable backend that both humans and agents can use.
 
 ---
 
