@@ -99,6 +99,8 @@ flowchart LR
 
 If you want a human-friendly interface, build one. HZL stays the durable backend that both humans and agents can use.
 
+HZL also includes a built-in Kanban dashboard—see [Web Dashboard](#web-dashboard) below.
+
 ---
 
 ## Quickstart
@@ -405,7 +407,57 @@ hzl task show <id> --json                     # Task details (--json for scripti
 hzl sync                                      # Sync with cloud (if configured)
 hzl status                                    # Show database and sync state
 hzl doctor                                    # Health checks
+
+# Web Dashboard
+hzl serve                                     # Start dashboard on port 3456
+hzl serve --port 8080                         # Custom port
+hzl serve --background                        # Fork to background
+hzl serve --stop                              # Stop background server
+hzl serve --status                            # Check if running
 ```
+
+---
+
+## Web Dashboard
+
+HZL includes a lightweight Kanban dashboard for monitoring tasks in near real-time.
+
+```bash
+hzl serve                    # Start on default port 3456
+```
+
+Open `http://localhost:3456` to see:
+
+- **Kanban board** with columns: Backlog → Blocked → Ready → In Progress → Done
+- **Date filtering**: Today, Last 3d, 7d, 14d, 30d
+- **Project filtering**: Focus on a single project
+- **Task details**: Click any card to see description, comments, and checkpoints
+- **Activity panel**: Recent status changes and events
+- **Mobile support**: Tabs layout on smaller screens
+
+The dashboard polls automatically (configurable 1-30s interval) and pauses when the tab is hidden.
+
+### Background mode
+
+Run the dashboard as a background process:
+
+```bash
+hzl serve --background       # Fork to background, write PID
+hzl serve --status           # Check if running
+hzl serve --stop             # Stop the background server
+```
+
+### Running as a service (systemd)
+
+For always-on access (e.g., on an OpenClaw box via Tailscale):
+
+```bash
+hzl serve --print-systemd > ~/.config/systemd/user/hzl-web.service
+systemctl --user daemon-reload
+systemctl --user enable --now hzl-web
+```
+
+The server binds to `0.0.0.0` so it's accessible from other machines on your network.
 
 ---
 
