@@ -14,11 +14,11 @@
       "provenance": true
     }],
     ["@semantic-release/npm", {
-      "pkgRoot": "packages/hzl-cli",
+      "pkgRoot": "packages/hzl-web",
       "provenance": true
     }],
     ["@semantic-release/npm", {
-      "pkgRoot": "packages/hzl-web",
+      "pkgRoot": "packages/hzl-cli",
       "provenance": true
     }],
     ["@semantic-release/git", {
