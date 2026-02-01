@@ -1,3 +1,10 @@
+## [1.9.3](https://github.com/tmchow/hzl/compare/v1.9.2...v1.9.3) (2026-02-01)
+
+
+### Bug Fixes
+
+* add comprehensive field validation limits to event schemas ([#45](https://github.com/tmchow/hzl/issues/45)) ([3d4cb2a](https://github.com/tmchow/hzl/commit/3d4cb2a13fe262340fc2b50734cd0b62f6093342))
+
 ## [1.9.2](https://github.com/tmchow/hzl/compare/v1.9.1...v1.9.2) (2026-02-01)
 
 
