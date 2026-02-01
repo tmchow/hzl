@@ -1,4 +1,4 @@
-name: Sync README Includes
+name: Sync Documentation Includes
 
 on:
   push:
@@ -6,6 +6,7 @@ on:
     paths:
       - 'docs/snippets/**'
       - 'README.md'
+      - 'AGENTS.md'
   workflow_dispatch:
 
 concurrency:
@@ -20,20 +21,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Process README includes
+      - name: Process includes
         run: |
-          # Read the snippet content
           SNIPPET=$(cat docs/snippets/agent-policy.md)
 
-          # Replace content between markers with snippet wrapped in code fence
+          # README.md: wrap in code fence
           awk -v snippet="$SNIPPET" '
             /<!-- START \[code:md\]/ { print; print "```md"; print snippet; print "```"; skip=1; next }
             /<!-- END \[code:md\]/ { skip=0 }
             !skip { print }
           ' README.md > README.tmp && mv README.tmp README.md
 
+          # AGENTS.md: raw include (no code fence)
+          awk -v snippet="$SNIPPET" '
+            /<!-- START docs\/snippets\/agent-policy\.md -->/ { print; print snippet; skip=1; next }
+            /<!-- END docs\/snippets\/agent-policy\.md -->/ { skip=0 }
+            !skip { print }
+          ' AGENTS.md > AGENTS.tmp && mv AGENTS.tmp AGENTS.md
+
       - name: Commit if changed
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git diff --quiet README.md || (git add README.md && git commit -m "docs: sync README includes" && git push)
+          git diff --quiet README.md AGENTS.md || (git add README.md AGENTS.md && git commit -m "docs: sync documentation includes" && git push)
