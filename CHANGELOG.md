@@ -1,3 +1,10 @@
+## [1.7.6](https://github.com/tmchow/hzl/compare/v1.7.5...v1.7.6) (2026-02-01)
+
+
+### Bug Fixes
+
+* clear legacy dbPath from config when using --force ([#34](https://github.com/tmchow/hzl/issues/34)) ([7c6e0b8](https://github.com/tmchow/hzl/commit/7c6e0b8777f9eef718f9ce1a8e6b2bbb495537f2))
+
 ## [1.7.5](https://github.com/tmchow/hzl/compare/v1.7.4...v1.7.5) (2026-02-01)
 
 
