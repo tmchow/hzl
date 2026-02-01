@@ -372,10 +372,11 @@ not valid json
       expect(events).toHaveLength(0);
     });
 
-    it('handles very large event data', async () => {
+    it('handles large event data within limits', async () => {
+      // Create metadata within the FIELD_LIMITS (50 keys max, 64KB max)
       const largeMetadata: Record<string, string> = {};
-      for (let i = 0; i < 1000; i++) {
-        largeMetadata[`key${i}`] = 'x'.repeat(100);
+      for (let i = 0; i < 40; i++) {
+        largeMetadata[`key${i}`] = 'x'.repeat(500); // 40 keys * ~500 chars each = ~20KB
       }
       const task = taskService.createTask({
         title: 'Large task',
@@ -398,7 +399,7 @@ not valid json
         .prepare('SELECT * FROM tasks_current WHERE task_id = ?')
         .get(task.task_id) as any;
       const importedMetadata = JSON.parse(importedTask.metadata);
-      expect(Object.keys(importedMetadata).length).toBe(1000);
+      expect(Object.keys(importedMetadata).length).toBe(40);
 
       newDb.close();
     });
