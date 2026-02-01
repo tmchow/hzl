@@ -1,6 +1,6 @@
 # hzl-core
 
-Core library for [HZL](https://github.com/tmchow/hzl) - lightweight task tracking for AI agents and swarms.
+Core library for [HZL](https://github.com/tmchow/hzl) - task tracking for coding agents and multi-agent workflows.
 
 This package provides the business logic for programmatic use. For the CLI, install [`hzl-cli`](https://www.npmjs.com/package/hzl-cli) instead.
 

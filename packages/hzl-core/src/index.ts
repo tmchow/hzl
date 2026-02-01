@@ -1,5 +1,5 @@
 /**
- * HZL Core - A shared task ledger for OpenClaw and poly-agent workflows.
+ * HZL Core - External task ledger for coding agents and OpenClaw.
  *
  * This module provides the core business logic for the HZL task management system,
  * including event sourcing, projections, and task coordination services.

@@ -1,7 +1,7 @@
 {
   "name": "hzl-workspace",
   "private": true,
-  "description": "A shared task ledger for OpenClaw and poly-agent workflows.",
+  "description": "External task ledger for coding agents and OpenClaw.",
   "workspaces": [
     "packages/*"
   ],

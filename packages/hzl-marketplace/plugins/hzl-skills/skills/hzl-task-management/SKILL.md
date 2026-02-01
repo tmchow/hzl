@@ -257,6 +257,10 @@ HZL is deliberately limited:
 - **No orchestration** - Does not spawn agents or assign work
 - **No task decomposition** - Does not break down tasks automatically
 - **No smart scheduling** - Uses simple priority + FIFO ordering
-- **No cloud sync** - Local SQLite only
 
 These are features for your orchestration layer, not for the task tracker.
+
+**What HZL does provide** (but isn't covered in this skill):
+
+- Cloud sync via Turso for backup and multi-device access (`hzl init --sync-url ...`)
+- Web dashboard for human monitoring (`hzl serve`)
