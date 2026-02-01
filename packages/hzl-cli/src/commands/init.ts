@@ -120,6 +120,24 @@ export function runInit(options: InitOptions): InitResult {
     };
     // Overwrite config to remove sync keys
     writeConfig(cleanConfig, configPath);
+  } else if (force) {
+    // --force: clear old dbPath and write fresh config
+    const existing = readConfig(configPath);
+    const cleanConfig: Partial<Config> = {
+      defaultProject: existing.defaultProject,
+      defaultAuthor: existing.defaultAuthor,
+      leaseMinutes: existing.leaseMinutes,
+      encryptionKey: encryptionKey ?? existing.encryptionKey,
+      syncUrl: syncUrl ?? existing.syncUrl,
+      authToken: authToken ?? existing.authToken,
+    };
+    // Ensure config directory exists
+    const configDir = path.dirname(configPath);
+    if (!fs.existsSync(configDir)) {
+      fs.mkdirSync(configDir, { recursive: true });
+    }
+    // Rewrite config without dbPath (use default location)
+    fs.writeFileSync(configPath, JSON.stringify(cleanConfig, null, 2) + '\n');
   } else {
     const configUpdates: Partial<Config> = {
       dbPath: persistDbPath,
