@@ -1,5 +1,6 @@
-// packages/hzl-cli/src/commands/move.ts
+// packages/hzl-cli/src/commands/task/move.ts
 import { Command } from 'commander';
+import { withWriteTransaction } from 'hzl-core/db/transaction.js';
 import { resolveDbPaths } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError, CLIError, ExitCode } from '../../errors.js';
@@ -18,28 +19,46 @@ export function runMove(options: {
   json: boolean;
 }): MoveResult {
   const { services, taskId, toProject, json } = options;
-  const task = services.taskService.getTaskById(taskId);
-  if (!task) {
-    throw new CLIError(`Task not found: ${taskId}`, ExitCode.NotFound);
-  }
 
-  const fromProject = task.project;
+  // Use transaction to ensure atomic cascade
+  const result = withWriteTransaction(services.db, () => {
+    const task = services.taskService.getTaskById(taskId);
+    if (!task) {
+      throw new CLIError(`Task not found: ${taskId}`, ExitCode.NotFound);
+    }
 
-  const moved = services.taskService.moveTask(taskId, toProject);
+    const fromProject = task.project;
 
-  const result: MoveResult = {
-    task_id: taskId,
-    from_project: fromProject,
-    to_project: moved.project,
-  };
+    // Move parent
+    const moved = services.taskService.moveTask(taskId, toProject);
+
+    // Move all subtasks (only 1 level, no recursion needed)
+    if (fromProject !== toProject) {
+      const subtasks = services.taskService.getSubtasks(taskId);
+      for (const subtask of subtasks) {
+        services.taskService.moveTask(subtask.task_id, toProject);
+      }
+    }
+
+    return {
+      task_id: taskId,
+      from_project: fromProject,
+      to_project: moved.project,
+    };
+  });
 
   if (json) {
     console.log(JSON.stringify(result));
   } else {
-    if (fromProject === toProject) {
-      console.log(`Task ${taskId} already in project '${toProject}'`);
+    if (result.from_project === result.to_project) {
+      console.log(`Task ${taskId} already in project '${result.to_project}'`);
     } else {
-      console.log(`✓ Moved task ${taskId} from '${fromProject}' to '${toProject}'`);
+      const subtaskCount = services.taskService.getSubtasks(taskId).length;
+      if (subtaskCount > 0) {
+        console.log(`✓ Moved task ${taskId} and ${subtaskCount} subtasks from '${result.from_project}' to '${result.to_project}'`);
+      } else {
+        console.log(`✓ Moved task ${taskId} from '${result.from_project}' to '${result.to_project}'`);
+      }
     }
   }
 
