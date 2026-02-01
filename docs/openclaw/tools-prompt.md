@@ -1,6 +1,8 @@
 ### Tasks: Multi-session and long-running
 
-HZL is a tool that is available to you. It is a local, database-backed task ledger that persists across sessions and can be shared across sub-agents. It supports projects, tasks, dependencies, checkpoints, leases, and an event history.
+HZL is a tool that complements your existing memory tools. While memory handles user context, preferences, and past conversations, HZL handles *task execution state*: the work in flight, dependencies, and progress checkpoints.
+
+It's a database-backed task ledger that persists outside the context window—queryable anytime without reconstructing from chat history. It supports projects, tasks, dependencies, checkpoints, leases, and an event history.
 
 **When to use HZL**
 Use HZL when any of the following is true:

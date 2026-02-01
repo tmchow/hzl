@@ -1,29 +1,45 @@
 # HZL (Hazel)
 
-**A shared task ledger for OpenClaw and poly-agent workflows.**
+**External task ledger for coding agents and OpenClaw.**
 
-OpenClaw is great at doing work: running tools, coordinating sub-agents, and maintaining memory.
-What it (and most agent tools) do not give you is a durable, shared backlog that survives:
+Claude Code has [Tasks](https://x.com/trq212/status/2014480496013803643). If you use Claude Code for short, self-contained work, that's probably enough.
 
-- session boundaries
-- crashes/reboots
-- switching between different agent runtimes (Claude Code, Codex, Gemini, etc.)
+HZL is for when work outlives a single session: days-long projects, switching between Claude Code and Codex, OpenClaw juggling parallel workstreams.
 
-HZL fills that gap: a lightweight, local-first task tracker that any agent can read/write.
+**Coding agents (Claude Code, Codex, Gemini)**
+
+You're working across several projects over days or weeks. You switch between agents. Each has its own task tracking (or none).
+
+HZL is the shared ledger underneath. Claim a task in Claude Code, pick it up in Codex tomorrow. One source of truth across tools and sessions.
+
+**OpenClaw**
+
+OpenClaw has tools for user memory—context, preferences, past chats. It doesn't have a tool for tracking task execution state: workstreams, dependencies, checkpoints.
+
+That all lives in-context today. It burns space. It fragments when chats compact.
+
+HZL fills that gap. Say you ask OpenClaw to plan a family vacation—flights, hotels, activities, reservations. That's multiple tasks with dependencies (can't book hotels until you know the dates). Instead of tracking all of it in the chat, OpenClaw creates tasks in HZL:
+
+```bash
+hzl task list --project family-vacation --available --json
+→ "Book hotel" is now ready (depends on "Finalize dates" which completed)
+```
+
+OpenClaw queries HZL, sees what's unblocked, and picks up the next task—without reconstructing state from a compacted chat. If you ever run multiple OpenClaw instances, they coordinate through the same ledger.
+
+**Local-first with built-in cloud sync**
+
+Fast reads and writes to local SQLite. Enable sync to [Turso](https://turso.tech) with one command (`hzl init --sync-url ...`) for automatic backup and multi-device access.
+
+**Also**
+
+- Leases: time-limited claims that expire, so callers can find and reclaim stuck work
+- Checkpoints: save progress notes so work can resume after interruption
+- Event history: full audit trail of what happened
 
 Using OpenClaw? Start here: [OpenClaw integration](#openclaw-integration)
 
-Not using OpenClaw? Jump to: [Using HZL with Claude Code, Codex, Gemini CLI, or any coding agent](#using-hzl-with-claude-code-codex-gemini-cli-or-any-coding-agent)
-
-HZL provides:
-
-- Projects and tasks
-- Dependencies (`B` waits for `A`)
-- Checkpoints (progress snapshots you can resume from)
-- Leases (time-limited claims for multi-agent coordination)
-- Event history (audit trail)
-- Cloud Sync (multi-device/multi-agent synchronization with Turso)
-- A CLI + JSON output that agents can script against
+Using Claude Code, Codex, or Gemini? See: [Using HZL with coding agents](#using-hzl-with-claude-code-codex-gemini-cli-or-any-coding-agent)
 
 Data is stored in SQLite. Default location: `$XDG_DATA_HOME/hzl/data.db` (fallback `~/.local/share/hzl/data.db`); Windows: `%LOCALAPPDATA%\\hzl\\data.db`.
 
