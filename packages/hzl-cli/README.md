@@ -22,7 +22,7 @@ HZL fills that gap. Say you ask OpenClaw to plan a family vacation—flights, ho
 
 ```bash
 hzl task list --project family-vacation --available --json
-→ "Book hotel" is now ready (depends on "Finalize dates" which completed)
+{"tasks":[{"task_id":"t_abc123","title":"Book hotel","project":"family-vacation","status":"ready","priority":3,"created_at":"2025-01-15T10:00:00.000Z"}],"total":1}
 ```
 
 OpenClaw queries HZL, sees what's unblocked, and picks up the next task—without reconstructing state from a compacted chat. If you ever run multiple OpenClaw instances, they coordinate through the same ledger.

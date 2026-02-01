@@ -1,3 +1,10 @@
+## [1.9.2](https://github.com/tmchow/hzl/compare/v1.9.1...v1.9.2) (2026-02-01)
+
+
+### Bug Fixes
+
+* **docs:** correct task list --json example output ([#44](https://github.com/tmchow/hzl/issues/44)) ([7d26a97](https://github.com/tmchow/hzl/commit/7d26a9702655bf09c69897357a2c3f15cdfa6e23))
+
 ## [1.9.1](https://github.com/tmchow/hzl/compare/v1.9.0...v1.9.1) (2026-02-01)
 
 
