@@ -91,6 +91,63 @@ describe('hzl init command', () => {
 
       expect(result.encrypted).toBe(true);
     });
+
+    it('persists dbPath to config when pathSource is cli', () => {
+      const eventsDbPath = path.join(testDir, 'events.db');
+      runInit({
+        eventsDbPath,
+        cacheDbPath: path.join(testDir, 'cache.db'),
+        pathSource: 'cli',
+        json: true,
+        configPath
+      });
+
+      const savedConfig = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+      expect(savedConfig.dbPath).toBe(eventsDbPath);
+    });
+
+    it('does not persist dbPath to config when pathSource is default', () => {
+      runInit({
+        eventsDbPath: path.join(testDir, 'events.db'),
+        cacheDbPath: path.join(testDir, 'cache.db'),
+        pathSource: 'default',
+        json: true,
+        configPath
+      });
+
+      // Config file should not exist since no values were persisted
+      expect(fs.existsSync(configPath)).toBe(false);
+    });
+
+    it('does not persist dbPath to config when pathSource is dev', () => {
+      runInit({
+        eventsDbPath: path.join(testDir, 'events.db'),
+        cacheDbPath: path.join(testDir, 'cache.db'),
+        pathSource: 'dev',
+        json: true,
+        configPath
+      });
+
+      // Config file should not exist since no values were persisted
+      expect(fs.existsSync(configPath)).toBe(false);
+    });
+
+    it('does not overwrite existing config dbPath when using default pathSource', () => {
+      const existingDbPath = '/existing/path/events.db';
+      fs.writeFileSync(configPath, JSON.stringify({ dbPath: existingDbPath }));
+
+      runInit({
+        eventsDbPath: path.join(testDir, 'events.db'),
+        cacheDbPath: path.join(testDir, 'cache.db'),
+        pathSource: 'default',
+        json: true,
+        configPath,
+        force: true // Bypass conflict check
+      });
+
+      const savedConfig = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+      expect(savedConfig.dbPath).toBe(existingDbPath);
+    });
   });
 
   describe('createInitCommand', () => {

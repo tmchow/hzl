@@ -104,26 +104,33 @@ export function runInit(options: InitOptions): InitResult {
 
   datastore.close();
 
+  // Only persist dbPath if explicitly specified via --db flag (not default/dev/env)
+  const persistDbPath = pathSource === 'cli' ? eventsDbPath : undefined;
+
   // Write config file
   // If local flag is set, we clear syncUrl and authToken by rewriting config without them
   if (local) {
-    // Read existing config and remove sync-related keys
     const existing = readConfig(configPath);
     const cleanConfig: Partial<Config> = {
-      dbPath: eventsDbPath,
+      dbPath: persistDbPath,
       defaultProject: existing.defaultProject,
       defaultAuthor: existing.defaultAuthor,
       leaseMinutes: existing.leaseMinutes,
       encryptionKey: encryptionKey ?? existing.encryptionKey,
     };
-    // Write the cleaned config (overwrites, removing sync keys)
+    // Overwrite config to remove sync keys
     writeConfig(cleanConfig, configPath);
   } else {
-    const configUpdates: Partial<Config> = { dbPath: eventsDbPath };
-    if (syncUrl) configUpdates.syncUrl = syncUrl;
-    if (authToken) configUpdates.authToken = authToken;
-    if (encryptionKey) configUpdates.encryptionKey = encryptionKey;
-    writeConfig(configUpdates, configPath);
+    const configUpdates: Partial<Config> = {
+      dbPath: persistDbPath,
+      syncUrl,
+      authToken,
+      encryptionKey,
+    };
+    // Only write if there are actual values to persist
+    if (Object.values(configUpdates).some(v => v !== undefined)) {
+      writeConfig(configUpdates, configPath);
+    }
   }
 
   const result: InitResult = {
