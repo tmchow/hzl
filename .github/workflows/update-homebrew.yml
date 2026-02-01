@@ -1,0 +1,113 @@
+name: Update Homebrew Formula
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  update-tap:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Tap Repo
+        uses: actions/checkout@v4
+        with:
+          repository: tmchow/homebrew-hzl
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: tap
+
+      - name: Update Formula
+        env:
+          TAG_NAME: ${{ github.event.release.tag_name }}
+        run: |
+          VERSION=${TAG_NAME#v}
+
+          # Validate version format (defense in depth)
+          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?$'; then
+            echo "Error: Invalid version format: $VERSION"
+            exit 1
+          fi
+          echo "Processing version: $VERSION"
+
+          # Wait for NPM to have the version (timeout ~10 mins)
+          echo "Waiting for hzl-cli@$VERSION on NPM..."
+          MAX_RETRIES=20
+          SLEEP_SECONDS=30
+          FOUND=0
+          
+          for i in $(seq 1 $MAX_RETRIES); do
+            # Capture output and exit code carefully
+            if NPM_INFO=$(npm view "hzl-cli@$VERSION" dist.tarball 2>/dev/null); then
+              if [ -n "$NPM_INFO" ]; then
+                URL="$NPM_INFO"
+                echo "Found tarball: $URL"
+                FOUND=1
+                break
+              fi
+            fi
+            echo "Attempt $i/$MAX_RETRIES: Not found yet. Sleeping $SLEEP_SECONDS..."
+            sleep $SLEEP_SECONDS
+          done
+          
+          if [ $FOUND -eq 0 ]; then
+            echo "Error: Version $VERSION not found on NPM after waiting."
+            exit 1
+          fi
+
+          # Validate URL is from npm registry
+          if ! echo "$URL" | grep -qE '^https://registry\.npmjs\.org/'; then
+            echo "Error: Unexpected tarball URL: $URL"
+            exit 1
+          fi
+
+          # Get SHA256 with timeout and error handling
+          SHA=$(curl -sfL --max-time 60 "$URL" | shasum -a 256 | awk '{print $1}')
+
+          # Validate SHA is a valid 64-character hex string
+          if ! echo "$SHA" | grep -qE '^[a-f0-9]{64}$'; then
+            echo "Error: Failed to calculate valid SHA256 (got: $SHA)"
+            exit 1
+          fi
+          echo "Calculated SHA256: $SHA"
+          
+          # Generate new Formula content
+          # Note: We use unquoted EOF to expand $URL and $SHA
+          # Ruby interpolation like #{libexec} is preserved because it's not valid shell syntax
+          cat > tap/Formula/hzl.rb <<EOF
+require "language/node"
+
+class Hzl < Formula
+  desc "External task ledger for coding agents and OpenClaw"
+  homepage "https://github.com/tmchow/hzl"
+  url "$URL"
+  sha256 "$SHA"
+  license "MIT"
+
+  depends_on "node"
+
+  def install
+    system "npm", "install", *Language::Node.std_npm_install_args(libexec)
+    bin.install_symlink Dir["#{libexec}/bin/*"]
+  end
+
+  test do
+    system "#{bin}/hzl", "--version"
+  end
+end
+EOF
+          
+          # Commit and Push
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/hzl.rb
+          
+          # Only commit if changed
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Update hzl formula to $VERSION"
+            git push
+          fi

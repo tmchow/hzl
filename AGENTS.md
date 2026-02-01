@@ -14,6 +14,19 @@ npm run lint         # ESLint
 npm run lint:fix     # ESLint with auto-fix
 ```
 
+## Installation
+
+Users can install HZL via NPM or Homebrew:
+
+```bash
+# NPM
+npm install -g hzl-cli
+
+# Homebrew
+brew tap tmchow/hzl
+brew install hzl
+```
+
 ### Running Single Tests
 
 ```bash
