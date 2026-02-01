@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { createInitCommand, runInit } from './init.js';
+import { createInitCommand, runInit, deleteExistingDatabases } from './init.js';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -132,7 +132,7 @@ describe('hzl init command', () => {
       expect(fs.existsSync(configPath)).toBe(false);
     });
 
-    it('clears existing config dbPath when using --force', () => {
+    it('clears existing config dbPath when using --reset-config', () => {
       const existingDbPath = '/existing/path/events.db';
       fs.writeFileSync(configPath, JSON.stringify({ dbPath: existingDbPath }));
 
@@ -142,15 +142,15 @@ describe('hzl init command', () => {
         pathSource: 'default',
         json: true,
         configPath,
-        force: true
+        resetConfig: true
       });
 
       const savedConfig = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-      // --force clears the old dbPath so default location is used
+      // --reset-config clears the old dbPath so default location is used
       expect(savedConfig.dbPath).toBeUndefined();
     });
 
-    it('preserves existing config dbPath without --force when pathSource is config', () => {
+    it('preserves existing config dbPath without --reset-config when pathSource is config', () => {
       // Use paths in test directory
       const existingDbPath = path.join(testDir, 'existing', 'events.db');
       const existingCachePath = path.join(testDir, 'existing', 'cache.db');
@@ -162,11 +162,11 @@ describe('hzl init command', () => {
         pathSource: 'config', // resolved from config, not default
         json: true,
         configPath,
-        force: false
+        resetConfig: false
       });
 
       const savedConfig = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-      // Without --force, existing dbPath is preserved
+      // Without --reset-config, existing dbPath is preserved
       expect(savedConfig.dbPath).toBe(existingDbPath);
     });
   });
@@ -179,6 +179,66 @@ describe('hzl init command', () => {
       expect(opts).toContain('--auth-token');
       expect(opts).toContain('--encryption-key');
       expect(opts).toContain('--local');
+    });
+
+    it('has --reset-config option (non-destructive)', () => {
+      const cmd = createInitCommand();
+      const opts = cmd.options.map((o: unknown) => (o as { long: string }).long);
+      expect(opts).toContain('--reset-config');
+    });
+
+    it('has --force and --yes options for destructive reset', () => {
+      const cmd = createInitCommand();
+      const opts = cmd.options.map((o: unknown) => (o as { long: string }).long);
+      expect(opts).toContain('--force');
+      expect(opts).toContain('--yes');
+    });
+  });
+
+  describe('deleteExistingDatabases (--force helper)', () => {
+    it('deletes events.db and cache.db files', () => {
+      const eventsDbPath = path.join(testDir, 'events.db');
+      const cacheDbPath = path.join(testDir, 'cache.db');
+
+      // Create test files
+      fs.writeFileSync(eventsDbPath, 'test data');
+      fs.writeFileSync(cacheDbPath, 'test data');
+
+      expect(fs.existsSync(eventsDbPath)).toBe(true);
+      expect(fs.existsSync(cacheDbPath)).toBe(true);
+
+      deleteExistingDatabases(eventsDbPath, cacheDbPath);
+
+      expect(fs.existsSync(eventsDbPath)).toBe(false);
+      expect(fs.existsSync(cacheDbPath)).toBe(false);
+    });
+
+    it('deletes WAL and SHM files if they exist', () => {
+      const eventsDbPath = path.join(testDir, 'events.db');
+      const cacheDbPath = path.join(testDir, 'cache.db');
+
+      // Create test files including WAL/SHM
+      fs.writeFileSync(eventsDbPath, 'test data');
+      fs.writeFileSync(eventsDbPath + '-wal', 'wal data');
+      fs.writeFileSync(eventsDbPath + '-shm', 'shm data');
+      fs.writeFileSync(cacheDbPath, 'test data');
+      fs.writeFileSync(cacheDbPath + '-wal', 'wal data');
+
+      deleteExistingDatabases(eventsDbPath, cacheDbPath);
+
+      expect(fs.existsSync(eventsDbPath)).toBe(false);
+      expect(fs.existsSync(eventsDbPath + '-wal')).toBe(false);
+      expect(fs.existsSync(eventsDbPath + '-shm')).toBe(false);
+      expect(fs.existsSync(cacheDbPath)).toBe(false);
+      expect(fs.existsSync(cacheDbPath + '-wal')).toBe(false);
+    });
+
+    it('handles missing files gracefully', () => {
+      const eventsDbPath = path.join(testDir, 'nonexistent-events.db');
+      const cacheDbPath = path.join(testDir, 'nonexistent-cache.db');
+
+      // Should not throw
+      expect(() => deleteExistingDatabases(eventsDbPath, cacheDbPath)).not.toThrow();
     });
   });
 });

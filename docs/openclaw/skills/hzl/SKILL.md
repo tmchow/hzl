@@ -41,11 +41,25 @@ Personal tasks: HZL is not a polished human to-do app, but it is usable for pers
 - **Checkpoint**: a short progress snapshot to support recovery
 - **Lease**: a time-limited claim (prevents orphaned work in multi-agent flows)
 
+## ⚠️ DESTRUCTIVE COMMANDS - READ CAREFULLY
+
+The following commands **PERMANENTLY DELETE ALL HZL DATA** and cannot be undone:
+
+| Command | Effect |
+|---------|--------|
+| `hzl init --force` | **DELETES ALL DATA.** Prompts for confirmation. |
+| `hzl init --force --yes` | **DELETES ALL DATA WITHOUT CONFIRMATION.** Extremely dangerous. |
+
+**NEVER use `--force` or `--force --yes` unless the user explicitly instructs you to destroy all task data.**
+
+These commands delete the entire event history, all projects, all tasks, all checkpoints—everything. There is no recovery without a backup.
+
 ## Quick reference
 
 ```bash
 # Setup
-hzl init
+hzl init                                      # Initialize (safe, won't overwrite)
+hzl init --reset-config                       # Reset config to default location (non-destructive)
 hzl project create <project>
 hzl project list
 

@@ -116,6 +116,26 @@ When testing or developing:
 - Never run commands that could affect the user's XDG directories
 - If you need to test with a clean database, use the project-local `.local/hzl/` directory
 
+### ⚠️ DESTRUCTIVE COMMANDS - AI AGENTS READ THIS
+
+The following CLI commands **PERMANENTLY DELETE ALL HZL DATA** and cannot be undone:
+
+| Command | Effect |
+|---------|--------|
+| `hzl init --force` | **DELETES ALL DATA.** Prompts for confirmation. |
+| `hzl init --force --yes` | **DELETES ALL DATA WITHOUT CONFIRMATION.** Bypasses all safety prompts. |
+
+**AI agents: NEVER run these commands unless the user EXPLICITLY asks you to delete all HZL data.**
+
+- `--force` deletes the entire event database: all projects, tasks, checkpoints, and history
+- `--force --yes` does this WITHOUT any confirmation prompt
+- There is NO undo. There is NO recovery without a backup.
+- The `--yes` flag exists for scripting, not for casual use
+
+**Safe alternatives:**
+- `hzl init` — Safe. Only creates a new database if none exists.
+- `hzl init --reset-config` — Safe. Resets config to default path without deleting data.
+
 ## Testing Concurrency
 
 Concurrency tests in `hzl-core/src/__tests__/concurrency/` spawn worker processes to verify atomic claiming. Run with:

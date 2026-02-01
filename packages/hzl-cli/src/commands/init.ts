@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import fs from 'fs';
 import path from 'path';
+import readline from 'readline';
 import { z } from 'zod';
 import {
   createDatastore
@@ -35,7 +36,8 @@ export interface InitOptions {
   pathSource: DbPathSource;
   json: boolean;
   configPath?: string;
-  force?: boolean;
+  /** Reset config to default database location (non-destructive) */
+  resetConfig?: boolean;
   syncUrl?: string;
   authToken?: string;
   encryptionKey?: string;
@@ -56,6 +58,58 @@ function formatSourceHint(source: DbPathSource): string {
   }
 }
 
+/**
+ * Prompt for confirmation before destructive operations.
+ * Returns true if user confirms, false otherwise.
+ */
+async function confirmDestructiveAction(eventsDbPath: string, cacheDbPath: string): Promise<boolean> {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stderr, // Use stderr so prompts don't interfere with --json output
+  });
+
+  return new Promise((resolve) => {
+    console.error('');
+    console.error('⚠️  WARNING: This will permanently delete all HZL data:');
+    console.error(`   - ${eventsDbPath}`);
+    if (fs.existsSync(cacheDbPath)) {
+      console.error(`   - ${cacheDbPath}`);
+    }
+    console.error('');
+    console.error('This action cannot be undone. All tasks, projects, and history will be lost.');
+    console.error('');
+    console.error(`To backup first: cp "${eventsDbPath}" "${eventsDbPath}.backup"`);
+    console.error('');
+
+    rl.question("Type 'yes' to confirm: ", (answer) => {
+      rl.close();
+      resolve(answer.toLowerCase() === 'yes');
+    });
+  });
+}
+
+/**
+ * Delete existing database files for --force operation.
+ * Exported for testing.
+ */
+export function deleteExistingDatabases(eventsDbPath: string, cacheDbPath: string): void {
+  if (fs.existsSync(eventsDbPath)) {
+    fs.unlinkSync(eventsDbPath);
+    // Also delete WAL and SHM files if they exist
+    const walPath = eventsDbPath + '-wal';
+    const shmPath = eventsDbPath + '-shm';
+    if (fs.existsSync(walPath)) fs.unlinkSync(walPath);
+    if (fs.existsSync(shmPath)) fs.unlinkSync(shmPath);
+  }
+  if (fs.existsSync(cacheDbPath)) {
+    fs.unlinkSync(cacheDbPath);
+    const walPath = cacheDbPath + '-wal';
+    const shmPath = cacheDbPath + '-shm';
+    if (fs.existsSync(walPath)) fs.unlinkSync(walPath);
+    if (fs.existsSync(shmPath)) fs.unlinkSync(shmPath);
+  }
+}
+
 export function runInit(options: InitOptions): InitResult {
   const {
     eventsDbPath,
@@ -63,7 +117,7 @@ export function runInit(options: InitOptions): InitResult {
     pathSource,
     json,
     configPath = getConfigPath(),
-    force = false,
+    resetConfig = false,
     syncUrl,
     authToken,
     encryptionKey,
@@ -72,10 +126,10 @@ export function runInit(options: InitOptions): InitResult {
 
   // Check for config conflict
   const existingConfig = readConfig(configPath);
-  if (existingConfig.dbPath && existingConfig.dbPath !== eventsDbPath && !force) {
+  if (existingConfig.dbPath && existingConfig.dbPath !== eventsDbPath && !resetConfig) {
     throw new Error(
       `Config already points to: ${existingConfig.dbPath}\n` +
-      `Use --force to reset to default location, or --db <path> to use a specific location`
+      `Use --reset-config to reset to default location, or --db <path> to use a specific location`
     );
   }
 
@@ -120,8 +174,8 @@ export function runInit(options: InitOptions): InitResult {
     };
     // Overwrite config to remove sync keys
     writeConfig(cleanConfig, configPath);
-  } else if (force) {
-    // --force: clear old dbPath and write fresh config
+  } else if (resetConfig) {
+    // --reset-config: clear old dbPath and write fresh config
     const existing = readConfig(configPath);
     const cleanConfig: Partial<Config> = {
       defaultProject: existing.defaultProject,
@@ -183,21 +237,34 @@ export function runInit(options: InitOptions): InitResult {
 export function createInitCommand(): Command {
   return new Command('init')
     .description('Initialize a new HZL database')
-    .option('-f, --force', 'Reset to default location (or use with --db for specific path)')
+    .option('-r, --reset-config', 'Reset config to default database location (non-destructive)')
+    .option('-f, --force', 'DESTRUCTIVE: Delete existing database and create fresh. Prompts for confirmation.')
+    .option('-y, --yes', 'Skip confirmation prompt (use with --force)')
     .option('--sync-url <url>', 'Turso sync URL (libsql://...)')
     .option('--auth-token <token>', 'Turso auth token')
     .option('--encryption-key <key>', 'Local encryption key')
     .option('--local', 'Explicit local-only mode, don\'t configure sync')
-    .action(function (this: Command) {
+    .action(async function (this: Command) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const opts = z.object({
+        resetConfig: z.boolean().optional(),
         force: z.boolean().optional(),
+        yes: z.boolean().optional(),
         syncUrl: z.string().optional(),
         authToken: z.string().optional(),
         encryptionKey: z.string().optional(),
         local: z.boolean().optional()
       }).parse(this.opts());
+
+      const resetConfig = opts.resetConfig ?? false;
       const force = opts.force ?? false;
+      const yes = opts.yes ?? false;
+      const json = globalOpts.json ?? false;
+
+      // Validate flag combinations
+      if (force && resetConfig) {
+        throw new Error('Cannot use --force and --reset-config together. Choose one.');
+      }
 
       let eventsDbPath: string;
       let cacheDbPath: string;
@@ -208,8 +275,8 @@ export function createInitCommand(): Command {
         eventsDbPath = path.resolve(globalOpts.db);
         cacheDbPath = deriveCachePath(eventsDbPath);
         pathSource = 'cli';
-      } else if (force) {
-        // --force without --db resets to default (or dev path in dev mode)
+      } else if (resetConfig) {
+        // --reset-config without --db resets to default (or dev path in dev mode)
         eventsDbPath = getDefaultDbPath();
         cacheDbPath = deriveCachePath(eventsDbPath);
         pathSource = isDevMode() ? 'dev' : 'default';
@@ -221,12 +288,48 @@ export function createInitCommand(): Command {
         pathSource = resolved.source;
       }
 
+      // Handle destructive --force flag
+      if (force) {
+        const dbExists = fs.existsSync(eventsDbPath);
+
+        if (dbExists) {
+          // In JSON mode without --yes, we can't prompt interactively
+          if (json && !yes) {
+            throw new Error(
+              'Cannot use --force with --json without --yes.\n' +
+              'Use --force --yes to confirm destruction, or remove --json to see the confirmation prompt.'
+            );
+          }
+
+          // Check if we can prompt (TTY available)
+          if (!yes && !process.stdin.isTTY) {
+            throw new Error(
+              'Cannot prompt for confirmation in non-interactive mode.\n' +
+              'Use --force --yes to confirm destruction without prompting.'
+            );
+          }
+
+          // Prompt for confirmation unless --yes is provided
+          if (!yes) {
+            const confirmed = await confirmDestructiveAction(eventsDbPath, cacheDbPath);
+            if (!confirmed) {
+              console.error('Aborted. No changes made.');
+              process.exit(1);
+            }
+          }
+
+          // Delete existing databases
+          deleteExistingDatabases(eventsDbPath, cacheDbPath);
+        }
+        // If no database exists, --force just initializes normally (no deletion needed)
+      }
+
       runInit({
         eventsDbPath,
         cacheDbPath,
         pathSource,
-        json: globalOpts.json ?? false,
-        force,
+        json,
+        resetConfig,
         syncUrl: opts.syncUrl,
         authToken: opts.authToken,
         encryptionKey: opts.encryptionKey,

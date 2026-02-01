@@ -381,6 +381,7 @@ https://raw.githubusercontent.com/tmchow/hzl/main/docs/openclaw/tools-prompt.md
 ```bash
 # Setup
 hzl init                                      # Initialize database (add --sync-url for cloud)
+hzl init --reset-config                       # Reset config to default database location
 
 # Projects
 hzl project create <name>                     # Create a project
@@ -405,6 +406,10 @@ hzl task show <id> --json                     # Task details (--json for scripti
 hzl sync                                      # Sync with cloud (if configured)
 hzl status                                    # Show database and sync state
 hzl doctor                                    # Health checks
+
+# ⚠️ DESTRUCTIVE - deletes all data
+hzl init --force                              # Prompts for confirmation before deleting
+hzl init --force --yes                        # Deletes WITHOUT confirmation (dangerous)
 
 # Web Dashboard
 hzl serve                                     # Start dashboard (network accessible)
