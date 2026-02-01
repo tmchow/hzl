@@ -1,3 +1,10 @@
+## [1.8.2](https://github.com/tmchow/hzl/compare/v1.8.1...v1.8.2) (2026-02-01)
+
+
+### Bug Fixes
+
+* correct npm publish order for hzl-web ([#37](https://github.com/tmchow/hzl/issues/37)) ([a65af71](https://github.com/tmchow/hzl/commit/a65af71091e418b2f12a21af1bc8e8df80adc8f1))
+
 ## [1.8.1](https://github.com/tmchow/hzl/compare/v1.8.0...v1.8.1) (2026-02-01)
 
 
