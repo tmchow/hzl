@@ -348,6 +348,20 @@ document.addEventListener('visibilitychange', () => {
 - [ ] Test polling pause/resume
 - [ ] Manual testing on real device
 
+### Phase 10: Documentation
+
+Update docs to make the dashboard discoverable.
+
+**Tasks:**
+- [ ] Update `/README.md` with `hzl serve` command in CLI reference
+- [ ] Add "Web Dashboard" section explaining the feature
+- [ ] Update OpenClaw skill (`docs/openclaw/`) to mention dashboard availability
+- [ ] Include example usage for background mode and systemd setup
+
+**Files:**
+- `/README.md`
+- `docs/openclaw/` (skill definition)
+
 ## Acceptance Criteria
 
 ### Functional Requirements
@@ -370,6 +384,10 @@ document.addEventListener('visibilitychange', () => {
 - [ ] Polling handles network failures gracefully
 - [ ] Works on Chrome, Firefox, Safari (latest)
 - [ ] Responsive down to 320px width
+
+### Documentation Requirements
+- [ ] README documents `hzl serve` command
+- [ ] OpenClaw skill updated to mention dashboard
 
 ## Dependencies
 
