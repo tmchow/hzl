@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import Database from 'better-sqlite3';
+import Database from 'libsql';
 import { runMigrations, getCurrentVersion } from './migrations.js';
 import { SCHEMA_V1 } from './schema.js';
 

@@ -1,7 +1,7 @@
 // packages/hzl-core/src/__tests__/concurrency/worker.ts
 // Worker script for concurrency stress tests
 import { parentPort, workerData } from 'worker_threads';
-import Database from 'better-sqlite3';
+import Database from 'libsql';
 import { createConnection } from '../../db/connection.js';
 import { EventStore } from '../../events/store.js';
 import { ProjectionEngine } from '../../projections/engine.js';

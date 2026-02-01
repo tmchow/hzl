@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
 import { fileURLToPath } from 'url';
-import Database from 'better-sqlite3';
+import Database from 'libsql';
 import { initializeDb, closeDb } from '../../db.js';
 import {
   createTestContext,

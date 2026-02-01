@@ -1,4 +1,4 @@
-import type Database from 'better-sqlite3';
+import type Database from 'libsql';
 import { EventStore } from '../events/store.js';
 import { EventType, PROJECT_EVENT_TASK_ID } from '../events/types.js';
 import { ProjectionEngine } from '../projections/engine.js';

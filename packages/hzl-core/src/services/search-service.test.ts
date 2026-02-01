@@ -1,6 +1,6 @@
 // packages/hzl-core/src/services/search-service.test.ts
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import Database from 'better-sqlite3';
+import Database from 'libsql';
 import { SearchService } from './search-service.js';
 import { runMigrations } from '../db/migrations.js';
 import { EventStore } from '../events/store.js';

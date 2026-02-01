@@ -7,7 +7,7 @@ metadata: { "openclaw": { "emoji": "🧾", "homepage": "https://github.com/tmcho
 
 # HZL: Persistent task tracking for agents
 
-HZL is a local-first task ledger (database-backed) that an agent can use to:
+HZL is a local-first task ledger (database-backed, optionally cloud-synced for backup) that an agent can use to:
 - plan multi-step work into projects + tasks
 - checkpoint progress (so work survives session boundaries)
 - coordinate sub-agents or multiple coding tools with leases
@@ -65,6 +65,10 @@ hzl task complete <id>
 # Dependencies + validation
 hzl task add-dep <task-id> <depends-on-id>
 hzl validate
+
+# Diagnostics
+hzl status   # database mode, paths, sync state
+hzl doctor   # health check for debugging
 
 # Multi-agent recovery
 hzl task claim <id> --author <agent-id> --lease 30

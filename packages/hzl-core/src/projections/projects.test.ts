@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import Database from 'better-sqlite3';
+import Database from 'libsql';
 import { ProjectsProjector } from './projects.js';
 import { EventType, PROJECT_EVENT_TASK_ID } from '../events/types.js';
 import type { PersistedEventEnvelope } from '../events/store.js';

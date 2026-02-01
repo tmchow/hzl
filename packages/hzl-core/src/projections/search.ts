@@ -1,5 +1,5 @@
 // packages/hzl-core/src/projections/search.ts
-import type Database from 'better-sqlite3';
+import type Database from 'libsql';
 import type { PersistedEventEnvelope } from '../events/store.js';
 import type { Projector } from './types.js';
 import { EventType, type TaskCreatedData, type TaskUpdatedData } from '../events/types.js';

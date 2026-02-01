@@ -5,7 +5,7 @@ import path from 'path';
 import os from 'os';
 import { execSync } from 'child_process';
 import { fileURLToPath } from 'url';
-import Database from 'better-sqlite3';
+import Database from 'libsql';
 import { createConnection } from '../../db/connection.js';
 import { EventStore } from '../../events/store.js';
 import { ProjectionEngine } from '../../projections/engine.js';

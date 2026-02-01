@@ -1,5 +1,5 @@
 // packages/hzl-core/src/projections/engine.ts
-import type Database from 'better-sqlite3';
+import type Database from 'libsql';
 import type { PersistedEventEnvelope } from '../events/store.js';
 import type { EventType } from '../events/types.js';
 import type { Projector, ProjectionState } from './types.js';

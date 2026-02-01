@@ -1,5 +1,5 @@
 // packages/hzl-core/src/projections/types.ts
-import type Database from 'better-sqlite3';
+import type Database from 'libsql';
 import type { PersistedEventEnvelope } from '../events/store.js';
 
 export interface Projector {

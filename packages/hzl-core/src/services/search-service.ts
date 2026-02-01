@@ -1,5 +1,5 @@
 // packages/hzl-core/src/services/search-service.ts
-import type Database from 'better-sqlite3';
+import type Database from 'libsql';
 
 export interface SearchTaskResult { task_id: string; title: string; project: string; status: string; description: string | null; priority: number; rank: number; }
 export interface SearchResult { tasks: SearchTaskResult[]; total: number; limit: number; offset: number; }

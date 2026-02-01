@@ -1,6 +1,6 @@
 // packages/hzl-core/src/projections/tags.test.ts
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import Database from 'better-sqlite3';
+import Database from 'libsql';
 import { TagsProjector } from './tags.js';
 import { runMigrations } from '../db/migrations.js';
 import { EventStore } from '../events/store.js';
