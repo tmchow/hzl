@@ -180,6 +180,27 @@ Leases are time-limited claims:
 - If it disappears, the lease expires
 - Another agent can detect stuck work and take over
 
+### Cloud Sync & Offline-First
+
+HZL uses a **local-first** architecture. You always read/write to a fast local database. Sync happens in the background via Turso/libSQL.
+
+```mermaid
+flowchart TD
+    CLI[User / Agent CLI]
+    subgraph Local["Local Machine"]
+        Cache[(cache.db<br/>Reads)]
+        Events[(events.db<br/>Writes)]
+        Sync[Sync Engine]
+    end
+    Cloud[(Turso / Cloud)]
+
+    CLI -->|Read| Cache
+    CLI -->|Write| Events
+    Events -->|Rebuild| Cache
+    Events <-->|Sync| Sync
+    Sync <-->|Replication| Cloud
+```
+
 ---
 
 ## Patterns
