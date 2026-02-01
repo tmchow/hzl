@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { createSyncCommand, runSync, SyncResult } from './sync.js';
+import { createSyncCommand, runSync } from './sync.js';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';

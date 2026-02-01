@@ -4,7 +4,7 @@ import path from 'path';
 import type { DbConfig, SyncResult, SyncStats } from './types.js';
 import { EVENTS_SCHEMA_V2, CACHE_SCHEMA_V1, PRAGMAS } from './schema.js';
 import { generateId } from '../utils/id.js';
-import { setInstanceId, getInstanceId, setDeviceId, getDeviceId, setLastSyncAttemptAt } from './meta.js';
+import { setInstanceId, getInstanceId, setDeviceId, getDeviceId, setLastSyncAttemptAt, setLastSyncAt, setLastSyncError, clearLastSyncError, clearDirtySince } from './meta.js';
 
 export type ConnectionMode = 'local-only' | 'remote-replica' | 'offline-sync' | 'remote-only';
 
@@ -58,8 +58,8 @@ export function createDatastore(config: DbConfig): Datastore {
     if (config.timeoutSec) {
         eventsOpts.timeout = config.timeoutSec;
     }
-    // Disable background sync in CLI
-    eventsOpts.syncPeriod = 0;
+    // Use configured syncPeriod, default to 0 (disabled) for CLI use cases
+    eventsOpts.syncPeriod = config.syncPeriod ?? 0;
 
     // Create connections
     const eventsDb = new Database(eventsPath, eventsOpts);
@@ -170,16 +170,26 @@ export function createDatastore(config: DbConfig): Datastore {
 
                 await syncPromise;
 
+                // On success: update sync metadata
+                const syncTime = Date.now();
+                setLastSyncAt(cacheDb, syncTime);
+                clearLastSyncError(cacheDb);
+                clearDirtySince(cacheDb);
+
                 return {
                     attempted: true,
                     success: true,
                     framesSynced: 0,
                 };
             } catch (err) {
+                // On failure: record error
+                const errorMessage = err instanceof Error ? err.message : String(err);
+                setLastSyncError(cacheDb, errorMessage);
+
                 return {
                     attempted: true,
                     success: false,
-                    error: err instanceof Error ? err.message : String(err),
+                    error: errorMessage,
                 };
             }
         },

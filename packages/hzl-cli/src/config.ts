@@ -138,6 +138,18 @@ function expandTilde(filePath: string): string {
   return filePath;
 }
 
+/**
+ * Derive cache database path from events database path.
+ * Handles paths with and without .db extension.
+ */
+function deriveCachePath(eventsPath: string): string {
+  if (eventsPath.endsWith('.db')) {
+    return eventsPath.replace(/\.db$/, '-cache.db');
+  }
+  // No .db suffix: append -cache.db
+  return `${eventsPath}-cache.db`;
+}
+
 export type DbPathSource = 'cli' | 'env' | 'config' | 'default' | 'dev';
 
 export interface ResolvedDbPath {
@@ -171,15 +183,16 @@ export function resolveDbPaths(cliOption?: string, configPath: string = getConfi
     const expanded = expandTilde(cliOption);
     return {
       eventsDbPath: expanded,
-      cacheDbPath: expanded.replace(/\.db$/, '-cache.db'),
+      cacheDbPath: deriveCachePath(expanded),
     };
   }
 
   // Environment variables
   if (process.env.HZL_DB_EVENTS_PATH) {
+    const eventsPath = expandTilde(process.env.HZL_DB_EVENTS_PATH);
     return {
-      eventsDbPath: expandTilde(process.env.HZL_DB_EVENTS_PATH),
-      cacheDbPath: expandTilde(process.env.HZL_DB_CACHE_PATH ?? process.env.HZL_DB_EVENTS_PATH.replace(/\.db$/, '-cache.db')),
+      eventsDbPath: eventsPath,
+      cacheDbPath: expandTilde(process.env.HZL_DB_CACHE_PATH ?? deriveCachePath(eventsPath)),
     };
   }
 
@@ -188,7 +201,7 @@ export function resolveDbPaths(cliOption?: string, configPath: string = getConfi
     const expanded = expandTilde(process.env.HZL_DB);
     return {
       eventsDbPath: expanded,
-      cacheDbPath: expanded.replace(/\.db$/, '-cache.db'),
+      cacheDbPath: deriveCachePath(expanded),
     };
   }
 
@@ -197,9 +210,10 @@ export function resolveDbPaths(cliOption?: string, configPath: string = getConfi
 
   // New nested structure
   if (config.db?.events?.path) {
+    const eventsPath = expandTilde(config.db.events.path);
     return {
-      eventsDbPath: expandTilde(config.db.events.path),
-      cacheDbPath: expandTilde(config.db.cache?.path ?? config.db.events.path.replace(/\.db$/, '-cache.db')),
+      eventsDbPath: eventsPath,
+      cacheDbPath: expandTilde(config.db.cache?.path ?? deriveCachePath(eventsPath)),
     };
   }
 
@@ -208,7 +222,7 @@ export function resolveDbPaths(cliOption?: string, configPath: string = getConfi
     const expanded = expandTilde(config.dbPath);
     return {
       eventsDbPath: expanded,
-      cacheDbPath: expanded.replace(/\.db$/, '-cache.db'),
+      cacheDbPath: deriveCachePath(expanded),
     };
   }
 
@@ -216,7 +230,7 @@ export function resolveDbPaths(cliOption?: string, configPath: string = getConfi
   const defaultEventsPath = getDefaultDbPath();
   return {
     eventsDbPath: defaultEventsPath,
-    cacheDbPath: defaultEventsPath.replace(/\.db$/, '-cache.db'),
+    cacheDbPath: deriveCachePath(defaultEventsPath),
   };
 }
 

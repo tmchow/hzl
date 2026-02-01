@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { resolveDbPaths, readConfig } from './config.js';
+import { resolveDbPaths } from './config.js';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';

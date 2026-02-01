@@ -2,8 +2,7 @@ import { Command } from 'commander';
 import fs from 'fs';
 import { z } from 'zod';
 import {
-  createDatastore,
-  getInstanceId
+  createDatastore
 } from 'hzl-core';
 import {
   resolveDbPathWithSource,
@@ -104,28 +103,26 @@ export async function runInit(options: InitOptions): Promise<InitResult> {
   datastore.close();
 
   // Write config file
-  // If local flag is set, we clear syncUrl and authToken
-  const configUpdates: any = { dbPath };
-
+  // If local flag is set, we clear syncUrl and authToken by rewriting config without them
   if (local) {
-    // Explicitly disabling sync requires undefined or special handling?
-    // writeConfig merges, so passing undefined usually doesn't delete keys in typical implementations unless logic handles it.
-    // However, existing Config interface treats them as optional.
-    // To clear them, we might need value that writeConfig understands, or rely on them being optional.
-    // Simple approach: set to undefined might not remove from file if implementation uses {...existing, ...updates}.
-    // But since Config is flat object and defined via Zod, partial updates work.
-    // Assuming simple merge. To delete, we probably need null or re-write if key deletion is needed.
-    // But in this implementation, let's just update what we have.
-    // If user wants to "forget", we might need null support in types.
-    // For now, let's just write what is provided.
+    // Read existing config and remove sync-related keys
+    const existing = readConfig(configPath);
+    const { syncUrl: _s, authToken: _a, ...cleanConfig } = existing;
+    // Preserve encryption key if provided or existing
+    const finalConfig = {
+      ...cleanConfig,
+      dbPath,
+      ...(encryptionKey ? { encryptionKey } : {}),
+    };
+    // Write the cleaned config (overwrites, removing sync keys)
+    writeConfig(finalConfig, configPath);
   } else {
+    const configUpdates: any = { dbPath };
     if (syncUrl) configUpdates.syncUrl = syncUrl;
     if (authToken) configUpdates.authToken = authToken;
+    if (encryptionKey) configUpdates.encryptionKey = encryptionKey;
+    writeConfig(configUpdates, configPath);
   }
-
-  if (encryptionKey) configUpdates.encryptionKey = encryptionKey;
-
-  writeConfig(configUpdates, configPath);
 
   const result: InitResult = {
     path: dbPath,

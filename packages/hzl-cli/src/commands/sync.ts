@@ -11,7 +11,7 @@ import {
     clearDirtySince
 } from 'hzl-core';
 import { GlobalOptionsSchema } from '../types.js';
-import { resolveDbPaths } from '../config.js';
+import { resolveDbPaths, readConfig, getConfigPath } from '../config.js';
 
 const SyncOptionsSchema = z.object({
     conflictStrategy: z.enum(['merge', 'discard-local', 'fail']).optional(),
@@ -47,6 +47,8 @@ export interface SyncOptions {
     json: boolean;
     conflictStrategy?: ConflictStrategy;
     force?: boolean; // Force re-sync even if clean
+    syncUrl?: string;
+    authToken?: string;
 }
 
 export class ConflictError extends Error {
@@ -129,10 +131,24 @@ async function resolveConflict(
 }
 
 export async function runSync(options: SyncOptions): Promise<SyncResult> {
-    const { eventsDbPath, cacheDbPath, json, conflictStrategy = 'merge', force = false } = options;
+    const {
+        eventsDbPath,
+        cacheDbPath,
+        json,
+        conflictStrategy = 'merge',
+        force = false,
+        syncUrl,
+        authToken,
+    } = options;
 
     const datastore = createDatastore({
-        events: { path: eventsDbPath, syncMode: 'offline', readYourWrites: true },
+        events: {
+            path: eventsDbPath,
+            syncUrl,
+            authToken,
+            syncMode: 'offline',
+            readYourWrites: true
+        },
         cache: { path: cacheDbPath },
     });
 
@@ -266,15 +282,16 @@ export function createSyncCommand(): Command {
             }
 
             const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
+            const config = readConfig(getConfigPath());
+
+            // Get sync URL and auth token from config or env
+            const syncUrl = process.env.HZL_SYNC_URL ?? config.syncUrl ?? config.db?.events?.syncUrl;
+            const authToken = process.env.HZL_AUTH_TOKEN ?? config.authToken ?? config.db?.events?.authToken;
 
             // Handle --reset: clear sync state to force full re-sync
             if (localOpts.reset && localOpts.force) {
-                // We import Database locally to allow reset even if Datastore creation would fail
-                // But actually createDatastore is fine.
-                // We just need to access the cache db directly to delete keys.
-                // Or createDatastore() gives us cacheDb.
                 const datastore = createDatastore({
-                    events: { path: eventsDbPath, syncMode: 'offline', readYourWrites: true },
+                    events: { path: eventsDbPath, syncUrl, authToken, syncMode: 'offline', readYourWrites: true },
                     cache: { path: cacheDbPath }
                 });
                 clearDirtySince(datastore.cacheDb);
@@ -289,6 +306,8 @@ export function createSyncCommand(): Command {
                 json: globalOpts.json,
                 conflictStrategy: localOpts.conflictStrategy,
                 force: localOpts.force,
+                syncUrl,
+                authToken,
             });
 
             if (globalOpts.json) {

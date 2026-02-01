@@ -11,10 +11,6 @@ describe('append-only enforcement', () => {
 
     beforeEach(() => {
         db = new Database(testDbPath);
-        // EVENTS_SCHEMA_V2 might not exist yet, preventing this from running until I create it.
-        // However, for TDD, I should try to import it. If it fails, that's part of the process.
-        // But since I can't import runtime undefined, I'll mock the expectation or relies on the next step to add it.
-        // For now, let's assume I'll add it in the next step.
         db.exec(EVENTS_SCHEMA_V2);
     });
 

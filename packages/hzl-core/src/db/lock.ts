@@ -24,7 +24,13 @@ function isPidRunning(pid: number): boolean {
         // Sending signal 0 checks if process exists without killing it
         process.kill(pid, 0);
         return true;
-    } catch {
+    } catch (err) {
+        const error = err as NodeJS.ErrnoException;
+        // EPERM means process exists but we lack permission to signal it
+        // ESRCH means process does not exist
+        if (error.code === 'EPERM') {
+            return true;
+        }
         return false;
     }
 }

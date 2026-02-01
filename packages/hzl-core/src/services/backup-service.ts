@@ -38,7 +38,9 @@ export class BackupService {
     if (fs.existsSync(destPath)) {
       fs.unlinkSync(destPath);
     }
-    this.db.exec(`VACUUM INTO '${destPath}'`);
+    // Escape single quotes in path to prevent SQL injection
+    const escapedPath = destPath.replace(/'/g, "''");
+    this.db.exec(`VACUUM INTO '${escapedPath}'`);
   }
 
   async restore(srcPath: string, destPath: string): Promise<void> {

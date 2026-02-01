@@ -34,10 +34,12 @@ export interface DoctorOptions {
     cacheDbPath: string;
     configPath: string;
     json: boolean;
+    syncUrl?: string;
+    authToken?: string;
 }
 
 export async function runDoctor(options: DoctorOptions): Promise<DoctorResult> {
-    const { eventsDbPath, cacheDbPath, configPath, json } = options;
+    const { eventsDbPath, cacheDbPath, configPath, json, syncUrl, authToken } = options;
     const checks: DoctorResult['checks'] = {
         config: { status: 'pass' },
         database: { status: 'pass' },
@@ -53,8 +55,8 @@ export async function runDoctor(options: DoctorOptions): Promise<DoctorResult> {
             const config = readConfig(configPath);
             checks.config = { status: 'pass', path: configPath };
 
-            // Check config file permissions if authToken is stored in config
-            if (config.authToken) {
+            // Check config file permissions if authToken is stored in config (top-level or nested)
+            if (config.authToken || config.db?.events?.authToken) {
                 const permWarning = checkConfigPermissions(configPath);
                 if (permWarning) {
                     checks.config = {
@@ -91,7 +93,7 @@ export async function runDoctor(options: DoctorOptions): Promise<DoctorResult> {
             };
         } else {
             const datastore = createDatastore({
-                events: { path: eventsDbPath, syncMode: 'offline', readYourWrites: true },
+                events: { path: eventsDbPath, syncUrl, authToken, syncMode: 'offline', readYourWrites: true },
                 cache: { path: cacheDbPath },
             });
             mode = datastore.mode;
@@ -103,7 +105,7 @@ export async function runDoctor(options: DoctorOptions): Promise<DoctorResult> {
                     status: 'fail',
                     message: `Integrity check failed: ${integrity.integrity_check}`,
                     path: eventsDbPath,
-                    actions: [{ command: 'hzl db restore <backup>', description: 'Restore from backup' }],
+                    actions: [{ command: 'hzl init', description: 'Reinitialize database after restoring from backup' }],
                 };
             } else {
                 checks.database = { status: 'pass', path: eventsDbPath };
@@ -136,7 +138,7 @@ export async function runDoctor(options: DoctorOptions): Promise<DoctorResult> {
                 checks.lock = {
                     status: 'warn',
                     message: `Stale lock from PID ${metadata.pid}`,
-                    actions: [{ command: 'hzl lock clear --force', description: 'Clear stale lock' }],
+                    actions: [{ command: `rm "${lockPath}"`, description: 'Remove stale lock file (only if no hzl process is using the database)' }],
                 };
             } else {
                 checks.lock = {
@@ -158,7 +160,7 @@ export async function runDoctor(options: DoctorOptions): Promise<DoctorResult> {
     if (mode !== 'local-only' && mode !== 'unknown') {
         try {
             const datastore = createDatastore({
-                events: { path: eventsDbPath, syncMode: 'offline', readYourWrites: true },
+                events: { path: eventsDbPath, syncUrl, authToken, syncMode: 'offline', readYourWrites: true },
                 cache: { path: cacheDbPath },
             });
 
@@ -247,12 +249,20 @@ export function createDoctorCommand(): Command {
         .action(async function (this: Command) {
             const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
             const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
+            const configPath = getConfigPath();
+            const config = readConfig(configPath);
+
+            // Get sync URL and auth token from config or env
+            const syncUrl = process.env.HZL_SYNC_URL ?? config.syncUrl ?? config.db?.events?.syncUrl;
+            const authToken = process.env.HZL_AUTH_TOKEN ?? config.authToken ?? config.db?.events?.authToken;
 
             const result = await runDoctor({
                 eventsDbPath,
                 cacheDbPath,
-                configPath: getConfigPath(),
+                configPath,
                 json: globalOpts.json,
+                syncUrl,
+                authToken,
             });
 
             if (globalOpts.json) {

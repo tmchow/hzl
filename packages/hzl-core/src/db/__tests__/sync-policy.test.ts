@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createSyncPolicy, SyncTrigger } from '../sync-policy.js';
+import { createSyncPolicy } from '../sync-policy.js';
 import type { SyncConfig } from '../types.js';
 
 describe('SyncPolicy', () => {
