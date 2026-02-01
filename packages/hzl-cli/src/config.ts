@@ -7,10 +7,30 @@ import { z } from 'zod';
 import type { Config } from './types.js';
 
 const ConfigFileSchema = z.object({
+  db: z.object({
+    events: z.object({
+      path: z.string().optional(),
+      syncUrl: z.string().optional(),
+      authToken: z.string().optional(),
+      syncMode: z.enum(['replica', 'offline']).optional(),
+      readYourWrites: z.boolean().optional(),
+      encryptionKey: z.string().optional(),
+    }).optional(),
+    cache: z.object({
+      path: z.string().optional(),
+    }).optional(),
+    sync: z.object({
+      policy: z.enum(['manual', 'opportunistic', 'strict']).optional(),
+      staleAfterMs: z.number().optional(),
+      minIntervalMs: z.number().optional(),
+      conflictStrategy: z.enum(['merge', 'discard-local', 'fail']).optional(),
+    }).optional(),
+  }).optional(),
   dbPath: z.string().optional(),
   defaultProject: z.string().optional(),
   defaultAuthor: z.string().optional(),
   leaseMinutes: z.number().positive().optional(),
+  // flatten top-level properties for backward compatibility read
   syncUrl: z.string().optional(),
   authToken: z.string().optional(),
   encryptionKey: z.string().optional(),
@@ -140,18 +160,64 @@ export function resolveDbPath(cliOption?: string, configPath: string = getConfig
   return resolveDbPathWithSource(cliOption, configPath).path;
 }
 
-export function resolveDbPaths(cliOption?: string, configPath: string = getConfigPath()): { eventsDbPath: string; cacheDbPath: string } {
-  const eventsDbPath = resolveDbPath(cliOption, configPath);
-  // Derive cache path from events path:
-  // /path/to/events.db -> /path/to/events.cache.db
-  // /path/to/data.db -> /path/to/data.cache.db
-  // /path/to/mydb -> /path/to/mydb.cache.db
-  const dir = path.dirname(eventsDbPath);
-  const ext = path.extname(eventsDbPath);
-  const base = path.basename(eventsDbPath, ext);
-  const cacheDbPath = path.join(dir, `${base}.cache${ext}`);
+export interface ResolvedDbPaths {
+  eventsDbPath: string;
+  cacheDbPath: string;
+}
 
-  return { eventsDbPath, cacheDbPath };
+export function resolveDbPaths(cliOption?: string, configPath: string = getConfigPath()): ResolvedDbPaths {
+  // CLI option overrides everything
+  if (cliOption) {
+    const expanded = expandTilde(cliOption);
+    return {
+      eventsDbPath: expanded,
+      cacheDbPath: expanded.replace(/\.db$/, '-cache.db'),
+    };
+  }
+
+  // Environment variables
+  if (process.env.HZL_DB_EVENTS_PATH) {
+    return {
+      eventsDbPath: expandTilde(process.env.HZL_DB_EVENTS_PATH),
+      cacheDbPath: expandTilde(process.env.HZL_DB_CACHE_PATH ?? process.env.HZL_DB_EVENTS_PATH.replace(/\.db$/, '-cache.db')),
+    };
+  }
+
+  // Legacy HZL_DB env var
+  if (process.env.HZL_DB) {
+    const expanded = expandTilde(process.env.HZL_DB);
+    return {
+      eventsDbPath: expanded,
+      cacheDbPath: expanded.replace(/\.db$/, '-cache.db'),
+    };
+  }
+
+  // Config file
+  const config = readConfig(configPath);
+
+  // New nested structure
+  if (config.db?.events?.path) {
+    return {
+      eventsDbPath: expandTilde(config.db.events.path),
+      cacheDbPath: expandTilde(config.db.cache?.path ?? config.db.events.path.replace(/\.db$/, '-cache.db')),
+    };
+  }
+
+  // Legacy dbPath
+  if (config.dbPath) {
+    const expanded = expandTilde(config.dbPath);
+    return {
+      eventsDbPath: expanded,
+      cacheDbPath: expanded.replace(/\.db$/, '-cache.db'),
+    };
+  }
+
+  // Default
+  const defaultEventsPath = getDefaultDbPath();
+  return {
+    eventsDbPath: defaultEventsPath,
+    cacheDbPath: defaultEventsPath.replace(/\.db$/, '-cache.db'),
+  };
 }
 
 export function readConfig(configPath: string = getConfigPath()): Config {
