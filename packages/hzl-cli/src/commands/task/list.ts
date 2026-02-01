@@ -14,6 +14,7 @@ export interface TaskListItem {
   project: string;
   status: string;
   priority: number;
+  parent_id: string | null;
   created_at: string;
 }
 
@@ -27,6 +28,8 @@ export interface ListOptions {
   project?: string;
   status?: TaskStatus;
   availableOnly?: boolean;
+  parent?: string;
+  rootOnly?: boolean;
   limit?: number;
   json: boolean;
 }
@@ -35,31 +38,42 @@ interface ListCommandOptions {
   project?: string;
   status?: string;
   available?: boolean;
+  parent?: string;
+  root?: boolean;
   limit?: string;
 }
 
 export function runList(options: ListOptions): ListResult {
-  const { services, project, status, availableOnly, limit = 50, json } = options;
+  const { services, project, status, availableOnly, parent, rootOnly, limit = 50, json } = options;
   const db = services.cacheDb;
-  
+
   // Build query with filters
   let query = `
-    SELECT task_id, title, project, status, priority, created_at
+    SELECT task_id, title, project, status, priority, parent_id, created_at
     FROM tasks_current
     WHERE status != 'archived'
   `;
   const params: Array<string | number> = [];
-  
+
   if (project) {
     query += ' AND project = ?';
     params.push(project);
   }
-  
+
   if (status) {
     query += ' AND status = ?';
     params.push(status);
   }
-  
+
+  if (parent) {
+    query += ' AND parent_id = ?';
+    params.push(parent);
+  }
+
+  if (rootOnly) {
+    query += ' AND parent_id IS NULL';
+  }
+
   if (availableOnly) {
     query += ` AND status = 'ready' AND NOT EXISTS (
       SELECT 1 FROM task_dependencies td
@@ -67,11 +81,11 @@ export function runList(options: ListOptions): ListResult {
       WHERE td.task_id = tasks_current.task_id AND dep.status != 'done'
     )`;
   }
-  
+
   query += ' ORDER BY priority DESC, created_at ASC, task_id ASC';
   query += ' LIMIT ?';
   params.push(limit);
-  
+
   const rows = db.prepare(query).all(...params) as TaskListItem[];
   
   const result: ListResult = {
@@ -102,6 +116,8 @@ export function createListCommand(): Command {
     .option('-p, --project <project>', 'Filter by project')
     .option('-s, --status <status>', 'Filter by status')
     .option('-a, --available', 'Show only available (ready, no blocking deps)', false)
+    .option('--parent <taskId>', 'Filter by parent task')
+    .option('--root', 'Show only root tasks (no parent)', false)
     .option('-l, --limit <n>', 'Limit results', '50')
     .action(function (this: Command, opts: ListCommandOptions) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
@@ -116,6 +132,8 @@ export function createListCommand(): Command {
           project: opts.project,
           status,
           availableOnly: opts.available,
+          parent: opts.parent,
+          rootOnly: opts.root,
           limit: parseInt(opts.limit ?? '50', 10),
           json: globalOpts.json ?? false,
         });

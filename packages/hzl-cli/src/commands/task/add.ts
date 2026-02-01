@@ -2,7 +2,7 @@
 import { Command } from 'commander';
 import { resolveDbPaths } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
-import { handleError } from '../../errors.js';
+import { CLIError, ExitCode, handleError } from '../../errors.js';
 import { GlobalOptionsSchema } from '../../types.js';
 
 export interface AddResult {
@@ -22,6 +22,7 @@ export interface AddOptions {
   tags?: string[];
   priority?: number;
   dependsOn?: string[];
+  parent?: string;
   json: boolean;
 }
 
@@ -31,11 +32,32 @@ interface AddCommandOptions {
   tags?: string;
   priority?: string;
   dependsOn?: string;
+  parent?: string;
 }
 
 export function runAdd(options: AddOptions): AddResult {
-  const { services, project, title, description, tags, priority, dependsOn, json } = options;
-  
+  const { services, title, description, tags, priority, dependsOn, parent, json } = options;
+  let project = options.project;
+
+  // Validate parent and inherit project
+  if (parent) {
+    const parentTask = services.taskService.getTaskById(parent);
+    if (!parentTask) {
+      throw new CLIError(`Parent task not found: ${parent}`, ExitCode.NotFound);
+    }
+    if (parentTask.status === 'archived') {
+      throw new CLIError(`Cannot create subtask of archived parent: ${parent}`, ExitCode.InvalidInput);
+    }
+    if (parentTask.parent_id) {
+      throw new CLIError(
+        'Cannot create subtask of a subtask (max 1 level of nesting)',
+        ExitCode.InvalidInput
+      );
+    }
+    // Always inherit project from parent
+    project = parentTask.project;
+  }
+
   const task = services.taskService.createTask({
     title,
     project,
@@ -43,6 +65,7 @@ export function runAdd(options: AddOptions): AddResult {
     tags,
     priority,
     depends_on: dependsOn,
+    parent_id: parent,
   });
 
   const result: AddResult = {
@@ -72,6 +95,7 @@ export function createAddCommand(): Command {
     .option('-t, --tags <tags>', 'Comma-separated tags')
     .option('-p, --priority <n>', 'Priority (0-3)', '0')
     .option('--depends-on <ids>', 'Comma-separated task IDs this depends on')
+    .option('--parent <taskId>', 'Parent task ID (creates subtask, inherits project)')
     .action(function (this: Command, title: string, opts: AddCommandOptions) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
@@ -85,6 +109,7 @@ export function createAddCommand(): Command {
           tags: opts.tags?.split(','),
           priority: parseInt(opts.priority ?? '0', 10),
           dependsOn: opts.dependsOn?.split(','),
+          parent: opts.parent,
           json: globalOpts.json ?? false,
         });
       } catch (e) {
