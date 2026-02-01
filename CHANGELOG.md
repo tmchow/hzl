@@ -1,3 +1,10 @@
+# [1.10.0](https://github.com/tmchow/hzl/compare/v1.9.3...v1.10.0) (2026-02-01)
+
+
+### Features
+
+* add Homebrew installation support ([#46](https://github.com/tmchow/hzl/issues/46)) ([bd224c3](https://github.com/tmchow/hzl/commit/bd224c36e4b38551460407d1e148dd4ee120d278))
+
 ## [1.9.3](https://github.com/tmchow/hzl/compare/v1.9.2...v1.9.3) (2026-02-01)
 
 
