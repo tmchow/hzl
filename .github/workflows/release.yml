@@ -11,6 +11,10 @@ permissions:
   pull-requests: write
   id-token: write
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false  # Don't cancel in-progress releases
+
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -46,6 +50,11 @@ jobs:
           node-version: '22.14.0'
           registry-url: 'https://registry.npmjs.org'
           cache: 'npm'
+
+      - name: Enable npm via corepack
+        run: |
+          corepack enable
+          corepack prepare npm@10.0.0 --activate
 
       - run: npm ci
       - run: npm run build
