@@ -17,25 +17,47 @@ export interface NextOptions {
   services: Services;
   project?: string;
   tags?: string[];
+  parent?: string;
   json: boolean;
 }
 
 interface NextCommandOptions {
   project?: string;
   tags?: string;
+  parent?: string;
 }
 
 export function runNext(options: NextOptions): NextResult | null {
-  const { services, project, tags, json } = options;
-  
+  const { services, project, tags, parent, json } = options;
+
   // Get available tasks using the service's getAvailableTasks method
   const availableTasks = services.taskService.getAvailableTasks({
     project,
     tagsAll: tags,
-    limit: 1,
+    limit: 100, // Get more to filter for leaf tasks
   });
-  
-  if (availableTasks.length === 0) {
+
+  // Filter to leaf tasks only (tasks without children)
+  // If parent filter is specified, also filter to that parent
+  const leafTasks = availableTasks.filter((task) => {
+    // Check if this task has children
+    const subtasks = services.taskService.getSubtasks(task.task_id);
+    if (subtasks.length > 0) {
+      return false; // Skip parent tasks
+    }
+
+    // If parent filter specified, only return subtasks of that parent
+    if (parent) {
+      const fullTask = services.taskService.getTaskById(task.task_id);
+      if (fullTask?.parent_id !== parent) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+
+  if (leafTasks.length === 0) {
     if (json) {
       console.log(JSON.stringify(null));
     } else {
@@ -43,8 +65,8 @@ export function runNext(options: NextOptions): NextResult | null {
     }
     return null;
   }
-  
-  const task = availableTasks[0];
+
+  const task = leafTasks[0];
   const result: NextResult = {
     task_id: task.task_id,
     title: task.title,
@@ -52,13 +74,13 @@ export function runNext(options: NextOptions): NextResult | null {
     status: task.status,
     priority: task.priority,
   };
-  
+
   if (json) {
     console.log(JSON.stringify(result));
   } else {
     console.log(`Next task: [${task.task_id.slice(0, 8)}] ${task.title} (${task.project})`);
   }
-  
+
   return result;
 }
 
@@ -67,6 +89,7 @@ export function createNextCommand(): Command {
     .description('Get the next available task')
     .option('-p, --project <project>', 'Filter by project')
     .option('-t, --tags <tags>', 'Required tags (comma-separated)')
+    .option('--parent <taskId>', 'Get next subtask of specific parent')
     .action(function (this: Command, opts: NextCommandOptions) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
@@ -76,6 +99,7 @@ export function createNextCommand(): Command {
           services,
           project: opts.project,
           tags: opts.tags?.split(','),
+          parent: opts.parent,
           json: globalOpts.json ?? false,
         });
       } catch (e) {

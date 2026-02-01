@@ -55,12 +55,72 @@ describe('runNext', () => {
   it('skips tasks with incomplete dependencies', () => {
     const dep = services.taskService.createTask({ title: 'Dependency', project: 'inbox' });
     const main = services.taskService.createTask({ title: 'Main task', project: 'inbox', depends_on: [dep.task_id] });
-    
+
     services.taskService.setStatus(dep.task_id, TaskStatus.Ready);
     services.taskService.setStatus(main.task_id, TaskStatus.Ready);
 
     const result = runNext({ services, json: false });
     // Should get the dependency first since main has incomplete deps
     expect(result?.task_id).toBe(dep.task_id);
+  });
+
+  it('skips parent tasks (returns leaf tasks only)', () => {
+    services.projectService.createProject('myproject');
+    const parent = services.taskService.createTask({ title: 'Parent', project: 'myproject' });
+    services.taskService.setStatus(parent.task_id, TaskStatus.Ready);
+    const child = services.taskService.createTask({
+      title: 'Child',
+      project: 'myproject',
+      parent_id: parent.task_id
+    });
+    services.taskService.setStatus(child.task_id, TaskStatus.Ready);
+
+    const result = runNext({ services, project: 'myproject', json: false });
+    expect(result?.task_id).toBe(child.task_id); // Returns child, not parent
+  });
+
+  it('returns standalone tasks (no children, no parent)', () => {
+    services.projectService.createProject('myproject');
+    const standalone = services.taskService.createTask({ title: 'Standalone', project: 'myproject' });
+    services.taskService.setStatus(standalone.task_id, TaskStatus.Ready);
+
+    const result = runNext({ services, project: 'myproject', json: false });
+    expect(result?.task_id).toBe(standalone.task_id);
+  });
+
+  it('filters by parent with --parent flag', () => {
+    services.projectService.createProject('myproject');
+    const parent1 = services.taskService.createTask({ title: 'Parent 1', project: 'myproject' });
+    const parent2 = services.taskService.createTask({ title: 'Parent 2', project: 'myproject' });
+    const child1 = services.taskService.createTask({
+      title: 'Child of P1',
+      project: 'myproject',
+      parent_id: parent1.task_id
+    });
+    services.taskService.setStatus(child1.task_id, TaskStatus.Ready);
+    const child2 = services.taskService.createTask({
+      title: 'Child of P2',
+      project: 'myproject',
+      parent_id: parent2.task_id
+    });
+    services.taskService.setStatus(child2.task_id, TaskStatus.Ready);
+
+    const result = runNext({ services, parent: parent1.task_id, json: false });
+    expect(result?.task_id).toBe(child1.task_id);
+  });
+
+  it('never returns parent even when all subtasks done', () => {
+    services.projectService.createProject('myproject');
+    const parent = services.taskService.createTask({ title: 'Parent', project: 'myproject' });
+    services.taskService.setStatus(parent.task_id, TaskStatus.Ready);
+    const child = services.taskService.createTask({
+      title: 'Child',
+      project: 'myproject',
+      parent_id: parent.task_id
+    });
+    services.taskService.setStatus(child.task_id, TaskStatus.Done);
+
+    const result = runNext({ services, project: 'myproject', json: false });
+    expect(result).toBeNull(); // No available leaf tasks
   });
 });
