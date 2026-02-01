@@ -179,7 +179,7 @@ test: add concurrency stress tests
 - `fix:` → patch (0.1.0 → 0.1.1)
 - `feat:` → minor (0.1.0 → 0.2.0)
 - `feat!:` or `BREAKING CHANGE:` in body → major (0.1.0 → 1.0.0)
-- `docs:`, `chore:`, `test:`, etc. → no release
+- `docs:`, `chore:`, `test:`, `style:`, `refactor:`, `ci:`, `build:` → patch
 
 Both packages are versioned together (linked versions).
 
