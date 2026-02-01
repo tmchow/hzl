@@ -386,7 +386,7 @@ git commit -m "feat(db): add sync configuration types
 
 ---
 
-### Task 4: Add hzl_global_meta and hzl_local_meta schema
+### Task 4: Add hzl_global_meta and hzl_local_meta schema ✅
 
 **Files:**
 - Modify: `packages/hzl-core/src/db/schema.ts`
