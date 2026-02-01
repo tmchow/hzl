@@ -1,5 +1,5 @@
 // packages/hzl-cli/src/db.ts
-import Database from 'better-sqlite3';
+import Database from 'libsql';
 import { runMigrations } from 'hzl-core/db/migrations.js';
 import { EventStore } from 'hzl-core/events/store.js';
 import { ProjectionEngine } from 'hzl-core/projections/engine.js';

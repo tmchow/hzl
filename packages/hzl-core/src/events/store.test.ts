@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import Database from 'better-sqlite3';
+import Database from 'libsql';
 import { EventStore } from './store.js';
 import { EventType, TaskStatus } from './types.js';
 import { runMigrations } from '../db/migrations.js';

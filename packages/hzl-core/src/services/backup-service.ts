@@ -1,4 +1,4 @@
-import Database from 'better-sqlite3';
+import Database from 'libsql';
 import fs from 'fs';
 import path from 'path';
 import readline from 'readline';
@@ -30,12 +30,15 @@ type ExportEventRow = {
 };
 
 export class BackupService {
-  constructor(private db: Database.Database) {}
+  constructor(private db: Database.Database) { }
 
   async backup(destPath: string): Promise<void> {
     const dir = path.dirname(destPath);
     fs.mkdirSync(dir, { recursive: true });
-    await this.db.backup(destPath);
+    if (fs.existsSync(destPath)) {
+      fs.unlinkSync(destPath);
+    }
+    this.db.exec(`VACUUM INTO '${destPath}'`);
   }
 
   async restore(srcPath: string, destPath: string): Promise<void> {
@@ -53,6 +56,11 @@ export class BackupService {
 
     const dir = path.dirname(destPath);
     await fs.promises.mkdir(dir, { recursive: true });
+
+    // Remove existing WAL and SHM files to prevent corruption after restore
+    if (fs.existsSync(`${destPath}-wal`)) fs.unlinkSync(`${destPath}-wal`);
+    if (fs.existsSync(`${destPath}-shm`)) fs.unlinkSync(`${destPath}-shm`);
+
     await fs.promises.copyFile(srcPath, destPath);
   }
 

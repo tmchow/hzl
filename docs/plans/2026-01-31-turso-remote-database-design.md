@@ -131,7 +131,7 @@ git commit -m "feat(db): replace better-sqlite3 with libsql
 
 ---
 
-### Task 2: Update connection factory import
+### Task 2: Update connection factory import ✅
 
 **Files:**
 - Modify: `packages/hzl-core/src/db/connection.ts`

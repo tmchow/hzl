@@ -1,5 +1,5 @@
 // packages/hzl-cli/src/commands/add-dep.ts
-import type Database from 'better-sqlite3';
+import type Database from 'libsql';
 import { Command } from 'commander';
 import { resolveDbPath } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';

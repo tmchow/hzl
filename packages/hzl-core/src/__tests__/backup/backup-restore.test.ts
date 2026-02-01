@@ -13,7 +13,7 @@ import { CommentsCheckpointsProjector } from '../../projections/comments-checkpo
 import { TaskService } from '../../services/task-service.js';
 import { BackupService } from '../../services/backup-service.js';
 import { TaskStatus } from '../../events/types.js';
-import Database from 'better-sqlite3';
+import Database from 'libsql';
 
 describe('Backup/Restore Round-Trip Tests', () => {
   let tempDir: string;

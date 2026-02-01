@@ -1,5 +1,5 @@
 // packages/hzl-core/src/projections/dependencies.ts
-import type Database from 'better-sqlite3';
+import type Database from 'libsql';
 import type { PersistedEventEnvelope } from '../events/store.js';
 import type { Projector } from './types.js';
 import { EventType, type DependencyData, type TaskCreatedData } from '../events/types.js';

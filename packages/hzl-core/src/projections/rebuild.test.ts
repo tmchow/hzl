@@ -1,6 +1,6 @@
 // packages/hzl-core/src/projections/rebuild.test.ts
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import Database from 'better-sqlite3';
+import Database from 'libsql';
 import { rebuildAllProjections } from './rebuild.js';
 import { ProjectionEngine } from './engine.js';
 import { TasksCurrentProjector } from './tasks-current.js';

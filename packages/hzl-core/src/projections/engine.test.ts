@@ -1,6 +1,6 @@
 // packages/hzl-core/src/projections/engine.test.ts
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import Database from 'better-sqlite3';
+import Database from 'libsql';
 import { ProjectionEngine } from './engine.js';
 import { Projector } from './types.js';
 import { runMigrations } from '../db/migrations.js';

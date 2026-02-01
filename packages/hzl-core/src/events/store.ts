@@ -1,4 +1,4 @@
-import type Database from 'better-sqlite3';
+import type Database from 'libsql';
 import { generateId } from '../utils/id.js';
 import { EventEnvelope, EventType, validateEventData } from './types.js';
 

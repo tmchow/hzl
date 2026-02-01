@@ -1,5 +1,5 @@
 // packages/hzl-core/src/projections/rebuild.ts
-import type Database from 'better-sqlite3';
+import type Database from 'libsql';
 import type { ProjectionEngine } from './engine.js';
 
 const BATCH_SIZE = 1000;

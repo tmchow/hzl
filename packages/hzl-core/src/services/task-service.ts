@@ -1,5 +1,5 @@
 // packages/hzl-core/src/services/task-service.ts
-import type Database from 'better-sqlite3';
+import type Database from 'libsql';
 import { EventStore } from '../events/store.js';
 import {
   EventType,

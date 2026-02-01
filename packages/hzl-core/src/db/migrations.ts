@@ -1,4 +1,4 @@
-import type Database from 'better-sqlite3';
+import type Database from 'libsql';
 import { EventType, PROJECT_EVENT_TASK_ID } from '../events/types.js';
 import { generateId } from '../utils/id.js';
 import { SCHEMA_V1, PRAGMAS } from './schema.js';
@@ -86,8 +86,8 @@ function migrateToProjectsTable(db: Database.Database): void {
 
   const existingProjects = tasksCurrentExists
     ? (db.prepare('SELECT DISTINCT project FROM tasks_current').all() as {
-        project: string;
-      }[])
+      project: string;
+    }[])
     : [];
 
   // Check what work needs to be done before starting any transaction

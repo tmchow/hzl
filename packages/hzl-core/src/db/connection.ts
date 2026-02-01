@@ -1,4 +1,4 @@
-import Database from 'better-sqlite3';
+import Database from 'libsql';
 import path from 'path';
 import os from 'os';
 import fs from 'fs';
