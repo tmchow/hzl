@@ -1,11 +1,11 @@
 // packages/hzl-cli/src/commands/task/archive.ts
 import { Command } from 'commander';
+import { withWriteTransaction } from 'hzl-core/db/transaction.js';
 import { resolveDbPaths } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError, CLIError, ExitCode } from '../../errors.js';
 import { GlobalOptionsSchema } from '../../types.js';
 import { TaskStatus } from 'hzl-core/events/types.js';
-import { EventType } from 'hzl-core/events/types.js';
 
 export interface ArchiveResult {
   task_id: string;
@@ -58,42 +58,37 @@ export function runArchive(options: {
     );
   }
 
-  // Handle cascade: archive active subtasks (done/archived ones don't need archiving)
-  if (cascade) {
-    for (const subtask of activeSubtasks) {
-      services.taskService.archiveTask(subtask.task_id, { reason, author });
+  // Use transaction to ensure atomic archive with cascade/orphan operations
+  const result: ArchiveResult = withWriteTransaction(services.db, () => {
+    // Handle cascade: archive active subtasks (done/archived ones don't need archiving)
+    if (cascade) {
+      for (const subtask of activeSubtasks) {
+        services.taskService.archiveTask(subtask.task_id, { reason, author });
+      }
     }
-  }
 
-  // Handle orphan: remove parent_id from subtasks
-  if (orphan) {
-    const { eventStore, projectionEngine } = services;
-    for (const subtask of subtasks) {
-      const event = eventStore.append({
-        task_id: subtask.task_id,
-        type: EventType.TaskUpdated,
-        data: { field: 'parent_id', old_value: taskId, new_value: null },
-      });
-      projectionEngine.applyEvent(event);
+    // Handle orphan: remove parent_id from subtasks via service layer
+    if (orphan) {
+      services.taskService.orphanSubtasks(taskId, { author });
     }
-  }
 
-  // Archive the parent task
-  const archivedTask = services.taskService.archiveTask(taskId, { reason, author });
+    // Archive the parent task
+    const archivedTask = services.taskService.archiveTask(taskId, { reason, author });
 
-  const result: ArchiveResult = {
-    task_id: archivedTask.task_id,
-    title: archivedTask.title,
-    status: archivedTask.status,
-  };
+    return {
+      task_id: archivedTask.task_id,
+      title: archivedTask.title,
+      status: archivedTask.status,
+    };
+  });
 
   if (json) {
     console.log(JSON.stringify(result));
   } else {
-    console.log(`✓ Archived task ${archivedTask.task_id}: ${archivedTask.title}`);
+    console.log(`✓ Archived task ${result.task_id}: ${result.title}`);
     if (cascade && activeSubtasks.length > 0) {
       console.log(`  Also archived ${activeSubtasks.length} subtask(s)`);
-    } else if (orphan) {
+    } else if (orphan && subtasks.length > 0) {
       console.log(`  Promoted ${subtasks.length} subtask(s) to top-level`);
     }
     if (reason) console.log(`  Reason: ${reason}`);

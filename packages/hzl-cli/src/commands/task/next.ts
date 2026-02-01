@@ -11,6 +11,7 @@ export interface NextResult {
   project: string;
   status: string;
   priority: number;
+  parent_id: string | null;
 }
 
 export interface NextOptions {
@@ -59,6 +60,7 @@ export function runNext(options: NextOptions): NextResult | null {
     project: task.project,
     status: task.status,
     priority: task.priority,
+    parent_id: task.parent_id ?? null,
   };
 
   if (json) {

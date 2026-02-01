@@ -2,7 +2,7 @@
 import { Command } from 'commander';
 import { resolveDbPaths } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
-import { handleError } from '../../errors.js';
+import { handleError, CLIError, ExitCode } from '../../errors.js';
 import { TaskStatus } from 'hzl-core/events/types.js';
 import { GlobalOptionsSchema } from '../../types.js';
 
@@ -46,6 +46,14 @@ interface ListCommandOptions {
 export function runList(options: ListOptions): ListResult {
   const { services, project, status, availableOnly, parent, rootOnly, limit = 50, json } = options;
   const db = services.cacheDb;
+
+  // Validate parent exists if specified
+  if (parent) {
+    const parentTask = services.taskService.getTaskById(parent);
+    if (!parentTask) {
+      throw new CLIError(`Parent task not found: ${parent}`, ExitCode.NotFound);
+    }
+  }
 
   // Build query with filters
   let query = `

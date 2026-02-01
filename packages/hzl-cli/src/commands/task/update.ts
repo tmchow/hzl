@@ -1,9 +1,9 @@
-// packages/hzl-cli/src/commands/update.ts
+// packages/hzl-cli/src/commands/task/update.ts
 import { Command } from 'commander';
 import { resolveDbPaths } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError, CLIError, ExitCode } from '../../errors.js';
-import { EventType, TaskStatus } from 'hzl-core/events/types.js';
+import { EventType } from 'hzl-core/events/types.js';
 import { GlobalOptionsSchema } from '../../types.js';
 
 export interface UpdateResult {
@@ -44,62 +44,19 @@ export function runUpdate(options: {
     throw new CLIError(`Task not found: ${taskId}`, ExitCode.NotFound);
   }
 
-  // Handle parent_id update with validation
+  // Handle parent_id update via service layer
   if (updates.parent_id !== undefined) {
-    if (updates.parent_id === null) {
-      // Remove parent
-      if (task.parent_id !== null) {
-        const event = eventStore.append({
-          task_id: taskId,
-          type: EventType.TaskUpdated,
-          data: { field: 'parent_id', old_value: task.parent_id, new_value: null },
-        });
-        projectionEngine.applyEvent(event);
+    try {
+      services.taskService.setParent(taskId, updates.parent_id);
+    } catch (error) {
+      if (error instanceof Error) {
+        // Map service layer errors to appropriate exit codes
+        if (error.message.includes('not found')) {
+          throw new CLIError(error.message, ExitCode.NotFound);
+        }
+        throw new CLIError(error.message, ExitCode.InvalidInput);
       }
-    } else {
-      // Set parent - validate
-      if (updates.parent_id === taskId) {
-        throw new CLIError('A task cannot be its own parent', ExitCode.InvalidInput);
-      }
-
-      const parentTask = services.taskService.getTaskById(updates.parent_id);
-      if (!parentTask) {
-        throw new CLIError(`Parent task not found: ${updates.parent_id}`, ExitCode.NotFound);
-      }
-
-      if (parentTask.status === TaskStatus.Archived) {
-        throw new CLIError(`Cannot set archived task as parent: ${updates.parent_id}`, ExitCode.InvalidInput);
-      }
-
-      if (parentTask.parent_id) {
-        throw new CLIError(
-          'Cannot set parent: target is already a subtask (max 1 level of nesting)',
-          ExitCode.InvalidInput
-        );
-      }
-
-      // Check if task has children
-      const children = services.taskService.getSubtasks(taskId);
-      if (children.length > 0) {
-        throw new CLIError(
-          'Cannot make a parent task into a subtask (task has children)',
-          ExitCode.InvalidInput
-        );
-      }
-
-      // Move to parent's project if different
-      if (task.project !== parentTask.project) {
-        services.taskService.moveTask(taskId, parentTask.project);
-      }
-
-      if (task.parent_id !== updates.parent_id) {
-        const event = eventStore.append({
-          task_id: taskId,
-          type: EventType.TaskUpdated,
-          data: { field: 'parent_id', old_value: task.parent_id, new_value: updates.parent_id },
-        });
-        projectionEngine.applyEvent(event);
-      }
+      throw error;
     }
   }
 

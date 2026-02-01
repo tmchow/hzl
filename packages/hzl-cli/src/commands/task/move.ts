@@ -10,6 +10,7 @@ export interface MoveResult {
   task_id: string;
   from_project: string;
   to_project: string;
+  subtask_count?: number;
 }
 
 export function runMove(options: {
@@ -28,6 +29,7 @@ export function runMove(options: {
     }
 
     const fromProject = task.project;
+    let subtaskCount = 0;
 
     // Move parent
     const moved = services.taskService.moveTask(taskId, toProject);
@@ -35,6 +37,7 @@ export function runMove(options: {
     // Move all subtasks (only 1 level, no recursion needed)
     if (fromProject !== toProject) {
       const subtasks = services.taskService.getSubtasks(taskId);
+      subtaskCount = subtasks.length;
       for (const subtask of subtasks) {
         services.taskService.moveTask(subtask.task_id, toProject);
       }
@@ -44,6 +47,7 @@ export function runMove(options: {
       task_id: taskId,
       from_project: fromProject,
       to_project: moved.project,
+      subtask_count: subtaskCount,
     };
   });
 
@@ -53,9 +57,8 @@ export function runMove(options: {
     if (result.from_project === result.to_project) {
       console.log(`Task ${taskId} already in project '${result.to_project}'`);
     } else {
-      const subtaskCount = services.taskService.getSubtasks(taskId).length;
-      if (subtaskCount > 0) {
-        console.log(`✓ Moved task ${taskId} and ${subtaskCount} subtasks from '${result.from_project}' to '${result.to_project}'`);
+      if (result.subtask_count && result.subtask_count > 0) {
+        console.log(`✓ Moved task ${taskId} and ${result.subtask_count} subtasks from '${result.from_project}' to '${result.to_project}'`);
       } else {
         console.log(`✓ Moved task ${taskId} from '${result.from_project}' to '${result.to_project}'`);
       }

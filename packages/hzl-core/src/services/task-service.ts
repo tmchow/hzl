@@ -76,6 +76,7 @@ export interface AvailableTask {
   priority: number;
   created_at: string;
   tags: string[];
+  parent_id: string | null;
 }
 
 export interface Comment {
@@ -553,7 +554,7 @@ export class TaskService {
 
   getAvailableTasks(opts: { project?: string; tagsAny?: string[]; tagsAll?: string[]; limit?: number }): AvailableTask[] {
     let query = `
-      SELECT tc.task_id, tc.title, tc.project, tc.status, tc.priority, tc.created_at, tc.tags
+      SELECT tc.task_id, tc.title, tc.project, tc.status, tc.priority, tc.created_at, tc.tags, tc.parent_id
       FROM tasks_current tc
       WHERE tc.status = 'ready'
         AND NOT EXISTS (
@@ -594,6 +595,7 @@ export class TaskService {
       priority: number;
       created_at: string;
       tags: string | null;
+      parent_id: string | null;
     }>;
     return rows.map((row) => ({
       task_id: row.task_id,
@@ -603,6 +605,7 @@ export class TaskService {
       priority: row.priority,
       created_at: row.created_at,
       tags: JSON.parse(row.tags ?? '[]') as string[],
+      parent_id: row.parent_id,
     }));
   }
 
@@ -616,7 +619,7 @@ export class TaskService {
     parent?: string;
   } = {}): AvailableTask | null {
     let query = `
-      SELECT tc.task_id, tc.title, tc.project, tc.status, tc.priority, tc.created_at, tc.tags
+      SELECT tc.task_id, tc.title, tc.project, tc.status, tc.priority, tc.created_at, tc.tags, tc.parent_id
       FROM tasks_current tc
       WHERE tc.status = 'ready'
         AND NOT EXISTS (
@@ -655,6 +658,7 @@ export class TaskService {
       priority: number;
       created_at: string;
       tags: string | null;
+      parent_id: string | null;
     } | undefined;
 
     if (!row) return null;
@@ -667,6 +671,7 @@ export class TaskService {
       priority: row.priority,
       created_at: row.created_at,
       tags: JSON.parse(row.tags ?? '[]') as string[],
+      parent_id: row.parent_id,
     };
   }
 
@@ -888,6 +893,104 @@ export class TaskService {
       titleMap.set(row.task_id, row.title);
     }
     return titleMap;
+  }
+
+  setParent(taskId: string, parentId: string | null, opts?: EventContext): Task {
+    return withWriteTransaction(this.db, () => {
+      const task = this.getTaskById(taskId);
+      if (!task) throw new TaskNotFoundError(taskId);
+
+      if (parentId === null) {
+        // Removing parent - just emit event if parent_id is not already null
+        if (task.parent_id !== null) {
+          const event = this.eventStore.append({
+            task_id: taskId,
+            type: EventType.TaskUpdated,
+            data: { field: 'parent_id', old_value: task.parent_id, new_value: null },
+            author: opts?.author,
+            agent_id: opts?.agent_id,
+            session_id: opts?.session_id,
+            correlation_id: opts?.correlation_id,
+            causation_id: opts?.causation_id,
+          });
+          this.projectionEngine.applyEvent(event);
+        }
+        return this.getTaskById(taskId)!;
+      }
+
+      // Setting parent - validate
+      if (parentId === taskId) {
+        throw new Error('Task cannot be its own parent');
+      }
+
+      const parent = this.getTaskById(parentId);
+      if (!parent) throw new Error(`Parent task not found: ${parentId}`);
+
+      if (parent.status === TaskStatus.Archived) {
+        throw new Error(`Cannot set archived task as parent: ${parentId}`);
+      }
+
+      if (parent.parent_id) {
+        throw new Error('Cannot set parent: target is already a subtask (max 1 level of nesting)');
+      }
+
+      const children = this.getSubtasks(taskId);
+      if (children.length > 0) {
+        throw new Error('Cannot make a parent task into a subtask (task has children)');
+      }
+
+      // Move to parent's project if different (inline to avoid nested transaction)
+      if (task.project !== parent.project) {
+        if (this.projectService) {
+          this.projectService.requireProject(parent.project);
+        }
+        const moveEvent = this.eventStore.append({
+          task_id: taskId,
+          type: EventType.TaskMoved,
+          data: { from_project: task.project, to_project: parent.project },
+          author: opts?.author,
+          agent_id: opts?.agent_id,
+          session_id: opts?.session_id,
+          correlation_id: opts?.correlation_id,
+          causation_id: opts?.causation_id,
+        });
+        this.projectionEngine.applyEvent(moveEvent);
+      }
+
+      // Emit parent_id change event
+      if (task.parent_id !== parentId) {
+        const event = this.eventStore.append({
+          task_id: taskId,
+          type: EventType.TaskUpdated,
+          data: { field: 'parent_id', old_value: task.parent_id, new_value: parentId },
+          author: opts?.author,
+          agent_id: opts?.agent_id,
+          session_id: opts?.session_id,
+          correlation_id: opts?.correlation_id,
+          causation_id: opts?.causation_id,
+        });
+        this.projectionEngine.applyEvent(event);
+      }
+
+      return this.getTaskById(taskId)!;
+    });
+  }
+
+  orphanSubtasks(parentTaskId: string, opts?: EventContext): void {
+    const subtasks = this.getSubtasks(parentTaskId);
+    for (const subtask of subtasks) {
+      const event = this.eventStore.append({
+        task_id: subtask.task_id,
+        type: EventType.TaskUpdated,
+        data: { field: 'parent_id', old_value: parentTaskId, new_value: null },
+        author: opts?.author,
+        agent_id: opts?.agent_id,
+        session_id: opts?.session_id,
+        correlation_id: opts?.correlation_id,
+        causation_id: opts?.causation_id,
+      });
+      this.projectionEngine.applyEvent(event);
+    }
   }
 
   private rowToTask(row: TaskRow): Task {

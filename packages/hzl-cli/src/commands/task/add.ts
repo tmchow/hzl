@@ -13,6 +13,7 @@ export interface AddResult {
   status: string;
   priority: number;
   tags: string[];
+  parent_id: string | null;
 }
 
 export interface AddOptions {
@@ -76,6 +77,7 @@ export function runAdd(options: AddOptions): AddResult {
     status: task.status,
     priority: task.priority,
     tags: task.tags,
+    parent_id: task.parent_id ?? null,
   };
 
   if (json) {
