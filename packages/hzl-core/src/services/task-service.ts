@@ -174,6 +174,7 @@ export class DependenciesNotDoneError extends Error {
 
 export class TaskService {
   private getIncompleteDepsStmt: Database.Statement;
+  private getSubtasksStmt: Database.Statement;
 
   constructor(
     private db: Database.Database,
@@ -187,6 +188,16 @@ export class TaskService {
       LEFT JOIN tasks_current tc ON tc.task_id = td.depends_on_id
       WHERE td.task_id = ?
         AND (tc.status IS NULL OR tc.status != 'done')
+    `);
+
+    this.getSubtasksStmt = db.prepare(`
+      SELECT task_id, title, project, status, parent_id, description,
+             links, tags, priority, due_at, metadata,
+             claimed_at, claimed_by_author, claimed_by_agent_id, lease_until,
+             created_at, updated_at
+      FROM tasks_current
+      WHERE parent_id = ?
+      ORDER BY priority DESC, created_at ASC
     `);
   }
 
@@ -601,6 +612,11 @@ export class TaskService {
     ).get(taskId) as TaskRow | undefined;
     if (!row) return null;
     return this.rowToTask(row);
+  }
+
+  getSubtasks(taskId: string): Task[] {
+    const rows = this.getSubtasksStmt.all(taskId) as TaskRow[];
+    return rows.map((row) => this.rowToTask(row));
   }
 
   addComment(taskId: string, text: string, opts?: EventContext): Comment {

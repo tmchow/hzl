@@ -725,4 +725,24 @@ describe('TaskService', () => {
       expect(map.get(task.task_id)).toBe('Real Task');
     });
   });
+
+  describe('getSubtasks', () => {
+    it('returns subtasks of a task', () => {
+      projectService.createProject('myproject');
+      const parent = taskService.createTask({ title: 'Parent', project: 'myproject' });
+      const child1 = taskService.createTask({ title: 'Child 1', project: 'myproject', parent_id: parent.task_id });
+      const child2 = taskService.createTask({ title: 'Child 2', project: 'myproject', parent_id: parent.task_id });
+      taskService.createTask({ title: 'Other', project: 'myproject' });
+
+      const subtasks = taskService.getSubtasks(parent.task_id);
+      expect(subtasks).toHaveLength(2);
+      expect(subtasks.map(t => t.task_id).sort()).toEqual([child1.task_id, child2.task_id].sort());
+    });
+
+    it('returns empty array when no subtasks', () => {
+      const task = taskService.createTask({ title: 'Lonely', project: 'inbox' });
+      const subtasks = taskService.getSubtasks(task.task_id);
+      expect(subtasks).toHaveLength(0);
+    });
+  });
 });
