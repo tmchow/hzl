@@ -83,16 +83,16 @@ describe('hzl serve command', () => {
       expect(portOpt?.description).toContain('3456');
     });
 
-    it('uses localhost by default for security', () => {
-      const cmd = createServeCommand();
-      const hostOpt = cmd.options.find((o) => o.long === '--host');
-      expect(hostOpt?.description).toContain('127.0.0.1');
-    });
-
-    it('documents 0.0.0.0 for network access', () => {
+    it('uses 0.0.0.0 by default for network/Tailscale access', () => {
       const cmd = createServeCommand();
       const hostOpt = cmd.options.find((o) => o.long === '--host');
       expect(hostOpt?.description).toContain('0.0.0.0');
+    });
+
+    it('documents 127.0.0.1 for localhost-only access', () => {
+      const cmd = createServeCommand();
+      const hostOpt = cmd.options.find((o) => o.long === '--host');
+      expect(hostOpt?.description).toContain('127.0.0.1');
     });
   });
 });

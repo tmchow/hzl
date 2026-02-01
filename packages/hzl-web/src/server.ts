@@ -4,7 +4,7 @@ import { DASHBOARD_HTML } from './ui-embed.js';
 
 export interface ServerOptions {
   port: number;
-  host?: string; // Default: '127.0.0.1' (localhost only for security)
+  host?: string; // Default: '0.0.0.0' (all interfaces for network/Tailscale access)
   cacheDb: Database;
   eventsDb: Database;
 }
@@ -132,7 +132,7 @@ function safeJsonParse<T>(value: string | null | undefined, fallback: T): T {
 }
 
 export function createWebServer(options: ServerOptions): ServerHandle {
-  const { port, host = '127.0.0.1', cacheDb, eventsDb } = options;
+  const { port, host = '0.0.0.0', cacheDb, eventsDb } = options;
 
   // Prepare statements
   const listTasksStmt = cacheDb.prepare(`

@@ -239,13 +239,13 @@ async function runForeground(port: number, host: string, dbOption?: string): Pro
   await new Promise(() => {});
 }
 
-const DEFAULT_HOST = '127.0.0.1';
+const DEFAULT_HOST = '0.0.0.0';
 
 export function createServeCommand(): Command {
   return new Command('serve')
     .description('Start the web dashboard server')
     .option('-p, --port <port>', `Port to listen on (default: ${DEFAULT_PORT})`)
-    .option('-H, --host <host>', `Host to bind to (default: ${DEFAULT_HOST}, use 0.0.0.0 for network/Tailscale)`)
+    .option('-H, --host <host>', `Host to bind to (default: ${DEFAULT_HOST} for network/Tailscale, use 127.0.0.1 for localhost only)`)
     .option('-b, --background', 'Run in background')
     .option('--stop', 'Stop the background server')
     .option('--status', 'Check if server is running')
