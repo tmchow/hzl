@@ -139,6 +139,23 @@ hzl task checkpoint <calendar-task-id> "Found 3 options: Mar 7-9, 14-16, 21-23"
 hzl task complete <calendar-task-id>
 ```
 
+### Link to supporting documents
+
+Tasks stay lightweight. Use `--links` to reference design docs, brainstorms, or specs:
+
+```bash
+# Create a task that links to context documents
+hzl task add "Implement auth flow per design" -P myapp --priority 3 \
+  --links docs/designs/auth-flow.md \
+  --links docs/brainstorm/2026-01-auth-options.md
+
+# The agent reads linked files for context, task stays focused on the work
+hzl task show <id> --json
+# → { "links": ["docs/designs/auth-flow.md", "docs/brainstorm/2026-01-auth-options.md"], ... }
+```
+
+This pattern keeps tasks actionable while pointing agents to richer context stored elsewhere.
+
 ### Use JSON output when scripting
 
 ```bash
@@ -245,22 +262,42 @@ HZL stays the storage layer and concurrency-safe ledger underneath.
 
 ## Using HZL with Claude Code, Codex, Gemini CLI, or any coding agent
 
+**Why HZL when your agent already has task tracking?**
+
+Many coding agents (like Claude Code) have built-in task management. HZL complements rather than replaces it:
+
+- **Cross-agent workflows**: If you use Claude Code *and* Codex *and* Gemini, each has its own task system. HZL is the shared ledger they can all read/write.
+- **Session persistence**: Built-in task trackers often reset between sessions. HZL persists to disk (and optionally to cloud).
+- **Orchestration**: When one agent delegates to another, HZL provides the handoff mechanism (claim, checkpoint, complete).
+- **Backup**: With cloud sync enabled, your task state survives machine failures.
+
+If you only ever use one agent and never need cross-session persistence, the built-in tracker is fine. Once you need durability or multi-agent coordination, reach for HZL.
+
 If your coding agent supports an instruction file (for example `CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, etc.), add a short policy so the agent reaches for HZL consistently.
 
 ### Drop-in policy snippet
 
 ```md
-### HZL task ledger (use for multi-step work)
+### HZL task ledger (complements built-in task tracking)
 
-When a request has multiple steps, spans multiple sessions, or involves coordination with other agents/tools:
+HZL is a shared task database that persists across sessions and works across different agents.
+Use it when work spans multiple sessions, involves handoffs to other agents, or needs durable backup.
+
+When to use HZL (vs built-in task tracking):
+- Multi-session work that must survive restarts
+- Coordination with other agents (Claude Code ↔ Codex ↔ Gemini, etc.)
+- Work delegated to sub-agents that need explicit handoff
+- When you need task state backed up to cloud
+
+Workflow:
 1) Create or use an HZL project for the work.
-2) Break work into tasks with dependencies.
+2) Break work into tasks with dependencies. Use `--links` to reference design docs or specs.
 3) Claim tasks before work and checkpoint after meaningful progress.
 4) Use `--json` when producing output another tool will parse.
 
 Key commands:
 - `hzl project create <name>`
-- `hzl task add "<title>" -P <project> [--depends-on <id>]`
+- `hzl task add "<title>" -P <project> [--depends-on <id>] [--links <file>]`
 - `hzl task claim <id> --author <agent-id> [--lease 30]`
 - `hzl task checkpoint <id> "<progress + next step>"`
 - `hzl task complete <id>`
@@ -281,6 +318,8 @@ HZL includes a Claude Code plugin marketplace with skills that help agents work 
 ```
 
 See [`packages/hzl-marketplace`](./packages/hzl-marketplace) for details.
+
+---
 
 ## OpenClaw integration
 
