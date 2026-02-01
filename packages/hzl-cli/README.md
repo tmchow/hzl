@@ -22,6 +22,7 @@ HZL provides:
 - Checkpoints (progress snapshots you can resume from)
 - Leases (time-limited claims for multi-agent coordination)
 - Event history (audit trail)
+- Cloud Sync (multi-device/multi-agent synchronization with Turso)
 - A CLI + JSON output that agents can script against
 
 Data is stored in SQLite. Default location: `$XDG_DATA_HOME/hzl/data.db` (fallback `~/.local/share/hzl/data.db`); Windows: `%LOCALAPPDATA%\\hzl\\data.db`.
@@ -109,6 +110,14 @@ Requires Node.js 22.14+.
 ```bash
 npm install -g hzl-cli
 hzl init
+```
+
+### Enable Cloud Sync (Optional)
+
+Sync with a Turso database for multi-device/multi-agent access:
+
+```bash
+hzl init --sync-url libsql://<db>.turso.io --auth-token <token>
 ```
 
 ### Create a project and tasks
@@ -324,8 +333,11 @@ hzl task complete <id>
 
 hzl task stuck
 hzl task steal <id> --if-expired
-
 hzl task show <id> --json
+
+hzl sync
+hzl status
+hzl doctor
 ```
 
 ---
