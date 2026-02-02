@@ -7,7 +7,7 @@ Official Claude Code marketplace for HZL plugins and skills.
 Add this marketplace to Claude Code:
 
 ```bash
-/plugin marketplace add https://github.com/tmchow/hzl
+/plugin marketplace add tmchow/hzl
 ```
 
 ## Available Plugins
@@ -17,7 +17,7 @@ Add this marketplace to Claude Code:
 Skills and agents for using HZL task tracking.
 
 ```bash
-/plugin install hzl@tmchow-hzl
+/plugin install hzl@hzl-marketplace
 ```
 
 ## Contributing

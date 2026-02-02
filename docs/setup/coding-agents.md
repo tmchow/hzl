@@ -75,7 +75,9 @@ You should see your task with status `ready`.
 
 ### Claude Code
 
-Add the HZL snippet to your project's `CLAUDE.md` or `AGENTS.md` file. Claude Code reads these files automatically when starting a session.
+**Step 1: Add the HZL snippet to your project**
+
+Add the HZL snippet (from the "Add HZL to Your Agent's Instructions" section above) to your project's `CLAUDE.md` or `AGENTS.md` file. Claude Code reads these files automatically when starting a session.
 
 ```
 your-project/
@@ -83,6 +85,20 @@ your-project/
 ├── src/
 └── ...
 ```
+
+**Step 2: Install the HZL Skills Plugin**
+
+Install the HZL skills plugin for richer agent guidance:
+
+```bash
+# Add the HZL marketplace
+/plugin marketplace add tmchow/hzl
+
+# Install the HZL plugin
+/plugin install hzl@hzl-marketplace
+```
+
+The plugin teaches Claude Code effective HZL patterns through scenario-based skills that activate automatically when working with tasks.
 
 ### Codex
 

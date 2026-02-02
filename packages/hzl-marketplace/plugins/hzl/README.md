@@ -8,8 +8,8 @@ Claude Code skills for AI agents using HZL task tracking.
 # Add the HZL marketplace
 /plugin marketplace add tmchow/hzl
 
-# Install the skills plugin
-/plugin install hzl-skills@hzl-marketplace
+# Install the HZL plugin
+/plugin install hzl@hzl-marketplace
 ```
 
 ## Skills
