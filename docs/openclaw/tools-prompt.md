@@ -2,9 +2,10 @@
 
 HZL is a tool that complements your existing memory tools. While memory handles user context, preferences, and past conversations, HZL handles *task execution state*: the work in flight, dependencies, and progress checkpoints.
 
-It's a database-backed task ledger that persists outside the context window—queryable anytime without reconstructing from chat history. It supports projects, tasks, dependencies, checkpoints, leases, and an event history.
+It's a database-backed task ledger that persists outside the context window—queryable anytime without reconstructing from chat history.
 
 **When to use HZL**
+
 Use HZL when any of the following is true:
 
 - The work has multiple steps (especially with dependencies).
@@ -14,6 +15,7 @@ Use HZL when any of the following is true:
 - We need accurate status reporting (done / in progress / blocked / next).
 
 **When NOT to use HZL**
+
 Prefer other mechanisms when:
 
 - The request is a single quick action that will be completed immediately.
@@ -22,21 +24,15 @@ Prefer other mechanisms when:
 
 **How to use HZL**
 
-You have a global HZL skill installed that should be used.
+You should have the HZL skill installed (`hzl`). It contains the full command reference and recommended patterns. Use that skill for:
 
-#### Command quick reference
+- Command syntax and flags
+- Authorship and progress tracking
+- Blocked task handling
+- Sub-agent coordination with leases
+- Subtask organization
 
-- Before starting work on a task, claim it:
-  - `hzl task claim <id> --author <agent-id>`
-- When handing work to a sub-agent, claim with a lease:
-  - `hzl task claim <id> --author <subagent-id> --lease 30`
-- After meaningful progress, write a checkpoint (include the next step):
-  - `hzl task checkpoint <id> "What happened, links/commands, and what to do next"`
-- On completion, mark complete:
-  - `hzl task complete <id>`
-- If a lease expires, recover:
-  - `hzl task stuck`
-  - `hzl task steal <id> --if-expired`
+If the skill is not installed, run `npx clawhub@latest install hzl` or use your platform's official method to install the `hzl` skill.
 
 **Conventions**
 

@@ -227,29 +227,54 @@ Both packages are versioned together (linked versions).
 
 **README**: Edit `/README.md` (root) only. The release script copies it to `/packages/hzl-cli/README.md` for npm. Never edit the CLI README directly.
 
-### Documentation Includes
+### Documentation Includes (Snippet System)
 
-README.md and AGENTS.md include content from external snippet files. This keeps reusable documentation in one place.
+Reusable documentation lives in `docs/snippets/`. A GitHub Action syncs snippet content into target files automatically.
 
-**Source file:**
+**Scanned paths:**
+- `README.md`, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `CODEX.md`
+- `docs/**/*.md`
+
+**Available snippets:**
 - `docs/snippets/agent-policy.md` — HZL policy for coding agents
+- `docs/snippets/coding-agent-setup.md` — Setup instructions for Claude Code, Codex, Gemini
+- `docs/snippets/openclaw-setup-prompt.md` — OpenClaw quick start prompt
+- `docs/snippets/upgrade-hzl-prompt.md` — HZL upgrade prompt for OpenClaw
+
+**Marker syntax:**
+
+```markdown
+<!-- START docs/snippets/your-snippet.md -->
+<!-- END docs/snippets/your-snippet.md -->
+```
+
+To wrap the snippet in a code fence (for showing as copyable code):
+
+```markdown
+<!-- START [code:md] docs/snippets/your-snippet.md -->
+<!-- END [code:md] docs/snippets/your-snippet.md -->
+```
+
+The `[code:X]` modifier wraps content in triple backticks with language `X` (e.g., `md`, `txt`, `bash`).
 
 **How it works:**
 1. Edit the source file in `docs/snippets/`
 2. Push to main
-3. GitHub Action (`.github/workflows/readme-sync.yml`) fills content between markers
-4. The action commits the updated files
+3. GitHub Action runs `node scripts/sync-snippets.js`
+4. Action fills content between markers and commits
 
 **To add a new snippet:**
 1. Create the snippet file in `docs/snippets/`
-2. Add empty markers in the target file (README.md or AGENTS.md):
-   ```
-   <!-- START [code:txt] docs/snippets/your-snippet.md -->
-   <!-- END [code:txt] docs/snippets/your-snippet.md -->
-   ```
-3. Do NOT put content between the markers—the sync action fills it in
+2. Add markers in any scanned file (see paths above)
+3. Push — the action fills in the content
 
-**To edit a snippet:** Edit the source file in `docs/snippets/`, not the content between markers.
+**To edit a snippet:** Edit the source file in `docs/snippets/`, never the content between markers.
+
+**Local testing:**
+```bash
+node scripts/sync-snippets.js          # Sync snippets locally
+node scripts/sync-snippets.js --check  # Check if snippets are in sync (CI)
+```
 
 ### ⚠️ Documentation to Update When CLI Changes
 
