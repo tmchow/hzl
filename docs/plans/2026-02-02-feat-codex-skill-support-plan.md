@@ -67,7 +67,7 @@ The marketplace name changes from `hzl-marketplace` to `hzl` (matching plugin na
 
 ### Core Functionality
 - [x] Single `skills/hzl/SKILL.md` serves both Claude Code and Codex
-- [ ] Claude Code install works: `/plugin marketplace add tmchow/hzl && /plugin install hzl@hzl`
+- [ ] Claude Code install works: `/plugin marketplace add tmchow/hzl && /plugin install hzl@hzl` *(requires publishing to GitHub)*
 - [x] Codex install works via prompt injection (fetch INSTALL.md)
 - [x] Codex install works via manual curl command
 - [x] Skill name in frontmatter is `hzl` (not `hzl-task-management`)
