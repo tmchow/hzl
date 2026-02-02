@@ -34,7 +34,12 @@ curl -o ~/.codex/skills/hzl/SKILL.md \
 **Ask the user:** "Do you want HZL available in all projects (user-wide) or just this project?"
 
 - **User-wide**: Add the section below to `~/.codex/AGENTS.md`
-- **Project-specific**: Add the section below to `./AGENTS.md` in the current repository
+- **Project-specific**: Find the project's AGENTS.md and add the section there
+
+**For project-specific installation**, find the correct AGENTS.md:
+1. Find the git root: `git rev-parse --show-toplevel`
+2. Look for AGENTS.md at the git root
+3. If AGENTS.md doesn't exist at the git root, create it there
 
 Add this section to the chosen AGENTS.md file:
 
