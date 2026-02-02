@@ -59,13 +59,22 @@ HZL provides pre-built skills for coding agents that include detailed usage patt
 
 ### OpenAI Codex
 
+**Option A: Quick install (prompt injection)**
+
+Tell Codex:
+> Fetch and follow instructions from https://raw.githubusercontent.com/tmchow/hzl/main/.codex/INSTALL.md
+
+Codex will download the skill and ask whether to add HZL guidance user-wide or project-specific.
+
+**Option B: Manual install**
+
 ```bash
 mkdir -p ~/.codex/skills/hzl
 curl -o ~/.codex/skills/hzl/SKILL.md \
   https://raw.githubusercontent.com/tmchow/hzl/main/skills/hzl/SKILL.md
 ```
 
-Then add the HZL section to `~/.codex/AGENTS.md`. See the [Codex installation guide](https://github.com/tmchow/hzl/blob/main/.codex/INSTALL.md) for details.
+Then add the HZL section to your AGENTS.md. See the [Codex installation guide](https://github.com/tmchow/hzl/blob/main/.codex/INSTALL.md) for the snippet to add.
 
 ## Verify It Works
 
