@@ -14,6 +14,7 @@ OpenClaw is a self-hosted AI assistant that can coordinate tools and sub-agents.
 Copy/paste this into an OpenClaw chat:
 
 <!-- START [code:txt] docs/snippets/openclaw-setup-prompt.md -->
+<!-- ⚠️ DO NOT EDIT - Auto-generated from docs/snippets/openclaw-setup-prompt.md -->
 ```txt
 Install HZL from https://github.com/tmchow/hzl and run hzl init. Install the HZL skill from https://www.clawhub.ai/tmchow/hzl. Then append the HZL policy from https://raw.githubusercontent.com/tmchow/hzl/main/docs/openclaw/tools-prompt.md to my TOOLS.md.
 ```
@@ -56,6 +57,7 @@ Or use a custom Docker image with HZL pre-installed.
 Copy/paste this into an OpenClaw chat to create a reusable upgrade script:
 
 <!-- START [code:txt] docs/snippets/upgrade-hzl-prompt.md -->
+<!-- ⚠️ DO NOT EDIT - Auto-generated from docs/snippets/upgrade-hzl-prompt.md -->
 ```txt
 Create a script at scripts/upgrade-hzl.sh (in your workspace) that upgrades both the hzl-cli npm package and the hzl skill from ClawHub. The script should:
 

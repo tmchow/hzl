@@ -365,6 +365,7 @@ If your coding agent supports an instruction file (for example `CLAUDE.md`, `AGE
 ### Drop-in policy snippet
 
 <!-- START [code:md] docs/snippets/agent-policy.md -->
+<!-- ⚠️ DO NOT EDIT - Auto-generated from docs/snippets/agent-policy.md -->
 ```md
 ### HZL task ledger (external task tracking for multi-session/multi-agent work)
 
@@ -407,6 +408,7 @@ Built-in task tracking (if available) is fine for single-session work you'll com
 That snippet is intentionally concise. The goal is clear triggers and structure, not ceremony.
 
 <!-- START docs/snippets/agent-skills-install.md -->
+<!-- ⚠️ DO NOT EDIT - Auto-generated from docs/snippets/agent-skills-install.md -->
 ### Claude Code skill (optional)
 
 HZL includes a Claude Code skill that helps agents work effectively with HZL.
@@ -459,6 +461,7 @@ HZL fits well as the task ledger that OpenClaw (and its sub-agents) can share.
 Copy/paste this into an OpenClaw chat (single prompt):
 
 <!-- START [code:txt] docs/snippets/openclaw-setup-prompt.md -->
+<!-- ⚠️ DO NOT EDIT - Auto-generated from docs/snippets/openclaw-setup-prompt.md -->
 ```txt
 Install HZL from https://github.com/tmchow/hzl and run hzl init. Install the HZL skill from https://www.clawhub.ai/tmchow/hzl. Then append the HZL policy from https://raw.githubusercontent.com/tmchow/hzl/main/docs/openclaw/tools-prompt.md to my TOOLS.md.
 ```
@@ -490,6 +493,7 @@ https://raw.githubusercontent.com/tmchow/hzl/main/docs/openclaw/tools-prompt.md
 To keep both the HZL CLI and your OpenClaw skill up to date, copy/paste this prompt into an OpenClaw chat. It creates a script you can reuse:
 
 <!-- START [code:txt] docs/snippets/upgrade-hzl-prompt.md -->
+<!-- ⚠️ DO NOT EDIT - Auto-generated from docs/snippets/upgrade-hzl-prompt.md -->
 ```txt
 Create a script at scripts/upgrade-hzl.sh (in your workspace) that upgrades both the hzl-cli npm package and the hzl skill from ClawHub. The script should:
 

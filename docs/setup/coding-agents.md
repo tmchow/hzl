@@ -10,6 +10,7 @@ nav_order: 1
 Works with **Claude Code**, **Codex**, **Gemini**, and similar AI coding assistants that can run CLI commands.
 
 <!-- START docs/snippets/coding-agent-setup.md -->
+<!-- ⚠️ DO NOT EDIT - Auto-generated from docs/snippets/coding-agent-setup.md -->
 ## Installation
 
 ```bash

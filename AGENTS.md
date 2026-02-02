@@ -3,6 +3,7 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 <!-- START docs/snippets/agent-policy.md -->
+<!-- ⚠️ DO NOT EDIT - Auto-generated from docs/snippets/agent-policy.md -->
 ### HZL task ledger (external task tracking for multi-session/multi-agent work)
 
 HZL is an external task database. Use it when work outlives this session or involves other agents.
