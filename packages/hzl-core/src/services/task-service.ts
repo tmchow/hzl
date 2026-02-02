@@ -443,9 +443,12 @@ export class TaskService {
           query += ' AND tc.project = ?';
           params.push(opts.project);
         }
-        query += ' ORDER BY tc.priority DESC, tc.created_at ASC, tc.task_id ASC LIMIT 1';
+        const assigneeForPriority = opts.assignee ?? opts.author ?? opts.agent_id ?? '';
+        query += ' ORDER BY tc.priority DESC, (tc.assignee = ?) DESC, tc.created_at ASC, tc.task_id ASC LIMIT 1';
+        params.push(assigneeForPriority);
         candidate = this.db.prepare(query).get(...params) as TaskIdRow | undefined;
       } else if (opts.project) {
+        const assigneeForPriority = opts.assignee ?? opts.author ?? opts.agent_id ?? '';
         candidate = this.db.prepare(`
           SELECT tc.task_id FROM tasks_current tc
           WHERE tc.status = 'ready' AND tc.project = ?
@@ -454,9 +457,10 @@ export class TaskService {
               JOIN tasks_current dep ON td.depends_on_id = dep.task_id
               WHERE td.task_id = tc.task_id AND dep.status != 'done'
             )
-          ORDER BY tc.priority DESC, tc.created_at ASC, tc.task_id ASC LIMIT 1
-        `).get(opts.project) as TaskIdRow | undefined;
+          ORDER BY tc.priority DESC, (tc.assignee = ?) DESC, tc.created_at ASC, tc.task_id ASC LIMIT 1
+        `).get(opts.project, assigneeForPriority) as TaskIdRow | undefined;
       } else {
+        const assigneeForPriority = opts.assignee ?? opts.author ?? opts.agent_id ?? '';
         candidate = this.db.prepare(`
           SELECT tc.task_id FROM tasks_current tc
           WHERE tc.status = 'ready'
@@ -465,8 +469,8 @@ export class TaskService {
               JOIN tasks_current dep ON td.depends_on_id = dep.task_id
               WHERE td.task_id = tc.task_id AND dep.status != 'done'
             )
-          ORDER BY tc.priority DESC, tc.created_at ASC, tc.task_id ASC LIMIT 1
-        `).get() as TaskIdRow | undefined;
+          ORDER BY tc.priority DESC, (tc.assignee = ?) DESC, tc.created_at ASC, tc.task_id ASC LIMIT 1
+        `).get(assigneeForPriority) as TaskIdRow | undefined;
       }
 
       if (!candidate) return null;

@@ -97,8 +97,26 @@ export class TasksCurrentProjector implements Projector {
           event.rowid,
           event.task_id
         );
+      } else if (data.from === TaskStatus.Blocked) {
+        // Unblock case: blocked → in_progress - preserve claimed_at, update assignee only if provided
+        db.prepare(`
+          UPDATE tasks_current SET
+            status = ?,
+            assignee = COALESCE(?, assignee),
+            lease_until = ?,
+            updated_at = ?,
+            last_event_id = ?
+          WHERE task_id = ?
+        `).run(
+          toStatus,
+          newAssignee,
+          data.lease_until ?? null,
+          event.timestamp,
+          event.rowid,
+          event.task_id
+        );
       } else {
-        // Normal claim - use COALESCE to preserve existing assignee if no new one
+        // Normal claim (ready → in_progress) - set claimed_at, preserve assignee if no new one
         db.prepare(`
           UPDATE tasks_current SET
             status = ?,

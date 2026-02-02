@@ -303,6 +303,50 @@ describe('TaskService', () => {
       expect(claimed).not.toBeNull();
       expect(claimed!.task_id).toBe(urgentTask.task_id);
     });
+
+    it('prioritizes assigned tasks as tiebreaker within same priority', () => {
+      const assignedTask = taskService.createTask({
+        title: 'Assigned to me',
+        project: 'inbox',
+        priority: 2,
+        assignee: 'agent-1',
+      });
+      const unassignedTask = taskService.createTask({
+        title: 'Unassigned',
+        project: 'inbox',
+        priority: 2, // same priority
+      });
+
+      taskService.setStatus(assignedTask.task_id, TaskStatus.Ready);
+      taskService.setStatus(unassignedTask.task_id, TaskStatus.Ready);
+
+      const claimed = taskService.claimNext({ author: 'agent-1' });
+
+      expect(claimed).not.toBeNull();
+      expect(claimed!.task_id).toBe(assignedTask.task_id);
+    });
+
+    it('prioritizes higher priority over assigned', () => {
+      const lowPriorityAssigned = taskService.createTask({
+        title: 'Low priority but assigned',
+        project: 'inbox',
+        priority: 1,
+        assignee: 'agent-1',
+      });
+      const highPriorityUnassigned = taskService.createTask({
+        title: 'High priority unassigned',
+        project: 'inbox',
+        priority: 3,
+      });
+
+      taskService.setStatus(lowPriorityAssigned.task_id, TaskStatus.Ready);
+      taskService.setStatus(highPriorityUnassigned.task_id, TaskStatus.Ready);
+
+      const claimed = taskService.claimNext({ author: 'agent-1' });
+
+      expect(claimed).not.toBeNull();
+      expect(claimed!.task_id).toBe(highPriorityUnassigned.task_id);
+    });
   });
 
   describe('release', () => {
@@ -933,6 +977,22 @@ describe('TaskService', () => {
 
       expect(() => taskService.unblockTask(task.task_id))
         .toThrow('Cannot unblock: status is in_progress, expected blocked');
+    });
+
+    it('preserves claimed_at when unblocking to in_progress', () => {
+      const task = taskService.createTask({ title: 'Test', project: 'inbox' });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+      taskService.claimTask(task.task_id, { author: 'agent-1' });
+
+      const claimed = taskService.getTaskById(task.task_id);
+      const originalClaimedAt = claimed!.claimed_at;
+
+      taskService.blockTask(task.task_id);
+      const blocked = taskService.getTaskById(task.task_id);
+      expect(blocked!.claimed_at).toBe(originalClaimedAt);
+
+      const unblocked = taskService.unblockTask(task.task_id);
+      expect(unblocked.claimed_at).toBe(originalClaimedAt);
     });
   });
 
