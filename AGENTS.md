@@ -240,7 +240,16 @@ README.md and AGENTS.md include content from external snippet files. This keeps 
 3. GitHub Action (`.github/workflows/readme-sync.yml`) fills content between markers
 4. The action commits the updated files
 
-**To edit the snippet:** Edit `docs/snippets/agent-policy.md`, not the content between markers.
+**To add a new snippet:**
+1. Create the snippet file in `docs/snippets/`
+2. Add empty markers in the target file (README.md or AGENTS.md):
+   ```
+   <!-- START [code:txt] docs/snippets/your-snippet.md -->
+   <!-- END [code:txt] docs/snippets/your-snippet.md -->
+   ```
+3. Do NOT put content between the markers—the sync action fills it in
+
+**To edit a snippet:** Edit the source file in `docs/snippets/`, not the content between markers.
 
 ### ⚠️ Documentation to Update When CLI Changes
 
