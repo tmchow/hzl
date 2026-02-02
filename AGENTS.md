@@ -284,7 +284,7 @@ When adding or modifying CLI commands, flags, or workflows, update **all** of th
 |----------|------|----------------|
 | **README** | `README.md` | CLI reference section |
 | **Agent policy snippet** | `docs/snippets/agent-policy.md` | Key commands list |
-| **Claude Code skill** | `packages/hzl-marketplace/plugins/hzl-skills/skills/hzl-task-management/SKILL.md` | Scenarios, examples, command reference |
+| **Claude Code / Codex skill** | `skills/hzl/SKILL.md` | Scenarios, examples, command reference |
 | **OpenClaw skill** | `docs/openclaw/skills/hzl/SKILL.md` | Quick reference, patterns, examples |
 | **Docs site - Tasks** | `docs/concepts/tasks.md` | Task statuses, claiming, workflows |
 

@@ -1,7 +1,12 @@
 ## Installation
 
 ```bash
-npm install -g hzl
+# Via npm
+npm install -g hzl-cli
+
+# Via Homebrew (macOS/Linux)
+brew tap tmchow/hzl
+brew install hzl
 ```
 
 ## Initialize
@@ -40,6 +45,27 @@ Built-in task tracking (if available) is fine for single-session work you'll com
 - `hzl task complete <id>` — Mark done
 - `hzl task next --project <project>` — Get next available task
 ```
+
+## Agent-Specific Skill Installation (Optional)
+
+HZL provides pre-built skills for coding agents that include detailed usage patterns and scenarios.
+
+### Claude Code
+
+```bash
+/plugin marketplace add tmchow/hzl
+/plugin install hzl@hzl
+```
+
+### OpenAI Codex
+
+```bash
+mkdir -p ~/.codex/skills/hzl
+curl -o ~/.codex/skills/hzl/SKILL.md \
+  https://raw.githubusercontent.com/tmchow/hzl/main/skills/hzl/SKILL.md
+```
+
+Then add the HZL section to `~/.codex/AGENTS.md`. See the [Codex installation guide](https://github.com/tmchow/hzl/blob/main/.codex/INSTALL.md) for details.
 
 ## Verify It Works
 

@@ -406,19 +406,49 @@ Built-in task tracking (if available) is fine for single-session work you'll com
 
 That snippet is intentionally concise. The goal is clear triggers and structure, not ceremony.
 
-### Claude Code marketplace (optional)
+### Claude Code skill (optional)
 
-HZL includes a Claude Code plugin marketplace with skills that help agents work effectively with HZL.
+HZL includes a Claude Code skill that helps agents work effectively with HZL.
 
 ```bash
-# Add the marketplace
+# Add the HZL marketplace
 /plugin marketplace add tmchow/hzl
 
-# Install the HZL plugin
-/plugin install hzl@hzl-marketplace
+# Install the HZL skill
+/plugin install hzl@hzl
 ```
 
-See [`packages/hzl-marketplace`](./packages/hzl-marketplace) for details.
+<details>
+<summary>Migrating from older versions?</summary>
+
+If you previously installed `hzl@hzl-marketplace`, uninstall it first:
+
+```bash
+/plugin uninstall hzl@hzl-marketplace
+/plugin marketplace remove hzl-marketplace
+```
+
+Then install the new version using the commands above.
+</details>
+
+### OpenAI Codex skill (optional)
+
+HZL also supports [OpenAI Codex CLI](https://github.com/openai/codex). The skill uses the same `SKILL.md` format.
+
+**Option A: Quick install (prompt injection)**
+
+Tell Codex:
+> Fetch and follow instructions from https://raw.githubusercontent.com/tmchow/hzl/main/.codex/INSTALL.md
+
+**Option B: Manual install**
+
+```bash
+mkdir -p ~/.codex/skills/hzl
+curl -o ~/.codex/skills/hzl/SKILL.md \
+  https://raw.githubusercontent.com/tmchow/hzl/main/skills/hzl/SKILL.md
+```
+
+Then add the HZL section to your `~/.codex/AGENTS.md`. See [`.codex/INSTALL.md`](./.codex/INSTALL.md) for full instructions.
 
 ---
 

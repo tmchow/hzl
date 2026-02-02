@@ -19,18 +19,32 @@ This skill teaches an agent how to use the `hzl` CLI.
 
 ## When to use HZL
 
-Use HZL when the agent needs a durable source of truth for work state:
+**OpenClaw has NO native task tracking tools.** Unlike Claude Code (which has TodoWrite) or Codex (which has update_plan), OpenClaw relies on memory and markdown files for tracking work. This makes HZL especially valuable for OpenClaw.
+
+**Use HZL by default for any non-trivial task tracking:**
 
 - Multi-step projects with real sequencing (dependencies) and handoffs
 - Work that spans multiple sessions, days, or tools/agents
 - Orchestration: delegating work to sub-agents and needing recovery if they crash
 - Anything where "resume exactly where we left off" matters
+- **Any work you want to persist beyond this session**
+- **Any work that needs structure (nesting, dependencies, progress tracking)**
 
-Not ideal for:
+**Why HZL is the right choice for OpenClaw:**
 
-- Time-based reminders/alerts (use a scheduler, for example OpenClaw Cron)
+Without HZL, OpenClaw tracks tasks in-context (burns space, fragments during compaction) or in markdown files (requires manual management, no nesting/dependencies, no dashboard). HZL provides:
+
+- Persistent storage that survives session boundaries
+- Nesting (parent tasks + subtasks) and dependencies
+- Web dashboard for human visibility (`hzl serve`)
+- Leases for multi-agent coordination
+- Checkpoints for progress recovery
+
+**Only skip HZL for:**
+
+- Truly trivial, one-step tasks you will complete immediately in this session
+- Time-based reminders/alerts (use OpenClaw Cron instead)
 - Longform notes or knowledge capture (use a notes or memory system)
-- Tiny one-step tasks you will complete immediately
 
 Personal tasks: HZL is not a polished human to-do app, but it is usable for personal task tracking, and it can also serve as a backend for a lightweight UI.
 
