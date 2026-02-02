@@ -463,7 +463,7 @@ To keep both the HZL CLI and your OpenClaw skill up to date, copy/paste this pro
 <!-- START [code:txt] docs/snippets/upgrade-hzl-prompt.md -->
 <!-- END [code:txt] docs/snippets/upgrade-hzl-prompt.md -->
 
-After running this once, just say "upgrade hzl" to OpenClaw to run the script.
+After running this once, just say "upgrade hzl" to OpenClaw to run the script. Consider adding a cron job to have OpenClaw run the upgrade automatically on a schedule.
 
 ---
 
