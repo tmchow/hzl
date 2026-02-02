@@ -38,16 +38,27 @@ Note: `blocked` is different from dependency blocking. A task with unmet depende
 Before working on a task, claim it:
 
 ```bash
-hzl task claim <id> --author claude-code
+hzl task claim <id>
 ```
 
-Use `--author` for human-readable names or `--agent-id` for machine identifiers:
-- `--author "Alice"` - Human name
-- `--agent-id claude-code-abc123` - Machine/AI identifier
+Optionally identify who's claiming with `--author` and/or `--agent-id`:
 
-Both can be used together:
+| Flag | Purpose | Example |
+|------|---------|---------|
+| `--author` | Human-readable name | `--author "Alice"` |
+| `--agent-id` | Machine/AI identifier | `--agent-id "claude-session-xyz"` |
+
+Both flags are optional. For AI agents, `--agent-id` helps track which session or instance is working. For humans, `--author` is typically sufficient.
+
 ```bash
+# AI agent with session tracking
 hzl task claim 1 --author "Claude Code" --agent-id "session-xyz"
+
+# Human claiming
+hzl task claim 1 --author "Alice"
+
+# Anonymous claim (still valid, but harder to audit)
+hzl task claim 1
 ```
 
 ### Why Claim?

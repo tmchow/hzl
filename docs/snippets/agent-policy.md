@@ -26,10 +26,10 @@ Built-in task tracking (if available) is fine for single-session work you'll com
 
 **Key commands:**
 - `hzl task add "<title>" -P <project> [--depends-on <id>] [--parent <id>] [--links <file>]`
-- `hzl task claim <id> --agent-id <id> [--lease 30]` (use `--author` for human name)
+- `hzl task claim <id> [--author <name>] [--agent-id <id>] [--lease 30]`
 - `hzl task checkpoint <id> "<progress>"`
 - `hzl task progress <id> <value>` (0-100 completion percentage)
-- `hzl task block <id> --reason "<why>"` (mark as blocked)
+- `hzl task block <id> [--reason "<why>"]` (mark as blocked)
 - `hzl task unblock <id>` (return to in_progress)
 - `hzl task complete <id>`
 - `hzl task next --project <project>` (returns next available; never returns parent tasks)
