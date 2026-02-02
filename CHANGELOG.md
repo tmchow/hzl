@@ -1,3 +1,10 @@
+## [1.13.1](https://github.com/tmchow/hzl/compare/v1.13.0...v1.13.1) (2026-02-02)
+
+
+### Bug Fixes
+
+* **ci:** optimize workflows with caching and deduplication ([#67](https://github.com/tmchow/hzl/issues/67)) ([24e83b6](https://github.com/tmchow/hzl/commit/24e83b6302c2f1546ea98f7f455dbe9b0c2432d4))
+
 # [1.13.0](https://github.com/tmchow/hzl/compare/v1.12.5...v1.13.0) (2026-02-02)
 
 
