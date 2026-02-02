@@ -10,10 +10,15 @@ HZL is an external task ledger for coding agents. It provides event-sourced task
 
 {: .fs-6 .fw-300 }
 
-[Get Started](https://github.com/tmchow/hzl#quick-start){: .btn .btn-primary .fs-5 .mb-4 .mb-md-0 .mr-2 }
+[Get Started](./setup/){: .btn .btn-primary .fs-5 .mb-4 .mb-md-0 .mr-2 }
 [View on GitHub](https://github.com/tmchow/hzl){: .btn .fs-5 .mb-4 .mb-md-0 }
 
 ---
+
+## Setup
+
+- [**Claude Code, Codex, Gemini**](./setup/coding-agents) - Setup for coding agents
+- [**OpenClaw**](./setup/openclaw) - Setup for OpenClaw with ClawHub
 
 ## Why HZL?
 
