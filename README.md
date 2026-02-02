@@ -406,15 +406,13 @@ Built-in task tracking (if available) is fine for single-session work you'll com
 
 That snippet is intentionally concise. The goal is clear triggers and structure, not ceremony.
 
+<!-- START docs/snippets/agent-skills-install.md -->
 ### Claude Code skill (optional)
 
 HZL includes a Claude Code skill that helps agents work effectively with HZL.
 
 ```bash
-# Add the HZL marketplace
 /plugin marketplace add tmchow/hzl
-
-# Install the HZL skill
 /plugin install hzl@hzl
 ```
 
@@ -440,13 +438,14 @@ HZL also supports [OpenAI Codex CLI](https://github.com/openai/codex). The skill
 Tell Codex:
 > Fetch and follow instructions from https://raw.githubusercontent.com/tmchow/hzl/main/.codex/INSTALL.md
 
-Codex will download the skill and ask whether to add HZL guidance user-wide (`~/.codex/AGENTS.md`) or project-specific (`./AGENTS.md`).
+Codex will download the skill and ask whether to add HZL guidance user-wide or project-specific.
 
-**Security note:** This uses prompt injection—Codex will modify files on your system. Review [`.codex/INSTALL.md`](./.codex/INSTALL.md) to see exactly what steps Codex will follow, or use Option B for manual control.
+**Security note:** This uses prompt injection—Codex will modify files on your system. Review [`.codex/INSTALL.md`](https://github.com/tmchow/hzl/blob/main/.codex/INSTALL.md) to see exactly what steps Codex will follow, or use Option B for manual control.
 
 **Option B: Manual install**
 
-Follow the steps in [`.codex/INSTALL.md`](./.codex/INSTALL.md) yourself.
+Follow the steps in [`.codex/INSTALL.md`](https://github.com/tmchow/hzl/blob/main/.codex/INSTALL.md) yourself.
+<!-- END docs/snippets/agent-skills-install.md -->
 
 ---
 
