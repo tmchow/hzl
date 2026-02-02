@@ -440,7 +440,7 @@ HZL also supports [OpenAI Codex CLI](https://github.com/openai/codex). The skill
 Tell Codex:
 > Fetch and follow instructions from https://raw.githubusercontent.com/tmchow/hzl/main/.codex/INSTALL.md
 
-Codex will download the skill to `~/.codex/skills/hzl/SKILL.md` and add HZL usage guidance to your `~/.codex/AGENTS.md`.
+Codex will download the skill and ask whether to add HZL guidance user-wide (`~/.codex/AGENTS.md`) or project-specific (`./AGENTS.md`).
 
 **Security note:** This uses prompt injection—Codex will modify files on your system. Review [`.codex/INSTALL.md`](./.codex/INSTALL.md) to see exactly what steps Codex will follow, or use Option B for manual control.
 
