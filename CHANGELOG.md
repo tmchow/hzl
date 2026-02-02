@@ -1,3 +1,10 @@
+# [1.12.0](https://github.com/tmchow/hzl/compare/v1.11.2...v1.12.0) (2026-02-02)
+
+
+### Features
+
+* implement task properties (assignee, progress, blocked) ([#58](https://github.com/tmchow/hzl/issues/58)) ([5a9e5f5](https://github.com/tmchow/hzl/commit/5a9e5f51b7fa407b4bcefd84f676bbb33196f31e))
+
 ## [1.11.2](https://github.com/tmchow/hzl/compare/v1.11.1...v1.11.2) (2026-02-02)
 
 ## [1.11.1](https://github.com/tmchow/hzl/compare/v1.11.0...v1.11.1) (2026-02-02)
