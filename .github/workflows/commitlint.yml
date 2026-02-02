@@ -13,13 +13,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-      - name: Get commit range
-        id: commits
+      - name: Run commitlint on PR commits
         run: |
-          echo "from=$(git merge-base origin/${{ github.base_ref }} HEAD)" >> $GITHUB_OUTPUT
-          echo "to=HEAD" >> $GITHUB_OUTPUT
-      - uses: wagoid/commitlint-github-action@v6
-        with:
-          # Use explicit commit range to avoid PR API issues after force pushes
-          fromHash: ${{ steps.commits.outputs.from }}
-          toHash: ${{ steps.commits.outputs.to }}
+          npm install @commitlint/cli @commitlint/config-conventional
+          git log --format=%s origin/${{ github.base_ref }}..HEAD | npx commitlint --from=origin/${{ github.base_ref }}
