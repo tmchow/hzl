@@ -10,10 +10,16 @@ nav_order: 1
 Works with **Claude Code**, **Codex**, **Gemini**, and similar AI coding assistants that can run CLI commands.
 
 <!-- START docs/snippets/coding-agent-setup.md -->
+<!-- ⚠️ DO NOT EDIT - Auto-generated from docs/snippets/coding-agent-setup.md -->
 ## Installation
 
 ```bash
-npm install -g hzl
+# Via npm
+npm install -g hzl-cli
+
+# Via Homebrew (macOS/Linux)
+brew tap tmchow/hzl
+brew install hzl
 ```
 
 ## Initialize
@@ -52,6 +58,49 @@ Built-in task tracking (if available) is fine for single-session work you'll com
 - `hzl task complete <id>` — Mark done
 - `hzl task next --project <project>` — Get next available task
 ```
+
+## Agent-Specific Skill Installation (Optional)
+
+HZL provides pre-built skills for coding agents that include detailed usage patterns and scenarios.
+
+### Claude Code skill (optional)
+
+HZL includes a Claude Code skill that helps agents work effectively with HZL.
+
+```bash
+/plugin marketplace add tmchow/hzl
+/plugin install hzl@hzl
+```
+
+<details>
+<summary>Migrating from older versions?</summary>
+
+If you previously installed `hzl@hzl-marketplace`, uninstall it first:
+
+```bash
+/plugin uninstall hzl@hzl-marketplace
+/plugin marketplace remove hzl-marketplace
+```
+
+Then install the new version using the commands above.
+</details>
+
+### OpenAI Codex skill (optional)
+
+HZL also supports [OpenAI Codex CLI](https://github.com/openai/codex). The skill uses the same `SKILL.md` format.
+
+**Option A: Quick install (prompt injection)**
+
+Tell Codex:
+> Fetch and follow instructions from https://raw.githubusercontent.com/tmchow/hzl/main/.codex/INSTALL.md
+
+Codex will download the skill and ask whether to add HZL guidance user-wide or project-specific.
+
+**Security note:** This uses prompt injection—Codex will modify files on your system. Review [`.codex/INSTALL.md`](https://github.com/tmchow/hzl/blob/main/.codex/INSTALL.md) to see exactly what steps Codex will follow, or use Option B for manual control.
+
+**Option B: Manual install**
+
+Follow the steps in [`.codex/INSTALL.md`](https://github.com/tmchow/hzl/blob/main/.codex/INSTALL.md) yourself.
 
 ## Verify It Works
 
@@ -95,7 +144,7 @@ Install the HZL skills plugin for richer agent guidance:
 /plugin marketplace add tmchow/hzl
 
 # Install the HZL plugin
-/plugin install hzl@hzl-marketplace
+/plugin install hzl@hzl
 ```
 
 The plugin teaches Claude Code effective HZL patterns through scenario-based skills that activate automatically when working with tasks.

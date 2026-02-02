@@ -365,6 +365,7 @@ If your coding agent supports an instruction file (for example `CLAUDE.md`, `AGE
 ### Drop-in policy snippet
 
 <!-- START [code:md] docs/snippets/agent-policy.md -->
+<!-- ⚠️ DO NOT EDIT - Auto-generated from docs/snippets/agent-policy.md -->
 ```md
 ### HZL task ledger (external task tracking for multi-session/multi-agent work)
 
@@ -406,19 +407,47 @@ Built-in task tracking (if available) is fine for single-session work you'll com
 
 That snippet is intentionally concise. The goal is clear triggers and structure, not ceremony.
 
-### Claude Code marketplace (optional)
+<!-- START docs/snippets/agent-skills-install.md -->
+<!-- ⚠️ DO NOT EDIT - Auto-generated from docs/snippets/agent-skills-install.md -->
+### Claude Code skill (optional)
 
-HZL includes a Claude Code plugin marketplace with skills that help agents work effectively with HZL.
+HZL includes a Claude Code skill that helps agents work effectively with HZL.
 
 ```bash
-# Add the marketplace
 /plugin marketplace add tmchow/hzl
-
-# Install the HZL plugin
-/plugin install hzl@hzl-marketplace
+/plugin install hzl@hzl
 ```
 
-See [`packages/hzl-marketplace`](./packages/hzl-marketplace) for details.
+<details>
+<summary>Migrating from older versions?</summary>
+
+If you previously installed `hzl@hzl-marketplace`, uninstall it first:
+
+```bash
+/plugin uninstall hzl@hzl-marketplace
+/plugin marketplace remove hzl-marketplace
+```
+
+Then install the new version using the commands above.
+</details>
+
+### OpenAI Codex skill (optional)
+
+HZL also supports [OpenAI Codex CLI](https://github.com/openai/codex). The skill uses the same `SKILL.md` format.
+
+**Option A: Quick install (prompt injection)**
+
+Tell Codex:
+> Fetch and follow instructions from https://raw.githubusercontent.com/tmchow/hzl/main/.codex/INSTALL.md
+
+Codex will download the skill and ask whether to add HZL guidance user-wide or project-specific.
+
+**Security note:** This uses prompt injection—Codex will modify files on your system. Review [`.codex/INSTALL.md`](https://github.com/tmchow/hzl/blob/main/.codex/INSTALL.md) to see exactly what steps Codex will follow, or use Option B for manual control.
+
+**Option B: Manual install**
+
+Follow the steps in [`.codex/INSTALL.md`](https://github.com/tmchow/hzl/blob/main/.codex/INSTALL.md) yourself.
+<!-- END docs/snippets/agent-skills-install.md -->
 
 ---
 
@@ -432,6 +461,7 @@ HZL fits well as the task ledger that OpenClaw (and its sub-agents) can share.
 Copy/paste this into an OpenClaw chat (single prompt):
 
 <!-- START [code:txt] docs/snippets/openclaw-setup-prompt.md -->
+<!-- ⚠️ DO NOT EDIT - Auto-generated from docs/snippets/openclaw-setup-prompt.md -->
 ```txt
 Install HZL from https://github.com/tmchow/hzl and run hzl init. Install the HZL skill from https://www.clawhub.ai/tmchow/hzl. Then append the HZL policy from https://raw.githubusercontent.com/tmchow/hzl/main/docs/openclaw/tools-prompt.md to my TOOLS.md.
 ```
@@ -463,6 +493,7 @@ https://raw.githubusercontent.com/tmchow/hzl/main/docs/openclaw/tools-prompt.md
 To keep both the HZL CLI and your OpenClaw skill up to date, copy/paste this prompt into an OpenClaw chat. It creates a script you can reuse:
 
 <!-- START [code:txt] docs/snippets/upgrade-hzl-prompt.md -->
+<!-- ⚠️ DO NOT EDIT - Auto-generated from docs/snippets/upgrade-hzl-prompt.md -->
 ```txt
 Create a script at scripts/upgrade-hzl.sh (in your workspace) that upgrades both the hzl-cli npm package and the hzl skill from ClawHub. The script should:
 

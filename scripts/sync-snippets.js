@@ -127,9 +127,11 @@ function processFile(filePath, snippetCache, checkOnly) {
 
       // Build the new content between markers
       // If [code:X] modifier present, wrap in code fence
-      const newContent = codeFenceType
+      const warningLine = `<!-- ⚠️ DO NOT EDIT - Auto-generated from ${snippetPath} -->`;
+      const snippetBody = codeFenceType
         ? `\`\`\`${codeFenceType}\n${snippetContent}\n\`\`\``
         : snippetContent;
+      const newContent = `${warningLine}\n${snippetBody}`;
 
       // Check if content changed
       const oldContent = lines.slice(i + 1, endIndex).join('\n');
@@ -137,9 +139,9 @@ function processFile(filePath, snippetCache, checkOnly) {
         changed = true;
       }
 
-      // Output: start marker, content, end marker
+      // Output: start marker, warning + content, end marker
       output.push(line); // START marker
-      output.push(newContent);
+      output.push(newContent); // includes warning line + snippet body
       output.push(lines[endIndex]); // END marker
 
       i = endIndex + 1;
