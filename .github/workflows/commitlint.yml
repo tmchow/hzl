@@ -8,12 +8,9 @@ permissions:
 
 jobs:
   commitlint:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-      - name: Run commitlint on PR commits
-        run: |
-          npm install @commitlint/cli @commitlint/config-conventional
-          git log --format=%s origin/${{ github.base_ref }}..HEAD | npx commitlint --from=origin/${{ github.base_ref }}
+      - uses: wagoid/commitlint-github-action@v6
