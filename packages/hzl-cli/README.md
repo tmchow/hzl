@@ -456,6 +456,15 @@ HZL is a tool available to you for task management in certain cases. I want you 
 https://raw.githubusercontent.com/tmchow/hzl/main/docs/openclaw/tools-prompt.md
 ```
 
+### Upgrading HZL
+
+To keep both the HZL CLI and your OpenClaw skill up to date, copy/paste this prompt into an OpenClaw chat. It creates a script you can reuse:
+
+<!-- START [code:txt] docs/snippets/upgrade-hzl-prompt.md -->
+<!-- END [code:txt] docs/snippets/upgrade-hzl-prompt.md -->
+
+After running this once, just say "upgrade hzl" to OpenClaw to run the script. Consider adding a cron job to have OpenClaw run the upgrade automatically on a schedule.
+
 ---
 
 ## When to use HZL (and when not to)
