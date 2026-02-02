@@ -81,8 +81,8 @@ hzl task next --project <project>
 
 # Work + persist progress
 hzl task claim <id> --author <agent-id>
-hzl task checkpoint <id> "<what changed / what's next>"
-hzl task progress <id> 50                     # Set progress (0-100)
+hzl task checkpoint <id> "<what changed / what's next>" [--progress 50]
+hzl task progress <id> 50                     # Set progress without checkpoint
 hzl task show <id> --json
 hzl task complete <id>
 
@@ -170,11 +170,15 @@ Checkpoint early and often. A checkpoint should be short and operational:
 ```bash
 hzl task claim <id> --author orchestrator
 # ...do work...
-hzl task checkpoint <id> "Implemented login flow. Next: add token refresh."
-hzl task progress <id> 50   # 50% complete
+hzl task checkpoint <id> "Implemented login flow. Next: add token refresh." --progress 50
 # ...more work...
-hzl task progress <id> 100
+hzl task checkpoint <id> "Added token refresh. Testing complete." --progress 100
 hzl task complete <id>
+```
+
+You can also set progress without a checkpoint:
+```bash
+hzl task progress <id> 75
 ```
 
 ### Handle blocked tasks
