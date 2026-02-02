@@ -1,3 +1,19 @@
+# [1.11.0](https://github.com/tmchow/hzl/compare/v1.10.0...v1.11.0) (2026-02-02)
+
+
+### Bug Fixes
+
+* **ci:** reorder release plugins to fix lockfile update ([#55](https://github.com/tmchow/hzl/issues/55)) ([d4aa77c](https://github.com/tmchow/hzl/commit/d4aa77cdce2a73d298182acbad7c6f0ac38bdc8b))
+* **ci:** resolve release workflow race condition with doc-sync ([#54](https://github.com/tmchow/hzl/issues/54)) ([006e530](https://github.com/tmchow/hzl/commit/006e530c605e96a0a3d862984277c5800de0dbea))
+* enable patch releases for docs and chore commits ([#48](https://github.com/tmchow/hzl/issues/48)) ([34ba8fd](https://github.com/tmchow/hzl/commit/34ba8fd36b85c51f9818b92e2d3a3ba3fcf9de0e))
+* include package-lock.json in release commits ([#47](https://github.com/tmchow/hzl/issues/47)) ([28c3aab](https://github.com/tmchow/hzl/commit/28c3aab4e61c0d68c4a4963f53dae5e4f03b7003))
+
+
+### Features
+
+* add README include system for reusable documentation snippets ([#52](https://github.com/tmchow/hzl/issues/52)) ([a0b94dd](https://github.com/tmchow/hzl/commit/a0b94dd716822e95b25f0fdd625a7b0d5a41042d))
+* **cli:** add parent/subtask hierarchy support ([#50](https://github.com/tmchow/hzl/issues/50)) ([7eebe1d](https://github.com/tmchow/hzl/commit/7eebe1db561f14340c9e925a788f0e064f0a620b))
+
 # [1.10.0](https://github.com/tmchow/hzl/compare/v1.9.3...v1.10.0) (2026-02-01)
 
 

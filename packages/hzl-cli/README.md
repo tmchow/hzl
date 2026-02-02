@@ -268,6 +268,66 @@ hzl task checkpoint "$TASK_ID" "Endpoints scaffolded; next: auth middleware"
 hzl task complete "$TASK_ID"
 ```
 
+### Pattern: Breaking down work with subtasks
+
+HZL supports one level of parent/subtask hierarchy for organizing related work.
+
+**Key behavior: Parent tasks are organizational containers, not actionable work.**
+
+When you call `hzl task next`, only leaf tasks (tasks without children) are returned. Parent tasks are never returned because they represent the umbrella—work happens on the subtasks.
+
+```bash
+# Create parent task
+hzl task add "Implement user authentication" -P myapp --priority 2
+# → Created task abc123
+
+# Create subtasks (project inherited automatically from parent)
+hzl task add "Add login endpoint" --parent abc123
+hzl task add "Add logout endpoint" --parent abc123
+hzl task add "Add session management" --parent abc123
+
+# View the breakdown
+hzl task show abc123
+# Shows task details plus list of subtasks
+
+# Get next available subtask (parent is never returned)
+hzl task next --project myapp
+# → [def456] Add login endpoint
+
+# Scope work to a specific parent's subtasks
+hzl task next --parent abc123
+# → [def456] Add login endpoint
+
+# When all subtasks done, manually complete the parent
+hzl task complete abc123
+```
+
+**Constraints:**
+- Maximum 1 level of nesting (subtasks cannot have their own subtasks)
+- Subtasks are always in the same project as parent (auto-inherited)
+- Moving a parent moves all subtasks atomically
+
+**Filtering:**
+```bash
+# See all subtasks of a task
+hzl task list --parent abc123
+
+# See only top-level tasks (no parent)
+hzl task list --root
+
+# Combine with other filters
+hzl task list --root --status ready
+```
+
+**Archiving:**
+```bash
+# Archive parent with all subtasks
+hzl task archive abc123 --cascade
+
+# Archive parent only (subtasks promoted to top-level)
+hzl task archive abc123 --orphan
+```
+
 ### Pattern: Personal todo list (it works, but bring your own UI)
 
 HZL can track personal tasks and has the advantage of centralizing agent and personal tasks.
@@ -302,34 +362,44 @@ If your coding agent supports an instruction file (for example `CLAUDE.md`, `AGE
 
 ### Drop-in policy snippet
 
+<!-- START [code:md] docs/snippets/agent-policy.md -->
 ```md
-### HZL task ledger (durable, cross-agent task tracking)
+### HZL task ledger (external task tracking for multi-session/multi-agent work)
 
-HZL is a shared task database that persists across sessions and works across different agents.
-Use it when work spans multiple sessions, involves handoffs to other agents, or needs durable backup.
-If this agent has built-in task tracking, HZL complements it for cross-agent and multi-session work.
+HZL is an external task database. Use it when work outlives this session or involves other agents.
+Built-in task tracking (if available) is fine for single-session work you'll complete now.
 
-When to use HZL:
-- Multi-session work that must survive restarts
-- Coordination with other agents (Claude Code ↔ Codex ↔ Gemini, etc.)
-- Work delegated to sub-agents that need explicit handoff
-- When you need task state backed up to cloud
+**When to use HZL:**
+- Work spanning multiple sessions or days
+- Coordination with other agents (Claude Code ↔ Codex ↔ Gemini)
+- Delegating to sub-agents with explicit handoff
+- User explicitly asks to track work in HZL
 
-Workflow:
-1) Create or use an HZL project for the work.
-2) Break work into tasks with dependencies. Use `--links` to reference design docs or specs.
-3) Claim tasks before work and checkpoint after meaningful progress.
-4) Use `--json` when producing output another tool will parse.
+**When NOT to use HZL:**
+- Single-session work you'll complete in this conversation
+- User hasn't mentioned persistence or multi-agent needs
 
-Key commands:
-- `hzl project create <name>`
-- `hzl task add "<title>" -P <project> [--depends-on <id>] [--links <file>]`
-- `hzl task claim <id> --author <agent-id> [--lease 30]`
-- `hzl task checkpoint <id> "<progress + next step>"`
+**Structure:**
+- **Project** = stable container (typically one per repo or long-running initiative). Check `hzl project list` before creating.
+- **Task** = top-level work item (often a feature). Use `--depends-on` to sequence separate tasks.
+- **Subtask** = breakdown of a task into parts (`--parent <id>`). Max 1 level of nesting.
+
+**Workflow:**
+1. `hzl project list` to find existing, or `hzl project create <name>`
+2. Add tasks. Use `--depends-on` for sequencing, `--parent` for breakdown, `--links` for context docs.
+3. Claim before work, checkpoint progress, complete when done.
+4. Use `--json` for scripted output.
+
+**Key commands:**
+- `hzl task add "<title>" -P <project> [--depends-on <id>] [--parent <id>] [--links <file>]`
+- `hzl task claim <id> --author claude-code [--lease 30]`
+- `hzl task checkpoint <id> "<progress>"`
 - `hzl task complete <id>`
+- `hzl task next --project <project>` (returns next available; never returns parent tasks)
 ```
+<!-- END [code:md] docs/snippets/agent-policy.md -->
 
-That snippet is intentionally short. The goal is consistency, not ceremony.
+That snippet is intentionally concise. The goal is clear triggers and structure, not ceremony.
 
 ### Claude Code marketplace (optional)
 
@@ -426,6 +496,15 @@ hzl task complete <id>                        # Mark done
 hzl task stuck                                # Find expired leases
 hzl task steal <id> --if-expired              # Take over abandoned task
 hzl task show <id> --json                     # Task details (--json for scripting)
+
+# Subtasks (organization)
+hzl task add "<title>" --parent <id>          # Create subtask (inherits project)
+hzl task list --parent <id>                   # List subtasks of a task
+hzl task list --root                          # List only top-level tasks
+hzl task next --parent <id>                   # Next available subtask
+hzl task show <id>                            # Shows subtasks inline
+hzl task archive <id> --cascade               # Archive parent and all subtasks
+hzl task archive <id> --orphan                # Archive parent, promote subtasks
 
 # Diagnostics
 hzl sync                                      # Sync with cloud (if configured)
