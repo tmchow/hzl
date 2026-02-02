@@ -1,3 +1,15 @@
+# [1.13.0](https://github.com/tmchow/hzl/compare/v1.12.5...v1.13.0) (2026-02-02)
+
+
+### Bug Fixes
+
+* **web:** reorder blocked column after in_progress ([#64](https://github.com/tmchow/hzl/issues/64)) ([8ac557e](https://github.com/tmchow/hzl/commit/8ac557e950f8efed182a4670ad2eca336e8f957f))
+
+
+### Features
+
+* Add Codex skill support with repo restructure ([#65](https://github.com/tmchow/hzl/issues/65)) ([ba38abf](https://github.com/tmchow/hzl/commit/ba38abf8e6d3eec45064613e0509f63e378a4d09))
+
 ## [1.12.5](https://github.com/tmchow/hzl/compare/v1.12.4...v1.12.5) (2026-02-02)
 
 
