@@ -19,6 +19,7 @@
     "lint:fix": "eslint \"packages/*/src/**/*.ts\" --fix",
     "format": "prettier -w .",
     "format:check": "prettier -c .",
+    "verify:marketplace": "node scripts/verify-marketplace-versions.js",
     "clean": "rm -rf packages/*/dist packages/*/.turbo",
     "prepare": "husky && npm run build",
     "version:patch": "npm version patch --workspaces --include-workspace-root",

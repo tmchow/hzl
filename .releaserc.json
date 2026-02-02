@@ -37,7 +37,9 @@
         "package.json",
         "package-lock.json",
         "packages/*/package.json",
-        "packages/hzl-cli/README.md"
+        "packages/hzl-cli/README.md",
+        ".claude-plugin/marketplace.json",
+        "packages/hzl-marketplace/**/*.json"
       ],
       "message": "chore(release): ${nextRelease.version}\n\n${nextRelease.notes}"
     }],
