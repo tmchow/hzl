@@ -19,16 +19,42 @@
     "README.md"
   ],
   "keywords": [
-    "cli",
+    "hzl",
+    "task-ledger",
     "task-management",
+    "coding-agents",
     "ai-agents",
+    "multi-agent",
+    "agent-coordination",
+    "claude-code",
+    "codex",
+    "gemini",
+    "openclaw",
     "event-sourcing",
-    "sqlite"
+    "workflow"
+  ],
+  "license": "MIT",
+  "author": {
+    "name": "Trevin Chow",
+    "url": "https://github.com/tmchow"
+  },
+  "contributors": [
+    {
+      "name": "Kalid Azad",
+      "url": "https://github.com/kazad"
+    }
   ],
   "repository": {
     "type": "git",
     "url": "https://github.com/tmchow/hzl.git",
     "directory": "packages/hzl-cli"
+  },
+  "homepage": "https://www.hzl-tasks.com",
+  "bugs": {
+    "url": "https://github.com/tmchow/hzl/issues"
+  },
+  "engines": {
+    "node": ">=22.14.0"
   },
   "scripts": {
     "build": "tsc -b",
