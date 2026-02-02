@@ -13,8 +13,13 @@ jobs:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
+      - name: Get commit range
+        id: commits
+        run: |
+          echo "from=$(git merge-base origin/${{ github.base_ref }} HEAD)" >> $GITHUB_OUTPUT
+          echo "to=HEAD" >> $GITHUB_OUTPUT
       - uses: wagoid/commitlint-github-action@v6
         with:
-          # Use commit range from base branch instead of PR API
-          # This avoids "Not Found" errors after force pushes
-          firstParent: false
+          # Use explicit commit range to avoid PR API issues after force pushes
+          fromHash: ${{ steps.commits.outputs.from }}
+          toHash: ${{ steps.commits.outputs.to }}
