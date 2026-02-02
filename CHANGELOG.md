@@ -1,3 +1,10 @@
+## [1.12.5](https://github.com/tmchow/hzl/compare/v1.12.4...v1.12.5) (2026-02-02)
+
+
+### Bug Fixes
+
+* Add Claude Code marketplace setup to documentation ([#63](https://github.com/tmchow/hzl/issues/63)) ([6aa14a5](https://github.com/tmchow/hzl/commit/6aa14a5e29665a4f51f30714ea30606d6ea374e9))
+
 ## [1.12.4](https://github.com/tmchow/hzl/compare/v1.12.3...v1.12.4) (2026-02-02)
 
 
