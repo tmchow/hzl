@@ -412,10 +412,10 @@ HZL includes a Claude Code plugin marketplace with skills that help agents work 
 
 ```bash
 # Add the marketplace
-/plugin marketplace add https://github.com/tmchow/hzl
+/plugin marketplace add tmchow/hzl
 
 # Install the HZL plugin
-/plugin install hzl@tmchow-hzl
+/plugin install hzl@hzl-marketplace
 ```
 
 See [`packages/hzl-marketplace`](./packages/hzl-marketplace) for details.
