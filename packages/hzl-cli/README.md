@@ -415,7 +415,7 @@ HZL includes a Claude Code plugin marketplace with skills that help agents work 
 /plugin marketplace add tmchow/hzl
 
 # Install the skills plugin
-/plugin install hzl-skills@hzl-marketplace
+/plugin install hzl-skills@tmchow-hzl
 ```
 
 See [`packages/hzl-marketplace`](./packages/hzl-marketplace) for details.

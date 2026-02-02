@@ -1,9 +1,10 @@
 {
-  "name": "hzl-skills",
+  "name": "hzl",
   "version": "1.0.0",
-  "description": "Skills for AI agents using HZL task tracking",
+  "description": "Skills and agents for using HZL task tracking",
   "author": {
-    "name": "HZL"
+    "name": "Trevin Chow",
+    "url": "https://github.com/tmchow"
   },
   "repository": "https://github.com/tmchow/hzl",
   "license": "MIT",

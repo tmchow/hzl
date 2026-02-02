@@ -11,7 +11,7 @@
   "plugins": [
     {
       "name": "hzl",
-      "source": "./plugins/hzl",
+      "source": "./packages/hzl-marketplace/plugins/hzl",
       "description": "Skills and agents for using HZL task tracking",
       "version": "1.0.0"
     }
