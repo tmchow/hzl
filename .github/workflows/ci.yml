@@ -13,7 +13,7 @@ concurrency:
 jobs:
   lint-and-typecheck:
     name: Lint & Typecheck
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v6
 
@@ -41,12 +41,11 @@ jobs:
         run: npm run verify:marketplace
 
   test:
-    name: Test (${{ matrix.os }}, Node ${{ matrix.node }})
-    runs-on: ${{ matrix.os }}
+    name: Test (Node ${{ matrix.node }})
+    runs-on: self-hosted
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest]
         node: ['22.14.0']
 
     steps:
@@ -72,8 +71,8 @@ jobs:
       - name: Run tests
         run: npm run test:ci
 
-      - name: Upload coverage (ubuntu, node 20 only)
-        if: matrix.os == 'ubuntu-latest' && matrix.node == '22.14.0'
+      - name: Upload coverage
+        if: matrix.node == '22.14.0'
         uses: codecov/codecov-action@v5
         with:
           files: ./packages/hzl-core/coverage/lcov.info,./packages/hzl-cli/coverage/lcov.info
@@ -81,7 +80,7 @@ jobs:
 
   build:
     name: Build
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: [lint-and-typecheck, test]
     steps:
       - uses: actions/checkout@v6
