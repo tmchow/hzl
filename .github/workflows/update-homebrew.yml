@@ -72,31 +72,28 @@ jobs:
           fi
           echo "Calculated SHA256: $SHA"
           
-          # Generate new Formula content
-          # Note: We use unquoted EOF to expand $URL and $SHA
-          # Ruby interpolation like #{libexec} is preserved because it's not valid shell syntax
-          cat > tap/Formula/hzl.rb <<EOF
-require "language/node"
-
-class Hzl < Formula
-  desc "External task ledger for coding agents and OpenClaw"
-  homepage "https://github.com/tmchow/hzl"
-  url "$URL"
-  sha256 "$SHA"
-  license "MIT"
-
-  depends_on "node"
-
-  def install
-    system "npm", "install", *Language::Node.std_npm_install_args(libexec)
-    bin.install_symlink Dir["#{libexec}/bin/*"]
-  end
-
-  test do
-    system "#{bin}/hzl", "--version"
-  end
-end
-EOF
+          # Generate new Formula content using printf to avoid YAML heredoc issues
+          printf '%s\n' \
+            'require "language/node"' \
+            '' \
+            'class Hzl < Formula' \
+            '  desc "External task ledger for coding agents and OpenClaw"' \
+            '  homepage "https://github.com/tmchow/hzl"' \
+            "  url \"$URL\"" \
+            "  sha256 \"$SHA\"" \
+            '  license "MIT"' \
+            '' \
+            '  depends_on "node"' \
+            '' \
+            '  def install' \
+            '    system "npm", "install", *Language::Node.std_npm_install_args(libexec)' \
+            '    bin.install_symlink Dir["#{libexec}/bin/*"]' \
+            '  end' \
+            '' \
+            '  test do' \
+            '    system "#{bin}/hzl", "--version"' \
+            '  end' \
+            'end' > tap/Formula/hzl.rb
           
           # Commit and Push
           cd tap
