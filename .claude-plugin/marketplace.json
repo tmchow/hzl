@@ -6,14 +6,14 @@
   },
   "metadata": {
     "description": "Official marketplace for HZL plugins and skills",
-    "version": "1.0.0"
+    "version": "1.12.4"
   },
   "plugins": [
     {
       "name": "hzl",
       "source": "./packages/hzl-marketplace/plugins/hzl",
       "description": "Skills and agents for using HZL task tracking",
-      "version": "1.0.0"
+      "version": "1.12.4"
     }
   ]
 }
