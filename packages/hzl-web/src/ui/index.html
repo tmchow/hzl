@@ -622,9 +622,9 @@
   <!-- Mobile Tabs -->
   <div class="mobile-tabs" id="mobileTabs">
     <div class="mobile-tab" data-status="backlog">Backlog <span class="mobile-tab-badge" id="badge-backlog">0</span></div>
-    <div class="mobile-tab" data-status="blocked">Blocked <span class="mobile-tab-badge" id="badge-blocked">0</span></div>
     <div class="mobile-tab active" data-status="ready">Ready <span class="mobile-tab-badge" id="badge-ready">0</span></div>
     <div class="mobile-tab" data-status="in_progress">In Progress <span class="mobile-tab-badge" id="badge-in_progress">0</span></div>
+    <div class="mobile-tab" data-status="blocked">Blocked <span class="mobile-tab-badge" id="badge-blocked">0</span></div>
     <div class="mobile-tab" data-status="done">Done <span class="mobile-tab-badge" id="badge-done">0</span></div>
   </div>
 
@@ -640,13 +640,6 @@
       </div>
       <div class="column-cards" id="cards-backlog"></div>
     </div>
-    <div class="column" data-status="blocked">
-      <div class="column-header">
-        <span class="column-title">Blocked</span>
-        <span class="column-count" id="count-blocked">0</span>
-      </div>
-      <div class="column-cards" id="cards-blocked"></div>
-    </div>
     <div class="column" data-status="ready">
       <div class="column-header">
         <span class="column-title">Ready</span>
@@ -660,6 +653,13 @@
         <span class="column-count" id="count-in_progress">0</span>
       </div>
       <div class="column-cards" id="cards-in_progress"></div>
+    </div>
+    <div class="column" data-status="blocked">
+      <div class="column-header">
+        <span class="column-title">Blocked</span>
+        <span class="column-count" id="count-blocked">0</span>
+      </div>
+      <div class="column-cards" id="cards-blocked"></div>
     </div>
     <div class="column" data-status="done">
       <div class="column-header">
