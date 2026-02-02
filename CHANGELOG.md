@@ -1,3 +1,11 @@
+## [1.13.2](https://github.com/tmchow/hzl/compare/v1.13.1...v1.13.2) (2026-02-02)
+
+
+### Bug Fixes
+
+* **ci:** use GitHub-hosted runner for release workflow ([#68](https://github.com/tmchow/hzl/issues/68)) ([5dd2218](https://github.com/tmchow/hzl/commit/5dd22185b56c1fc4f1b20381f542331408050ac8))
+* include plugin.json in release assets ([#69](https://github.com/tmchow/hzl/issues/69)) ([c5f18fb](https://github.com/tmchow/hzl/commit/c5f18fba0a4784baa9dfe04264147d4581bb9654))
+
 ## [1.13.1](https://github.com/tmchow/hzl/compare/v1.13.0...v1.13.1) (2026-02-02)
 
 
