@@ -6,6 +6,8 @@ Claude Code has [Tasks](https://x.com/trq212/status/2014480496013803643). If you
 
 HZL is for when work outlives a single session: days-long projects, switching between Claude Code and Codex, OpenClaw juggling parallel workstreams.
 
+📚 **[Full Documentation](https://www.hzl-tasks.com)** — Concepts, scenarios, and tutorials
+
 **Coding agents (Claude Code, Codex, Gemini)**
 
 You're working across several projects over days or weeks. You switch between agents. Each has its own task tracking (or none).
