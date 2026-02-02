@@ -8,8 +8,11 @@ Tell Codex:
 
 > Fetch and follow instructions from https://raw.githubusercontent.com/tmchow/hzl/main/.codex/INSTALL.md
 
-**Security note:** This uses prompt injection to instruct Codex to modify your
-`~/.codex/AGENTS.md` file. Review the steps below if you prefer manual installation.
+This instructs Codex to:
+1. Download the HZL skill to `~/.codex/skills/hzl/SKILL.md`
+2. Add HZL usage guidance to your `~/.codex/AGENTS.md`
+
+**Security note:** This uses prompt injection to instruct Codex to modify files on your system. Review the manual steps below if you prefer to control exactly what changes are made.
 
 ## Manual Installation
 
