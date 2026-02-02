@@ -1,0 +1,41 @@
+title: HZL Documentation
+description: External task ledger for coding agents
+remote_theme: just-the-docs/just-the-docs
+
+# Exclude internal development docs from the site
+exclude:
+  - plans/
+  - brainstorms/
+  - snippets/
+  - solutions/
+  - openclaw/
+  - .DS_Store
+
+# Navigation
+nav_enabled: true
+
+# Search
+search_enabled: true
+search:
+  heading_level: 2
+  previews: 3
+
+# Footer links
+aux_links:
+  "GitHub": "https://github.com/tmchow/hzl"
+  "CLI Reference": "https://github.com/tmchow/hzl#cli-reference"
+
+aux_links_new_tab: true
+
+# Color scheme (dark by default, with toggle)
+color_scheme: dark
+
+# Back to top link
+back_to_top: true
+back_to_top_text: "Back to top"
+
+# Footer content
+footer_content: "HZL - External task ledger for coding agents"
+
+# Enable copy button on code blocks
+enable_copy_code_button: true
