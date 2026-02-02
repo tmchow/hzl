@@ -27,3 +27,14 @@ if (fs.existsSync(pluginJsonPath)) {
   fs.writeFileSync(pluginJsonPath, JSON.stringify(json, null, 2) + '\n');
   console.log(`Updated ${pluginJsonPath} to ${version}`);
 }
+
+// Update marketplace.json plugin version
+const marketplaceJsonPath = './.claude-plugin/marketplace.json';
+if (fs.existsSync(marketplaceJsonPath)) {
+  const json = JSON.parse(fs.readFileSync(marketplaceJsonPath, 'utf8'));
+  if (json.plugins && json.plugins.length > 0) {
+    json.plugins[0].version = version;
+    fs.writeFileSync(marketplaceJsonPath, JSON.stringify(json, null, 2) + '\n');
+    console.log(`Updated ${marketplaceJsonPath} plugin version to ${version}`);
+  }
+}
