@@ -1,34 +1,36 @@
-// packages/hzl-cli/src/commands/release.ts
+// packages/hzl-cli/src/commands/task/unblock.ts
 import { Command } from 'commander';
 import { resolveDbPaths } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError } from '../../errors.js';
 import { GlobalOptionsSchema } from '../../types.js';
 
-export interface ReleaseResult {
+export interface UnblockResult {
   task_id: string;
   title: string;
   status: string;
   assignee: string | null;
 }
 
-interface ReleaseCommandOptions {
+interface UnblockCommandOptions {
+  release?: boolean;
   reason?: string;
   author?: string;
 }
 
-export function runRelease(options: {
+export function runUnblock(options: {
   services: Services;
   taskId: string;
+  release?: boolean;
   reason?: string;
   author?: string;
   json: boolean;
-}): ReleaseResult {
-  const { services, taskId, reason, author, json } = options;
+}): UnblockResult {
+  const { services, taskId, release, reason, author, json } = options;
 
-  const task = services.taskService.releaseTask(taskId, { reason, author });
+  const task = services.taskService.unblockTask(taskId, { release, reason, author });
 
-  const result: ReleaseResult = {
+  const result: UnblockResult = {
     task_id: task.task_id,
     title: task.title,
     status: task.status,
@@ -38,27 +40,30 @@ export function runRelease(options: {
   if (json) {
     console.log(JSON.stringify(result));
   } else {
-    console.log(`✓ Released task ${task.task_id}: ${task.title}`);
+    const statusMsg = release ? 'released back to ready' : 'resumed';
+    console.log(`▶ Unblocked task ${task.task_id}: ${task.title} (${statusMsg})`);
     if (reason) console.log(`  Reason: ${reason}`);
   }
 
   return result;
 }
 
-export function createReleaseCommand(): Command {
-  return new Command('release')
-    .description('Release a claimed task')
+export function createUnblockCommand(): Command {
+  return new Command('unblock')
+    .description('Unblock a blocked task, returning it to work')
     .argument('<taskId>', 'Task ID')
-    .option('--reason <reason>', 'Release reason')
+    .option('--release', 'Return task to ready status instead of in_progress')
+    .option('--reason <reason>', 'Unblock reason')
     .option('--author <name>', 'Author name')
-    .action(function (this: Command, taskId: string, opts: ReleaseCommandOptions) {
+    .action(function (this: Command, taskId: string, opts: UnblockCommandOptions) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
       const services = initializeDb({ eventsDbPath, cacheDbPath });
       try {
-        runRelease({
+        runUnblock({
           services,
           taskId,
+          release: opts.release,
           reason: opts.reason,
           author: opts.author,
           json: globalOpts.json ?? false,

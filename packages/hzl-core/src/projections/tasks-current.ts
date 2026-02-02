@@ -5,6 +5,7 @@ import type { Projector } from './types.js';
 import {
   EventType,
   TaskStatus,
+  type CheckpointRecordedData,
   type StatusChangedData,
   type TaskCreatedData,
   type TaskMovedData,
@@ -33,6 +34,9 @@ export class TasksCurrentProjector implements Projector {
       case EventType.TaskArchived:
         this.handleTaskArchived(event, db);
         break;
+      case EventType.CheckpointRecorded:
+        this.handleCheckpointRecorded(event, db);
+        break;
     }
   }
 
@@ -46,8 +50,9 @@ export class TasksCurrentProjector implements Projector {
       INSERT INTO tasks_current (
         task_id, title, project, status, parent_id, description,
         links, tags, priority, due_at, metadata,
+        assignee,
         created_at, updated_at, last_event_id
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       event.task_id,
       data.title,
@@ -60,6 +65,7 @@ export class TasksCurrentProjector implements Projector {
       data.priority ?? 0,
       data.due_at ?? null,
       JSON.stringify(data.metadata ?? {}),
+      data.assignee ?? null,
       event.timestamp,
       event.timestamp,
       event.rowid
@@ -71,39 +77,88 @@ export class TasksCurrentProjector implements Projector {
     const toStatus = data.to;
 
     if (toStatus === TaskStatus.InProgress) {
+      const newAssignee = event.author || event.agent_id || null;
+
+      // Steal case: in_progress → in_progress - always overwrite assignee and claimed_at
+      if (data.from === TaskStatus.InProgress) {
+        db.prepare(`
+          UPDATE tasks_current SET
+            claimed_at = ?,
+            assignee = ?,
+            lease_until = ?,
+            updated_at = ?,
+            last_event_id = ?
+          WHERE task_id = ?
+        `).run(
+          event.timestamp,
+          newAssignee,
+          data.lease_until ?? null,
+          event.timestamp,
+          event.rowid,
+          event.task_id
+        );
+      } else if (data.from === TaskStatus.Blocked) {
+        // Unblock case: blocked → in_progress - preserve claimed_at, update assignee only if provided
+        db.prepare(`
+          UPDATE tasks_current SET
+            status = ?,
+            assignee = COALESCE(?, assignee),
+            lease_until = ?,
+            updated_at = ?,
+            last_event_id = ?
+          WHERE task_id = ?
+        `).run(
+          toStatus,
+          newAssignee,
+          data.lease_until ?? null,
+          event.timestamp,
+          event.rowid,
+          event.task_id
+        );
+      } else {
+        // Normal claim (ready → in_progress) - set claimed_at, preserve assignee if no new one
+        db.prepare(`
+          UPDATE tasks_current SET
+            status = ?,
+            claimed_at = ?,
+            assignee = COALESCE(?, assignee),
+            lease_until = ?,
+            updated_at = ?,
+            last_event_id = ?
+          WHERE task_id = ?
+        `).run(
+          toStatus,
+          event.timestamp,
+          newAssignee,
+          data.lease_until ?? null,
+          event.timestamp,
+          event.rowid,
+          event.task_id
+        );
+      }
+    } else if (toStatus === TaskStatus.Blocked) {
+      // When blocked: preserve assignee and claimed_at, clear lease_until
       db.prepare(`
         UPDATE tasks_current SET
           status = ?,
-          claimed_at = ?,
-          claimed_by_author = ?,
-          claimed_by_agent_id = ?,
-          lease_until = ?,
+          lease_until = NULL,
           updated_at = ?,
           last_event_id = ?
         WHERE task_id = ?
-      `).run(
-        toStatus,
-        event.timestamp,
-        event.author ?? null,
-        event.agent_id ?? null,
-        data.lease_until ?? null,
-        event.timestamp,
-        event.rowid,
-        event.task_id
-      );
-    } else if (data.from === TaskStatus.InProgress) {
+      `).run(toStatus, event.timestamp, event.rowid, event.task_id);
+    } else if (data.from === TaskStatus.InProgress || data.from === TaskStatus.Blocked) {
+      // When leaving in_progress/blocked: clear claimed_at and lease, but PRESERVE assignee
       db.prepare(`
         UPDATE tasks_current SET
           status = ?,
           claimed_at = NULL,
-          claimed_by_author = NULL,
-          claimed_by_agent_id = NULL,
           lease_until = NULL,
           updated_at = ?,
           last_event_id = ?
         WHERE task_id = ?
       `).run(toStatus, event.timestamp, event.rowid, event.task_id);
     } else {
+      // Generic status change
       db.prepare(`
         UPDATE tasks_current SET
           status = ?,
@@ -149,5 +204,19 @@ export class TasksCurrentProjector implements Projector {
         last_event_id = ?
       WHERE task_id = ?
     `).run(TaskStatus.Archived, event.timestamp, event.rowid, event.task_id);
+  }
+
+  private handleCheckpointRecorded(event: PersistedEventEnvelope, db: Database.Database): void {
+    const data = event.data as CheckpointRecordedData;
+    // Only update progress if it's present in the checkpoint
+    if (data.progress !== undefined) {
+      db.prepare(`
+        UPDATE tasks_current SET
+          progress = ?,
+          updated_at = ?,
+          last_event_id = ?
+        WHERE task_id = ?
+      `).run(data.progress, event.timestamp, event.rowid, event.task_id);
+    }
   }
 }

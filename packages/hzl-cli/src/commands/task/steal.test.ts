@@ -36,7 +36,7 @@ describe('runSteal', () => {
       json: false,
     });
 
-    expect(result.claimed_by_author).toBe('new-owner');
+    expect(result.assignee).toBe('new-owner');
     expect(result.stolen_from).toBe('original-owner');
   });
 
@@ -55,7 +55,7 @@ describe('runSteal', () => {
       json: false,
     });
 
-    expect(result.claimed_by_author).toBe('new-owner');
+    expect(result.assignee).toBe('new-owner');
   });
 
   it('throws when trying to steal non-expired task with --if-expired', () => {

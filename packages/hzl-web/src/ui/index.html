@@ -807,7 +807,7 @@
           <div class="card-title">${escapeHtml(task.title)}</div>
           <div class="card-meta">
             <span class="card-project">${escapeHtml(task.project)}</span>
-            ${task.claimed_by_agent_id ? `<span class="card-agent">${task.claimed_by_agent_id.slice(0, 8)}</span>` : ''}
+            ${task.assignee ? `<span class="card-agent">${task.assignee.slice(0, 8)}</span>` : ''}
           </div>
           ${extra}
         </div>
@@ -939,14 +939,14 @@
           </div>
         `;
 
-        if (data.task.claimed_by_agent_id) {
+        if (data.task.assignee) {
           html += `
             <div class="modal-section">
               <div class="modal-section-title">Claimed By</div>
               <div class="modal-meta">
                 <div class="modal-meta-item">
                   <div class="modal-meta-label">Agent</div>
-                  <div class="modal-meta-value">${data.task.claimed_by_agent_id}</div>
+                  <div class="modal-meta-value">${data.task.assignee}</div>
                 </div>
                 ${data.task.lease_until ? `
                   <div class="modal-meta-item">

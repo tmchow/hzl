@@ -91,12 +91,12 @@ describe('CLI Integration Tests', () => {
       expect(afterReady.task.status).toBe('ready');
 
       hzlJson(ctx, `task claim ${taskId} --author agent-1 --lease 30`);
-      const afterClaim = hzlJson<{ task: { status: string; claimed_by_author: string | null } }>(
+      const afterClaim = hzlJson<{ task: { status: string; assignee: string | null } }>(
         ctx,
         `task show ${taskId}`
       );
       expect(afterClaim.task.status).toBe('in_progress');
-      expect(afterClaim.task.claimed_by_author).toBe('agent-1');
+      expect(afterClaim.task.assignee).toBe('agent-1');
 
       hzlJson(ctx, `task complete ${taskId} --author agent-1`);
       const afterComplete = hzlJson<{ task: { status: string } }>(ctx, `task show ${taskId}`);
@@ -366,12 +366,13 @@ describe('CLI Integration Tests', () => {
       hzlJson(ctx, `task set-status ${task.task_id} ready`);
       hzlJson(ctx, `task claim ${task.task_id} --author agent-1`);
 
-      const released = hzlJson<{ status: string; claimed_by_author: string | null }>(
+      const released = hzlJson<{ status: string; assignee: string | null }>(
         ctx,
         `task release ${task.task_id}`
       );
       expect(released.status).toBe('ready');
-      expect(released.claimed_by_author).toBeNull();
+      // Per design: assignee persists across status changes (shows who worked on task)
+      expect(released.assignee).toBe('agent-1');
     });
 
     it('reopens a done task', () => {
@@ -391,11 +392,11 @@ describe('CLI Integration Tests', () => {
       hzlJson(ctx, `task set-status ${task.task_id} ready`);
       hzlJson(ctx, `task claim ${task.task_id} --author agent-1 --lease 60`);
 
-      const stolen = hzlJson<{ claimed_by_author: string | null }>(
+      const stolen = hzlJson<{ assignee: string | null }>(
         ctx,
         `task steal ${task.task_id} --force --owner agent-2`
       );
-      expect(stolen.claimed_by_author).toBe('agent-2');
+      expect(stolen.assignee).toBe('agent-2');
     });
 
     it('lists stuck tasks with expired leases', () => {

@@ -107,6 +107,7 @@ function handleTasks(params: URLSearchParams, res: ServerResponse): void {
 
 - [AGENTS.md](/AGENTS.md) - Architecture overview and event sourcing patterns
 - [hzl-web-dashboard-plan.md](/docs/plans/2026-01-31-feat-hzl-web-dashboard-plan.md) - Original implementation plan
+- [Event Sourcing Bypass in stealTask](/docs/solutions/best-practices/event-sourcing-bypass-in-stealtask-hzl-core-20260201.md) - Similar pattern: bypassing projections with direct UPDATE
 
 ## Testing
 

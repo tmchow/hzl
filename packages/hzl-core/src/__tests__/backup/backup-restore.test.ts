@@ -198,7 +198,7 @@ describe('Backup/Restore Round-Trip Tests', () => {
       const claimedTask = restoredDb
         .prepare('SELECT * FROM tasks_current WHERE task_id = ?')
         .get(dep.task_id) as any;
-      expect(claimedTask.claimed_by_author).toBe('agent');
+      expect(claimedTask.assignee).toBe('agent');
       expect(claimedTask.lease_until).toBe('2026-02-01T00:00:00Z');
 
       const comment = restoredDb

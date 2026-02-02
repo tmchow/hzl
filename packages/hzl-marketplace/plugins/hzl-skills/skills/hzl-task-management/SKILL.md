@@ -175,8 +175,16 @@ Checkpoint frequently to preserve progress:
 # Simple checkpoint
 hzl task checkpoint <task-id> "Completed database schema migration"
 
+# Checkpoint with progress percentage (0-100)
+hzl task checkpoint <task-id> "Halfway done with auth" --progress 50
+
 # Checkpoint with structured data
 hzl task checkpoint <task-id> "step-3-complete" --data '{"files":["auth.ts","user.ts"]}'
+```
+
+You can also set progress without a checkpoint:
+```bash
+hzl task progress <task-id> 75
 ```
 
 Checkpoints serve two purposes:
@@ -203,18 +211,32 @@ Only mark complete when the work is fully done and verified.
 
 ## Scenario: Handling Blocked Work
 
-When a task cannot proceed:
+When a task cannot proceed due to external factors, mark it as blocked:
 
 ```bash
-# Add a comment explaining the blocker
-hzl task comment <task-id> "Blocked: waiting for API credentials"
+# Mark task as blocked with a reason
+hzl task block <task-id> --reason "Waiting for API credentials from DevOps"
 
-# If the task depends on another task, the dependency system handles this
-# Check what's blocking
+# Check task status
 hzl task show <task-id> --json
 ```
 
-Do not complete blocked tasks. Leave them claimed or unclaim if another agent should take over.
+Blocked tasks:
+- Stay visible in the dashboard (Blocked column)
+- Keep their assignee
+- Don't appear in `--available` lists
+
+When the blocker is resolved:
+
+```bash
+# Unblock the task (returns to in_progress)
+hzl task unblock <task-id>
+
+# Add a checkpoint and continue working
+hzl task checkpoint <task-id> "Got API credentials, resuming work"
+```
+
+**Note:** `blocked` status is for external blockers (waiting for credentials, human decisions, etc.). Dependency blocking (task A depends on task B) is handled automatically—tasks with unmet dependencies won't appear in `--available` lists but remain in `ready` status.
 
 ## Scenario: Multi-Agent Coordination
 
@@ -224,14 +246,31 @@ When multiple agents work on the same project:
 
 HZL uses atomic claiming. Two agents calling `task next --claim` simultaneously will get different tasks. This prevents duplicate work.
 
-### Use author consistently
+### Authorship tracking
+
+HZL tracks authorship at two levels:
+
+| Concept | What it tracks | Set by |
+|---------|----------------|--------|
+| **Assignee** | Who owns the task | `--author` on `claim` |
+| **Event author** | Who performed an action | `--author` on any command |
+
+The `--author` flag appears on many commands (checkpoint, comment, block, etc.) to record who performed each action. This is separate from task ownership:
 
 ```bash
-hzl task claim <id> --author agent-1
-hzl task checkpoint <id> "progress" --author agent-1
+# Alice owns the task
+hzl task claim <id> --author alice
+
+# Bob adds a checkpoint (doesn't change ownership)
+hzl task checkpoint <id> "Reviewed the code" --author bob
+
+# Task is still assigned to Alice, but checkpoint was recorded by Bob
 ```
 
-The author field tracks which agent is responsible.
+For AI agents that need session tracking, use `--agent-id` on claim:
+```bash
+hzl task claim <id> --author "Claude Code" --agent-id "session-abc123"
+```
 
 ### Recover stuck tasks
 
@@ -285,7 +324,10 @@ Agents should check for comments before completing tasks (see "Check for steerin
 | List subtasks | `hzl task list --parent <id>` |
 | List root tasks | `hzl task list --root` |
 | Claim task | `hzl task claim <id> --author <name>` |
-| Checkpoint | `hzl task checkpoint <id> "<message>"` |
+| Checkpoint | `hzl task checkpoint <id> "<message>" [--progress 50]` |
+| Set progress | `hzl task progress <id> <0-100>` |
+| Block task | `hzl task block <id> --reason "<why>"` |
+| Unblock task | `hzl task unblock <id>` |
 | Show task | `hzl task show <id> --json` |
 | Complete | `hzl task complete <id>` |
 | Next subtask | `hzl task next --parent <id>` |

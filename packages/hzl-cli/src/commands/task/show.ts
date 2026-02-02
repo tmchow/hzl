@@ -19,8 +19,8 @@ export interface ShowResult {
     tags: string[];
     created_at: string;
     updated_at: string;
-    claimed_by_author: string | null;
-    claimed_by_agent_id: string | null;
+    assignee: string | null;
+    progress: number | null;
   };
   comments: Array<{ text: string; author?: string; timestamp: string }>;
   checkpoints: Array<{ name: string; data: Record<string, unknown>; timestamp: string }>;
@@ -63,8 +63,8 @@ export function runShow(options: {
       tags: task.tags,
       created_at: task.created_at,
       updated_at: task.updated_at,
-      claimed_by_author: task.claimed_by_author,
-      claimed_by_agent_id: task.claimed_by_agent_id,
+      assignee: task.assignee,
+      progress: task.progress,
     },
     comments: comments.map((c: Comment) => ({
       text: c.text,
@@ -90,7 +90,8 @@ export function runShow(options: {
     if (task.parent_id) console.log(`Parent: ${task.parent_id}`);
     if (task.description) console.log(`Description: ${task.description}`);
     if (task.tags.length > 0) console.log(`Tags: ${task.tags.join(', ')}`);
-    if (task.claimed_by_author) console.log(`Claimed by: ${task.claimed_by_author}`);
+    if (task.assignee) console.log(`Assignee: ${task.assignee}`);
+    if (task.progress !== null) console.log(`Progress: ${task.progress}%`);
     console.log(`Created: ${task.created_at}`);
     console.log(`Updated: ${task.updated_at}`);
 

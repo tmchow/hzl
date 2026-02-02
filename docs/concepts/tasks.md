@@ -27,23 +27,50 @@ Tasks move through these statuses:
 |--------|---------|
 | `ready` | Available to be claimed |
 | `in_progress` | Someone is working on it |
-| `blocked` | Waiting on dependencies |
+| `blocked` | Stuck on an external issue |
 | `done` | Work complete |
 | `archived` | No longer relevant |
+
+Note: `blocked` is different from dependency blocking. A task with unmet dependencies won't appear in `--available` lists, but its status remains `ready`. The `blocked` status is for tasks that are stuck due to external issues (waiting for API access, human decision, etc.).
 
 ## Claiming Tasks
 
 Before working on a task, claim it:
 
 ```bash
-hzl task claim <id> --author claude-code
+hzl task claim <id> --author "Claude Code"
 ```
 
-The `--author` flag identifies who's working:
-- `claude-code` - Claude Code agent
-- `codex` - OpenAI Codex
-- `human` - Manual work
-- Any identifier you choose
+The `--author` flag identifies who's working on the task. This becomes the task's **assignee**.
+
+For AI agents that need session tracking, add `--agent-id`:
+
+```bash
+hzl task claim 1 --author "Claude Code" --agent-id "session-xyz"
+```
+
+## Tracking Who Did What
+
+HZL tracks authorship at two levels:
+
+| Concept | What it tracks | Set by |
+|---------|----------------|--------|
+| **Assignee** | Who owns the task | `--author` or `--agent-id` on `claim` |
+| **Event author** | Who performed an action | `--author` on any command |
+
+The `--author` flag appears on many commands (checkpoint, comment, block, etc.) to record who performed each action:
+
+```bash
+# Task owned by Alice
+hzl task claim 1 --author "Alice"
+
+# Bob adds a checkpoint (doesn't change ownership)
+hzl task checkpoint 1 "Fixed the bug" --author "Bob"
+
+# The task is still assigned to Alice, but the checkpoint was recorded by Bob
+```
+
+This separation lets you track contributions even when someone else owns the task.
 
 ### Why Claim?
 
@@ -63,6 +90,37 @@ Checkpoints:
 - Preserve context for future sessions
 - Show progress in the dashboard
 - Help other agents understand status
+
+### Progress Percentage
+
+Track completion with a 0-100 progress value:
+
+```bash
+hzl task progress <id> 50   # 50% complete
+```
+
+Progress is shown in `hzl task show` and the web dashboard.
+
+## Blocking Tasks
+
+When a task is stuck waiting on external factors, mark it blocked:
+
+```bash
+hzl task block <id> --reason "Waiting for API credentials"
+```
+
+Blocked tasks:
+- Stay visible in the dashboard (Blocked column)
+- Keep their assignee
+- Don't appear in `--available` lists
+
+To resume work:
+
+```bash
+hzl task unblock <id>
+```
+
+This returns the task to `in_progress` status.
 
 ## Completing Tasks
 
@@ -149,5 +207,6 @@ hzl task complete 1
 1. **Keep tasks small** - 1-2 hours of focused work
 2. **Use descriptive titles** - Future you will thank you
 3. **Checkpoint frequently** - Preserve context
-4. **Always use --author** - Track who did what
-5. **Complete or archive** - Don't leave tasks hanging
+4. **Always identify yourself** - Use `--author` or `--agent-id` to track who did what
+5. **Block when stuck** - Use `hzl task block` instead of leaving tasks in limbo
+6. **Complete or archive** - Don't leave tasks hanging

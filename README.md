@@ -491,8 +491,14 @@ hzl task next --project <project>             # Get highest priority available t
 
 # Working
 hzl task claim <id> --author <name>           # Claim task (--lease <minutes> for expiry)
+hzl task claim <id> --agent-id <id>           # Claim as AI agent (machine identifier)
 hzl task checkpoint <id> "<message>"          # Save progress snapshot
+hzl task progress <id> <value>                # Set progress (0-100)
 hzl task complete <id>                        # Mark done
+
+# Status management
+hzl task block <id> --reason "<why>"          # Mark task as blocked
+hzl task unblock <id>                         # Unblock a task (returns to in_progress)
 
 # Coordination
 hzl task stuck                                # Find expired leases

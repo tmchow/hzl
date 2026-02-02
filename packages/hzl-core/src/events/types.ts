@@ -19,6 +19,7 @@ export enum TaskStatus {
   Backlog = 'backlog',
   Ready = 'ready',
   InProgress = 'in_progress',
+  Blocked = 'blocked',
   Done = 'done',
   Archived = 'archived',
 }
@@ -129,6 +130,7 @@ const TaskCreatedSchema = z.object({
   priority: priorityNumber.optional(),
   due_at: isoDateTime.optional(),
   metadata: metadataRecord.optional(),
+  assignee: z.string().max(FIELD_LIMITS.IDENTIFIER).optional(),
 });
 
 const StatusChangedSchema = z.object({
@@ -161,6 +163,7 @@ export const UPDATABLE_TASK_FIELDS = [
   'due_at',
   'metadata',
   'parent_id',
+  'assignee',
 ] as const;
 
 export type UpdatableTaskField = (typeof UPDATABLE_TASK_FIELDS)[number];
@@ -175,6 +178,7 @@ const updatableFieldValidators: Record<UpdatableTaskField, z.ZodSchema<unknown>>
   due_at: isoDateTime.nullable(),
   metadata: metadataRecord,
   parent_id: nonEmptyString.nullable(),
+  assignee: z.string().max(FIELD_LIMITS.IDENTIFIER).nullable(),
 };
 
 const TaskUpdatedSchema = z
@@ -207,6 +211,7 @@ const CommentAddedSchema = z.object({
 const CheckpointRecordedSchema = z.object({
   name: checkpointNameString,
   data: checkpointDataRecord.optional(),
+  progress: z.number().int().min(0).max(100).optional(),
 });
 
 const ProjectCreatedSchema = z.object({
