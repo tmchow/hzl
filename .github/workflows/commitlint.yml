@@ -18,4 +18,5 @@ jobs:
           node-version: '22'
       - name: Run commitlint
         run: |
-          npx --yes @commitlint/cli --from origin/${{ github.base_ref }} --to HEAD --config commitlint.config.js
+          npm install --no-save @commitlint/cli @commitlint/config-conventional
+          npx @commitlint/cli --from origin/${{ github.base_ref }} --to HEAD --config commitlint.config.js
