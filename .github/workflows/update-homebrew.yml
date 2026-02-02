@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   update-tap:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: Checkout Tap Repo
         uses: actions/checkout@v4
