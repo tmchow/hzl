@@ -38,28 +38,39 @@ Note: `blocked` is different from dependency blocking. A task with unmet depende
 Before working on a task, claim it:
 
 ```bash
-hzl task claim <id>
+hzl task claim <id> --author "Claude Code"
 ```
 
-Optionally identify who's claiming with `--author` and/or `--agent-id`:
+The `--author` flag identifies who's working on the task. This becomes the task's **assignee**.
 
-| Flag | Purpose | Example |
-|------|---------|---------|
-| `--author` | Human-readable name | `--author "Alice"` |
-| `--agent-id` | Machine/AI identifier | `--agent-id "claude-session-xyz"` |
-
-Both flags are optional. For AI agents, `--agent-id` helps track which session or instance is working. For humans, `--author` is typically sufficient.
+For AI agents that need session tracking, add `--agent-id`:
 
 ```bash
-# AI agent with session tracking
 hzl task claim 1 --author "Claude Code" --agent-id "session-xyz"
+```
 
-# Human claiming
+## Tracking Who Did What
+
+HZL tracks authorship at two levels:
+
+| Concept | What it tracks | Set by |
+|---------|----------------|--------|
+| **Assignee** | Who owns the task | `--author` or `--agent-id` on `claim` |
+| **Event author** | Who performed an action | `--author` on any command |
+
+The `--author` flag appears on many commands (checkpoint, comment, block, etc.) to record who performed each action:
+
+```bash
+# Task owned by Alice
 hzl task claim 1 --author "Alice"
 
-# Anonymous claim (still valid, but harder to audit)
-hzl task claim 1
+# Bob adds a checkpoint (doesn't change ownership)
+hzl task checkpoint 1 "Fixed the bug" --author "Bob"
+
+# The task is still assigned to Alice, but the checkpoint was recorded by Bob
 ```
+
+This separation lets you track contributions even when someone else owns the task.
 
 ### Why Claim?
 
