@@ -16,9 +16,6 @@
     ["@semantic-release/changelog", {
       "changelogFile": "CHANGELOG.md"
     }],
-    ["@semantic-release/exec", {
-      "prepareCmd": "node scripts/sync-versions.js ${nextRelease.version} && npm install --package-lock-only"
-    }],
     ["@semantic-release/npm", {
       "pkgRoot": "packages/hzl-core",
       "provenance": true
@@ -30,6 +27,9 @@
     ["@semantic-release/npm", {
       "pkgRoot": "packages/hzl-cli",
       "provenance": true
+    }],
+    ["@semantic-release/exec", {
+      "prepareCmd": "node scripts/sync-versions.js ${nextRelease.version} && npm install --package-lock-only"
     }],
     ["@semantic-release/git", {
       "assets": [
