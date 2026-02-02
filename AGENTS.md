@@ -238,3 +238,25 @@ README.md and AGENTS.md include content from external snippet files. This keeps 
 4. The action commits the updated files
 
 **To edit the snippet:** Edit `docs/snippets/agent-policy.md`, not the content between markers.
+
+### ⚠️ Skills to Update When CLI Changes
+
+When adding or modifying CLI commands, flags, or workflows, **update BOTH skills**:
+
+| Skill | Path | Purpose |
+|-------|------|---------|
+| **Claude Code skill** | `packages/hzl-marketplace/plugins/hzl-skills/skills/hzl-task-management/SKILL.md` | For Claude Code users |
+| **OpenClaw skill** | `docs/openclaw/skills/hzl/SKILL.md` | For OpenClaw users |
+
+**Changes that require skill updates:**
+- New CLI commands (e.g., `block`, `unblock`, `progress`)
+- New or renamed flags (e.g., `--agent-id`, `--progress`)
+- Changed command behavior or workflows
+- New concepts (e.g., authorship tracking, blocked status)
+
+**Also update:**
+- `README.md` — CLI reference section
+- `docs/snippets/agent-policy.md` — Key commands list
+- `docs/concepts/tasks.md` — Detailed documentation
+
+Forgetting to update skills means AI agents won't know about new features.
