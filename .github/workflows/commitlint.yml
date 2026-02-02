@@ -14,3 +14,7 @@ jobs:
         with:
           fetch-depth: 0
       - uses: wagoid/commitlint-github-action@v6
+        with:
+          # Use commit range from base branch instead of PR API
+          # This avoids "Not Found" errors after force pushes
+          firstParent: false
