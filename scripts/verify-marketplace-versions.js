@@ -6,21 +6,22 @@
  * Usage: node scripts/verify-marketplace-versions.js [expected-version]
  *
  * If expected-version is provided, all files must match it.
- * If not provided, all files must match each other.
+ * If not provided, all files must match each other (and CLI version).
  */
 const fs = require('fs');
 
-const marketplaceFiles = [
-  { path: './.claude-plugin/marketplace.json', versionPath: 'metadata.version' },
-  { path: './packages/hzl-marketplace/.claude-plugin/marketplace.json', versionPath: 'metadata.version' },
-  { path: './packages/hzl-marketplace/plugins/hzl/.claude-plugin/plugin.json', versionPath: 'version' }
+// Files to check for version consistency
+const versionFiles = [
+  { path: './packages/hzl-cli/package.json', versionPath: 'version', label: 'hzl-cli' },
+  { path: './.claude-plugin/plugin.json', versionPath: 'version', label: 'plugin.json' },
+  { path: './.claude-plugin/marketplace.json', versionPath: 'plugins.0.version', label: 'marketplace.json plugin' }
 ];
 
 const expectedVersion = process.argv[2];
 const versions = [];
 let hasError = false;
 
-for (const { path: filePath, versionPath } of marketplaceFiles) {
+for (const { path: filePath, versionPath, label } of versionFiles) {
   if (!fs.existsSync(filePath)) {
     console.error(`ERROR: File not found: ${filePath}`);
     hasError = true;
@@ -36,21 +37,8 @@ for (const { path: filePath, versionPath } of marketplaceFiles) {
     continue;
   }
 
-  versions.push({ filePath, version });
-  console.log(`${filePath}: ${version}`);
-}
-
-// Also check plugin versions in marketplace files
-for (const { path: filePath } of marketplaceFiles.slice(0, 2)) {
-  if (!fs.existsSync(filePath)) continue;
-
-  const json = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-  if (json.plugins) {
-    for (const plugin of json.plugins) {
-      versions.push({ filePath: `${filePath} -> plugins[${plugin.name}]`, version: plugin.version });
-      console.log(`${filePath} -> plugins[${plugin.name}]: ${plugin.version}`);
-    }
-  }
+  versions.push({ label, filePath, version });
+  console.log(`${label}: ${version}`);
 }
 
 if (hasError) {
@@ -64,14 +52,17 @@ if (expectedVersion) {
   const mismatches = versions.filter(v => v.version !== expectedVersion);
   if (mismatches.length > 0) {
     console.error(`\nERROR: Expected version ${expectedVersion}, but found mismatches:`);
-    for (const { filePath, version } of mismatches) {
-      console.error(`  ${filePath}: ${version}`);
+    for (const { label, version } of mismatches) {
+      console.error(`  ${label}: ${version}`);
     }
     process.exit(1);
   }
   console.log(`\nAll versions match expected: ${expectedVersion}`);
 } else if (uniqueVersions.length > 1) {
-  console.error(`\nERROR: Version mismatch detected. Found versions: ${uniqueVersions.join(', ')}`);
+  console.error(`\nERROR: Version mismatch detected:`);
+  for (const { label, version } of versions) {
+    console.error(`  ${label}: ${version}`);
+  }
   process.exit(1);
 } else {
   console.log(`\nAll versions consistent: ${uniqueVersions[0]}`);
