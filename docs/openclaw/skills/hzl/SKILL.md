@@ -82,8 +82,13 @@ hzl task next --project <project>
 # Work + persist progress
 hzl task claim <id> --author <agent-id>
 hzl task checkpoint <id> "<what changed / what's next>"
+hzl task progress <id> 50                     # Set progress (0-100)
 hzl task show <id> --json
 hzl task complete <id>
+
+# Blocked tasks (stuck on external issues)
+hzl task block <id> --reason "Waiting for API key"
+hzl task unblock <id>                         # Returns to in_progress
 
 # Dependencies + validation
 hzl task add-dep <task-id> <depends-on-id>
@@ -107,6 +112,32 @@ hzl task steal <id> --if-expired --author <agent-id>
 
 Tip: When a tool needs to parse output, prefer `--json`.
 
+## Authorship tracking
+
+HZL tracks authorship at two levels:
+
+| Concept | What it tracks | Set by |
+|---------|----------------|--------|
+| **Assignee** | Who owns the task | `--author` on `claim` |
+| **Event author** | Who performed an action | `--author` on any command |
+
+The `--author` flag appears on many commands (checkpoint, comment, block, etc.) to record who performed each action. This is separate from task ownership:
+
+```bash
+# Alice owns the task
+hzl task claim 1 --author alice
+
+# Bob adds a checkpoint (doesn't change ownership)
+hzl task checkpoint 1 "Reviewed the code" --author bob
+
+# Task is still assigned to Alice, but checkpoint was recorded by Bob
+```
+
+For AI agents that need session tracking, use `--agent-id` on claim:
+```bash
+hzl task claim 1 --author "Claude Code" --agent-id "session-abc123"
+```
+
 ## Recommended patterns
 
 ### Start a multi-step project
@@ -128,7 +159,7 @@ hzl task add "Docs + rollout plan" -P myapp-auth --priority 1 --depends-on <test
 hzl validate
 ```
 
-### Work a task with checkpoints
+### Work a task with checkpoints and progress
 
 Checkpoint early and often. A checkpoint should be short and operational:
 - what you verified
@@ -139,9 +170,29 @@ Checkpoint early and often. A checkpoint should be short and operational:
 ```bash
 hzl task claim <id> --author orchestrator
 # ...do work...
-hzl task checkpoint <id> "Implemented login flow. Next: add token refresh. Blocker: need API key for staging."
+hzl task checkpoint <id> "Implemented login flow. Next: add token refresh."
+hzl task progress <id> 50   # 50% complete
+# ...more work...
+hzl task progress <id> 100
 hzl task complete <id>
 ```
+
+### Handle blocked tasks
+
+When stuck on external dependencies, mark the task as blocked:
+
+```bash
+hzl task claim <id> --author orchestrator
+hzl task checkpoint <id> "Implemented login flow. Blocked: need API key for staging."
+hzl task block <id> --reason "Waiting for staging API key from DevOps"
+
+# Later, when unblocked:
+hzl task unblock <id>
+hzl task checkpoint <id> "Got API key, resuming work"
+hzl task complete <id>
+```
+
+Blocked tasks stay visible in the dashboard (Blocked column) and keep their assignee, but don't appear in `--available` lists.
 
 ### Coordinate sub-agents with leases
 
