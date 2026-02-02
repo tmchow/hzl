@@ -21,44 +21,53 @@ hzl init
 
 ## Installation
 
-1. **Download the HZL skill**:
-   ```bash
-   mkdir -p ~/.codex/skills/hzl
-   curl -o ~/.codex/skills/hzl/SKILL.md \
-     https://raw.githubusercontent.com/tmchow/hzl/main/skills/hzl/SKILL.md
-   ```
+### Step 1: Download the HZL skill
 
-2. **Update ~/.codex/AGENTS.md** to include this HZL section:
-   ```markdown
-   ## HZL Task Tracking
+```bash
+mkdir -p ~/.codex/skills/hzl
+curl -o ~/.codex/skills/hzl/SKILL.md \
+  https://raw.githubusercontent.com/tmchow/hzl/main/skills/hzl/SKILL.md
+```
 
-   <EXTREMELY_IMPORTANT>
-   You have the HZL skill (`$hzl`) for persistent, structured task tracking.
+### Step 2: Add HZL guidance to AGENTS.md
 
-   **HZL excels at (strongly consider using it for):**
-   - Complex plans with **nesting** (parent tasks + subtasks)
-   - Tasks with **dependencies** (task B waits for task A)
-   - Need **visibility** into progress (web dashboard at `hzl serve`)
-   - **Long-running work** where checkpoints help track progress
-   - Work spanning **multiple sessions** or days
-   - **Multi-agent** coordination
+**Ask the user:** "Do you want HZL available in all projects (user-wide) or just this project?"
 
-   **Your native tools (`update_plan`) may be fine for:**
-   - Simple flat checklists
-   - Quick ephemeral notes within a short session
-   - Trivial tasks that don't need persistence
+- **User-wide**: Add the section below to `~/.codex/AGENTS.md`
+- **Project-specific**: Add the section below to `./AGENTS.md` in the current repository
 
-   **Key differences:**
-   - HZL persists across sessions; `update_plan` is session-local
-   - HZL supports nesting and dependencies; native tools are flat
-   - HZL has a web dashboard; native tools are context-only
+Add this section to the chosen AGENTS.md file:
 
-   Use your judgment. For anything non-trivial, HZL is usually the better choice.
+```markdown
+## HZL Task Tracking
 
-   Skill location: ~/.codex/skills/hzl/SKILL.md
-   Invoke with `$hzl` to load full instructions.
-   </EXTREMELY_IMPORTANT>
-   ```
+<EXTREMELY_IMPORTANT>
+You have the HZL skill (`$hzl`) for persistent, structured task tracking.
+
+**HZL excels at (strongly consider using it for):**
+- Complex plans with **nesting** (parent tasks + subtasks)
+- Tasks with **dependencies** (task B waits for task A)
+- Need **visibility** into progress (web dashboard at `hzl serve`)
+- **Long-running work** where checkpoints help track progress
+- Work spanning **multiple sessions** or days
+- **Multi-agent** coordination
+
+**Your native tools (`update_plan`) may be fine for:**
+- Simple flat checklists
+- Quick ephemeral notes within a short session
+- Trivial tasks that don't need persistence
+
+**Key differences:**
+- HZL persists across sessions; `update_plan` is session-local
+- HZL supports nesting and dependencies; native tools are flat
+- HZL has a web dashboard; native tools are context-only
+
+Use your judgment. For anything non-trivial, HZL is usually the better choice.
+
+Skill location: ~/.codex/skills/hzl/SKILL.md
+Invoke with `$hzl` to load full instructions.
+</EXTREMELY_IMPORTANT>
+```
 
 ## Verification
 
