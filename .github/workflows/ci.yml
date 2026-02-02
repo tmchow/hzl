@@ -37,6 +37,9 @@ jobs:
       - name: Run lint
         run: npm run lint
 
+      - name: Verify snippets in sync
+        run: node scripts/sync-snippets.js --check
+
       - name: Verify marketplace versions
         run: npm run verify:marketplace
 
