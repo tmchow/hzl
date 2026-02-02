@@ -27,9 +27,11 @@ Tasks move through these statuses:
 |--------|---------|
 | `ready` | Available to be claimed |
 | `in_progress` | Someone is working on it |
-| `blocked` | Waiting on dependencies |
+| `blocked` | Stuck on an external issue |
 | `done` | Work complete |
 | `archived` | No longer relevant |
+
+Note: `blocked` is different from dependency blocking. A task with unmet dependencies won't appear in `--available` lists, but its status remains `ready`. The `blocked` status is for tasks that are stuck due to external issues (waiting for API access, human decision, etc.).
 
 ## Claiming Tasks
 
@@ -39,11 +41,14 @@ Before working on a task, claim it:
 hzl task claim <id> --author claude-code
 ```
 
-The `--author` flag identifies who's working:
-- `claude-code` - Claude Code agent
-- `codex` - OpenAI Codex
-- `human` - Manual work
-- Any identifier you choose
+Use `--author` for human-readable names or `--agent-id` for machine identifiers:
+- `--author "Alice"` - Human name
+- `--agent-id claude-code-abc123` - Machine/AI identifier
+
+Both can be used together:
+```bash
+hzl task claim 1 --author "Claude Code" --agent-id "session-xyz"
+```
 
 ### Why Claim?
 
@@ -63,6 +68,37 @@ Checkpoints:
 - Preserve context for future sessions
 - Show progress in the dashboard
 - Help other agents understand status
+
+### Progress Percentage
+
+Track completion with a 0-100 progress value:
+
+```bash
+hzl task progress <id> 50   # 50% complete
+```
+
+Progress is shown in `hzl task show` and the web dashboard.
+
+## Blocking Tasks
+
+When a task is stuck waiting on external factors, mark it blocked:
+
+```bash
+hzl task block <id> --reason "Waiting for API credentials"
+```
+
+Blocked tasks:
+- Stay visible in the dashboard (Blocked column)
+- Keep their assignee
+- Don't appear in `--available` lists
+
+To resume work:
+
+```bash
+hzl task unblock <id>
+```
+
+This returns the task to `in_progress` status.
 
 ## Completing Tasks
 
@@ -149,5 +185,6 @@ hzl task complete 1
 1. **Keep tasks small** - 1-2 hours of focused work
 2. **Use descriptive titles** - Future you will thank you
 3. **Checkpoint frequently** - Preserve context
-4. **Always use --author** - Track who did what
-5. **Complete or archive** - Don't leave tasks hanging
+4. **Always identify yourself** - Use `--author` or `--agent-id` to track who did what
+5. **Block when stuck** - Use `hzl task block` instead of leaving tasks in limbo
+6. **Complete or archive** - Don't leave tasks hanging
