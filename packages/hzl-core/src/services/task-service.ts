@@ -23,6 +23,7 @@ export interface CreateTaskInput {
   priority?: number;
   due_at?: string;
   metadata?: Record<string, unknown>;
+  assignee?: string;
 }
 
 export interface EventContext {
@@ -43,6 +44,7 @@ export interface ClaimNextOptions {
   project?: string;
   tags?: string[];
   lease_until?: string;
+  assignee?: string;
 }
 
 export interface StealOptions {
@@ -63,8 +65,7 @@ export interface StuckTask {
   title: string;
   project: string;
   claimed_at: string;
-  claimed_by_author: string | null;
-  claimed_by_agent_id: string | null;
+  assignee: string | null;
   lease_until: string | null;
 }
 
@@ -102,7 +103,7 @@ export interface TaskListItem {
   project: string;
   status: TaskStatus;
   priority: number;
-  claimed_by_agent_id: string | null;
+  assignee: string | null;
   lease_until: string | null;
   updated_at: string;
 }
@@ -126,8 +127,8 @@ export interface Task {
   due_at: string | null;
   metadata: Record<string, unknown>;
   claimed_at: string | null;
-  claimed_by_author: string | null;
-  claimed_by_agent_id: string | null;
+  assignee: string | null;
+  progress: number | null;
   lease_until: string | null;
   created_at: string;
   updated_at: string;
@@ -146,8 +147,8 @@ type TaskRow = {
   due_at: string | null;
   metadata: string;
   claimed_at: string | null;
-  claimed_by_author: string | null;
-  claimed_by_agent_id: string | null;
+  assignee: string | null;
+  progress: number | null;
   lease_until: string | null;
   created_at: string;
   updated_at: string;
@@ -173,6 +174,16 @@ export class DependenciesNotDoneError extends Error {
   }
 }
 
+/**
+ * Validate progress value is an integer between 0 and 100.
+ * @throws Error if progress is invalid
+ */
+function validateProgress(progress: number): void {
+  if (progress < 0 || progress > 100 || !Number.isInteger(progress)) {
+    throw new Error('Progress must be an integer between 0 and 100');
+  }
+}
+
 export class TaskService {
   private getIncompleteDepsStmt: Database.Statement;
   private getSubtasksStmt: Database.Statement;
@@ -194,7 +205,7 @@ export class TaskService {
     this.getSubtasksStmt = db.prepare(`
       SELECT task_id, title, project, status, parent_id, description,
              links, tags, priority, due_at, metadata,
-             claimed_at, claimed_by_author, claimed_by_agent_id, lease_until,
+             claimed_at, assignee, progress, lease_until,
              created_at, updated_at
       FROM tasks_current
       WHERE parent_id = ?
@@ -390,14 +401,15 @@ export class TaskService {
     return withWriteTransaction(this.db, () => {
       const task = this.getTaskById(taskId);
       if (!task) throw new TaskNotFoundError(taskId);
-      if (task.status !== TaskStatus.InProgress) {
-        throw new Error(`Cannot complete: status is ${task.status}, must be in_progress`);
+      // Allow completing from both in_progress and blocked status
+      if (task.status !== TaskStatus.InProgress && task.status !== TaskStatus.Blocked) {
+        throw new Error(`Cannot complete: status is ${task.status}, must be in_progress or blocked`);
       }
 
       const event = this.eventStore.append({
         task_id: taskId,
         type: EventType.StatusChanged,
-        data: { from: TaskStatus.InProgress, to: TaskStatus.Done },
+        data: { from: task.status, to: TaskStatus.Done },
         author: ctx?.author,
         agent_id: ctx?.agent_id,
       });
@@ -537,6 +549,82 @@ export class TaskService {
     });
   }
 
+  /**
+   * Block a task that is stuck waiting for external dependencies.
+   * Only tasks in 'in_progress' status can be blocked.
+   */
+  blockTask(taskId: string, opts?: { reason?: string } & EventContext): Task {
+    return withWriteTransaction(this.db, () => {
+      const task = this.getTaskById(taskId);
+      if (!task) throw new TaskNotFoundError(taskId);
+      if (task.status !== TaskStatus.InProgress) {
+        throw new Error(`Cannot block: status is ${task.status}, expected in_progress`);
+      }
+
+      const event = this.eventStore.append({
+        task_id: taskId,
+        type: EventType.StatusChanged,
+        data: { from: TaskStatus.InProgress, to: TaskStatus.Blocked, reason: opts?.reason },
+        author: opts?.author,
+        agent_id: opts?.agent_id,
+      });
+
+      this.projectionEngine.applyEvent(event);
+      return this.getTaskById(taskId)!;
+    });
+  }
+
+  /**
+   * Unblock a blocked task, returning it to work.
+   * By default returns to 'in_progress', use release=true to return to 'ready'.
+   */
+  unblockTask(taskId: string, opts?: { release?: boolean; reason?: string } & EventContext): Task {
+    return withWriteTransaction(this.db, () => {
+      const task = this.getTaskById(taskId);
+      if (!task) throw new TaskNotFoundError(taskId);
+      if (task.status !== TaskStatus.Blocked) {
+        throw new Error(`Cannot unblock: status is ${task.status}, expected blocked`);
+      }
+
+      const toStatus = opts?.release ? TaskStatus.Ready : TaskStatus.InProgress;
+
+      const event = this.eventStore.append({
+        task_id: taskId,
+        type: EventType.StatusChanged,
+        data: { from: TaskStatus.Blocked, to: toStatus, reason: opts?.reason },
+        author: opts?.author,
+        agent_id: opts?.agent_id,
+      });
+
+      this.projectionEngine.applyEvent(event);
+      return this.getTaskById(taskId)!;
+    });
+  }
+
+  /**
+   * Set progress (0-100) on a task.
+   * Implemented via CheckpointRecorded event with auto-generated checkpoint name.
+   */
+  setProgress(taskId: string, progress: number, opts?: EventContext): Task {
+    validateProgress(progress);
+
+    return withWriteTransaction(this.db, () => {
+      const task = this.getTaskById(taskId);
+      if (!task) throw new TaskNotFoundError(taskId);
+
+      const event = this.eventStore.append({
+        task_id: taskId,
+        type: EventType.CheckpointRecorded,
+        data: { name: `Progress updated to ${progress}%`, progress },
+        author: opts?.author,
+        agent_id: opts?.agent_id,
+      });
+
+      this.projectionEngine.applyEvent(event);
+      return this.getTaskById(taskId)!;
+    });
+  }
+
   stealTask(taskId: string, opts: StealOptions): StealResult {
     return withWriteTransaction(this.db, () => {
       const task = this.getTaskById(taskId);
@@ -566,13 +654,6 @@ export class TaskService {
 
       this.projectionEngine.applyEvent(event);
 
-      // Update claim info
-      this.db.prepare(`
-        UPDATE tasks_current SET
-          claimed_at = ?, claimed_by_author = ?, claimed_by_agent_id = ?, lease_until = ?, updated_at = ?, last_event_id = ?
-        WHERE task_id = ?
-      `).run(new Date().toISOString(), opts.author ?? null, opts.agent_id ?? null, opts.lease_until ?? null, new Date().toISOString(), event.rowid, taskId);
-
       return { success: true };
     });
   }
@@ -581,7 +662,7 @@ export class TaskService {
     const cutoffTime = new Date(Date.now() - opts.olderThan).toISOString();
 
     let query = `
-      SELECT task_id, title, project, claimed_at, claimed_by_author, claimed_by_agent_id, lease_until
+      SELECT task_id, title, project, claimed_at, assignee, lease_until
       FROM tasks_current WHERE status = 'in_progress' AND claimed_at < ?
     `;
     const params: Array<string | number> = [cutoffTime];
@@ -772,17 +853,26 @@ export class TaskService {
     });
   }
 
-  addCheckpoint(taskId: string, name: string, data?: Record<string, unknown>, opts?: EventContext): Checkpoint {
+  addCheckpoint(taskId: string, name: string, data?: Record<string, unknown>, opts?: { progress?: number } & EventContext): Checkpoint {
     if (!name?.trim()) throw new Error('Checkpoint name cannot be empty');
     const task = this.getTaskById(taskId);
     if (!task) throw new TaskNotFoundError(taskId);
 
+    if (opts?.progress !== undefined) {
+      validateProgress(opts.progress);
+    }
+
     const checkpointData = data ?? {};
     return withWriteTransaction(this.db, () => {
+      const eventData: { name: string; data: Record<string, unknown>; progress?: number } = { name, data: checkpointData };
+      if (opts?.progress !== undefined) {
+        eventData.progress = opts.progress;
+      }
+
       const event = this.eventStore.append({
         task_id: taskId,
         type: EventType.CheckpointRecorded,
-        data: { name, data: checkpointData },
+        data: eventData,
         author: opts?.author,
         agent_id: opts?.agent_id,
       });
@@ -845,9 +935,9 @@ export class TaskService {
     if (project) {
       rows = this.db.prepare(`
         SELECT task_id, title, project, status, priority,
-               claimed_by_agent_id, lease_until, updated_at,
+               assignee, progress, lease_until, updated_at,
                parent_id, description, links, tags, due_at, metadata,
-               claimed_at, claimed_by_author, created_at
+               claimed_at, created_at
         FROM tasks_current
         WHERE status != 'archived'
           AND updated_at >= datetime('now', ?)
@@ -857,9 +947,9 @@ export class TaskService {
     } else {
       rows = this.db.prepare(`
         SELECT task_id, title, project, status, priority,
-               claimed_by_agent_id, lease_until, updated_at,
+               assignee, progress, lease_until, updated_at,
                parent_id, description, links, tags, due_at, metadata,
-               claimed_at, claimed_by_author, created_at
+               claimed_at, created_at
         FROM tasks_current
         WHERE status != 'archived'
           AND updated_at >= datetime('now', ?)
@@ -873,7 +963,7 @@ export class TaskService {
       project: row.project,
       status: row.status,
       priority: row.priority,
-      claimed_by_agent_id: row.claimed_by_agent_id,
+      assignee: row.assignee,
       lease_until: row.lease_until,
       updated_at: row.updated_at,
     }));
@@ -1164,8 +1254,8 @@ export class TaskService {
       due_at: row.due_at,
       metadata: JSON.parse(row.metadata) as Record<string, unknown>,
       claimed_at: row.claimed_at,
-      claimed_by_author: row.claimed_by_author,
-      claimed_by_agent_id: row.claimed_by_agent_id,
+      assignee: row.assignee,
+      progress: row.progress,
       lease_until: row.lease_until,
       created_at: row.created_at,
       updated_at: row.updated_at,

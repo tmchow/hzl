@@ -9,7 +9,7 @@ export interface StealResult {
   task_id: string;
   title: string;
   status: string;
-  claimed_by_author: string | null;
+  assignee: string | null;
   stolen_from: string | null;
 }
 
@@ -34,7 +34,7 @@ export function runSteal(options: {
     throw new CLIError(`Task not found: ${taskId}`, ExitCode.NotFound);
   }
 
-  const previousOwner = task.claimed_by_author;
+  const previousOwner = task.assignee;
 
   // Check if we're allowed to steal (pre-validation)
   if (!force && !ifExpired) {
@@ -48,7 +48,7 @@ export function runSteal(options: {
       if (leaseExpiry > new Date()) {
         throw new CLIError(`Task lease has not expired (expires ${task.lease_until})`, ExitCode.InvalidInput);
       }
-    } else if (task.claimed_by_author) {
+    } else if (task.assignee) {
       // No lease set, but task is claimed - require force
       throw new CLIError(`Task is claimed but has no lease. Use --force to steal.`, ExitCode.InvalidInput);
     }
@@ -73,7 +73,7 @@ export function runSteal(options: {
     task_id: stolenTask.task_id,
     title: stolenTask.title,
     status: stolenTask.status,
-    claimed_by_author: stolenTask.claimed_by_author,
+    assignee: stolenTask.assignee,
     stolen_from: previousOwner,
   };
 

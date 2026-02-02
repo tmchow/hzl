@@ -36,7 +36,7 @@ describe('runClaim', () => {
 
     expect(result.task_id).toBe(task.task_id);
     expect(result.status).toBe(TaskStatus.InProgress);
-    expect(result.claimed_by_author).toBe('test-agent');
+    expect(result.assignee).toBe('test-agent');
   });
 
   it('sets lease when specified', () => {

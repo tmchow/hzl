@@ -1,19 +1,19 @@
-// packages/hzl-cli/src/commands/release.test.ts
+// packages/hzl-cli/src/commands/task/block.test.ts
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { runRelease } from './release.js';
+import { runBlock } from './block.js';
 import { initializeDbFromPath, closeDb, type Services } from '../../db.js';
 import { TaskStatus } from 'hzl-core/events/types.js';
 
-describe('runRelease', () => {
+describe('runBlock', () => {
   let tempDir: string;
   let dbPath: string;
   let services: Services;
 
   beforeEach(() => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hzl-release-test-'));
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hzl-block-test-'));
     dbPath = path.join(tempDir, 'test.db');
     services = initializeDbFromPath(dbPath);
   });
@@ -23,33 +23,33 @@ describe('runRelease', () => {
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
-  it('releases a claimed task', () => {
+  it('blocks an in_progress task', () => {
     const task = services.taskService.createTask({ title: 'Test', project: 'inbox' });
     services.taskService.setStatus(task.task_id, TaskStatus.Ready);
-    services.taskService.claimTask(task.task_id);
+    services.taskService.claimTask(task.task_id, { author: 'agent-1' });
 
-    const result = runRelease({
+    const result = runBlock({
       services,
       taskId: task.task_id,
+      reason: 'Waiting for API keys',
       json: false,
     });
 
-    expect(result.status).toBe(TaskStatus.Ready);
-    expect(result.assignee).toBeNull();
+    expect(result.status).toBe('blocked');
+    expect(result.assignee).toBe('agent-1');
   });
 
-  it('accepts a reason', () => {
+  it('preserves assignee when blocked', () => {
     const task = services.taskService.createTask({ title: 'Test', project: 'inbox' });
     services.taskService.setStatus(task.task_id, TaskStatus.Ready);
-    services.taskService.claimTask(task.task_id);
+    services.taskService.claimTask(task.task_id, { author: 'agent-1' });
 
-    const result = runRelease({
+    const result = runBlock({
       services,
       taskId: task.task_id,
-      reason: 'blocked on external dependency',
       json: false,
     });
 
-    expect(result.status).toBe(TaskStatus.Ready);
+    expect(result.assignee).toBe('agent-1');
   });
 });

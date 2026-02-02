@@ -192,7 +192,7 @@ describe('TaskService', () => {
       const claimed = taskService.claimTask(task.task_id, { author: 'agent-1' });
 
       expect(claimed.status).toBe(TaskStatus.InProgress);
-      expect(claimed.claimed_by_author).toBe('agent-1');
+      expect(claimed.assignee).toBe('agent-1');
       expect(claimed.claimed_at).toBeDefined();
     });
 
@@ -384,7 +384,7 @@ describe('TaskService', () => {
 
       expect(result.success).toBe(true);
       const stolen = taskService.getTaskById(task.task_id);
-      expect(stolen!.claimed_by_author).toBe('agent-2');
+      expect(stolen!.assignee).toBe('agent-2');
     });
 
     it('steals task with ifExpired=true only when lease is expired', () => {
@@ -867,6 +867,137 @@ describe('TaskService', () => {
       const available = taskService.getAvailableTasks({ leafOnly: false });
       expect(available).toHaveLength(2);
       expect(available.map(t => t.title).sort()).toEqual(['Child', 'Parent']);
+    });
+  });
+
+  describe('blockTask', () => {
+    it('blocks an in_progress task', () => {
+      const task = taskService.createTask({ title: 'Test', project: 'inbox' });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+      taskService.claimTask(task.task_id, { author: 'agent-1' });
+
+      const blocked = taskService.blockTask(task.task_id, { reason: 'Waiting for API keys' });
+      expect(blocked.status).toBe(TaskStatus.Blocked);
+      // Assignee should persist
+      expect(blocked.assignee).toBe('agent-1');
+    });
+
+    it('throws when task is not in_progress', () => {
+      const task = taskService.createTask({ title: 'Test', project: 'inbox' });
+      expect(() => taskService.blockTask(task.task_id))
+        .toThrow('Cannot block: status is backlog, expected in_progress');
+    });
+
+    it('clears lease_until when blocked', () => {
+      const task = taskService.createTask({ title: 'Test', project: 'inbox' });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+      const leaseTime = new Date(Date.now() + 3600000).toISOString();
+      taskService.claimTask(task.task_id, { author: 'agent-1', lease_until: leaseTime });
+
+      const before = taskService.getTaskById(task.task_id);
+      expect(before?.lease_until).toBe(leaseTime);
+
+      const blocked = taskService.blockTask(task.task_id);
+      expect(blocked.lease_until).toBeNull();
+    });
+  });
+
+  describe('unblockTask', () => {
+    it('unblocks to in_progress by default', () => {
+      const task = taskService.createTask({ title: 'Test', project: 'inbox' });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+      taskService.claimTask(task.task_id, { author: 'agent-1' });
+      taskService.blockTask(task.task_id);
+
+      const unblocked = taskService.unblockTask(task.task_id);
+      expect(unblocked.status).toBe(TaskStatus.InProgress);
+      expect(unblocked.assignee).toBe('agent-1');
+    });
+
+    it('unblocks to ready with release option', () => {
+      const task = taskService.createTask({ title: 'Test', project: 'inbox' });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+      taskService.claimTask(task.task_id, { author: 'agent-1' });
+      taskService.blockTask(task.task_id);
+
+      const released = taskService.unblockTask(task.task_id, { release: true });
+      expect(released.status).toBe(TaskStatus.Ready);
+      // Assignee still persists even when released
+      expect(released.assignee).toBe('agent-1');
+    });
+
+    it('throws when task is not blocked', () => {
+      const task = taskService.createTask({ title: 'Test', project: 'inbox' });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+      taskService.claimTask(task.task_id);
+
+      expect(() => taskService.unblockTask(task.task_id))
+        .toThrow('Cannot unblock: status is in_progress, expected blocked');
+    });
+  });
+
+  describe('setProgress', () => {
+    it('sets progress on a task', () => {
+      const task = taskService.createTask({ title: 'Test', project: 'inbox' });
+      const updated = taskService.setProgress(task.task_id, 50);
+      expect(updated.progress).toBe(50);
+    });
+
+    it('creates a checkpoint event for progress', () => {
+      const task = taskService.createTask({ title: 'Test', project: 'inbox' });
+      taskService.setProgress(task.task_id, 75);
+
+      const checkpoints = taskService.getCheckpoints(task.task_id);
+      expect(checkpoints).toHaveLength(1);
+      expect(checkpoints[0].name).toBe('Progress updated to 75%');
+    });
+
+    it('validates progress is 0-100', () => {
+      const task = taskService.createTask({ title: 'Test', project: 'inbox' });
+      expect(() => taskService.setProgress(task.task_id, -1))
+        .toThrow('Progress must be an integer between 0 and 100');
+      expect(() => taskService.setProgress(task.task_id, 101))
+        .toThrow('Progress must be an integer between 0 and 100');
+      expect(() => taskService.setProgress(task.task_id, 50.5))
+        .toThrow('Progress must be an integer between 0 and 100');
+    });
+
+    it('allows setting progress to 0 and 100', () => {
+      const task = taskService.createTask({ title: 'Test', project: 'inbox' });
+      taskService.setProgress(task.task_id, 0);
+      expect(taskService.getTaskById(task.task_id)?.progress).toBe(0);
+
+      taskService.setProgress(task.task_id, 100);
+      expect(taskService.getTaskById(task.task_id)?.progress).toBe(100);
+    });
+  });
+
+  describe('addCheckpoint with progress', () => {
+    it('sets progress when included in checkpoint', () => {
+      const task = taskService.createTask({ title: 'Test', project: 'inbox' });
+      taskService.addCheckpoint(task.task_id, 'Phase 1 complete', {}, { progress: 25 });
+
+      const updated = taskService.getTaskById(task.task_id);
+      expect(updated?.progress).toBe(25);
+    });
+
+    it('validates progress in checkpoint', () => {
+      const task = taskService.createTask({ title: 'Test', project: 'inbox' });
+      expect(() => taskService.addCheckpoint(task.task_id, 'Bad', {}, { progress: 150 }))
+        .toThrow('Progress must be an integer between 0 and 100');
+    });
+  });
+
+  describe('completeTask from blocked', () => {
+    it('allows completing a blocked task', () => {
+      const task = taskService.createTask({ title: 'Test', project: 'inbox' });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+      taskService.claimTask(task.task_id, { author: 'agent-1' });
+      taskService.blockTask(task.task_id);
+
+      const completed = taskService.completeTask(task.task_id);
+      expect(completed.status).toBe(TaskStatus.Done);
+      expect(completed.assignee).toBe('agent-1');
     });
   });
 });

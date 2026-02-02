@@ -9,14 +9,13 @@ export interface ClaimResult {
   task_id: string;
   title: string;
   status: string;
-  claimed_by_author: string | null;
-  claimed_by_agent_id: string | null;
+  assignee: string | null;
   lease_until: string | null;
 }
 
 interface ClaimCommandOptions {
   author?: string;
-  agent?: string;
+  agentId?: string;
   lease?: string;
 }
 
@@ -42,8 +41,7 @@ export function runClaim(options: {
     task_id: task.task_id,
     title: task.title,
     status: task.status,
-    claimed_by_author: task.claimed_by_author,
-    claimed_by_agent_id: task.claimed_by_agent_id,
+    assignee: task.assignee,
     lease_until: task.lease_until,
   };
 
@@ -63,8 +61,8 @@ export function createClaimCommand(): Command {
   return new Command('claim')
     .description('Claim a task')
     .argument('<taskId>', 'Task ID')
-    .option('--author <name>', 'Author name')
-    .option('--agent <id>', 'Agent ID')
+    .option('--author <name>', 'Author name (human identifier)')
+    .option('--agent-id <id>', 'Agent ID (machine/AI identifier)')
     .option('-l, --lease <minutes>', 'Lease duration in minutes')
     .action(function (this: Command, taskId: string, opts: ClaimCommandOptions) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
@@ -75,7 +73,7 @@ export function createClaimCommand(): Command {
           services,
           taskId,
           author: opts.author,
-          agentId: opts.agent,
+          agentId: opts.agentId,
           leaseMinutes: opts.lease ? parseInt(opts.lease, 10) : undefined,
           json: globalOpts.json ?? false,
         });

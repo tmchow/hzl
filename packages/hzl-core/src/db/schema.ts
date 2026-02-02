@@ -76,7 +76,7 @@ CREATE TABLE IF NOT EXISTS tasks_current (
     task_id            TEXT PRIMARY KEY,
     title              TEXT NOT NULL,
     project            TEXT NOT NULL,
-    status             TEXT NOT NULL CHECK (status IN ('backlog','ready','in_progress','done','archived')),
+    status             TEXT NOT NULL CHECK (status IN ('backlog','ready','in_progress','blocked','done','archived')),
     parent_id          TEXT,
     description        TEXT,
     links              TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(links)),
@@ -85,8 +85,8 @@ CREATE TABLE IF NOT EXISTS tasks_current (
     due_at             TEXT,
     metadata           TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(metadata)),
     claimed_at         TEXT,
-    claimed_by_author  TEXT,
-    claimed_by_agent_id TEXT,
+    assignee           TEXT,
+    progress           INTEGER CHECK (progress >= 0 AND progress <= 100),
     lease_until        TEXT,
     created_at         TEXT NOT NULL,
     updated_at         TEXT NOT NULL,
@@ -146,6 +146,7 @@ CREATE INDEX IF NOT EXISTS idx_projects_protected ON projects(is_protected);
 
 -- Indexes for tasks_current
 CREATE INDEX IF NOT EXISTS idx_tasks_current_project_status ON tasks_current(project, status);
+CREATE INDEX IF NOT EXISTS idx_tasks_current_status ON tasks_current(status);
 CREATE INDEX IF NOT EXISTS idx_tasks_current_priority ON tasks_current(project, priority, created_at);
 CREATE INDEX IF NOT EXISTS idx_tasks_current_claim_next ON tasks_current(project, status, priority DESC, created_at ASC, task_id ASC);
 CREATE INDEX IF NOT EXISTS idx_tasks_current_stuck ON tasks_current(project, status, claimed_at);

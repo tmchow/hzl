@@ -1,34 +1,34 @@
-// packages/hzl-cli/src/commands/release.ts
+// packages/hzl-cli/src/commands/task/block.ts
 import { Command } from 'commander';
 import { resolveDbPaths } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError } from '../../errors.js';
 import { GlobalOptionsSchema } from '../../types.js';
 
-export interface ReleaseResult {
+export interface BlockResult {
   task_id: string;
   title: string;
   status: string;
   assignee: string | null;
 }
 
-interface ReleaseCommandOptions {
+interface BlockCommandOptions {
   reason?: string;
   author?: string;
 }
 
-export function runRelease(options: {
+export function runBlock(options: {
   services: Services;
   taskId: string;
   reason?: string;
   author?: string;
   json: boolean;
-}): ReleaseResult {
+}): BlockResult {
   const { services, taskId, reason, author, json } = options;
 
-  const task = services.taskService.releaseTask(taskId, { reason, author });
+  const task = services.taskService.blockTask(taskId, { reason, author });
 
-  const result: ReleaseResult = {
+  const result: BlockResult = {
     task_id: task.task_id,
     title: task.title,
     status: task.status,
@@ -38,25 +38,25 @@ export function runRelease(options: {
   if (json) {
     console.log(JSON.stringify(result));
   } else {
-    console.log(`✓ Released task ${task.task_id}: ${task.title}`);
+    console.log(`⏸ Blocked task ${task.task_id}: ${task.title}`);
     if (reason) console.log(`  Reason: ${reason}`);
   }
 
   return result;
 }
 
-export function createReleaseCommand(): Command {
-  return new Command('release')
-    .description('Release a claimed task')
+export function createBlockCommand(): Command {
+  return new Command('block')
+    .description('Block a task that is stuck waiting for external dependencies')
     .argument('<taskId>', 'Task ID')
-    .option('--reason <reason>', 'Release reason')
+    .option('--reason <reason>', 'Block reason (why is this task stuck?)')
     .option('--author <name>', 'Author name')
-    .action(function (this: Command, taskId: string, opts: ReleaseCommandOptions) {
+    .action(function (this: Command, taskId: string, opts: BlockCommandOptions) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
       const services = initializeDb({ eventsDbPath, cacheDbPath });
       try {
-        runRelease({
+        runBlock({
           services,
           taskId,
           reason: opts.reason,

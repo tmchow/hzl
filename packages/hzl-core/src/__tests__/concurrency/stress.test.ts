@@ -150,10 +150,10 @@ describe('Concurrency Stress Tests', () => {
       expect(successes[0].taskId).toBe(task.task_id);
 
       const taskRow = db
-        .prepare('SELECT status, claimed_by_author FROM tasks_current WHERE task_id = ?')
-        .get(task.task_id) as { status: string; claimed_by_author: string | null };
+        .prepare('SELECT status, assignee FROM tasks_current WHERE task_id = ?')
+        .get(task.task_id) as { status: string; assignee: string | null };
       expect(taskRow.status).toBe('in_progress');
-      expect(taskRow.claimed_by_author).toBeDefined();
+      expect(taskRow.assignee).toBeDefined();
     });
   });
 
@@ -181,7 +181,7 @@ describe('Concurrency Stress Tests', () => {
       expect(successes).toHaveLength(1);
 
       const updatedTask = taskService.getTaskById(task.task_id);
-      expect(updatedTask?.claimed_by_author).toBeTruthy();
+      expect(updatedTask?.assignee).toBeTruthy();
     });
 
     it('rejects steal when lease is not expired', () => {
@@ -284,10 +284,10 @@ describe('Concurrency Stress Tests', () => {
       expect(successCount).toBe(1);
 
       const taskRow = db
-        .prepare('SELECT status, claimed_by_author FROM tasks_current WHERE task_id = ?')
-        .get(task.task_id) as { status: string; claimed_by_author: string | null };
+        .prepare('SELECT status, assignee FROM tasks_current WHERE task_id = ?')
+        .get(task.task_id) as { status: string; assignee: string | null };
       expect(taskRow.status).toBe('in_progress');
-      expect(taskRow.claimed_by_author).toBeDefined();
+      expect(taskRow.assignee).toBeDefined();
     });
 
     it('maintains consistent event count under concurrent writes', async () => {

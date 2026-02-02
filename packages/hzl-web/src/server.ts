@@ -47,8 +47,8 @@ interface TaskDetailResponse {
   due_at: string | null;
   metadata: Record<string, unknown>;
   claimed_at: string | null;
-  claimed_by_author: string | null;
-  claimed_by_agent_id: string | null;
+  assignee: string | null;
+  progress: number | null;
   lease_until: string | null;
   created_at: string;
   updated_at: string;
@@ -152,8 +152,8 @@ export function createWebServer(options: ServerOptions): ServerHandle {
       due_at: task.due_at,
       metadata: task.metadata,
       claimed_at: task.claimed_at,
-      claimed_by_author: task.claimed_by_author,
-      claimed_by_agent_id: task.claimed_by_agent_id,
+      assignee: task.assignee,
+      progress: task.progress,
       lease_until: task.lease_until,
       created_at: task.created_at,
       updated_at: task.updated_at,
