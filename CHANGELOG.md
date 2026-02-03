@@ -1,3 +1,10 @@
+## [1.18.7](https://github.com/tmchow/hzl/compare/v1.18.6...v1.18.7) (2026-02-03)
+
+
+### Bug Fixes
+
+* replace workspace:* deps before npm publish ([#83](https://github.com/tmchow/hzl/issues/83)) ([dfb9f6f](https://github.com/tmchow/hzl/commit/dfb9f6f91c67fb11cdb68d4ba2be0bd34dbe97a6))
+
 ## [1.18.6](https://github.com/tmchow/hzl/compare/v1.18.5...v1.18.6) (2026-02-03)
 
 
