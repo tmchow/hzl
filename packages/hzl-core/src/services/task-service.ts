@@ -195,6 +195,14 @@ export class DependenciesNotDoneError extends Error {
   }
 }
 
+export class CrossProjectDependencyError extends Error {
+  constructor(taskProject: string, depTaskId: string, depProject: string) {
+    super(
+      `Cross-project dependencies not supported: task in project '${taskProject}' cannot depend on task ${depTaskId} in project '${depProject}'`
+    );
+  }
+}
+
 /**
  * Validate progress value is an integer between 0 and 100.
  * @throws Error if progress is invalid
@@ -238,6 +246,16 @@ export class TaskService {
   createTask(input: CreateTaskInput, ctx?: EventContext): Task {
     if (this.projectService) {
       this.projectService.requireProject(input.project);
+    }
+
+    // Validate dependencies are in the same project (cross-project deps not supported)
+    if (input.depends_on && input.depends_on.length > 0) {
+      for (const depId of input.depends_on) {
+        const depTask = this.getTaskById(depId);
+        if (depTask && depTask.project !== input.project) {
+          throw new CrossProjectDependencyError(input.project, depId, depTask.project);
+        }
+      }
     }
 
     const taskId = generateId();
@@ -1281,7 +1299,10 @@ export class TaskService {
     const thresholdTime = referenceTime - opts.olderThanDays * 24 * 60 * 60 * 1000;
     const thresholdIso = new Date(thresholdTime).toISOString();
 
-    // Query to find eligible tasks using the complex family + dependency logic
+    // Query to find eligible tasks using the complex family + dependency logic.
+    // NOTE: This query filters by project, which is safe because cross-project
+    // dependencies are explicitly prevented at task creation time (see createTask).
+    // All dependencies of a task are guaranteed to be in the same project.
     const query = `
       WITH family_status AS (
         SELECT
@@ -1298,7 +1319,9 @@ export class TaskService {
         WHERE t.project = ? OR ? IS NULL
       ),
       dep_blockers AS (
-        -- Tasks that are depended on by non-terminal tasks cannot be pruned
+        -- Tasks that are depended on by non-terminal tasks cannot be pruned.
+        -- Safe to use family_status (project-scoped) because cross-project
+        -- dependencies are not allowed.
         SELECT DISTINCT d.depends_on_id AS task_id
         FROM task_dependencies d
         JOIN family_status t ON t.task_id = d.task_id
@@ -1379,11 +1402,15 @@ export class TaskService {
 
       const taskIds = eligibleTasks.map(t => t.task_id);
 
-      // Delete from projections first (cache.db) - recoverable if interrupted
-      this.deleteTasksFromProjections(taskIds);
-
-      // Delete from events (events.db) - requires trigger bypass
+      // Delete events first (source of truth) - requires trigger bypass
+      // This ordering is intentional: if projection deletion fails after events
+      // are deleted, the projections can be rebuilt from remaining events.
+      // The reverse (projections deleted, events remaining) would leave orphan
+      // events that recreate projections on rebuild.
       const eventsDeleted = this.deleteTasksFromEvents(taskIds);
+
+      // Delete from projections (cache.db) - derived state, recoverable
+      this.deleteTasksFromProjections(taskIds);
 
       return {
         pruned: eligibleTasks,

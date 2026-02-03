@@ -108,6 +108,7 @@ export {
   TaskNotFoundError,
   TaskNotClaimableError,
   DependenciesNotDoneError,
+  CrossProjectDependencyError,
   type CreateTaskInput,
   type EventContext,
   type Task,

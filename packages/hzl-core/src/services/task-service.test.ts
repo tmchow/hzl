@@ -1,7 +1,7 @@
 // packages/hzl-core/src/services/task-service.test.ts
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import Database from 'libsql';
-import { TaskService } from './task-service.js';
+import { TaskService, CrossProjectDependencyError } from './task-service.js';
 import { ProjectService, ProjectNotFoundError } from './project-service.js';
 import { createTestDb } from '../db/test-utils.js';
 import { EventStore } from '../events/store.js';
@@ -1249,6 +1249,260 @@ describe('TaskService', () => {
 
       // Both should potentially be eligible since both are terminal
       expect(eligible.length).toBeGreaterThanOrEqual(0); // May be 0 if not old enough
+    });
+  });
+
+  describe('cross-project dependency validation', () => {
+    it('rejects dependency on task in different project', () => {
+      const taskInProjectA = taskService.createTask({ title: 'Task A', project: 'project-a' });
+
+      expect(() =>
+        taskService.createTask({
+          title: 'Task B',
+          project: 'project-b',
+          depends_on: [taskInProjectA.task_id],
+        })
+      ).toThrow(CrossProjectDependencyError);
+    });
+
+    it('allows dependency on task in same project', () => {
+      const dependency = taskService.createTask({ title: 'Dep', project: 'project-a' });
+      const dependent = taskService.createTask({
+        title: 'Dependent',
+        project: 'project-a',
+        depends_on: [dependency.task_id],
+      });
+
+      expect(dependent.task_id).toBeDefined();
+    });
+
+    it('allows dependency on non-existent task (orphan dep)', () => {
+      // Non-existent task IDs pass validation (no project to compare)
+      const task = taskService.createTask({
+        title: 'Task with orphan dep',
+        project: 'project-a',
+        depends_on: ['nonexistent-task-id'],
+      });
+
+      expect(task.task_id).toBeDefined();
+    });
+  });
+
+  describe('pruneEligible', () => {
+    let taskServiceWithEventsDb: TaskService;
+
+    beforeEach(() => {
+      // Create TaskService with eventsDb to enable pruning
+      // Using same db for both since tests use combined schema
+      taskServiceWithEventsDb = new TaskService(
+        db,
+        eventStore,
+        projectionEngine,
+        projectService,
+        db // eventsDb
+      );
+    });
+
+    it('throws when eventsDb not provided', () => {
+      // taskService doesn't have eventsDb
+      expect(() =>
+        taskService.pruneEligible({ project: 'inbox', olderThanDays: 1 })
+      ).toThrow('eventsDb not provided');
+    });
+
+    it('returns empty result when no eligible tasks', () => {
+      const result = taskServiceWithEventsDb.pruneEligible({
+        project: 'inbox',
+        olderThanDays: 1,
+      });
+
+      expect(result.count).toBe(0);
+      expect(result.pruned).toHaveLength(0);
+      expect(result.eventsDeleted).toBe(0);
+    });
+
+    it('deletes events for pruned tasks', () => {
+      // Create and complete a task
+      const task = taskServiceWithEventsDb.createTask({ title: 'To prune', project: 'inbox' });
+      taskServiceWithEventsDb.setStatus(task.task_id, TaskStatus.Ready);
+      taskServiceWithEventsDb.claimTask(task.task_id);
+      taskServiceWithEventsDb.completeTask(task.task_id);
+
+      // Backdate terminal_at to make it eligible
+      db.prepare('UPDATE tasks_current SET terminal_at = ? WHERE task_id = ?').run(
+        '2020-01-01T00:00:00Z',
+        task.task_id
+      );
+
+      // Count events before
+      const eventsBefore = db
+        .prepare('SELECT COUNT(*) as cnt FROM events WHERE task_id = ?')
+        .get(task.task_id) as { cnt: number };
+      expect(eventsBefore.cnt).toBeGreaterThan(0);
+
+      // Prune
+      const result = taskServiceWithEventsDb.pruneEligible({
+        project: 'inbox',
+        olderThanDays: 30,
+      });
+
+      expect(result.count).toBe(1);
+      expect(result.eventsDeleted).toBe(eventsBefore.cnt);
+
+      // Verify events are deleted
+      const eventsAfter = db
+        .prepare('SELECT COUNT(*) as cnt FROM events WHERE task_id = ?')
+        .get(task.task_id) as { cnt: number };
+      expect(eventsAfter.cnt).toBe(0);
+    });
+
+    it('deletes projections for pruned tasks', () => {
+      const task = taskServiceWithEventsDb.createTask({
+        title: 'To prune',
+        project: 'inbox',
+        tags: ['test-tag'],
+      });
+      taskServiceWithEventsDb.setStatus(task.task_id, TaskStatus.Ready);
+      taskServiceWithEventsDb.claimTask(task.task_id);
+      taskServiceWithEventsDb.addComment(task.task_id, 'A comment');
+      taskServiceWithEventsDb.addCheckpoint(task.task_id, 'cp1');
+      taskServiceWithEventsDb.completeTask(task.task_id);
+
+      // Backdate terminal_at
+      db.prepare('UPDATE tasks_current SET terminal_at = ? WHERE task_id = ?').run(
+        '2020-01-01T00:00:00Z',
+        task.task_id
+      );
+
+      // Verify projections exist before
+      expect(
+        db.prepare('SELECT 1 FROM tasks_current WHERE task_id = ?').get(task.task_id)
+      ).toBeDefined();
+      expect(
+        db.prepare('SELECT 1 FROM task_tags WHERE task_id = ?').get(task.task_id)
+      ).toBeDefined();
+      expect(
+        db.prepare('SELECT 1 FROM task_comments WHERE task_id = ?').get(task.task_id)
+      ).toBeDefined();
+      expect(
+        db.prepare('SELECT 1 FROM task_checkpoints WHERE task_id = ?').get(task.task_id)
+      ).toBeDefined();
+
+      // Prune
+      taskServiceWithEventsDb.pruneEligible({ project: 'inbox', olderThanDays: 30 });
+
+      // Verify all projections deleted
+      expect(
+        db.prepare('SELECT 1 FROM tasks_current WHERE task_id = ?').get(task.task_id)
+      ).toBeUndefined();
+      expect(
+        db.prepare('SELECT 1 FROM task_tags WHERE task_id = ?').get(task.task_id)
+      ).toBeUndefined();
+      expect(
+        db.prepare('SELECT 1 FROM task_comments WHERE task_id = ?').get(task.task_id)
+      ).toBeUndefined();
+      expect(
+        db.prepare('SELECT 1 FROM task_checkpoints WHERE task_id = ?').get(task.task_id)
+      ).toBeUndefined();
+    });
+
+    it('deletes dependency edges in both directions', () => {
+      const dep = taskServiceWithEventsDb.createTask({ title: 'Dependency', project: 'inbox' });
+      const task = taskServiceWithEventsDb.createTask({
+        title: 'Dependent',
+        project: 'inbox',
+        depends_on: [dep.task_id],
+      });
+
+      // Complete both
+      taskServiceWithEventsDb.setStatus(dep.task_id, TaskStatus.Ready);
+      taskServiceWithEventsDb.setStatus(task.task_id, TaskStatus.Ready);
+      taskServiceWithEventsDb.claimTask(dep.task_id);
+      taskServiceWithEventsDb.completeTask(dep.task_id);
+      taskServiceWithEventsDb.claimTask(task.task_id);
+      taskServiceWithEventsDb.completeTask(task.task_id);
+
+      // Backdate both
+      db.prepare('UPDATE tasks_current SET terminal_at = ? WHERE task_id IN (?, ?)').run(
+        '2020-01-01T00:00:00Z',
+        dep.task_id,
+        task.task_id
+      );
+
+      // Verify dependency exists
+      expect(
+        db.prepare('SELECT 1 FROM task_dependencies WHERE task_id = ?').get(task.task_id)
+      ).toBeDefined();
+
+      // Prune
+      taskServiceWithEventsDb.pruneEligible({ project: 'inbox', olderThanDays: 30 });
+
+      // Verify dependencies deleted
+      const depCount = db.prepare('SELECT COUNT(*) as cnt FROM task_dependencies').get() as { cnt: number };
+      expect(depCount.cnt).toBe(0);
+    });
+
+    it('restores append-only triggers after pruning', () => {
+      const task = taskServiceWithEventsDb.createTask({ title: 'To prune', project: 'inbox' });
+      taskServiceWithEventsDb.setStatus(task.task_id, TaskStatus.Ready);
+      taskServiceWithEventsDb.claimTask(task.task_id);
+      taskServiceWithEventsDb.completeTask(task.task_id);
+
+      db.prepare('UPDATE tasks_current SET terminal_at = ? WHERE task_id = ?').run(
+        '2020-01-01T00:00:00Z',
+        task.task_id
+      );
+
+      // Prune
+      taskServiceWithEventsDb.pruneEligible({ project: 'inbox', olderThanDays: 30 });
+
+      // Verify triggers are restored - attempt to delete should fail
+      const anotherTask = taskServiceWithEventsDb.createTask({
+        title: 'Another task',
+        project: 'inbox',
+      });
+
+      expect(() =>
+        db.prepare('DELETE FROM events WHERE task_id = ?').run(anotherTask.task_id)
+      ).toThrow(/append-only/i);
+    });
+
+    it('prunes parent and children together when both are terminal', () => {
+      const parent = taskServiceWithEventsDb.createTask({ title: 'Parent', project: 'inbox' });
+      const child = taskServiceWithEventsDb.createTask({
+        title: 'Child',
+        project: 'inbox',
+        parent_id: parent.task_id,
+      });
+
+      // Complete both
+      taskServiceWithEventsDb.setStatus(parent.task_id, TaskStatus.Ready);
+      taskServiceWithEventsDb.setStatus(child.task_id, TaskStatus.Ready);
+      taskServiceWithEventsDb.claimTask(parent.task_id);
+      taskServiceWithEventsDb.claimTask(child.task_id);
+      taskServiceWithEventsDb.completeTask(parent.task_id);
+      taskServiceWithEventsDb.completeTask(child.task_id);
+
+      // Backdate both
+      db.prepare('UPDATE tasks_current SET terminal_at = ? WHERE task_id IN (?, ?)').run(
+        '2020-01-01T00:00:00Z',
+        parent.task_id,
+        child.task_id
+      );
+
+      const result = taskServiceWithEventsDb.pruneEligible({
+        project: 'inbox',
+        olderThanDays: 30,
+      });
+
+      expect(result.count).toBe(2);
+      expect(result.pruned.map(t => t.task_id).sort()).toEqual(
+        [parent.task_id, child.task_id].sort()
+      );
+
+      // Both should be gone
+      expect(taskServiceWithEventsDb.getTaskById(parent.task_id)).toBeNull();
+      expect(taskServiceWithEventsDb.getTaskById(child.task_id)).toBeNull();
     });
   });
 });
