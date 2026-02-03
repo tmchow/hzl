@@ -1,3 +1,11 @@
+## [1.14.1](https://github.com/tmchow/hzl/compare/v1.14.0...v1.14.1) (2026-02-03)
+
+
+### Bug Fixes
+
+* **ci:** trigger homebrew update directly from release workflow ([#70](https://github.com/tmchow/hzl/issues/70)) ([96bf72d](https://github.com/tmchow/hzl/commit/96bf72d80f7f633757782708acf862dccbff0fde))
+* include assignee in TaskCreated event data ([#71](https://github.com/tmchow/hzl/issues/71)) ([752cc18](https://github.com/tmchow/hzl/commit/752cc1856d2a23763c9c09522e6334973954f055))
+
 # [1.14.0](https://github.com/tmchow/hzl/compare/v1.13.2...v1.14.0) (2026-02-03)
 
 
