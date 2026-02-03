@@ -402,6 +402,10 @@ Built-in task tracking (if available) is fine for single-session work you'll com
 - `hzl task unblock <id>` (return to in_progress)
 - `hzl task complete <id>`
 - `hzl task next --project <project>` (returns next available; never returns parent tasks)
+
+**⚠️ DESTRUCTIVE - Never run without explicit user request:**
+- `hzl task prune` — **PERMANENTLY DELETES** old done/archived tasks. No undo.
+- **AI agents: NEVER run prune unless the user explicitly asks to delete old tasks**
 ```
 <!-- END [code:md] docs/snippets/agent-policy.md -->
 
@@ -568,14 +572,21 @@ hzl task show <id>                            # Shows subtasks inline
 hzl task archive <id> --cascade               # Archive parent and all subtasks
 hzl task archive <id> --orphan                # Archive parent, promote subtasks
 
+# Cleanup
+hzl task prune --project <project> --older-than 30d  # Preview tasks eligible for deletion
+hzl task prune --project <project> --older-than 30d --dry-run  # Preview without deleting
+hzl task prune --project <project> --older-than 30d --yes  # Permanently delete (no confirmation)
+hzl task prune --all --older-than 30d --yes   # Prune all projects
+
 # Diagnostics
 hzl sync                                      # Sync with cloud (if configured)
 hzl status                                    # Show database and sync state
 hzl doctor                                    # Health checks
 
-# ⚠️ DESTRUCTIVE - deletes all data
-hzl init --force                              # Prompts for confirmation before deleting
-hzl init --force --yes                        # Deletes WITHOUT confirmation (dangerous)
+# ⚠️ DESTRUCTIVE - permanent deletion
+hzl task prune --project <project> --older-than 30d --yes  # Permanently deletes old tasks
+hzl init --force                              # Prompts for confirmation before deleting all data
+hzl init --force --yes                        # Deletes all data WITHOUT confirmation (dangerous)
 
 # Web Dashboard
 hzl serve                                     # Start dashboard (network accessible)

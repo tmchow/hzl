@@ -202,6 +202,28 @@ hzl task checkpoint 1 "Validation done, testing"
 hzl task complete 1
 ```
 
+## Pruning Old Tasks
+
+Over time, completed tasks accumulate. Pruning permanently removes old terminal tasks (done/archived) to keep HZL lean:
+
+```bash
+# Preview what would be pruned (safe)
+hzl task prune --project my-project --dry-run
+
+# Prune tasks older than 30 days (default)
+hzl task prune --project my-project --yes
+
+# Prune tasks older than 90 days
+hzl task prune --project my-project --older-than 90d --yes
+
+# Prune across all projects
+hzl task prune --all --yes
+```
+
+**Important:** Pruning is destructive and cannot be undone. Always use `--dry-run` first to preview.
+
+See [Pruning](pruning.md) for detailed guidance on when and how to prune.
+
 ## Best Practices
 
 1. **Keep tasks small** - 1-2 hours of focused work
@@ -210,3 +232,4 @@ hzl task complete 1
 4. **Always identify yourself** - Use `--author` or `--agent-id` to track who did what
 5. **Block when stuck** - Use `hzl task block` instead of leaving tasks in limbo
 6. **Complete or archive** - Don't leave tasks hanging
+7. **Prune periodically** - Clean up old done/archived tasks to keep the database lean

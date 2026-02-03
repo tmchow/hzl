@@ -69,6 +69,27 @@ export interface StuckTask {
   lease_until: string | null;
 }
 
+export interface PrunableTask {
+  task_id: string;
+  title: string;
+  project: string;
+  status: 'done' | 'archived';
+  terminal_since: string; // ISO timestamp
+  parent_id: string | null;
+}
+
+export interface PruneOptions {
+  project?: string; // Specific project or undefined for all
+  olderThanDays: number;
+  asOf?: string; // ISO timestamp for deterministic pruning
+}
+
+export interface PruneResult {
+  pruned: PrunableTask[];
+  count: number;
+  eventsDeleted: number;
+}
+
 export interface AvailableTask {
   task_id: string;
   title: string;
@@ -174,6 +195,14 @@ export class DependenciesNotDoneError extends Error {
   }
 }
 
+export class CrossProjectDependencyError extends Error {
+  constructor(taskProject: string, depTaskId: string, depProject: string) {
+    super(
+      `Cross-project dependencies not supported: task in project '${taskProject}' cannot depend on task ${depTaskId} in project '${depProject}'`
+    );
+  }
+}
+
 /**
  * Validate progress value is an integer between 0 and 100.
  * @throws Error if progress is invalid
@@ -189,10 +218,11 @@ export class TaskService {
   private getSubtasksStmt: Database.Statement;
 
   constructor(
-    private db: Database.Database,
+    private db: Database.Database, // cache database
     private eventStore: EventStore,
     private projectionEngine: ProjectionEngine,
-    private projectService?: ProjectService
+    private projectService?: ProjectService,
+    private eventsDb?: Database.Database // events database for pruning
   ) {
     this.getIncompleteDepsStmt = db.prepare(`
       SELECT td.depends_on_id
@@ -216,6 +246,16 @@ export class TaskService {
   createTask(input: CreateTaskInput, ctx?: EventContext): Task {
     if (this.projectService) {
       this.projectService.requireProject(input.project);
+    }
+
+    // Validate dependencies are in the same project (cross-project deps not supported)
+    if (input.depends_on && input.depends_on.length > 0) {
+      for (const depId of input.depends_on) {
+        const depTask = this.getTaskById(depId);
+        if (depTask && depTask.project !== input.project) {
+          throw new CrossProjectDependencyError(input.project, depId, depTask.project);
+        }
+      }
     }
 
     const taskId = generateId();
@@ -1243,6 +1283,233 @@ export class TaskService {
         orphanedSubtaskCount,
       };
     });
+  }
+
+  /**
+   * Find tasks eligible for pruning (preview only, does not delete).
+   * A task is eligible if:
+   * 1. Status is 'done' or 'archived'
+   * 2. Has been in terminal state for >= olderThanDays
+   * 3. If parent: all children must also be eligible
+   * 4. If child: parent must also be eligible (atomic family)
+   * 5. If dependency target: all dependents must also be eligible
+   */
+  previewPrunableTasks(opts: PruneOptions): PrunableTask[] {
+    const referenceTime = opts.asOf ? new Date(opts.asOf).getTime() : Date.now();
+    const thresholdTime = referenceTime - opts.olderThanDays * 24 * 60 * 60 * 1000;
+    const thresholdIso = new Date(thresholdTime).toISOString();
+
+    // Query to find eligible tasks using the complex family + dependency logic.
+    // NOTE: This query filters by project, which is safe because cross-project
+    // dependencies are explicitly prevented at task creation time (see createTask).
+    // All dependencies of a task are guaranteed to be in the same project.
+    const query = `
+      WITH family_status AS (
+        SELECT
+          t.task_id,
+          t.parent_id,
+          t.status,
+          t.terminal_at,
+          -- Check if task itself is terminal and old enough
+          CASE WHEN t.status IN ('done', 'archived')
+               AND t.terminal_at IS NOT NULL
+               AND t.terminal_at < ?
+          THEN 1 ELSE 0 END as self_eligible
+        FROM tasks_current t
+        WHERE (? IS NULL OR t.project = ?)
+      ),
+      dep_blockers AS (
+        -- Tasks that are depended on by non-terminal tasks cannot be pruned.
+        -- Safe to use family_status (project-scoped) because cross-project
+        -- dependencies are not allowed.
+        SELECT DISTINCT d.depends_on_id AS task_id
+        FROM task_dependencies d
+        JOIN family_status t ON t.task_id = d.task_id
+        WHERE t.self_eligible = 0
+      ),
+      family_eligible AS (
+        -- A task is family-eligible only if itself AND all family members are eligible
+        SELECT f.task_id, f.status, f.terminal_at
+        FROM family_status f
+        WHERE f.self_eligible = 1
+          -- If has children, all must be eligible
+          AND NOT EXISTS (
+            SELECT 1 FROM family_status c
+            WHERE c.parent_id = f.task_id AND c.self_eligible = 0
+          )
+          -- If has parent, parent must be eligible
+          AND (f.parent_id IS NULL OR EXISTS (
+            SELECT 1 FROM family_status p
+            WHERE p.task_id = f.parent_id AND p.self_eligible = 1
+          ))
+          -- Not depended on by any non-eligible task
+          AND NOT EXISTS (SELECT 1 FROM dep_blockers b WHERE b.task_id = f.task_id)
+      )
+      SELECT
+        task_id,
+        title,
+        project,
+        status,
+        terminal_at,
+        parent_id
+      FROM tasks_current
+      WHERE task_id IN (SELECT task_id FROM family_eligible)
+      ORDER BY terminal_at ASC
+    `;
+
+    const projectParam = opts.project ?? null;
+    const result = this.db
+      .prepare(query)
+      .all(thresholdIso, projectParam, projectParam) as Array<{
+      task_id: string;
+      title: string;
+      project: string;
+      status: string;
+      terminal_at: string;
+      parent_id: string | null;
+    }>;
+
+    return result.map(row => ({
+      task_id: row.task_id,
+      title: row.title,
+      project: row.project,
+      status: row.status as 'done' | 'archived',
+      terminal_since: row.terminal_at,
+      parent_id: row.parent_id,
+    }));
+  }
+
+  /**
+   * Permanently delete eligible tasks and their events.
+   * DANGEROUS: Breaks append-only event model.
+   * Recomputes eligibility inside the prune transaction to avoid TOCTOU.
+   */
+  pruneEligible(opts: PruneOptions): PruneResult {
+    if (!this.eventsDb) {
+      throw new Error('TaskService: eventsDb not provided, cannot prune tasks');
+    }
+
+    return withWriteTransaction(this.eventsDb, () => {
+      // First, get eligible tasks (recompute to avoid TOCTOU race)
+      const eligibleTasks = this.previewPrunableTasks(opts);
+
+      if (eligibleTasks.length === 0) {
+        return {
+          pruned: [],
+          count: 0,
+          eventsDeleted: 0,
+        };
+      }
+
+      const taskIds = eligibleTasks.map(t => t.task_id);
+
+      // Delete events first (source of truth) - requires trigger bypass
+      // This ordering is intentional: if projection deletion fails after events
+      // are deleted, the projections can be rebuilt from remaining events.
+      // The reverse (projections deleted, events remaining) would leave orphan
+      // events that recreate projections on rebuild.
+      const eventsDeleted = this.deleteTasksFromEvents(taskIds);
+
+      // Delete from projections (cache.db) - derived state, recoverable
+      this.deleteTasksFromProjections(taskIds);
+
+      return {
+        pruned: eligibleTasks,
+        count: eligibleTasks.length,
+        eventsDeleted,
+      };
+    });
+  }
+
+  private deleteTasksFromProjections(taskIds: string[]): void {
+    // Delete from all projection tables in order
+    const tables = [
+      'task_comments',
+      'task_checkpoints',
+      'task_tags',
+      'task_dependencies', // both directions
+      'task_search',
+      'tasks_current',
+    ];
+
+    for (const table of tables) {
+      // Create temp table to avoid SQLite parameter limits
+      this.db.exec('CREATE TEMP TABLE prune_targets (task_id TEXT PRIMARY KEY)');
+      const insert = this.db.prepare('INSERT INTO prune_targets (task_id) VALUES (?)');
+      for (const id of taskIds) {
+        insert.run(id);
+      }
+
+      if (table === 'task_dependencies') {
+        // Delete both directions
+        this.db.exec(
+          'DELETE FROM task_dependencies WHERE task_id IN (SELECT task_id FROM prune_targets) OR depends_on_id IN (SELECT task_id FROM prune_targets)'
+        );
+      } else if (table === 'task_search') {
+        // FTS table uses different syntax
+        this.db.exec(
+          'DELETE FROM task_search WHERE task_id IN (SELECT task_id FROM prune_targets)'
+        );
+      } else {
+        this.db.exec(
+          `DELETE FROM ${table} WHERE task_id IN (SELECT task_id FROM prune_targets)`
+        );
+      }
+
+      this.db.exec('DROP TABLE prune_targets');
+    }
+  }
+
+  private deleteTasksFromEvents(taskIds: string[]): number {
+    const eventsDb = this.eventsDb!; // Non-null assertion safe: checked in pruneEligible
+
+    // Disable triggers
+    eventsDb.exec('DROP TRIGGER IF EXISTS events_no_delete');
+    eventsDb.exec('DROP TRIGGER IF EXISTS events_no_update');
+
+    try {
+      // Create temp table to avoid SQLite parameter limits on large prune sets
+      eventsDb.exec('CREATE TEMP TABLE prune_targets (task_id TEXT PRIMARY KEY)');
+      const insert = eventsDb.prepare('INSERT INTO prune_targets (task_id) VALUES (?)');
+      for (const id of taskIds) {
+        insert.run(id);
+      }
+
+      const result = eventsDb
+        .prepare('DELETE FROM events WHERE task_id IN (SELECT task_id FROM prune_targets)')
+        .run();
+      eventsDb.exec('DROP TABLE prune_targets');
+
+      // Re-enable triggers
+      this.recreateEventTriggers();
+
+      return result.changes;
+    } catch (err) {
+      // Re-enable triggers even on error
+      this.recreateEventTriggers();
+      throw err;
+    }
+  }
+
+  private recreateEventTriggers(): void {
+    const eventsDb = this.eventsDb!; // Non-null assertion safe: checked in pruneEligible
+
+    const EVENTS_TRIGGERS_SQL = `
+      -- Append-only enforcement: prevent UPDATE on events
+      CREATE TRIGGER IF NOT EXISTS events_no_update
+      BEFORE UPDATE ON events
+      BEGIN
+          SELECT RAISE(ABORT, 'Events table is append-only: cannot UPDATE');
+      END;
+
+      -- Append-only enforcement: prevent DELETE on events
+      CREATE TRIGGER IF NOT EXISTS events_no_delete
+      BEFORE DELETE ON events
+      BEGIN
+          SELECT RAISE(ABORT, 'Events table is append-only: cannot DELETE');
+      END;
+    `;
+    eventsDb.exec(EVENTS_TRIGGERS_SQL);
   }
 
   private rowToTask(row: TaskRow): Task {

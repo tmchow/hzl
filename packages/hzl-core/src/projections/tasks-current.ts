@@ -75,6 +75,7 @@ export class TasksCurrentProjector implements Projector {
   private handleStatusChanged(event: PersistedEventEnvelope, db: Database.Database): void {
     const data = event.data as StatusChangedData;
     const toStatus = data.to;
+    const isTerminal = toStatus === TaskStatus.Done || toStatus === TaskStatus.Archived;
 
     if (toStatus === TaskStatus.InProgress) {
       const newAssignee = event.author || event.agent_id || null;
@@ -148,24 +149,28 @@ export class TasksCurrentProjector implements Projector {
       `).run(toStatus, event.timestamp, event.rowid, event.task_id);
     } else if (data.from === TaskStatus.InProgress || data.from === TaskStatus.Blocked) {
       // When leaving in_progress/blocked: clear claimed_at and lease, but PRESERVE assignee
+      // If transitioning to terminal state, set terminal_at
       db.prepare(`
         UPDATE tasks_current SET
           status = ?,
           claimed_at = NULL,
           lease_until = NULL,
+          terminal_at = CASE WHEN ? THEN ? ELSE terminal_at END,
           updated_at = ?,
           last_event_id = ?
         WHERE task_id = ?
-      `).run(toStatus, event.timestamp, event.rowid, event.task_id);
+      `).run(toStatus, isTerminal ? 1 : 0, isTerminal ? event.timestamp : null, event.timestamp, event.rowid, event.task_id);
     } else {
-      // Generic status change
+      // Generic status change (including ready → done, backlog → archived, etc.)
+      // If transitioning to terminal state, set terminal_at
       db.prepare(`
         UPDATE tasks_current SET
           status = ?,
+          terminal_at = CASE WHEN ? THEN ? ELSE terminal_at END,
           updated_at = ?,
           last_event_id = ?
         WHERE task_id = ?
-      `).run(toStatus, event.timestamp, event.rowid, event.task_id);
+      `).run(toStatus, isTerminal ? 1 : 0, isTerminal ? event.timestamp : null, event.timestamp, event.rowid, event.task_id);
     }
   }
 
@@ -200,10 +205,11 @@ export class TasksCurrentProjector implements Projector {
     db.prepare(`
       UPDATE tasks_current SET
         status = ?,
+        terminal_at = ?,
         updated_at = ?,
         last_event_id = ?
       WHERE task_id = ?
-    `).run(TaskStatus.Archived, event.timestamp, event.rowid, event.task_id);
+    `).run(TaskStatus.Archived, event.timestamp, event.timestamp, event.rowid, event.task_id);
   }
 
   private handleCheckpointRecorded(event: PersistedEventEnvelope, db: Database.Database): void {

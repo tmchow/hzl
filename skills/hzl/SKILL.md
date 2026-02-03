@@ -51,18 +51,21 @@ Projects are long-lived. Do not create per-feature projects.
 
 **Checkpoints** preserve progress. Use them liberally to enable recovery.
 
-## DESTRUCTIVE COMMANDS - READ CAREFULLY
+## ⚠️ DESTRUCTIVE COMMANDS - READ CAREFULLY
 
-The following commands **PERMANENTLY DELETE ALL HZL DATA** and cannot be undone:
+The following commands **PERMANENTLY DELETE HZL DATA** and cannot be undone:
 
 | Command | Effect |
 |---------|--------|
 | `hzl init --force` | **DELETES ALL DATA.** Prompts for confirmation. |
 | `hzl init --force --yes` | **DELETES ALL DATA WITHOUT CONFIRMATION.** Extremely dangerous. |
+| `hzl task prune ... --yes` | **PERMANENTLY DELETES** old done/archived tasks and their event history. |
 
-**NEVER use `--force` or `--force --yes` unless the user explicitly instructs you to destroy all task data.**
+**AI agents: NEVER run these commands unless the user EXPLICITLY asks you to delete data.**
 
-These commands delete the entire event history, all projects, all tasks, all checkpoints—everything. There is no recovery without a backup.
+- `hzl init --force` deletes the entire event database: all projects, tasks, checkpoints, and history
+- `hzl task prune` deletes only tasks in terminal states (done/archived) older than the specified age
+- There is NO undo. There is NO recovery without a backup.
 
 ## Scenario: Setting Up
 

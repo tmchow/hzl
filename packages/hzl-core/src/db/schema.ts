@@ -88,6 +88,7 @@ CREATE TABLE IF NOT EXISTS tasks_current (
     assignee           TEXT,
     progress           INTEGER CHECK (progress >= 0 AND progress <= 100),
     lease_until        TEXT,
+    terminal_at        TEXT,
     created_at         TEXT NOT NULL,
     updated_at         TEXT NOT NULL,
     last_event_id      INTEGER NOT NULL
@@ -151,6 +152,7 @@ CREATE INDEX IF NOT EXISTS idx_tasks_current_priority ON tasks_current(project, 
 CREATE INDEX IF NOT EXISTS idx_tasks_current_claim_next ON tasks_current(project, status, priority DESC, created_at ASC, task_id ASC);
 CREATE INDEX IF NOT EXISTS idx_tasks_current_stuck ON tasks_current(project, status, claimed_at);
 CREATE INDEX IF NOT EXISTS idx_tasks_current_parent ON tasks_current(parent_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_current_terminal_at ON tasks_current(terminal_at);
 
 -- Indexes for dependencies
 CREATE INDEX IF NOT EXISTS idx_deps_depends_on ON task_dependencies(depends_on_id);

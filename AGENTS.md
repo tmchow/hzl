@@ -39,6 +39,10 @@ Built-in task tracking (if available) is fine for single-session work you'll com
 - `hzl task unblock <id>` (return to in_progress)
 - `hzl task complete <id>`
 - `hzl task next --project <project>` (returns next available; never returns parent tasks)
+
+**⚠️ DESTRUCTIVE - Never run without explicit user request:**
+- `hzl task prune` — **PERMANENTLY DELETES** old done/archived tasks. No undo.
+- **AI agents: NEVER run prune unless the user explicitly asks to delete old tasks**
 <!-- END docs/snippets/agent-policy.md -->
 
 ## Build & Test Commands
@@ -169,26 +173,6 @@ When testing or developing:
 - Always use the dev mode paths (automatic when running from source)
 - Never run commands that could affect the user's XDG directories
 - If you need to test with a clean database, use the project-local `.local/hzl/` directory
-
-### ⚠️ DESTRUCTIVE COMMANDS - AI AGENTS READ THIS
-
-The following CLI commands **PERMANENTLY DELETE ALL HZL DATA** and cannot be undone:
-
-| Command | Effect |
-|---------|--------|
-| `hzl init --force` | **DELETES ALL DATA.** Prompts for confirmation. |
-| `hzl init --force --yes` | **DELETES ALL DATA WITHOUT CONFIRMATION.** Bypasses all safety prompts. |
-
-**AI agents: NEVER run these commands unless the user EXPLICITLY asks you to delete all HZL data.**
-
-- `--force` deletes the entire event database: all projects, tasks, checkpoints, and history
-- `--force --yes` does this WITHOUT any confirmation prompt
-- There is NO undo. There is NO recovery without a backup.
-- The `--yes` flag exists for scripting, not for casual use
-
-**Safe alternatives:**
-- `hzl init` — Safe. Only creates a new database if none exists.
-- `hzl init --reset-config` — Safe. Resets config to default path without deleting data.
 
 ## Testing Concurrency
 

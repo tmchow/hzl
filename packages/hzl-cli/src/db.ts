@@ -137,7 +137,7 @@ export function initializeDb(options: InitializeDbOptions): Services {
   checkAndMigrateSchema(cacheDb, eventsDb, projectionEngine);
 
   const projectService = new ProjectService(cacheDb, eventStore, projectionEngine);
-  const taskService = new TaskService(cacheDb, eventStore, projectionEngine, projectService);
+  const taskService = new TaskService(cacheDb, eventStore, projectionEngine, projectService, eventsDb);
   const searchService = new SearchService(cacheDb);
   const validationService = new ValidationService(cacheDb);
 
