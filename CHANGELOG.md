@@ -1,3 +1,10 @@
+## [1.18.4](https://github.com/tmchow/hzl/compare/v1.18.3...v1.18.4) (2026-02-03)
+
+
+### Performance Improvements
+
+* optimize query performance in search and task service ([#80](https://github.com/tmchow/hzl/issues/80)) ([5436f68](https://github.com/tmchow/hzl/commit/5436f68781144e303aa5bd4ddb0534291cef2e16))
+
 ## [1.18.3](https://github.com/tmchow/hzl/compare/v1.18.2...v1.18.3) (2026-02-03)
 
 
