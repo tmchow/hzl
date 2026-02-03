@@ -1040,6 +1040,9 @@
       // Hide loading spinner
       graphLoading.style.display = 'none';
 
+      const RING_RADII = { 0: 0, 1: 150, 2: 300, 3: 450 };
+      const baseRadius = window.innerWidth < 768 ? 0.6 : 1;
+
       graphInstance = ForceGraph()(graphContainer)
         .graphData(transformTasksToGraph(tasks))
         .backgroundColor('#1a1a1a')
@@ -1052,6 +1055,21 @@
           if (n.type !== 'root' && n.type !== 'project') {
             openTaskModal(n.id);
           }
+        })
+        // Radial layout
+        .d3Force('radial', d3.forceRadial(d => {
+          const radius = RING_RADII[d.ring] ?? 300;
+          return radius * baseRadius;
+        }).strength(0.8))
+        .d3Force('collision', d3.forceCollide(d => getNodeSize(d) + 4))
+        .d3Force('link', d3.forceLink().strength(0.05))
+        // Animated particles on dependency edges
+        .linkDirectionalParticles(l => l.type === 'dependency' ? 3 : 0)
+        .linkDirectionalParticleWidth(3)
+        .linkDirectionalParticleSpeed(0.005)
+        .linkDirectionalParticleColor(l => {
+          const sourceId = typeof l.source === 'object' ? l.source.id : l.source;
+          return getStatusColor(nodeStatusMap.get(sourceId));
         });
 
       graphInitialized = true;
