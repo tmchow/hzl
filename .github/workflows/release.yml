@@ -52,7 +52,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: '22.14.0'
-          registry-url: 'https://registry.npmjs.org'
+          # No registry-url: it sets NODE_AUTH_TOKEN which prevents OIDC fallback
           cache: 'pnpm'
 
       - run: pnpm install --frozen-lockfile
@@ -63,13 +63,8 @@ jobs:
         id: release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # No NPM_TOKEN: using OIDC Trusted Publishing (id-token: write + npm config)
         run: |
-          # Unset token env vars completely - empty string still prevents OIDC fallback
-          unset NODE_AUTH_TOKEN NPM_TOKEN NPM_CONFIG_USERCONFIG
-
-          # Remove setup-node's .npmrc to let semantic-release use OIDC
-          rm -f /home/runner/work/_temp/.npmrc
-
           # Capture semantic-release output to detect if a new release was made
           npx semantic-release 2>&1 | tee release-output.txt
 
