@@ -1,3 +1,10 @@
+# [1.15.0](https://github.com/tmchow/hzl/compare/v1.14.1...v1.15.0) (2026-02-03)
+
+
+### Features
+
+* **web:** responsive Kanban columns with visibility toggle ([#72](https://github.com/tmchow/hzl/issues/72)) ([3569cf0](https://github.com/tmchow/hzl/commit/3569cf0e9408b54a885af3b199cb6651b54842e5))
+
 ## [1.14.1](https://github.com/tmchow/hzl/compare/v1.14.0...v1.14.1) (2026-02-03)
 
 
