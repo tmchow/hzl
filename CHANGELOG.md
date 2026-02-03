@@ -1,3 +1,10 @@
+## [1.18.8](https://github.com/tmchow/hzl/compare/v1.18.7...v1.18.8) (2026-02-03)
+
+
+### Bug Fixes
+
+* show all projects in web dashboard project chooser ([#84](https://github.com/tmchow/hzl/issues/84)) ([5dcee3c](https://github.com/tmchow/hzl/commit/5dcee3ccf5796a906d328552a3bcde2434594d74))
+
 ## [1.18.7](https://github.com/tmchow/hzl/compare/v1.18.6...v1.18.7) (2026-02-03)
 
 
