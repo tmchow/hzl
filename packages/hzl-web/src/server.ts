@@ -33,6 +33,7 @@ const DATE_PRESETS: Record<string, number> = {
 interface TaskListItemResponse extends CoreTaskListItem {
   blocked_by: string[] | null;
   subtask_count: number;
+  subtask_total: number;
 }
 
 interface TaskDetailResponse {
@@ -120,14 +121,19 @@ export function createWebServer(options: ServerOptions): ServerHandle {
     // Get blocked tasks map from service
     const blockedMap = taskService.getBlockedByMap();
 
-    // Get subtask counts for parent tasks
-    const subtaskCounts = taskService.getSubtaskCounts();
+    // Get subtask counts for parent tasks (filtered + total)
+    const subtaskCounts = taskService.getSubtaskCounts({
+      sinceDays: days,
+      project: project ?? undefined,
+    });
+    const subtaskTotals = taskService.getSubtaskCounts();
 
     // Merge blocked info and subtask counts into tasks
     const tasks: TaskListItemResponse[] = rows.map((row) => ({
       ...row,
       blocked_by: blockedMap.get(row.task_id) ?? null,
       subtask_count: subtaskCounts.get(row.task_id) ?? 0,
+      subtask_total: subtaskTotals.get(row.task_id) ?? 0,
     }));
 
     json(res, { tasks, since, project });

@@ -335,13 +335,25 @@
     .card-header {
       display: flex;
       align-items: center;
-      gap: 6px;
+      justify-content: space-between;
+      gap: 8px;
       margin-bottom: 4px;
+    }
+
+    .card-header-left {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
     }
 
     .card-emoji {
       font-size: 12px;
       flex-shrink: 0;
+    }
+
+    .card-parent {
+      box-shadow: 0 0 0 1px var(--family-color);
     }
 
     .card-id {
@@ -382,6 +394,13 @@
       background: rgba(245, 158, 11, 0.15);
       padding: 2px 6px;
       border-radius: 3px;
+      font-size: 10px;
+      flex-shrink: 0;
+    }
+
+    .card-progress.complete {
+      color: var(--status-done);
+      background: rgba(34, 197, 94, 0.15);
     }
 
     .card-subtask-count {
@@ -1038,12 +1057,22 @@
       return FAMILY_EMOJIS[Math.abs(hash) % FAMILY_EMOJIS.length];
     }
 
+    function getTaskFamilyColor(taskId) {
+      let hash = 5381;
+      for (let i = 0; i < taskId.length; i++) {
+        hash = ((hash << 5) + hash) ^ taskId.charCodeAt(i);
+      }
+      const hue = Math.abs(hash) % 360;
+      return `hsl(${hue} 55% 55%)`;
+    }
+
     // Build emoji map with suffix numbers for children
     function buildEmojiMap(taskList) {
-      // Build set of known task IDs for orphan detection
+      // Build set of known task IDs for visible parent detection
       const taskIds = new Set(taskList.map(t => t.task_id));
 
-      // Group children by parent for suffix ordering
+      // Group visible children by parent for suffix ordering
+      // Only children whose parent is visible get suffix numbers
       const childrenByParent = new Map();
 
       for (const task of taskList) {
@@ -1064,14 +1093,16 @@
       const emojiMap = new Map(); // task_id -> { emoji, suffix }
 
       for (const task of taskList) {
-        if (task.parent_id && taskIds.has(task.parent_id)) {
-          // Child with valid parent: use parent's emoji with suffix
+        if (task.parent_id) {
+          // Child task: always use parent's emoji for family consistency
+          // (even if parent is filtered out)
           const emoji = getTaskEmoji(task.parent_id);
+          // Only show suffix if parent is visible (siblings can be compared)
           const siblings = childrenByParent.get(task.parent_id) || [];
-          const suffix = siblings.indexOf(task) + 1;
-          emojiMap.set(task.task_id, { emoji, suffix });
+          const suffix = siblings.length > 0 ? siblings.indexOf(task) + 1 : null;
+          emojiMap.set(task.task_id, { emoji, suffix: suffix || null });
         } else {
-          // Parent, standalone, or orphaned subtask: use own emoji, no suffix
+          // Parent or standalone task: use own emoji, no suffix
           emojiMap.set(task.task_id, { emoji: getTaskEmoji(task.task_id), suffix: null });
         }
       }
@@ -1441,6 +1472,11 @@
       const isBlocked = task.blocked_by && task.blocked_by.length > 0;
       const status = isBlocked ? 'blocked' : task.status;
 
+      const isParentTask = (task.subtask_total ?? 0) > 0;
+      const parentStyle = isParentTask
+        ? `style="--family-color: ${getTaskFamilyColor(task.task_id)}"`
+        : '';
+
       // Build emoji indicator
       let emojiHtml = '';
       if (emojiInfo) {
@@ -1450,17 +1486,23 @@
           : `<span class="card-emoji">${emoji}</span>`;
       }
 
-      // Build subtask count (only for parents when subtasks hidden)
+      // Build subtask count (for parents regardless of subtasks visibility)
       let subtaskHtml = '';
-      if (!showSubtasks && task.subtask_count > 0) {
-        const label = task.subtask_count === 1 ? 'subtask' : 'subtasks';
-        subtaskHtml = `<div class="card-subtask-count">[${task.subtask_count} ${label}]</div>`;
+      const visibleCount = task.subtask_count ?? 0;
+      const totalCount = task.subtask_total ?? visibleCount;
+      if (totalCount > 0) {
+        const label = totalCount === 1 ? 'subtask' : 'subtasks';
+        const countLabel = visibleCount === totalCount
+          ? `${visibleCount} ${label}`
+          : `${visibleCount}/${totalCount} ${label}`;
+        subtaskHtml = `<div class="card-subtask-count">[${countLabel}]</div>`;
       }
 
       // Build progress badge
       let progressHtml = '';
-      if (task.progress !== null && task.progress !== undefined) {
-        progressHtml = `<span class="card-progress">${task.progress}%</span>`;
+      if (task.progress !== null && task.progress !== undefined && task.progress > 0) {
+        const progressClass = task.progress >= 100 ? 'card-progress complete' : 'card-progress';
+        progressHtml = `<span class="${progressClass}">${task.progress}%</span>`;
       }
 
       let extra = '';
@@ -1473,16 +1515,18 @@
       }
 
       return `
-        <div class="card" data-task-id="${task.task_id}">
+        <div class="card${isParentTask ? ' card-parent' : ''}" data-task-id="${task.task_id}" ${parentStyle}>
           <div class="card-header">
-            ${emojiHtml}
-            <span class="card-id">${task.task_id.slice(0, 8)}</span>
+            <div class="card-header-left">
+              ${emojiHtml}
+              <span class="card-id">${task.task_id.slice(0, 8)}</span>
+            </div>
+            ${progressHtml}
           </div>
           <div class="card-title">${escapeHtml(task.title)}</div>
           ${subtaskHtml}
           <div class="card-meta">
             <span class="card-project">${escapeHtml(task.project)}</span>
-            ${progressHtml}
             ${task.assignee ? `<span class="card-agent">${task.assignee.slice(0, 8)}</span>` : ''}
           </div>
           ${extra}

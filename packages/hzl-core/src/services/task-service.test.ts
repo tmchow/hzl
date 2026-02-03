@@ -793,6 +793,53 @@ describe('TaskService', () => {
       expect(counts.get(parent1.task_id)).toBe(1);
       expect(counts.get(parent2.task_id)).toBe(3);
     });
+
+    it('filters by project', () => {
+      projectService.createProject('subtask-proj-a');
+      projectService.createProject('subtask-proj-b');
+
+      const parentA = taskService.createTask({ title: 'Parent A', project: 'subtask-proj-a' });
+      const parentB = taskService.createTask({ title: 'Parent B', project: 'subtask-proj-b' });
+
+      taskService.createTask({ title: 'Child A-1', project: 'subtask-proj-a', parent_id: parentA.task_id });
+      taskService.createTask({ title: 'Child A-2', project: 'subtask-proj-a', parent_id: parentA.task_id });
+      taskService.createTask({ title: 'Child B-1', project: 'subtask-proj-b', parent_id: parentB.task_id });
+
+      const countsA = taskService.getSubtaskCounts({ project: 'subtask-proj-a' });
+      expect(countsA.get(parentA.task_id)).toBe(2);
+      expect(countsA.has(parentB.task_id)).toBe(false);
+
+      const countsB = taskService.getSubtaskCounts({ project: 'subtask-proj-b' });
+      expect(countsB.get(parentB.task_id)).toBe(1);
+      expect(countsB.has(parentA.task_id)).toBe(false);
+    });
+
+    it('excludes done subtasks when excludeDone is true', () => {
+      const parent = taskService.createTask({ title: 'Parent', project: 'inbox' });
+      const child1 = taskService.createTask({
+        title: 'Child 1',
+        project: 'inbox',
+        parent_id: parent.task_id,
+      });
+      taskService.createTask({
+        title: 'Child 2',
+        project: 'inbox',
+        parent_id: parent.task_id,
+      });
+
+      // Complete child1
+      taskService.setStatus(child1.task_id, TaskStatus.Ready);
+      taskService.claimTask(child1.task_id);
+      taskService.completeTask(child1.task_id);
+
+      // Without excludeDone: count includes done subtask
+      const allCounts = taskService.getSubtaskCounts();
+      expect(allCounts.get(parent.task_id)).toBe(2);
+
+      // With excludeDone: count excludes done subtask
+      const activeCounts = taskService.getSubtaskCounts({ excludeDone: true });
+      expect(activeCounts.get(parent.task_id)).toBe(1);
+    });
   });
 
   describe('getStats', () => {

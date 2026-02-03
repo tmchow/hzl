@@ -92,6 +92,37 @@ pnpm link --global packages/hzl-cli
 hzl --help
 ```
 
+### Running the Web Dashboard (Worktrees + Dev Mode)
+
+```bash
+# Build the web + CLI packages (required after UI/server changes)
+pnpm --filter hzl-web build
+pnpm --filter hzl-cli build
+
+# Start the dashboard server from the CLI (this is the correct entrypoint)
+node packages/hzl-cli/dist/cli.js serve
+
+# Optional: bind localhost only
+node packages/hzl-cli/dist/cli.js serve --host 127.0.0.1
+```
+
+Notes:
+- In a worktree, dev mode is automatic and uses `.local/hzl/` in that worktree.
+- Do not run `node packages/hzl-web/dist/server.js` directly; it exports helpers but does not keep the process alive.
+- Open `http://localhost:3456` after starting the server.
+
+### Quick UI Smoke Test (Subtasks)
+
+```bash
+# Create a parent + child and verify the badge in the UI
+node packages/hzl-cli/dist/cli.js task add "Parent task" -p demo
+node packages/hzl-cli/dist/cli.js task add "Child task" -p demo --parent <parent_id>
+```
+
+Then:
+- Open the dashboard, toggle "Show subtasks" off.
+- Verify the parent card shows `[1 subtasks]` (or `[N/M subtasks]` when filtered).
+
 ## Architecture
 
 HZL is an event-sourced task coordination system. The codebase is a monorepo with three packages:

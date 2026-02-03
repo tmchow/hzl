@@ -1048,17 +1048,46 @@ export class TaskService {
   }
 
   /**
-   * Get a map of parent task_id -> count of non-archived subtasks.
+   * Get a map of parent task_id -> count of subtasks.
    * Used by web dashboard to show subtask counts on parent cards.
+   *
+   * @param opts.sinceDays - Filter to subtasks updated within N days (aligns with listTasks)
+   * @param opts.project - Filter to subtasks in specific project
+   * @param opts.excludeDone - If true, exclude 'done' subtasks (show only active work)
    */
-  getSubtaskCounts(): Map<string, number> {
-    const rows = this.db.prepare(`
+  getSubtaskCounts(
+    opts: { sinceDays?: number; project?: string; excludeDone?: boolean } = {}
+  ): Map<string, number> {
+    const { sinceDays, project, excludeDone = false } = opts;
+
+    let query = `
       SELECT parent_id, COUNT(*) as count
       FROM tasks_current
       WHERE parent_id IS NOT NULL
         AND status != 'archived'
-      GROUP BY parent_id
-    `).all() as Array<{ parent_id: string; count: number }>;
+    `;
+    const params: Array<string | number> = [];
+
+    if (excludeDone) {
+      query += ` AND status != 'done'`;
+    }
+
+    if (sinceDays !== undefined) {
+      query += ` AND updated_at >= datetime('now', ?)`;
+      params.push(`-${sinceDays} days`);
+    }
+
+    if (project) {
+      query += ` AND project = ?`;
+      params.push(project);
+    }
+
+    query += ` GROUP BY parent_id`;
+
+    const rows = this.db.prepare(query).all(...params) as Array<{
+      parent_id: string;
+      count: number;
+    }>;
 
     return new Map(rows.map((r) => [r.parent_id, r.count]));
   }
