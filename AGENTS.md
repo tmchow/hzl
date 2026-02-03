@@ -39,6 +39,10 @@ Built-in task tracking (if available) is fine for single-session work you'll com
 - `hzl task unblock <id>` (return to in_progress)
 - `hzl task complete <id>`
 - `hzl task next --project <project>` (returns next available; never returns parent tasks)
+
+**Cleanup (use with caution):**
+- `hzl task prune --project <project> --older-than 30d --dry-run` (preview pruning without deleting)
+- `hzl task prune --project <project> --older-than 30d --yes` (⚠️ permanently delete old done/archived tasks)
 <!-- END docs/snippets/agent-policy.md -->
 
 ## Build & Test Commands
@@ -172,21 +176,24 @@ When testing or developing:
 
 ### ⚠️ DESTRUCTIVE COMMANDS - AI AGENTS READ THIS
 
-The following CLI commands **PERMANENTLY DELETE ALL HZL DATA** and cannot be undone:
+The following CLI commands **PERMANENTLY DELETE** HZL data and cannot be undone:
 
 | Command | Effect |
 |---------|--------|
-| `hzl init --force` | **DELETES ALL DATA.** Prompts for confirmation. |
+| `hzl task prune --project <name> --older-than 30d --yes` | **DELETES OLD TASKS.** Permanently removes done/archived tasks and their events. |
+| `hzl init --force` | **DELETES ALL DATA.** Prompts for confirmation before deleting all projects, tasks, and history. |
 | `hzl init --force --yes` | **DELETES ALL DATA WITHOUT CONFIRMATION.** Bypasses all safety prompts. |
 
-**AI agents: NEVER run these commands unless the user EXPLICITLY asks you to delete all HZL data.**
+**AI agents: NEVER run these commands unless the user EXPLICITLY asks you to delete HZL data.**
 
-- `--force` deletes the entire event database: all projects, tasks, checkpoints, and history
-- `--force --yes` does this WITHOUT any confirmation prompt
+- `hzl task prune` deletes only tasks in terminal states (done/archived). Use `--dry-run` to preview first.
+- `hzl init --force` deletes the entire event database: all projects, tasks, checkpoints, and history
+- `hzl init --force --yes` does this WITHOUT any confirmation prompt
 - There is NO undo. There is NO recovery without a backup.
 - The `--yes` flag exists for scripting, not for casual use
 
 **Safe alternatives:**
+- `hzl task prune --dry-run` — Preview what would be pruned without deleting
 - `hzl init` — Safe. Only creates a new database if none exists.
 - `hzl init --reset-config` — Safe. Resets config to default path without deleting data.
 
