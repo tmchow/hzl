@@ -64,8 +64,8 @@
   "dependencies": {
     "libsql": "^0.5.0",
     "commander": "^14.0.0",
-    "hzl-core": "^1.17.1",
-    "hzl-web": "^1.7.6",
+    "hzl-core": "workspace:*",
+    "hzl-web": "workspace:*",
     "zod": "^3.23.8"
   },
   "devDependencies": {

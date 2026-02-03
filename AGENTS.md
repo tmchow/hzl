@@ -48,23 +48,23 @@ Built-in task tracking (if available) is fine for single-session work you'll com
 ## Build & Test Commands
 
 ```bash
-npm install          # Install dependencies (all workspaces)
-npm run build        # Build all packages
-npm test             # Run all tests
-npm run test:watch   # Watch mode
-npm run typecheck    # TypeScript type checking
-npm run lint         # ESLint
-npm run lint:fix     # ESLint with auto-fix
+pnpm install          # Install dependencies (all workspaces)
+pnpm build            # Build all packages
+pnpm test             # Run all tests
+pnpm test:watch       # Watch mode
+pnpm typecheck        # TypeScript type checking
+pnpm lint             # ESLint
+pnpm lint:fix         # ESLint with auto-fix
 ```
 
 ### Running Single Tests
 
 ```bash
 # Run a specific test file
-npm test -w hzl-core -- src/services/task-service.test.ts
+pnpm --filter hzl-core test src/services/task-service.test.ts
 
 # Run tests matching a pattern
-npm test -w hzl-cli -- --grep "claim"
+pnpm --filter hzl-cli test -- --grep "claim"
 ```
 
 ### After Refactoring
@@ -73,7 +73,7 @@ When moving logic between layers (CLI → service) or changing error handling:
 
 1. Run tests for the specific modified files, not just the full suite:
    ```bash
-   npm test -w hzl-cli -- src/commands/task/archive.test.ts
+   pnpm --filter hzl-cli test src/commands/task/archive.test.ts
    ```
 
 2. Verify error message patterns in tests still match - service layer errors won't include CLI flag prefixes (`--cascade` vs `cascade`)
@@ -86,8 +86,8 @@ When moving logic between layers (CLI → service) or changing error handling:
 node packages/hzl-cli/dist/cli.js init
 node packages/hzl-cli/dist/cli.js --help
 
-# Or link globally (WARNING: linked CLI still detects dev mode based on install location)
-npm link packages/hzl-cli
+# Or link globally (note: pnpm link works differently than npm link)
+pnpm link --global packages/hzl-cli
 hzl --help
 ```
 
@@ -179,7 +179,7 @@ When testing or developing:
 Concurrency tests in `hzl-core/src/__tests__/concurrency/` spawn worker processes to verify atomic claiming. Run with:
 
 ```bash
-npm test -w hzl-core -- src/__tests__/concurrency/stress.test.ts
+pnpm --filter hzl-core test src/__tests__/concurrency/stress.test.ts
 ```
 
 ## Commits and Releases
