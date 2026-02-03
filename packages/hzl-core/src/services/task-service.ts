@@ -1055,8 +1055,8 @@ export class TaskService {
     `).all() as Array<{ status: string; count: number }>;
 
     const projectRows = this.db.prepare(`
-      SELECT DISTINCT project FROM tasks_current WHERE status != 'archived' ORDER BY project
-    `).all() as Array<{ project: string }>;
+      SELECT name FROM projects ORDER BY name
+    `).all() as Array<{ name: string }>;
 
     const byStatus: Record<string, number> = {};
     let total = 0;
@@ -1068,7 +1068,7 @@ export class TaskService {
     return {
       total,
       byStatus,
-      projects: projectRows.map((r) => r.project),
+      projects: projectRows.map((r) => r.name),
     };
   }
 
