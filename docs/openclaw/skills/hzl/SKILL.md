@@ -50,11 +50,65 @@ Personal tasks: HZL is not a polished human to-do app, but it is usable for pers
 
 ## Core concepts
 
-- **Project**: stable container for a body of work. Typically one per repo or long-running initiative. Do not create per-feature projects.
-- **Task**: top-level work item (often a feature). Use `--depends-on` to sequence separate tasks.
+- **Project**: stable container. For OpenClaw, use a single `openclaw` project—this keeps `hzl task next` simple. Check `hzl project list` before creating.
+- **Task**: top-level work item. For multi-step requests, this becomes a parent task.
 - **Subtask**: breakdown of a task into parts (`--parent <id>`). Max 1 level of nesting. Parent tasks are organizational containers—never returned by `hzl task next`.
 - **Checkpoint**: short progress snapshot to support recovery
 - **Lease**: time-limited claim (prevents orphaned work in multi-agent flows)
+
+## Anti-pattern: Project Sprawl
+
+Use a single `openclaw` project. Requests and initiatives become **parent tasks**, not new projects.
+
+**Wrong (creates sprawl):**
+```bash
+hzl project create "garage-sensors"
+hzl project create "query-perf"
+# Now you have to track which project to query
+```
+
+**Correct (single project, parent tasks):**
+```bash
+# Check for existing project first
+hzl project list
+
+# Use single openclaw project
+hzl task add "Install garage sensors" -P openclaw
+# → Created task abc123
+
+hzl task add "Wire sensor to hub" --parent abc123
+hzl task add "Configure alerts" --parent abc123
+
+# hzl task next --project openclaw always works
+```
+
+Why this matters:
+- Projects accumulate forever; you'll have dozens of abandoned one-off projects
+- `hzl task next --project X` requires knowing which project to query
+- With a single project, `hzl task next --project openclaw` always works
+
+## Sizing Parent Tasks
+
+HZL supports one level of nesting (parent → subtasks). Scope parent tasks to completable outcomes.
+
+**The completability test:** "I finished [parent task]" should describe a real outcome.
+- ✓ "Finished installing garage motion sensors"
+- ✓ "Finished fixing query performance"
+- ✗ "Finished home automation" (open-ended domain, never done)
+- ✗ "Finished backend work" (if frontend still pending for feature to ship)
+
+**Scope by problem, not technical layer.** A full-stack feature (frontend + backend + tests) is usually one parent if it ships together.
+
+**Split into multiple parents when:**
+- Parts deliver independent value (can ship separately)
+- You're solving distinct problems that happen to be related
+
+**Adding context:** Use `--links` to attach specs or reference docs when the description isn't enough:
+```bash
+hzl task add "Install garage sensors" -P openclaw \
+  --links docs/sensor-spec.md \
+  --links "https://example.com/wiring-guide"
+```
 
 ## ⚠️ DESTRUCTIVE COMMANDS - READ CAREFULLY
 

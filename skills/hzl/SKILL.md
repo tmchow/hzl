@@ -51,6 +51,56 @@ Projects are long-lived. Do not create per-feature projects.
 
 **Checkpoints** preserve progress. Use them liberally to enable recovery.
 
+## Anti-pattern: Project Sprawl
+
+Projects are stable containers—one per repo. Features, initiatives, and requests are **tasks**, not projects.
+
+**Wrong (creates sprawl):**
+```bash
+hzl project create "query-perf"
+hzl task add "Fix search N+1" -P query-perf
+hzl task add "Cache statements" -P query-perf
+hzl task add "Batch temp table" -P query-perf
+```
+
+**Correct (uses parent + subtasks):**
+```bash
+# Use existing repo project
+hzl task add "Query performance fixes" -P myrepo
+# → Created task abc123
+
+hzl task add "Fix search N+1" --parent abc123
+hzl task add "Cache statements" --parent abc123
+hzl task add "Batch temp table" --parent abc123
+```
+
+Why this matters:
+- Projects accumulate forever; you'll have dozens of abandoned one-off projects
+- `hzl task next --project X` requires knowing which project to query
+- Parent tasks group related work AND provide dashboard visibility (subtask progress rolls up)
+
+## Sizing Parent Tasks
+
+HZL supports one level of nesting (parent → subtasks). Scope parent tasks to completable outcomes.
+
+**The completability test:** "I finished [parent task]" should describe a real outcome.
+- ✓ "Finished the user authentication feature"
+- ✗ "Finished the backend work" (frontend still pending)
+- ✗ "Finished home automation" (open-ended, never done)
+
+**Scope by problem, not technical layer.** A full-stack feature (frontend + backend + tests) is usually one parent if it ships together.
+
+**Split into multiple parents when:**
+- Parts deliver independent value (can ship separately)
+- You're solving distinct problems that happen to be related
+
+**Adding context:** Use `--links` to attach specs or design docs when the description isn't enough:
+```bash
+hzl task add "User authentication" -P myrepo \
+  --links docs/auth-spec.md \
+  --links "https://example.com/design-doc"
+```
+
 ## ⚠️ DESTRUCTIVE COMMANDS - READ CAREFULLY
 
 The following commands **PERMANENTLY DELETE HZL DATA** and cannot be undone:

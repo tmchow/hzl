@@ -36,8 +36,14 @@ If the skill is not installed, run `npx clawhub@latest install hzl` or use your 
 
 **Conventions**
 
+- Use a single `openclaw` project. Check `hzl project list` first.
+- Multi-step requests become parent tasks (not new projects):
+  ```bash
+  hzl task add "Fix query performance" -P openclaw   # Parent
+  hzl task add "Fix N+1" --parent <id>               # Subtask
+  ```
+- Name parent tasks for completable outcomes ("Install garage sensors"), not domains ("Home automation").
 - Use consistent author IDs:
   - `openclaw` (main orchestrator)
   - `subagent-claude-code`, `subagent-codex`, `subagent-gemini`, etc.
-- Create one HZL project per user request or per initiative.
 - Encode ordering with dependencies instead of relying on chat memory.
