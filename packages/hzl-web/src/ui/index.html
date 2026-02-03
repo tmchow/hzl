@@ -950,6 +950,113 @@
       localStorage.setItem('hzl-dashboard-prefs', JSON.stringify(prefs));
     }
 
+    // Graph View Functions
+    function handleGraphLibError() {
+      console.warn('[hzl] force-graph CDN failed to load');
+      const graphBtn = viewToggle.querySelector('[data-view="graph"]');
+      if (graphBtn) {
+        graphBtn.disabled = true;
+        graphBtn.title = 'Graph unavailable - CDN failed to load';
+      }
+    }
+
+    function getStatusColor(status, type) {
+      if (type === 'root') return '#f59e0b';
+      if (type === 'project') return '#e5e5e5';
+      const colors = {
+        backlog: '#6b7280',
+        ready: '#22c55e',
+        in_progress: '#3b82f6',
+        blocked: '#ef4444',
+        done: '#6b7280',
+      };
+      return colors[status] ?? '#6b7280';
+    }
+
+    function getNodeSize(node) {
+      if (node.type === 'root') return 20;
+      if (node.type === 'project') return 14;
+      const progress = node.progress ?? 0;
+      return 8 + (progress / 100) * 16;
+    }
+
+    function transformTasksToGraph(taskList) {
+      const nodes = [{ id: 'root', type: 'root', name: 'HZL', ring: 0 }];
+      const links = [];
+      const projects = new Set();
+      nodeStatusMap.clear();
+
+      for (const task of taskList) {
+        if (!task.project || !task.task_id) {
+          console.warn('[hzl] Skipping task with missing required fields:', task);
+          continue;
+        }
+
+        // Add project node if not seen
+        if (!projects.has(task.project)) {
+          projects.add(task.project);
+          const projectId = `project:${task.project}`;
+          nodes.push({ id: projectId, type: 'project', name: task.project, ring: 1 });
+          links.push({ source: projectId, target: 'root', type: 'hierarchy' });
+          nodeStatusMap.set(projectId, null);
+        }
+
+        // Add task node
+        const ring = task.parent_id ? 3 : 2;
+        nodes.push({
+          id: task.task_id,
+          type: task.parent_id ? 'subtask' : 'task',
+          name: task.title,
+          status: task.status,
+          progress: task.progress ?? 0,
+          ring,
+        });
+        nodeStatusMap.set(task.task_id, task.status);
+
+        // Hierarchy link
+        const parent = task.parent_id || `project:${task.project}`;
+        links.push({ source: task.task_id, target: parent, type: 'hierarchy' });
+
+        // Dependency links (for particles)
+        if (task.blocked_by) {
+          for (const blockerId of task.blocked_by) {
+            links.push({ source: blockerId, target: task.task_id, type: 'dependency' });
+          }
+        }
+      }
+
+      return { nodes, links };
+    }
+
+    function initGraph() {
+      if (graphInitialized) return;
+
+      if (typeof ForceGraph === 'undefined') {
+        console.error('[hzl] ForceGraph not available - CDN may have failed');
+        handleGraphLibError();
+        return;
+      }
+
+      // Hide loading spinner
+      graphLoading.style.display = 'none';
+
+      graphInstance = ForceGraph()(graphContainer)
+        .graphData(transformTasksToGraph(tasks))
+        .backgroundColor('#1a1a1a')
+        .nodeLabel(n => n.name)
+        .nodeColor(n => getStatusColor(n.status, n.type))
+        .nodeVal(n => getNodeSize(n))
+        .linkColor(l => l.type === 'dependency' ? '#f59e0b' : '#40404080')
+        .linkWidth(l => l.type === 'dependency' ? 2 : 1)
+        .onNodeClick(n => {
+          if (n.type !== 'root' && n.type !== 'project') {
+            openTaskModal(n.id);
+          }
+        });
+
+      graphInitialized = true;
+    }
+
     // API calls
     async function fetchTasks() {
       const since = dateFilter.value;
@@ -1469,5 +1576,10 @@
       }
     }, 1000);
   </script>
+
+  <!-- Force-graph library for Graph view -->
+  <script src="https://cdn.jsdelivr.net/npm/force-graph@1/dist/force-graph.min.js"
+          defer
+          onerror="handleGraphLibError()"></script>
 </body>
 </html>
