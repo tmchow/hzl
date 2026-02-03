@@ -73,6 +73,7 @@
       display: flex;
       align-items: center;
       gap: 6px;
+      position: relative;
     }
 
     .filter-label {
@@ -136,6 +137,58 @@
       border-color: var(--accent);
     }
 
+    /* Column Visibility Dropdown */
+    .columns-toggle {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+      padding: 4px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .columns-toggle:hover {
+      border-color: var(--accent);
+    }
+
+    .columns-dropdown {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      margin-top: 4px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 8px;
+      z-index: 100;
+      min-width: 140px;
+    }
+
+    .columns-dropdown.open {
+      display: block;
+    }
+
+    .column-checkbox {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 0;
+      cursor: pointer;
+      font-size: 12px;
+      color: var(--text-primary);
+    }
+
+    .column-checkbox:hover {
+      color: var(--accent);
+    }
+
+    .column-checkbox input {
+      accent-color: var(--accent);
+    }
+
     /* Kanban Board */
     .board {
       display: flex;
@@ -146,12 +199,18 @@
     }
 
     .column {
-      flex: 0 0 280px;
+      flex: 1 1 220px;
+      min-width: 180px;
+      max-width: 320px;
       background: var(--bg-secondary);
       border-radius: 8px;
       display: flex;
       flex-direction: column;
       max-height: calc(100vh - 85px);
+    }
+
+    .column.hidden {
+      display: none;
     }
 
     .column-header {
@@ -609,6 +668,26 @@
           <option value="30000">30s</option>
         </select>
       </div>
+      <div class="filter-group">
+        <button class="columns-toggle" id="columnsToggle">Columns</button>
+        <div class="columns-dropdown" id="columnsDropdown">
+          <label class="column-checkbox">
+            <input type="checkbox" value="backlog" checked> Backlog
+          </label>
+          <label class="column-checkbox">
+            <input type="checkbox" value="ready" checked> Ready
+          </label>
+          <label class="column-checkbox">
+            <input type="checkbox" value="in_progress" checked> In Progress
+          </label>
+          <label class="column-checkbox">
+            <input type="checkbox" value="blocked" checked> Blocked
+          </label>
+          <label class="column-checkbox">
+            <input type="checkbox" value="done" checked> Done
+          </label>
+        </div>
+      </div>
     </div>
     <div class="header-right">
       <div class="connection-indicator">
@@ -720,6 +799,21 @@
     const modalBody = document.getElementById('modalBody');
     const hamburgerBtn = document.getElementById('hamburgerBtn');
     const mobileTabs = document.getElementById('mobileTabs');
+    const columnsToggle = document.getElementById('columnsToggle');
+    const columnsDropdown = document.getElementById('columnsDropdown');
+
+    // Column visibility
+    const COLUMNS = ['backlog', 'ready', 'in_progress', 'blocked', 'done'];
+
+    function updateColumnVisibility() {
+      COLUMNS.forEach(status => {
+        const checkbox = columnsDropdown.querySelector(`input[value="${status}"]`);
+        const column = document.querySelector(`.column[data-status="${status}"]`);
+        if (column && checkbox) {
+          column.classList.toggle('hidden', !checkbox.checked);
+        }
+      });
+    }
 
     // Load saved preferences
     function loadPreferences() {
@@ -730,6 +824,12 @@
           if (prefs.dateFilter) dateFilter.value = prefs.dateFilter;
           if (prefs.projectFilter) projectFilter.value = prefs.projectFilter;
           if (prefs.refreshFilter) refreshFilter.value = prefs.refreshFilter;
+          if (Array.isArray(prefs.columnVisibility)) {
+            columnsDropdown.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+              cb.checked = prefs.columnVisibility.includes(cb.value);
+            });
+            updateColumnVisibility();
+          }
         } catch (e) {}
       }
     }
@@ -739,6 +839,9 @@
         dateFilter: dateFilter.value,
         projectFilter: projectFilter.value,
         refreshFilter: refreshFilter.value,
+        columnVisibility: Array.from(
+          columnsDropdown.querySelectorAll('input[type="checkbox"]:checked')
+        ).map(cb => cb.value),
       };
       localStorage.setItem('hzl-dashboard-prefs', JSON.stringify(prefs));
     }
@@ -1163,6 +1266,7 @@
       if (e.key === 'Escape') {
         closeModal();
         activityPanel.classList.remove('open');
+        columnsDropdown.classList.remove('open');
       }
     });
 
@@ -1193,6 +1297,23 @@
     hamburgerBtn.addEventListener('click', () => {
       const filters = document.querySelector('.header-filters');
       filters.style.display = filters.style.display === 'none' ? 'flex' : 'none';
+    });
+
+    // Column visibility dropdown
+    columnsToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      columnsDropdown.classList.toggle('open');
+    });
+
+    document.addEventListener('click', () => {
+      columnsDropdown.classList.remove('open');
+    });
+
+    columnsDropdown.addEventListener('click', (e) => e.stopPropagation());
+
+    columnsDropdown.addEventListener('change', () => {
+      updateColumnVisibility();
+      savePreferences();
     });
 
     // Initialize
