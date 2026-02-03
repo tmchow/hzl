@@ -1,3 +1,15 @@
+# [1.14.0](https://github.com/tmchow/hzl/compare/v1.13.2...v1.14.0) (2026-02-03)
+
+
+### Bug Fixes
+
+* **ci:** use ubuntu-latest for homebrew update workflow ([f66871e](https://github.com/tmchow/hzl/commit/f66871e2fbb417487da195932c203aabfd415188))
+
+
+### Features
+
+* **ci:** add workflow_dispatch to homebrew update for manual testing ([50ffa4f](https://github.com/tmchow/hzl/commit/50ffa4f7d206fc9f07c538fa4da637acb18f6388))
+
 ## [1.13.2](https://github.com/tmchow/hzl/compare/v1.13.1...v1.13.2) (2026-02-02)
 
 
