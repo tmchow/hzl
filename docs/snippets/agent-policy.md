@@ -34,6 +34,6 @@ Built-in task tracking (if available) is fine for single-session work you'll com
 - `hzl task complete <id>`
 - `hzl task next --project <project>` (returns next available; never returns parent tasks)
 
-**Cleanup (use with caution):**
-- `hzl task prune --project <project> --older-than 30d --dry-run` (preview pruning without deleting)
-- `hzl task prune --project <project> --older-than 30d --yes` (⚠️ permanently delete old done/archived tasks)
+**⚠️ DESTRUCTIVE - Never run without explicit user request:**
+- `hzl task prune` — **PERMANENTLY DELETES** old done/archived tasks. No undo.
+- **AI agents: NEVER run prune unless the user explicitly asks to delete old tasks**
