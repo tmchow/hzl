@@ -76,6 +76,26 @@ describe('TaskService', () => {
       expect(task.priority).toBe(2);
     });
 
+    it('persists assignee in event data and projection', () => {
+      const task = taskService.createTask({
+        title: 'Pre-assigned task',
+        project: 'inbox',
+        assignee: 'agent-1',
+      });
+
+      // Verify assignee in projection
+      const row = db.prepare(
+        'SELECT assignee FROM tasks_current WHERE task_id = ?'
+      ).get(task.task_id) as { assignee: string | null };
+      expect(row.assignee).toBe('agent-1');
+
+      // Verify assignee in event data
+      const events = eventStore.getByTaskId(task.task_id);
+      expect(events).toHaveLength(1);
+      const eventData = events[0].data as { assignee?: string };
+      expect(eventData.assignee).toBe('agent-1');
+    });
+
     it('persists task to tasks_current projection', () => {
       const task = taskService.createTask({
         title: 'Persisted task',
