@@ -1,3 +1,10 @@
+---
+layout: default
+title: Pruning
+parent: Concepts
+nav_order: 5
+---
+
 # Task Pruning
 
 Pruning permanently deletes old tasks that have completed. It reclaims storage space while maintaining referential integrity.
