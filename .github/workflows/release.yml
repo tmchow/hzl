@@ -63,9 +63,14 @@ jobs:
         id: release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # No NPM_TOKEN needed - using OIDC Trusted Publishing
-          # id-token: write permission + Trusted Publisher config on npmjs.com
+          # Clear token env vars - OIDC Trusted Publishing handles auth
+          NODE_AUTH_TOKEN: ''
+          NPM_TOKEN: ''
+          NPM_CONFIG_USERCONFIG: ''
         run: |
+          # Remove setup-node's .npmrc to let semantic-release use OIDC
+          rm -f /home/runner/work/_temp/.npmrc
+
           # Capture semantic-release output to detect if a new release was made
           npx semantic-release 2>&1 | tee release-output.txt
 
