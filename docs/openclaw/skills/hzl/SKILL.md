@@ -162,7 +162,7 @@ hzl task show <id> --json
 hzl task complete <id>
 
 # Blocked tasks (stuck on external issues)
-hzl task block <id> --reason "Waiting for API key"
+hzl task block <id> --comment "Blocked: waiting for API key from DevOps"
 hzl task unblock <id>                         # Returns to in_progress
 
 # Dependencies + validation
@@ -264,13 +264,18 @@ When stuck on external dependencies, mark the task as blocked:
 ```bash
 hzl task claim <id> --assignee orchestrator
 hzl task checkpoint <id> "Implemented login flow. Blocked: need API key for staging."
-hzl task block <id> --reason "Waiting for staging API key from DevOps"
+hzl task block <id> --comment "Blocked: waiting for staging API key from DevOps"
 
 # Later, when unblocked:
-hzl task unblock <id>
+hzl task unblock <id> --comment "Unblocked: received API key from DevOps"
 hzl task checkpoint <id> "Got API key, resuming work"
 hzl task complete <id>
 ```
+
+**Comment best practices:** Include context about the action, not just the state:
+- Good: "Blocked: waiting for API keys from infra team"
+- Good: "Unblocked: keys received, resuming work"
+- Bad: "waiting for API keys" (missing action context)
 
 Blocked tasks stay visible in the dashboard (Blocked column) and keep their assignee, but don't appear in `--available` lists.
 
@@ -377,7 +382,6 @@ Use `--background` for temporary sessions. Use systemd for always-on access.
 | "Task is not claimable (status: backlog)" | Task needs to be ready before claiming | `hzl task set-status <id> ready`, or create with `-s ready` |
 | "Cannot block: status is X, expected in_progress or blocked" | Task must be claimed before blocking | Claim the task first: `hzl task claim <id> --assignee <name>` |
 | "Cannot complete: status is X" | Task must be in_progress or blocked | Claim the task first |
-| "Blocked status requires --reason" | Missing reason when creating blocked task | Add `--reason "why"` with `-s blocked` |
 
 ## OpenClaw-specific notes
 

@@ -27,7 +27,7 @@ export interface AddOptions {
   parent?: string;
   status?: string;
   assignee?: string;
-  reason?: string;
+  comment?: string;
   json: boolean;
 }
 
@@ -40,11 +40,11 @@ interface AddCommandOptions {
   parent?: string;
   status?: string;
   assignee?: string;
-  reason?: string;
+  comment?: string;
 }
 
 export function runAdd(options: AddOptions): AddResult {
-  const { services, title, description, tags, priority, dependsOn, parent, status, assignee, reason, json } = options;
+  const { services, title, description, tags, priority, dependsOn, parent, status, assignee, comment, json } = options;
   let project = options.project;
 
   // Validate status flag
@@ -68,13 +68,7 @@ export function runAdd(options: AddOptions): AddResult {
       throw new CLIError('Cannot create task as archived. Use -s done, then archive separately.', ExitCode.InvalidInput);
     }
 
-    if (statusLower === 'blocked' && !reason) {
-      throw new CLIError('Blocked status requires --reason flag.\nHint: hzl task add "..." -s blocked --reason "why"', ExitCode.InvalidInput);
-    }
-
-    if (reason && statusLower !== 'blocked') {
-      throw new CLIError('--reason only valid with -s blocked', ExitCode.InvalidInput);
-    }
+    // Note: --comment is optional but encouraged for blocked status
 
     initialStatus = statusMap[statusLower];
   }
@@ -107,7 +101,7 @@ export function runAdd(options: AddOptions): AddResult {
     depends_on: dependsOn,
     parent_id: parent,
     initial_status: initialStatus,
-    block_reason: reason,
+    comment,
   }, {
     author: assignee,
   });
@@ -143,7 +137,7 @@ export function createAddCommand(): Command {
     .option('--parent <taskId>', 'Parent task ID (creates subtask, inherits project)')
     .option('-s, --status <status>', 'Initial status (backlog, ready, in_progress, blocked, done)')
     .option('--assignee <name>', 'Who to assign the task to (for -s in_progress)')
-    .option('--reason <reason>', 'Block reason (required with -s blocked)')
+    .option('--comment <comment>', 'Comment explaining the status (recommended for blocked)')
     .action(function (this: Command, title: string, opts: AddCommandOptions) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
@@ -160,7 +154,7 @@ export function createAddCommand(): Command {
           parent: opts.parent,
           status: opts.status,
           assignee: opts.assignee,
-          reason: opts.reason,
+          comment: opts.comment,
           json: globalOpts.json ?? false,
         });
       } catch (e) {

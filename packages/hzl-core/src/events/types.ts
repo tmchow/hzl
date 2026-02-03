@@ -136,6 +136,8 @@ const TaskCreatedSchema = z.object({
 const StatusChangedSchema = z.object({
   from: z.nativeEnum(TaskStatus),
   to: z.nativeEnum(TaskStatus),
+  // Deprecated: kept for backward compatibility with existing events.
+  // New code emits CommentAdded events instead of embedding reason here.
   reason: reasonString.optional(),
   lease_until: isoDateTime.optional(),
 });

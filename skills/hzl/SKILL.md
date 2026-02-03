@@ -256,7 +256,7 @@ hzl task add "Fix bug" -P myapp -s ready
 hzl task add "Fix bug" -P myapp -s in_progress --assignee <agent-name>
 
 # Create blocked task with reason
-hzl task add "API integration" -P myapp -s blocked --reason "Waiting for credentials"
+hzl task add "API integration" -P myapp -s blocked --comment "Blocked: waiting for credentials from DevOps"
 ```
 
 The `-s/--status` flag allows: `backlog`, `ready`, `in_progress`, `blocked`, `done`.
@@ -308,12 +308,17 @@ Only mark complete when the work is fully done and verified.
 When a task cannot proceed due to external factors, mark it as blocked:
 
 ```bash
-# Mark task as blocked with a reason
-hzl task block <task-id> --reason "Waiting for API credentials from DevOps"
+# Mark task as blocked (comment is optional but recommended)
+hzl task block <task-id> --comment "Blocked: waiting for API credentials from DevOps"
 
 # Check task status
 hzl task show <task-id> --json
 ```
+
+**Comment best practices:** Include context about the action, not just the state:
+- Good: "Blocked: waiting for API keys from infra team"
+- Good: "Unblocked: keys received, resuming work"
+- Bad: "waiting for API keys" (missing action context)
 
 Blocked tasks:
 - Stay visible in the dashboard (Blocked column)
@@ -422,7 +427,7 @@ Agents should check for comments before completing tasks (see "Check for steerin
 | Claim task | `hzl task claim <id> --assignee <name>` |
 | Checkpoint | `hzl task checkpoint <id> "<message>" [--progress 50]` |
 | Set progress | `hzl task progress <id> <0-100>` |
-| Block task | `hzl task block <id> --reason "<why>"` |
+| Block task | `hzl task block <id> [--comment "<context>"]` |
 | Unblock task | `hzl task unblock <id>` |
 | Show task | `hzl task show <id> --json` |
 | Complete | `hzl task complete <id>` |
@@ -440,7 +445,6 @@ For complete command options, use `hzl <command> --help`.
 | "Task is not claimable (status: backlog)" | Task needs to be ready before claiming | `hzl task set-status <id> ready`, or create with `-s ready` |
 | "Cannot block: status is X, expected in_progress or blocked" | Task must be claimed before blocking | Claim the task first: `hzl task claim <id> --assignee <name>` |
 | "Cannot complete: status is X" | Task must be in_progress or blocked | Claim the task first |
-| "Blocked status requires --reason" | Missing reason when creating blocked task | Add `--reason "why"` with `-s blocked` |
 
 ## Best Practices
 

@@ -102,7 +102,7 @@ describe('CLI Integration Tests', () => {
       const afterComplete = hzlJson<{ task: { status: string } }>(ctx, `task show ${taskId}`);
       expect(afterComplete.task.status).toBe('done');
 
-      hzlJson(ctx, `task archive ${taskId} --reason done --author agent-1`);
+      hzlJson(ctx, `task archive ${taskId} --comment done --author agent-1`);
       const afterArchive = hzlJson<{ task: { status: string } }>(ctx, `task show ${taskId}`);
       expect(afterArchive.task.status).toBe('archived');
     });

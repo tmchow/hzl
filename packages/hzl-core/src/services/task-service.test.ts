@@ -179,31 +179,78 @@ describe('TaskService', () => {
       expect(task.claimed_at).toBeDefined();
     });
 
-    it('creates task with initial_status blocked requires block_reason', () => {
-      expect(() =>
-        taskService.createTask({
-          title: 'Blocked task',
-          project: 'inbox',
-          initial_status: TaskStatus.Blocked,
-        })
-      ).toThrow('block_reason is required when initial_status is Blocked');
+    it('creates task with initial_status blocked without comment', () => {
+      const task = taskService.createTask({
+        title: 'Blocked task',
+        project: 'inbox',
+        initial_status: TaskStatus.Blocked,
+      });
+
+      expect(task.status).toBe(TaskStatus.Blocked);
+      const events = eventStore.getByTaskId(task.task_id);
+      expect(events).toHaveLength(2); // TaskCreated + StatusChanged
+      expect(events[1].type).toBe(EventType.StatusChanged);
+      expect((events[1].data as any).reason).toBeUndefined();
     });
 
-    it('creates task with initial_status blocked and block_reason', () => {
+    it('creates task with initial_status blocked and comment emits CommentAdded', () => {
       const task = taskService.createTask(
         {
           title: 'Blocked task',
           project: 'inbox',
           initial_status: TaskStatus.Blocked,
-          block_reason: 'Waiting for API keys',
+          comment: 'Waiting for API keys',
         },
         { author: 'agent-1' }
       );
 
       expect(task.status).toBe(TaskStatus.Blocked);
       const events = eventStore.getByTaskId(task.task_id);
-      expect(events).toHaveLength(2);
-      expect((events[1].data as any).reason).toBe('Waiting for API keys');
+      expect(events).toHaveLength(3); // TaskCreated + StatusChanged + CommentAdded
+      expect(events[1].type).toBe(EventType.StatusChanged);
+      expect((events[1].data as any).reason).toBeUndefined();
+      expect(events[2].type).toBe(EventType.CommentAdded);
+      expect((events[2].data as any).text).toBe('Waiting for API keys');
+    });
+
+    it('creates backlog task with comment emits CommentAdded', () => {
+      const task = taskService.createTask({
+        title: 'Backlog task with comment',
+        project: 'inbox',
+        comment: 'Initial context for this task',
+      });
+
+      expect(task.status).toBe(TaskStatus.Backlog);
+      const events = eventStore.getByTaskId(task.task_id);
+      expect(events).toHaveLength(2); // TaskCreated + CommentAdded
+      expect(events[1].type).toBe(EventType.CommentAdded);
+      expect((events[1].data as any).text).toBe('Initial context for this task');
+    });
+
+    it('skips whitespace-only comments', () => {
+      const task = taskService.createTask({
+        title: 'Task with whitespace comment',
+        project: 'inbox',
+        initial_status: TaskStatus.Blocked,
+        comment: '   ',
+      });
+
+      expect(task.status).toBe(TaskStatus.Blocked);
+      const events = eventStore.getByTaskId(task.task_id);
+      expect(events).toHaveLength(2); // TaskCreated + StatusChanged (no CommentAdded)
+      expect(events.filter(e => e.type === EventType.CommentAdded)).toHaveLength(0);
+    });
+
+    it('trims comment text', () => {
+      const task = taskService.createTask({
+        title: 'Task with padded comment',
+        project: 'inbox',
+        comment: '  Hello world  ',
+      });
+
+      const events = eventStore.getByTaskId(task.task_id);
+      const commentEvent = events.find(e => e.type === EventType.CommentAdded);
+      expect((commentEvent!.data as any).text).toBe('Hello world');
     });
 
     it('creates task with initial_status done', () => {
@@ -447,16 +494,17 @@ describe('TaskService', () => {
       expect(released.claimed_at).toBeNull();
     });
 
-    it('accepts optional reason', () => {
+    it('accepts optional comment and emits CommentAdded', () => {
       const task = taskService.createTask({ title: 'Test', project: 'inbox' });
       taskService.setStatus(task.task_id, TaskStatus.Ready);
       taskService.claimTask(task.task_id);
 
-      taskService.releaseTask(task.task_id, { reason: 'Blocked on external dependency' });
+      taskService.releaseTask(task.task_id, { comment: 'Blocked on external dependency' });
 
       const events = eventStore.getByTaskId(task.task_id);
-      const releaseEvent = events.find(e => (e.data as any).to === TaskStatus.Ready && (e.data as any).from === TaskStatus.InProgress);
-      expect((releaseEvent!.data as any).reason).toBe('Blocked on external dependency');
+      const commentEvent = events.find(e => e.type === EventType.CommentAdded);
+      expect(commentEvent).toBeDefined();
+      expect((commentEvent!.data as any).text).toBe('Blocked on external dependency');
     });
   });
 
@@ -1156,7 +1204,7 @@ describe('TaskService', () => {
       taskService.setStatus(task.task_id, TaskStatus.Ready);
       taskService.claimTask(task.task_id, { author: 'agent-1' });
 
-      const blocked = taskService.blockTask(task.task_id, { reason: 'Waiting for API keys' });
+      const blocked = taskService.blockTask(task.task_id, { comment: 'Waiting for API keys' });
       expect(blocked.status).toBe(TaskStatus.Blocked);
       // Assignee should persist
       expect(blocked.assignee).toBe('agent-1');
@@ -1168,29 +1216,71 @@ describe('TaskService', () => {
         .toThrow('Cannot block: status is backlog, expected in_progress or blocked');
     });
 
-    it('allows blocked → blocked to update reason', () => {
+    it('emits CommentAdded when comment provided', () => {
       const task = taskService.createTask({ title: 'Test', project: 'inbox' });
       taskService.setStatus(task.task_id, TaskStatus.Ready);
       taskService.claimTask(task.task_id, { author: 'agent-1' });
-      taskService.blockTask(task.task_id, { reason: 'First reason' });
 
-      const updated = taskService.blockTask(task.task_id, { reason: 'Updated reason' });
+      taskService.blockTask(task.task_id, { comment: 'Waiting for API keys' });
+
+      const events = eventStore.getByTaskId(task.task_id);
+      const commentEvent = events.find(e => e.type === EventType.CommentAdded);
+      expect(commentEvent).toBeDefined();
+      expect((commentEvent?.data as any).text).toBe('Waiting for API keys');
+    });
+
+    it('does not emit CommentAdded when no comment provided', () => {
+      const task = taskService.createTask({ title: 'Test', project: 'inbox' });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+      taskService.claimTask(task.task_id, { author: 'agent-1' });
+
+      taskService.blockTask(task.task_id);
+
+      const events = eventStore.getByTaskId(task.task_id);
+      const commentEvents = events.filter(e => e.type === EventType.CommentAdded);
+      expect(commentEvents).toHaveLength(0);
+    });
+
+    it('allows blocked → blocked to add new comment', () => {
+      const task = taskService.createTask({ title: 'Test', project: 'inbox' });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+      taskService.claimTask(task.task_id, { author: 'agent-1' });
+      taskService.blockTask(task.task_id, { comment: 'First reason' });
+
+      const updated = taskService.blockTask(task.task_id, { comment: 'Updated reason' });
       expect(updated.status).toBe(TaskStatus.Blocked);
 
       const events = eventStore.getByTaskId(task.task_id);
-      const lastStatusEvent = events.filter(e => e.type === EventType.StatusChanged).pop();
-      expect((lastStatusEvent?.data as any).reason).toBe('Updated reason');
+      const commentEvents = events.filter(e => e.type === EventType.CommentAdded);
+      expect(commentEvents).toHaveLength(2);
+      expect((commentEvents[0].data as any).text).toBe('First reason');
+      expect((commentEvents[1].data as any).text).toBe('Updated reason');
     });
 
-    it('preserves claimed_at when updating block reason', () => {
+    it('StatusChanged event does not include reason field', () => {
       const task = taskService.createTask({ title: 'Test', project: 'inbox' });
       taskService.setStatus(task.task_id, TaskStatus.Ready);
       taskService.claimTask(task.task_id, { author: 'agent-1' });
-      taskService.blockTask(task.task_id, { reason: 'First reason' });
+
+      taskService.blockTask(task.task_id, { comment: 'Some reason' });
+
+      const events = eventStore.getByTaskId(task.task_id);
+      const statusChangeEvents = events.filter(e =>
+        e.type === EventType.StatusChanged && (e.data as any).to === TaskStatus.Blocked
+      );
+      expect(statusChangeEvents).toHaveLength(1);
+      expect((statusChangeEvents[0].data as any).reason).toBeUndefined();
+    });
+
+    it('preserves claimed_at when adding comment to blocked task', () => {
+      const task = taskService.createTask({ title: 'Test', project: 'inbox' });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+      taskService.claimTask(task.task_id, { author: 'agent-1' });
+      taskService.blockTask(task.task_id, { comment: 'First reason' });
 
       const originalClaimedAt = taskService.getTaskById(task.task_id)!.claimed_at;
 
-      taskService.blockTask(task.task_id, { reason: 'Updated reason' });
+      taskService.blockTask(task.task_id, { comment: 'Updated reason' });
       const updated = taskService.getTaskById(task.task_id);
 
       expect(updated!.claimed_at).toBe(originalClaimedAt);

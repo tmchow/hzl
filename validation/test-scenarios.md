@@ -132,7 +132,7 @@ hzl task claim TASK_DELETE
 ```bash
 # Worker-2 realizes they need something
 hzl task comment TASK_GET "Missing database connection module"
-hzl task release TASK_GET --reason="Need database module first"
+hzl task release TASK_GET --comment "Released: need database module first"
 # Task goes back to ready
 ```
 

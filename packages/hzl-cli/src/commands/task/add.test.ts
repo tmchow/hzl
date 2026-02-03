@@ -173,13 +173,13 @@ describe('runAdd', () => {
       expect(task?.assignee).toBe('agent-1');
     });
 
-    it('creates task with -s blocked and --reason', () => {
+    it('creates task with -s blocked and --comment', () => {
       const result = runAdd({
         services,
         project: 'inbox',
         title: 'Blocked task',
         status: 'blocked',
-        reason: 'Waiting for API keys',
+        comment: 'Waiting for API keys',
         json: false,
       });
 
@@ -187,25 +187,17 @@ describe('runAdd', () => {
       expect(task?.status).toBe('blocked');
     });
 
-    it('errors when -s blocked without --reason', () => {
-      expect(() => runAdd({
+    it('creates task with -s blocked without --comment (optional)', () => {
+      const result = runAdd({
         services,
         project: 'inbox',
         title: 'Blocked task',
         status: 'blocked',
         json: false,
-      })).toThrow(/requires --reason|Hint:.*--reason/);
-    });
+      });
 
-    it('errors when --reason without -s blocked', () => {
-      expect(() => runAdd({
-        services,
-        project: 'inbox',
-        title: 'Task',
-        status: 'ready',
-        reason: 'Some reason',
-        json: false,
-      })).toThrow(/only valid with.*blocked/i);
+      const task = services.taskService.getTaskById(result.task_id);
+      expect(task?.status).toBe('blocked');
     });
 
     it('errors on invalid status', () => {

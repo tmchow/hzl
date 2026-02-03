@@ -14,7 +14,7 @@ export interface UnblockResult {
 
 interface UnblockCommandOptions {
   release?: boolean;
-  reason?: string;
+  comment?: string;
   author?: string;
 }
 
@@ -22,13 +22,13 @@ export function runUnblock(options: {
   services: Services;
   taskId: string;
   release?: boolean;
-  reason?: string;
+  comment?: string;
   author?: string;
   json: boolean;
 }): UnblockResult {
-  const { services, taskId, release, reason, author, json } = options;
+  const { services, taskId, release, comment, author, json } = options;
 
-  const task = services.taskService.unblockTask(taskId, { release, reason, author });
+  const task = services.taskService.unblockTask(taskId, { release, comment, author });
 
   const result: UnblockResult = {
     task_id: task.task_id,
@@ -42,7 +42,7 @@ export function runUnblock(options: {
   } else {
     const statusMsg = release ? 'released back to ready' : 'resumed';
     console.log(`▶ Unblocked task ${task.task_id}: ${task.title} (${statusMsg})`);
-    if (reason) console.log(`  Reason: ${reason}`);
+    if (comment) console.log(`  Comment: ${comment}`);
   }
 
   return result;
@@ -53,7 +53,7 @@ export function createUnblockCommand(): Command {
     .description('Unblock a blocked task, returning it to work')
     .argument('<taskId>', 'Task ID')
     .option('--release', 'Return task to ready status instead of in_progress')
-    .option('--reason <reason>', 'Unblock reason')
+    .option('--comment <comment>', 'Comment explaining the unblock')
     .option('--author <name>', 'Author name')
     .action(function (this: Command, taskId: string, opts: UnblockCommandOptions) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
@@ -64,7 +64,7 @@ export function createUnblockCommand(): Command {
           services,
           taskId,
           release: opts.release,
-          reason: opts.reason,
+          comment: opts.comment,
           author: opts.author,
           json: globalOpts.json ?? false,
         });

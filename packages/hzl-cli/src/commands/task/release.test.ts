@@ -38,7 +38,7 @@ describe('runRelease', () => {
     expect(result.assignee).toBeNull();
   });
 
-  it('accepts a reason', () => {
+  it('accepts a comment', () => {
     const task = services.taskService.createTask({ title: 'Test', project: 'inbox' });
     services.taskService.setStatus(task.task_id, TaskStatus.Ready);
     services.taskService.claimTask(task.task_id);
@@ -46,7 +46,7 @@ describe('runRelease', () => {
     const result = runRelease({
       services,
       taskId: task.task_id,
-      reason: 'blocked on external dependency',
+      comment: 'blocked on external dependency',
       json: false,
     });
 

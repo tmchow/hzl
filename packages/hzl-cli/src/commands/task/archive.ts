@@ -12,7 +12,7 @@ export interface ArchiveResult {
 }
 
 interface ArchiveCommandOptions {
-  reason?: string;
+  comment?: string;
   author?: string;
   cascade?: boolean;
   orphan?: boolean;
@@ -21,13 +21,13 @@ interface ArchiveCommandOptions {
 export function runArchive(options: {
   services: Services;
   taskId: string;
-  reason?: string;
+  comment?: string;
   author?: string;
   cascade?: boolean;
   orphan?: boolean;
   json: boolean;
 }): ArchiveResult {
-  const { services, taskId, reason, author, cascade, orphan, json } = options;
+  const { services, taskId, comment, author, cascade, orphan, json } = options;
 
   try {
     // Use service method which handles validation and transaction atomically
@@ -35,7 +35,7 @@ export function runArchive(options: {
       services.taskService.archiveWithSubtasks(taskId, {
         cascade,
         orphan,
-        reason,
+        comment,
         author,
       });
 
@@ -54,7 +54,7 @@ export function runArchive(options: {
       } else if (orphanedSubtaskCount > 0) {
         console.log(`  Promoted ${orphanedSubtaskCount} subtask(s) to top-level`);
       }
-      if (reason) console.log(`  Reason: ${reason}`);
+      if (comment) console.log(`  Comment: ${comment}`);
     }
 
     return result;
@@ -76,7 +76,7 @@ export function createArchiveCommand(): Command {
   return new Command('archive')
     .description('Archive a task')
     .argument('<taskId>', 'Task ID')
-    .option('--reason <reason>', 'Archive reason')
+    .option('--comment <comment>', 'Comment explaining the archive')
     .option('--author <name>', 'Author name')
     .option('--cascade', 'Archive all subtasks (if task has children)', false)
     .option('--orphan', 'Promote subtasks to top-level (if task has children)', false)
@@ -88,7 +88,7 @@ export function createArchiveCommand(): Command {
         runArchive({
           services,
           taskId,
-          reason: opts.reason,
+          comment: opts.comment,
           author: opts.author,
           cascade: opts.cascade,
           orphan: opts.orphan,
