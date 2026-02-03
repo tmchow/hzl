@@ -1,3 +1,5 @@
+## [1.16.1](https://github.com/tmchow/hzl/compare/v1.16.0...v1.16.1) (2026-02-03)
+
 # [1.16.0](https://github.com/tmchow/hzl/compare/v1.15.0...v1.16.0) (2026-02-03)
 
 
