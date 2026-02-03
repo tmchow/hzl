@@ -28,6 +28,9 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
       - name: Verify CI-tested code is included
         run: |
           TESTED_SHA="${{ github.event.workflow_run.head_sha }}"
@@ -50,16 +53,11 @@ jobs:
         with:
           node-version: '22.14.0'
           registry-url: 'https://registry.npmjs.org'
-          cache: 'npm'
+          cache: 'pnpm'
 
-      - name: Enable npm via corepack
-        run: |
-          corepack enable
-          corepack prepare npm@10.0.0 --activate
-
-      - run: npm ci
-      - run: npm run build
-      - run: npm run test:ci
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm test:ci
 
       - name: Release
         id: release
@@ -69,7 +67,7 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           # Capture semantic-release output to detect if a new release was made
-          npx semantic-release 2>&1 | tee release-output.txt
+          pnpm exec semantic-release 2>&1 | tee release-output.txt
 
           # Check if a new version was published
           if grep -q "Published release" release-output.txt; then

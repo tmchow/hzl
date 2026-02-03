@@ -57,7 +57,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "hzl-core": "^1.7.6"
+    "hzl-core": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",

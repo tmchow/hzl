@@ -29,13 +29,13 @@
       "provenance": true
     }],
     ["@semantic-release/exec", {
-      "prepareCmd": "node scripts/sync-versions.js ${nextRelease.version} && npm install --package-lock-only"
+      "prepareCmd": "node scripts/sync-versions.js ${nextRelease.version} && pnpm install --lockfile-only"
     }],
     ["@semantic-release/git", {
       "assets": [
         "CHANGELOG.md",
         "package.json",
-        "package-lock.json",
+        "pnpm-lock.yaml",
         "packages/*/package.json",
         "packages/hzl-cli/README.md",
         ".claude-plugin/marketplace.json",

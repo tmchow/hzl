@@ -2,18 +2,15 @@
   "name": "hzl-workspace",
   "private": true,
   "description": "External task ledger for coding agents and OpenClaw.",
-  "workspaces": [
-    "packages/*"
-  ],
   "engines": {
     "node": ">=22.14.0"
   },
-  "packageManager": "npm@10.0.0",
+  "packageManager": "pnpm@10.28.2",
   "scripts": {
-    "build": "npm run build --workspaces --if-present",
-    "test": "npm run test --workspaces --if-present",
-    "test:ci": "npm run test --workspaces --if-present -- --run --coverage",
-    "test:watch": "npm run test --workspaces --if-present -- --watch",
+    "build": "pnpm -r run build",
+    "test": "pnpm -r run test",
+    "test:ci": "pnpm -r run test -- --run --coverage",
+    "test:watch": "pnpm -r run test -- --watch",
     "typecheck": "tsc -b packages/*/tsconfig.json",
     "lint": "eslint \"packages/*/src/**/*.ts\"",
     "lint:fix": "eslint \"packages/*/src/**/*.ts\" --fix",
@@ -21,10 +18,7 @@
     "format:check": "prettier -c .",
     "verify:marketplace": "node scripts/verify-marketplace-versions.js",
     "clean": "rm -rf packages/*/dist packages/*/.turbo",
-    "prepare": "husky && npm run build",
-    "version:patch": "npm version patch --workspaces --include-workspace-root",
-    "version:minor": "npm version minor --workspaces --include-workspace-root",
-    "version:major": "npm version major --workspaces --include-workspace-root"
+    "prepare": "husky && pnpm run build"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.0.0",
