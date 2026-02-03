@@ -1070,10 +1070,61 @@
         .linkDirectionalParticleColor(l => {
           const sourceId = typeof l.source === 'object' ? l.source.id : l.source;
           return getStatusColor(nodeStatusMap.get(sourceId));
+        })
+        // Custom node rendering for root glow
+        .nodeCanvasObject((node, ctx, globalScale) => {
+          if (node.type === 'root') {
+            // Pulsing glow effect
+            const pulse = Math.sin(Date.now() / 500) * 0.3 + 0.7;
+            ctx.beginPath();
+            ctx.arc(node.x, node.y, 25 * pulse, 0, 2 * Math.PI);
+            ctx.fillStyle = `rgba(245, 158, 11, ${0.3 * pulse})`;
+            ctx.fill();
+          }
+
+          // Draw node
+          const size = getNodeSize(node);
+          ctx.beginPath();
+          ctx.arc(node.x, node.y, size, 0, 2 * Math.PI);
+          ctx.fillStyle = getStatusColor(node.status, node.type);
+          ctx.fill();
+
+          // Label for projects
+          if (node.type === 'project' && globalScale > 0.5) {
+            ctx.font = `${10 / globalScale}px ui-monospace`;
+            ctx.fillStyle = '#e5e5e5';
+            ctx.textAlign = 'center';
+            ctx.fillText(node.name, node.x, node.y + size + 12);
+          }
+        })
+        .nodePointerAreaPaint((node, color, ctx) => {
+          const size = getNodeSize(node);
+          ctx.beginPath();
+          ctx.arc(node.x, node.y, size + 4, 0, 2 * Math.PI);
+          ctx.fillStyle = color;
+          ctx.fill();
         });
 
       graphInitialized = true;
     }
+
+    function updateGraphData() {
+      if (graphInstance && graphInitialized) {
+        graphInstance.graphData(transformTasksToGraph(tasks));
+      }
+    }
+
+    // Debounced resize handling
+    let resizeTimeout;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        if (graphInstance && activeView === 'graph') {
+          graphInstance.width(graphContainer.clientWidth);
+          graphInstance.height(graphContainer.clientHeight);
+        }
+      }, 100);
+    });
 
     // API calls
     async function fetchTasks() {
@@ -1383,6 +1434,7 @@
 
         renderBoard();
         renderActivity();
+        updateGraphData();
 
         lastPollTime = Date.now();
         updateConnectionStatus(true);
