@@ -1,3 +1,10 @@
+# [1.18.0](https://github.com/tmchow/hzl/compare/v1.17.1...v1.18.0) (2026-02-03)
+
+
+### Features
+
+* migrate from npm to pnpm workspaces ([#78](https://github.com/tmchow/hzl/issues/78)) ([20fab15](https://github.com/tmchow/hzl/commit/20fab150b639f8aa20c8d2707d18cf00c73e8374))
+
 ## [1.17.1](https://github.com/tmchow/hzl/compare/v1.17.0...v1.17.1) (2026-02-03)
 
 # [1.17.0](https://github.com/tmchow/hzl/compare/v1.16.2...v1.17.0) (2026-02-03)
