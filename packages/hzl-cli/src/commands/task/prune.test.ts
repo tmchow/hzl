@@ -23,7 +23,7 @@ describe('task prune command', () => {
         project: 'inbox',
         olderThanDays: 30,
         json: false,
-        isTTY: true,
+        
       });
 
       expect(result).toEqual({
@@ -59,7 +59,7 @@ describe('task prune command', () => {
         project: 'project-a',
         olderThanDays: 0,
         json: false,
-        isTTY: true,
+        
       });
 
       if (result?.pruned && result.pruned.length > 0) {
@@ -82,7 +82,7 @@ describe('task prune command', () => {
         project: 'inbox',
         olderThanDays: 0,
         json: false,
-        isTTY: true,
+        
       });
 
       if (result?.pruned && result.pruned.length > 0) {
@@ -104,7 +104,7 @@ describe('task prune command', () => {
         project: 'inbox',
         olderThanDays: 0,
         json: false,
-        isTTY: true,
+        
       });
 
       if (result?.pruned && result.pruned.length > 0) {
@@ -128,7 +128,7 @@ describe('task prune command', () => {
         project: 'inbox',
         olderThanDays: 365,
         json: false,
-        isTTY: true,
+        
       });
 
       expect(result?.count).toBe(0);
@@ -152,7 +152,7 @@ describe('task prune command', () => {
         olderThanDays: 1,
         dryRun: true,
         json: false,
-        isTTY: true,
+        
       });
 
       // Dry-run returns null
@@ -181,7 +181,7 @@ describe('task prune command', () => {
         olderThanDays: 1,
         dryRun: true,
         json: false,
-        isTTY: false,
+        
         yes: false,
       });
 
@@ -207,7 +207,7 @@ describe('task prune command', () => {
         olderThanDays: 0,
         yes: true,
         json: false,
-        isTTY: true,
+        
       });
 
       // Should get a result (might be empty or have tasks depending on timing)
@@ -226,7 +226,7 @@ describe('task prune command', () => {
         project: 'inbox',
         olderThanDays: 30,
         json: false,
-        isTTY: true,
+        
       });
 
       expect(result?.count).toBe(0);
@@ -239,7 +239,7 @@ describe('task prune command', () => {
         olderThanDays: 1,
         yes: true,
         json: true,
-        isTTY: true,
+        
       });
 
       expect(result).toEqual({
@@ -266,7 +266,7 @@ describe('task prune command', () => {
         olderThanDays: 0,
         yes: true,
         json: false,
-        isTTY: false,
+        
       });
 
       expect(result?.count).toBeGreaterThanOrEqual(0);

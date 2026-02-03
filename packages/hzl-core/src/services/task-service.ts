@@ -1316,7 +1316,7 @@ export class TaskService {
                AND t.terminal_at < ?
           THEN 1 ELSE 0 END as self_eligible
         FROM tasks_current t
-        WHERE t.project = ? OR ? IS NULL
+        WHERE (? IS NULL OR t.project = ?)
       ),
       dep_blockers AS (
         -- Tasks that are depended on by non-terminal tasks cannot be pruned.
@@ -1357,9 +1357,10 @@ export class TaskService {
       ORDER BY terminal_at ASC
     `;
 
+    const projectParam = opts.project ?? null;
     const result = this.db
       .prepare(query)
-      .all(thresholdIso, opts.project || null, opts.project ? 0 : 1) as Array<{
+      .all(thresholdIso, projectParam, projectParam) as Array<{
       task_id: string;
       title: string;
       project: string;

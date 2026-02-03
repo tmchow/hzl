@@ -1129,6 +1129,53 @@ describe('TaskService', () => {
       expect(eligible.every(t => t.project === 'project-a')).toBe(true);
     });
 
+    it('returns tasks from all projects when project is undefined (--all flag)', () => {
+      // Create projects with unique names for this test
+      projectService.createProject('all-test-proj-a');
+      projectService.createProject('all-test-proj-b');
+      projectService.createProject('all-test-proj-c');
+
+      // Create tasks in multiple projects
+      const taskA = taskService.createTask({ title: 'Project A task', project: 'all-test-proj-a' });
+      const taskB = taskService.createTask({ title: 'Project B task', project: 'all-test-proj-b' });
+      const taskC = taskService.createTask({ title: 'Project C task', project: 'all-test-proj-c' });
+
+      // Complete all tasks
+      taskService.setStatus(taskA.task_id, TaskStatus.Ready);
+      taskService.setStatus(taskB.task_id, TaskStatus.Ready);
+      taskService.setStatus(taskC.task_id, TaskStatus.Ready);
+      taskService.claimTask(taskA.task_id);
+      taskService.claimTask(taskB.task_id);
+      taskService.claimTask(taskC.task_id);
+      taskService.completeTask(taskA.task_id);
+      taskService.completeTask(taskB.task_id);
+      taskService.completeTask(taskC.task_id);
+
+      // Backdate terminal_at to make them eligible
+      db.prepare('UPDATE tasks_current SET terminal_at = ? WHERE task_id IN (?, ?, ?)').run(
+        '2020-01-01T00:00:00Z',
+        taskA.task_id,
+        taskB.task_id,
+        taskC.task_id
+      );
+
+      // Query with project undefined (--all mode)
+      const eligible = taskService.previewPrunableTasks({
+        project: undefined, // <-- This is the --all case
+        olderThanDays: 1,
+      });
+
+      // Should return tasks from ALL projects (at least these 3)
+      const ourTasks = eligible.filter(t =>
+        ['all-test-proj-a', 'all-test-proj-b', 'all-test-proj-c'].includes(t.project)
+      );
+      expect(ourTasks.length).toBe(3);
+      const projects = new Set(ourTasks.map(t => t.project));
+      expect(projects.has('all-test-proj-a')).toBe(true);
+      expect(projects.has('all-test-proj-b')).toBe(true);
+      expect(projects.has('all-test-proj-c')).toBe(true);
+    });
+
     it('includes only terminal statuses (done/archived)', () => {
       const readyTask = taskService.createTask({ title: 'Ready', project: 'inbox' });
       const doneTask = taskService.createTask({ title: 'Done', project: 'inbox' });
@@ -1503,6 +1550,67 @@ describe('TaskService', () => {
       // Both should be gone
       expect(taskServiceWithEventsDb.getTaskById(parent.task_id)).toBeNull();
       expect(taskServiceWithEventsDb.getTaskById(child.task_id)).toBeNull();
+    });
+
+    it('prunes tasks from all projects when project is undefined (--all flag)', () => {
+      // Create projects with unique names for this test
+      projectService.createProject('prune-all-proj-a');
+      projectService.createProject('prune-all-proj-b');
+      projectService.createProject('prune-all-proj-c');
+
+      // Create tasks in multiple projects
+      const taskA = taskServiceWithEventsDb.createTask({
+        title: 'Project A task',
+        project: 'prune-all-proj-a',
+      });
+      const taskB = taskServiceWithEventsDb.createTask({
+        title: 'Project B task',
+        project: 'prune-all-proj-b',
+      });
+      const taskC = taskServiceWithEventsDb.createTask({
+        title: 'Project C task',
+        project: 'prune-all-proj-c',
+      });
+
+      // Complete all tasks
+      taskServiceWithEventsDb.setStatus(taskA.task_id, TaskStatus.Ready);
+      taskServiceWithEventsDb.setStatus(taskB.task_id, TaskStatus.Ready);
+      taskServiceWithEventsDb.setStatus(taskC.task_id, TaskStatus.Ready);
+      taskServiceWithEventsDb.claimTask(taskA.task_id);
+      taskServiceWithEventsDb.claimTask(taskB.task_id);
+      taskServiceWithEventsDb.claimTask(taskC.task_id);
+      taskServiceWithEventsDb.completeTask(taskA.task_id);
+      taskServiceWithEventsDb.completeTask(taskB.task_id);
+      taskServiceWithEventsDb.completeTask(taskC.task_id);
+
+      // Backdate terminal_at for all tasks
+      db.prepare('UPDATE tasks_current SET terminal_at = ? WHERE task_id IN (?, ?, ?)').run(
+        '2020-01-01T00:00:00Z',
+        taskA.task_id,
+        taskB.task_id,
+        taskC.task_id
+      );
+
+      // Prune with project undefined (--all mode)
+      const result = taskServiceWithEventsDb.pruneEligible({
+        project: undefined, // <-- This is the --all case
+        olderThanDays: 30,
+      });
+
+      // Should prune at least our 3 tasks from ALL projects
+      const ourPruned = result.pruned.filter(t =>
+        ['prune-all-proj-a', 'prune-all-proj-b', 'prune-all-proj-c'].includes(t.project)
+      );
+      expect(ourPruned.length).toBe(3);
+      const prunedProjects = new Set(ourPruned.map(t => t.project));
+      expect(prunedProjects.has('prune-all-proj-a')).toBe(true);
+      expect(prunedProjects.has('prune-all-proj-b')).toBe(true);
+      expect(prunedProjects.has('prune-all-proj-c')).toBe(true);
+
+      // All should be gone
+      expect(taskServiceWithEventsDb.getTaskById(taskA.task_id)).toBeNull();
+      expect(taskServiceWithEventsDb.getTaskById(taskB.task_id)).toBeNull();
+      expect(taskServiceWithEventsDb.getTaskById(taskC.task_id)).toBeNull();
     });
   });
 });

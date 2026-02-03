@@ -13,8 +13,6 @@ interface PruneCommandOptions {
   asOf?: string;
   yes?: boolean;
   dryRun?: boolean;
-  vacuum?: boolean;
-  export?: string;
 }
 
 function parseOlderThan(olderThanStr: string): number {
@@ -67,26 +65,13 @@ function parseAsOf(asOfStr: string): string {
 export function runPrune(options: {
   services: Services;
   project?: string;
-  all?: boolean;
   olderThanDays: number;
   asOf?: string;
   yes?: boolean;
   dryRun?: boolean;
-  vacuum?: boolean;
-  export?: string;
   json: boolean;
-  isTTY: boolean;
 }): PruneResult | null {
-  const {
-    services,
-    project,
-    olderThanDays,
-    asOf,
-    yes,
-    dryRun,
-    json,
-    isTTY,
-  } = options;
+  const { services, project, olderThanDays, asOf, yes, dryRun, json } = options;
 
   try {
     // Get eligible tasks
@@ -136,20 +121,18 @@ export function runPrune(options: {
       };
     }
 
-    // Validation: non-TTY requires --yes
-    if (!isTTY && !yes) {
-      throw new CLIError(
-        'Cannot prompt for confirmation in non-interactive mode. Use --yes to confirm.',
-        ExitCode.InvalidUsage
-      );
-    }
-
-    // Confirmation (unless --yes)
+    // Require --yes for destructive operations
+    // Show preview and require explicit confirmation
     if (!yes) {
-      // Cannot prompt interactively from sync Commander action
-      console.error(
-        'NOTE: Cannot prompt interactively from this context. Use --yes to auto-confirm.'
-      );
+      console.log(`Found ${eligible.length} task(s) eligible for pruning:`);
+      for (const t of eligible.slice(0, 10)) {
+        console.log(`  [${t.task_id.slice(0, 8)}] ${t.title} (${t.project})`);
+      }
+      if (eligible.length > 10) {
+        console.log(`  ... and ${eligible.length - 10} more`);
+      }
+      console.log('');
+      console.log('To permanently delete these tasks, run again with --yes');
       return null;
     }
 
@@ -205,10 +188,8 @@ export function createPruneCommand(): Command {
     .option('-A, --all', 'Prune tasks in all projects')
     .option('--older-than <duration>', 'Age threshold (e.g., 30d)', '30d')
     .option('--as-of <timestamp>', 'Evaluate age threshold as of a fixed time (ISO)')
-    .option('-y, --yes', 'Skip confirmation prompt')
+    .option('-y, --yes', 'Skip confirmation prompt (required for non-interactive use)')
     .option('--dry-run', 'Preview what would be pruned without deleting')
-    .option('--vacuum', 'Run VACUUM after pruning to reclaim disk space')
-    .option('--export <path>', 'Write pruned tasks/events to NDJSON before deleting')
     .action(function (this: Command, opts: PruneCommandOptions) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
 
@@ -229,10 +210,7 @@ export function createPruneCommand(): Command {
             asOf,
             yes: opts.yes,
             dryRun: opts.dryRun,
-            vacuum: opts.vacuum,
-            export: opts.export,
             json: globalOpts.json ?? false,
-            isTTY: process.stdin.isTTY ?? false,
           });
         } finally {
           closeDb(services);
