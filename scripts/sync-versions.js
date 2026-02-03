@@ -7,8 +7,9 @@ if (!version) {
   process.exit(1);
 }
 
-// Note: Internal dependencies use workspace:* protocol, which npm automatically
-// replaces with the actual version at publish time. No manual syncing needed.
+// Note: workspace:* dependencies are handled by pnpm publish natively.
+// @anolilab/semantic-release-pnpm uses pnpm publish which automatically
+// replaces workspace:* with actual version numbers at publish time.
 
 // Copy root README to hzl-cli package for npm
 fs.copyFileSync('./README.md', './packages/hzl-cli/README.md');
