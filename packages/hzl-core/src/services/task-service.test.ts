@@ -149,6 +149,72 @@ describe('TaskService', () => {
       expect(events[0].author).toBe('user-1');
       expect(events[0].agent_id).toBe('AGENT001');
     });
+
+    it('creates task with initial_status ready', () => {
+      const task = taskService.createTask({
+        title: 'Ready task',
+        project: 'inbox',
+        initial_status: TaskStatus.Ready,
+      });
+
+      expect(task.status).toBe(TaskStatus.Ready);
+      const events = eventStore.getByTaskId(task.task_id);
+      expect(events).toHaveLength(2);
+      expect(events[0].type).toBe(EventType.TaskCreated);
+      expect(events[1].type).toBe(EventType.StatusChanged);
+    });
+
+    it('creates task with initial_status in_progress and sets assignee', () => {
+      const task = taskService.createTask(
+        {
+          title: 'In progress task',
+          project: 'inbox',
+          initial_status: TaskStatus.InProgress,
+        },
+        { author: 'agent-1' }
+      );
+
+      expect(task.status).toBe(TaskStatus.InProgress);
+      expect(task.assignee).toBe('agent-1');
+      expect(task.claimed_at).toBeDefined();
+    });
+
+    it('creates task with initial_status blocked requires block_reason', () => {
+      expect(() =>
+        taskService.createTask({
+          title: 'Blocked task',
+          project: 'inbox',
+          initial_status: TaskStatus.Blocked,
+        })
+      ).toThrow('block_reason is required when initial_status is Blocked');
+    });
+
+    it('creates task with initial_status blocked and block_reason', () => {
+      const task = taskService.createTask(
+        {
+          title: 'Blocked task',
+          project: 'inbox',
+          initial_status: TaskStatus.Blocked,
+          block_reason: 'Waiting for API keys',
+        },
+        { author: 'agent-1' }
+      );
+
+      expect(task.status).toBe(TaskStatus.Blocked);
+      const events = eventStore.getByTaskId(task.task_id);
+      expect(events).toHaveLength(2);
+      expect((events[1].data as any).reason).toBe('Waiting for API keys');
+    });
+
+    it('creates task with initial_status done', () => {
+      const task = taskService.createTask({
+        title: 'Done task',
+        project: 'inbox',
+        initial_status: TaskStatus.Done,
+      });
+
+      expect(task.status).toBe(TaskStatus.Done);
+    });
   });
 
   describe('createTask with project validation', () => {
@@ -1096,10 +1162,39 @@ describe('TaskService', () => {
       expect(blocked.assignee).toBe('agent-1');
     });
 
-    it('throws when task is not in_progress', () => {
+    it('throws when task is not in_progress or blocked', () => {
       const task = taskService.createTask({ title: 'Test', project: 'inbox' });
       expect(() => taskService.blockTask(task.task_id))
-        .toThrow('Cannot block: status is backlog, expected in_progress');
+        .toThrow('Cannot block: status is backlog, expected in_progress or blocked');
+    });
+
+    it('allows blocked → blocked to update reason', () => {
+      const task = taskService.createTask({ title: 'Test', project: 'inbox' });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+      taskService.claimTask(task.task_id, { author: 'agent-1' });
+      taskService.blockTask(task.task_id, { reason: 'First reason' });
+
+      const updated = taskService.blockTask(task.task_id, { reason: 'Updated reason' });
+      expect(updated.status).toBe(TaskStatus.Blocked);
+
+      const events = eventStore.getByTaskId(task.task_id);
+      const lastStatusEvent = events.filter(e => e.type === EventType.StatusChanged).pop();
+      expect((lastStatusEvent?.data as any).reason).toBe('Updated reason');
+    });
+
+    it('preserves claimed_at when updating block reason', () => {
+      const task = taskService.createTask({ title: 'Test', project: 'inbox' });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+      taskService.claimTask(task.task_id, { author: 'agent-1' });
+      taskService.blockTask(task.task_id, { reason: 'First reason' });
+
+      const originalClaimedAt = taskService.getTaskById(task.task_id)!.claimed_at;
+
+      taskService.blockTask(task.task_id, { reason: 'Updated reason' });
+      const updated = taskService.getTaskById(task.task_id);
+
+      expect(updated!.claimed_at).toBe(originalClaimedAt);
+      expect(updated!.assignee).toBe('agent-1');
     });
 
     it('clears lease_until when blocked', () => {

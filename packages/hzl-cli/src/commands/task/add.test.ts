@@ -143,4 +143,79 @@ describe('runAdd', () => {
       json: false,
     })).toThrow(/max.*level|cannot create subtask of a subtask/i);
   });
+
+  describe('status flag', () => {
+    it('creates task with -s ready', () => {
+      const result = runAdd({
+        services,
+        project: 'inbox',
+        title: 'Ready task',
+        status: 'ready',
+        json: false,
+      });
+
+      const task = services.taskService.getTaskById(result.task_id);
+      expect(task?.status).toBe('ready');
+    });
+
+    it('creates task with -s in_progress and sets assignee', () => {
+      const result = runAdd({
+        services,
+        project: 'inbox',
+        title: 'In progress task',
+        status: 'in_progress',
+        assignee: 'agent-1',
+        json: false,
+      });
+
+      const task = services.taskService.getTaskById(result.task_id);
+      expect(task?.status).toBe('in_progress');
+      expect(task?.assignee).toBe('agent-1');
+    });
+
+    it('creates task with -s blocked and --reason', () => {
+      const result = runAdd({
+        services,
+        project: 'inbox',
+        title: 'Blocked task',
+        status: 'blocked',
+        reason: 'Waiting for API keys',
+        json: false,
+      });
+
+      const task = services.taskService.getTaskById(result.task_id);
+      expect(task?.status).toBe('blocked');
+    });
+
+    it('errors when -s blocked without --reason', () => {
+      expect(() => runAdd({
+        services,
+        project: 'inbox',
+        title: 'Blocked task',
+        status: 'blocked',
+        json: false,
+      })).toThrow(/requires --reason|Hint:.*--reason/);
+    });
+
+    it('errors when --reason without -s blocked', () => {
+      expect(() => runAdd({
+        services,
+        project: 'inbox',
+        title: 'Task',
+        status: 'ready',
+        reason: 'Some reason',
+        json: false,
+      })).toThrow(/only valid with.*blocked/i);
+    });
+
+    it('errors on invalid status', () => {
+      expect(() => runAdd({
+        services,
+        project: 'inbox',
+        title: 'Task',
+        status: 'invalid',
+        json: false,
+      })).toThrow(/invalid status/i);
+    });
+  });
 });

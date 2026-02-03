@@ -24,6 +24,10 @@ export interface CreateTaskInput {
   due_at?: string;
   metadata?: Record<string, unknown>;
   assignee?: string;
+  /** Initial status for the task (defaults to Backlog) */
+  initial_status?: TaskStatus;
+  /** Block reason (required when initial_status is Blocked) */
+  block_reason?: string;
 }
 
 export interface EventContext {
@@ -303,6 +307,34 @@ export class TaskService {
       });
 
       this.projectionEngine.applyEvent(event);
+
+      // Handle initial_status if different from Backlog
+      if (input.initial_status && input.initial_status !== TaskStatus.Backlog) {
+        // Validate block_reason requirement
+        if (input.initial_status === TaskStatus.Blocked && !input.block_reason) {
+          throw new Error('block_reason is required when initial_status is Blocked');
+        }
+
+        const statusData: StatusChangedData = {
+          from: TaskStatus.Backlog,
+          to: input.initial_status,
+          ...(input.block_reason && { reason: input.block_reason }),
+        };
+
+        // Emit StatusChanged event - author becomes assignee via projection for in_progress
+        const statusEvent = this.eventStore.append({
+          task_id: taskId,
+          type: EventType.StatusChanged,
+          data: statusData,
+          author: ctx?.author,
+          agent_id: ctx?.agent_id,
+          session_id: ctx?.session_id,
+          correlation_id: ctx?.correlation_id,
+          causation_id: ctx?.causation_id,
+        });
+        this.projectionEngine.applyEvent(statusEvent);
+      }
+
       return this.getTaskById(taskId);
     });
 
@@ -608,20 +640,23 @@ export class TaskService {
 
   /**
    * Block a task that is stuck waiting for external dependencies.
-   * Only tasks in 'in_progress' status can be blocked.
+   * Tasks in 'in_progress' or 'blocked' status can be blocked.
+   * Calling on an already blocked task updates the block reason.
    */
   blockTask(taskId: string, opts?: { reason?: string } & EventContext): Task {
     return withWriteTransaction(this.db, () => {
       const task = this.getTaskById(taskId);
       if (!task) throw new TaskNotFoundError(taskId);
-      if (task.status !== TaskStatus.InProgress) {
-        throw new Error(`Cannot block: status is ${task.status}, expected in_progress`);
+
+      // Allow blocked → blocked for reason updates
+      if (task.status !== TaskStatus.InProgress && task.status !== TaskStatus.Blocked) {
+        throw new Error(`Cannot block: status is ${task.status}, expected in_progress or blocked`);
       }
 
       const event = this.eventStore.append({
         task_id: taskId,
         type: EventType.StatusChanged,
-        data: { from: TaskStatus.InProgress, to: TaskStatus.Blocked, reason: opts?.reason },
+        data: { from: task.status, to: TaskStatus.Blocked, reason: opts?.reason },
         author: opts?.author,
         agent_id: opts?.agent_id,
       });

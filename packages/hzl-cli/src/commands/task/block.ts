@@ -2,8 +2,9 @@
 import { Command } from 'commander';
 import { resolveDbPaths } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
-import { handleError } from '../../errors.js';
+import { CLIError, ExitCode, handleError } from '../../errors.js';
 import { GlobalOptionsSchema } from '../../types.js';
+import { TaskStatus } from 'hzl-core/events/types.js';
 
 export interface BlockResult {
   task_id: string;
@@ -25,6 +26,15 @@ export function runBlock(options: {
   json: boolean;
 }): BlockResult {
   const { services, taskId, reason, author, json } = options;
+
+  // Check task status before blocking to provide actionable error
+  const existingTask = services.taskService.getTaskById(taskId);
+  if (existingTask && existingTask.status !== TaskStatus.InProgress && existingTask.status !== TaskStatus.Blocked) {
+    throw new CLIError(
+      `Cannot block task ${taskId} (status: ${existingTask.status})\nHint: hzl task claim ${taskId} --assignee <name>`,
+      ExitCode.InvalidInput
+    );
+  }
 
   const task = services.taskService.blockTask(taskId, { reason, author });
 

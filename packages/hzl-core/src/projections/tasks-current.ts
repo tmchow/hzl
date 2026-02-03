@@ -137,8 +137,16 @@ export class TasksCurrentProjector implements Projector {
           event.task_id
         );
       }
+    } else if (data.from === TaskStatus.Blocked && toStatus === TaskStatus.Blocked) {
+      // Updating block reason: preserve assignee, claimed_at - just update timestamp
+      db.prepare(`
+        UPDATE tasks_current SET
+          updated_at = ?,
+          last_event_id = ?
+        WHERE task_id = ?
+      `).run(event.timestamp, event.rowid, event.task_id);
     } else if (toStatus === TaskStatus.Blocked) {
-      // When blocked: preserve assignee and claimed_at, clear lease_until
+      // Entering blocked state: preserve assignee and claimed_at, clear lease_until
       db.prepare(`
         UPDATE tasks_current SET
           status = ?,

@@ -30,7 +30,7 @@ describe('runClaim', () => {
     const result = runClaim({
       services,
       taskId: task.task_id,
-      author: 'test-agent',
+      assignee: 'test-agent',
       json: false,
     });
 
@@ -46,11 +46,23 @@ describe('runClaim', () => {
     const result = runClaim({
       services,
       taskId: task.task_id,
-      author: 'test-agent',
+      assignee: 'test-agent',
       leaseMinutes: 30,
       json: false,
     });
 
     expect(result.lease_until).toBeDefined();
+  });
+
+  it('includes hint in error when task is not claimable', () => {
+    const task = services.taskService.createTask({ title: 'Test', project: 'inbox' });
+    // Task is in backlog - not claimable
+
+    expect(() => runClaim({
+      services,
+      taskId: task.task_id,
+      assignee: 'test-agent',
+      json: false,
+    })).toThrow(/Hint:.*set-status/);
   });
 });

@@ -2,8 +2,9 @@
 import { Command } from 'commander';
 import { resolveDbPaths } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
-import { handleError } from '../../errors.js';
+import { CLIError, ExitCode, handleError } from '../../errors.js';
 import { GlobalOptionsSchema } from '../../types.js';
+import { TaskStatus } from 'hzl-core/events/types.js';
 
 export interface ClaimResult {
   task_id: string;
@@ -14,7 +15,7 @@ export interface ClaimResult {
 }
 
 interface ClaimCommandOptions {
-  author?: string;
+  assignee?: string;
   agentId?: string;
   lease?: string;
 }
@@ -22,17 +23,26 @@ interface ClaimCommandOptions {
 export function runClaim(options: {
   services: Services;
   taskId: string;
-  author?: string;
+  assignee?: string;
   agentId?: string;
   leaseMinutes?: number;
   json: boolean;
 }): ClaimResult {
-  const { services, taskId, author, agentId, leaseMinutes, json } = options;
+  const { services, taskId, assignee, agentId, leaseMinutes, json } = options;
+
+  // Check task status before claiming to provide actionable error
+  const existingTask = services.taskService.getTaskById(taskId);
+  if (existingTask && existingTask.status !== TaskStatus.Ready) {
+    throw new CLIError(
+      `Task ${taskId} is not claimable (status: ${existingTask.status})\nHint: hzl task set-status ${taskId} ready`,
+      ExitCode.InvalidInput
+    );
+  }
 
   const leaseUntil = leaseMinutes ? new Date(Date.now() + leaseMinutes * 60000).toISOString() : undefined;
-  
+
   const task = services.taskService.claimTask(taskId, {
-    author,
+    author: assignee,  // assignee becomes author in the event for projection
     agent_id: agentId,
     lease_until: leaseUntil,
   });
@@ -61,7 +71,7 @@ export function createClaimCommand(): Command {
   return new Command('claim')
     .description('Claim a task')
     .argument('<taskId>', 'Task ID')
-    .option('--author <name>', 'Author name (human identifier)')
+    .option('--assignee <name>', 'Who to assign the task to')
     .option('--agent-id <id>', 'Agent ID (machine/AI identifier)')
     .option('-l, --lease <minutes>', 'Lease duration in minutes')
     .action(function (this: Command, taskId: string, opts: ClaimCommandOptions) {
@@ -72,7 +82,7 @@ export function createClaimCommand(): Command {
         runClaim({
           services,
           taskId,
-          author: opts.author,
+          assignee: opts.assignee,
           agentId: opts.agentId,
           leaseMinutes: opts.lease ? parseInt(opts.lease, 10) : undefined,
           json: globalOpts.json ?? false,
