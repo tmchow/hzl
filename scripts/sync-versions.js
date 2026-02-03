@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 const fs = require('fs');
+const path = require('path');
 const version = process.argv[2];
 
 if (!version) {
@@ -7,8 +8,42 @@ if (!version) {
   process.exit(1);
 }
 
-// Note: Internal dependencies use workspace:* protocol, which npm automatically
-// replaces with the actual version at publish time. No manual syncing needed.
+// Replace workspace:* dependencies with actual version numbers
+// This is required because @semantic-release/npm uses npm publish internally,
+// and npm doesn't understand pnpm's workspace:* protocol
+const packages = ['hzl-core', 'hzl-cli', 'hzl-web'];
+
+for (const pkg of packages) {
+  const pkgJsonPath = path.join('./packages', pkg, 'package.json');
+  const pkgJson = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf8'));
+
+  let modified = false;
+
+  // Check dependencies
+  if (pkgJson.dependencies) {
+    for (const [dep, ver] of Object.entries(pkgJson.dependencies)) {
+      if (ver === 'workspace:*' && packages.includes(dep)) {
+        pkgJson.dependencies[dep] = version;
+        modified = true;
+      }
+    }
+  }
+
+  // Check devDependencies
+  if (pkgJson.devDependencies) {
+    for (const [dep, ver] of Object.entries(pkgJson.devDependencies)) {
+      if (ver === 'workspace:*' && packages.includes(dep)) {
+        pkgJson.devDependencies[dep] = version;
+        modified = true;
+      }
+    }
+  }
+
+  if (modified) {
+    fs.writeFileSync(pkgJsonPath, JSON.stringify(pkgJson, null, 2) + '\n');
+    console.log(`Replaced workspace:* deps in ${pkgJsonPath}`);
+  }
+}
 
 // Copy root README to hzl-cli package for npm
 fs.copyFileSync('./README.md', './packages/hzl-cli/README.md');
