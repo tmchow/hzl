@@ -1,3 +1,10 @@
+## [1.18.1](https://github.com/tmchow/hzl/compare/v1.18.0...v1.18.1) (2026-02-03)
+
+
+### Bug Fixes
+
+* **ci:** use npx instead of pnpm exec for semantic-release ([#79](https://github.com/tmchow/hzl/issues/79)) ([bfc5c77](https://github.com/tmchow/hzl/commit/bfc5c77e39da41f54855ccd6dbacece106f55ea1)), closes [#78](https://github.com/tmchow/hzl/issues/78)
+
 # [1.18.0](https://github.com/tmchow/hzl/compare/v1.17.1...v1.18.0) (2026-02-03)
 
 
