@@ -10,6 +10,7 @@ permissions:
   issues: write
   pull-requests: write
   id-token: write
+  actions: write  # Required to trigger homebrew update workflow
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -61,8 +62,35 @@ jobs:
       - run: npm run test:ci
 
       - name: Release
+        id: release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npx semantic-release
+        run: |
+          # Capture semantic-release output to detect if a new release was made
+          npx semantic-release 2>&1 | tee release-output.txt
+
+          # Check if a new version was published
+          if grep -q "Published release" release-output.txt; then
+            # Extract version from the release output
+            VERSION=$(grep "Published release" release-output.txt | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+            echo "new_release=true" >> $GITHUB_OUTPUT
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "New release published: $VERSION"
+          else
+            echo "new_release=false" >> $GITHUB_OUTPUT
+            echo "No new release published"
+          fi
+
+      # Trigger homebrew update after successful release
+      # Note: release events from GITHUB_TOKEN don't trigger other workflows,
+      # so we must explicitly call the homebrew workflow here
+      - name: Trigger Homebrew Update
+        if: steps.release.outputs.new_release == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.release.outputs.version }}"
+          echo "Triggering homebrew update for version $VERSION"
+          gh workflow run update-homebrew.yml -f version="$VERSION"
