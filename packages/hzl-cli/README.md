@@ -383,25 +383,26 @@ Built-in task tracking (if available) is fine for single-session work you'll com
 - User hasn't mentioned persistence or multi-agent needs
 
 **Structure:**
-- **Project** = stable container (typically one per repo or long-running initiative). Check `hzl project list` before creating.
+- **Project** = stable container (one per repo). Check `hzl project list` before creating.
 - **Task** = top-level work item (often a feature). Use `--depends-on` to sequence separate tasks.
 - **Subtask** = breakdown of a task into parts (`--parent <id>`). Max 1 level of nesting.
 
-**Workflow:**
-1. `hzl project list` to find existing, or `hzl project create <name>`
-2. Add tasks. Use `--depends-on` for sequencing, `--parent` for breakdown, `--links` for context docs.
-3. Claim before work, checkpoint progress, complete when done.
-4. Use `--json` for scripted output.
+**⚠️ Anti-pattern: project sprawl**
+```bash
+hzl project create "query-perf"  # ❌ Feature ≠ project
+```
+Features are parent tasks, not projects:
+```bash
+hzl task add "Query perf fixes" -P myrepo      # Parent task
+hzl task add "Fix N+1" --parent <parent-id>    # Subtask
+```
 
-**Key commands:**
-- `hzl task add "<title>" -P <project> [--depends-on <id>] [--parent <id>] [--links <file>]`
-- `hzl task claim <id> [--author <name>] [--agent-id <id>] [--lease 30]`
-- `hzl task checkpoint <id> "<message>" [--progress <0-100>]`
-- `hzl task progress <id> <value>` (set progress without checkpoint)
-- `hzl task block <id> [--reason "<why>"]` (mark as blocked)
-- `hzl task unblock <id>` (return to in_progress)
-- `hzl task complete <id>`
-- `hzl task next --project <project>` (returns next available; never returns parent tasks)
+**Workflow:**
+1. `hzl project list` — **Always check first. Reuse existing repo project.**
+2. Only create a project for a NEW repo (not a feature).
+3. For multi-step work: create parent task, then subtasks with `--parent`.
+4. Claim before work, checkpoint progress, complete when done.
+5. Use `--json` for scripted output.
 
 **⚠️ DESTRUCTIVE - Never run without explicit user request:**
 - `hzl task prune` — **PERMANENTLY DELETES** old done/archived tasks. No undo.

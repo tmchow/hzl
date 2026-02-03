@@ -1,3 +1,10 @@
+## [1.18.6](https://github.com/tmchow/hzl/compare/v1.18.5...v1.18.6) (2026-02-03)
+
+
+### Bug Fixes
+
+* prevent project sprawl with tiered documentation and explicit guidance ([#82](https://github.com/tmchow/hzl/issues/82)) ([5700d07](https://github.com/tmchow/hzl/commit/5700d07d4bc8358e7a655475c7fa0f796f6454fc))
+
 ## [1.18.5](https://github.com/tmchow/hzl/compare/v1.18.4...v1.18.5) (2026-02-03)
 
 
