@@ -710,13 +710,19 @@ describe('TaskService', () => {
       expect(stats.byStatus.ready).toBe(1);
     });
 
-    it('returns list of projects with tasks', () => {
+    it('returns all projects including those without tasks', () => {
+      // Create an additional empty project
+      projectService.createProject('empty-project');
+
+      // Create tasks only in some projects
       taskService.createTask({ title: 'A', project: 'project-a' });
-      taskService.createTask({ title: 'B', project: 'project-b' });
 
       const stats = taskService.getStats();
+      // All projects should be listed, not just those with tasks
+      expect(stats.projects).toContain('inbox');
       expect(stats.projects).toContain('project-a');
-      expect(stats.projects).toContain('project-b');
+      expect(stats.projects).toContain('project-b'); // No tasks in this project
+      expect(stats.projects).toContain('empty-project'); // Explicitly empty
     });
 
     it('excludes archived tasks from counts', () => {
