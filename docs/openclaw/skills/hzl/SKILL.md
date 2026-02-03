@@ -119,6 +119,7 @@ hzl doctor   # health check for debugging
 hzl serve                    # Start on port 3456 (network accessible)
 hzl serve --host 127.0.0.1   # Restrict to localhost only
 hzl serve --background       # Fork to background
+hzl serve --status           # Check if running
 hzl serve --stop             # Stop background server
 
 # Multi-agent recovery
@@ -266,21 +267,50 @@ hzl task complete abc123
 
 ## Web Dashboard
 
-HZL includes a built-in Kanban dashboard for monitoring task state:
+HZL includes a built-in Kanban dashboard for monitoring task state. The dashboard shows tasks in columns (Backlog → Blocked → Ready → In Progress → Done), with filtering by date and project.
+
+### Setting up the dashboard (recommended for OpenClaw)
+
+For always-on access on your OpenClaw box, set up as a systemd service (Linux only):
 
 ```bash
-hzl serve                    # Start on port 3456
-hzl serve --background       # Fork to background
-```
+# Create the systemd user directory if needed
+mkdir -p ~/.config/systemd/user
 
-The dashboard shows tasks in columns (Backlog → Blocked → Ready → In Progress → Done), with filtering by date and project. Useful for human visibility into what agents are working on.
-
-For always-on access (e.g., via Tailscale), run as a systemd service:
-
-```bash
+# Generate and install the service file
 hzl serve --print-systemd > ~/.config/systemd/user/hzl-web.service
+
+# Enable and start
+systemctl --user daemon-reload
 systemctl --user enable --now hzl-web
+
+# IMPORTANT: Enable lingering so the service runs even when logged out
+loginctl enable-linger $USER
+
+# Verify it's running
+systemctl --user status hzl-web
 ```
+
+The dashboard will be available at `http://<your-box>:3456` (accessible over Tailscale).
+
+To use a different port:
+```bash
+hzl serve --port 8080 --print-systemd > ~/.config/systemd/user/hzl-web.service
+```
+
+**macOS note:** systemd is Linux-only. On macOS, use `hzl serve --background` or create a launchd plist manually.
+
+### Quick commands
+
+```bash
+hzl serve                    # Start in foreground (port 3456)
+hzl serve --background       # Fork to background process
+hzl serve --status           # Check if background server is running
+hzl serve --stop             # Stop background server
+hzl serve --host 127.0.0.1   # Restrict to localhost only
+```
+
+Use `--background` for temporary sessions. Use systemd for always-on access.
 
 ## OpenClaw-specific notes
 
