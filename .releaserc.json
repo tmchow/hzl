@@ -16,15 +16,15 @@
     ["@semantic-release/changelog", {
       "changelogFile": "CHANGELOG.md"
     }],
-    ["@semantic-release/npm", {
+    ["@anolilab/semantic-release-pnpm", {
       "pkgRoot": "packages/hzl-core",
       "provenance": true
     }],
-    ["@semantic-release/npm", {
+    ["@anolilab/semantic-release-pnpm", {
       "pkgRoot": "packages/hzl-web",
       "provenance": true
     }],
-    ["@semantic-release/npm", {
+    ["@anolilab/semantic-release-pnpm", {
       "pkgRoot": "packages/hzl-cli",
       "provenance": true
     }],
