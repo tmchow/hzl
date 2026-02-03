@@ -127,6 +127,8 @@ export interface TaskListItem {
   assignee: string | null;
   lease_until: string | null;
   updated_at: string;
+  parent_id: string | null;
+  progress: number | null;
 }
 
 export interface TaskStats {
@@ -1019,6 +1021,8 @@ export class TaskService {
       assignee: row.assignee,
       lease_until: row.lease_until,
       updated_at: row.updated_at,
+      parent_id: row.parent_id,
+      progress: row.progress,
     }));
   }
 
@@ -1041,6 +1045,22 @@ export class TaskService {
       map.set(row.task_id, row.blocked_by.split(','));
     }
     return map;
+  }
+
+  /**
+   * Get a map of parent task_id -> count of non-archived subtasks.
+   * Used by web dashboard to show subtask counts on parent cards.
+   */
+  getSubtaskCounts(): Map<string, number> {
+    const rows = this.db.prepare(`
+      SELECT parent_id, COUNT(*) as count
+      FROM tasks_current
+      WHERE parent_id IS NOT NULL
+        AND status != 'archived'
+      GROUP BY parent_id
+    `).all() as Array<{ parent_id: string; count: number }>;
+
+    return new Map(rows.map((r) => [r.parent_id, r.count]));
   }
 
   /**
