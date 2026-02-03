@@ -1,3 +1,10 @@
+## [1.18.5](https://github.com/tmchow/hzl/compare/v1.18.4...v1.18.5) (2026-02-03)
+
+
+### Bug Fixes
+
+* **db:** handle zero-event schema migration safely ([#81](https://github.com/tmchow/hzl/issues/81)) ([733d77c](https://github.com/tmchow/hzl/commit/733d77c2d700fa7f4ff0777bbffa60674bcaddbb))
+
 ## [1.18.4](https://github.com/tmchow/hzl/compare/v1.18.3...v1.18.4) (2026-02-03)
 
 

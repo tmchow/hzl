@@ -1,6 +1,6 @@
 {
   "name": "hzl",
-  "version": "1.18.4",
+  "version": "1.18.5",
   "description": "HZL task management skill for multi-session, multi-agent workflows",
   "author": {
     "name": "Trevin Chow",
