@@ -1,3 +1,10 @@
+## [1.16.2](https://github.com/tmchow/hzl/compare/v1.16.1...v1.16.2) (2026-02-03)
+
+
+### Bug Fixes
+
+* run cache migrations before schema to fix upgrade failure ([#75](https://github.com/tmchow/hzl/issues/75)) ([062ec5a](https://github.com/tmchow/hzl/commit/062ec5a2eaa9206c11a18e3d50c2fd21925799dc))
+
 ## [1.16.1](https://github.com/tmchow/hzl/compare/v1.16.0...v1.16.1) (2026-02-03)
 
 # [1.16.0](https://github.com/tmchow/hzl/compare/v1.15.0...v1.16.0) (2026-02-03)
