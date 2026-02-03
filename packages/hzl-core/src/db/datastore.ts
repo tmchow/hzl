@@ -5,6 +5,7 @@ import type { DbConfig, SyncResult, SyncStats } from './types.js';
 import { EVENTS_SCHEMA_V2, CACHE_SCHEMA_V1, PRAGMAS } from './schema.js';
 import { generateId } from '../utils/id.js';
 import { setInstanceId, getInstanceId, setDeviceId, getDeviceId, setLastSyncAttemptAt, setLastSyncAt, setLastSyncError, clearLastSyncError, clearDirtySince } from './meta.js';
+import { runCacheMigrations } from './migrations/index.js';
 
 export type ConnectionMode = 'local-only' | 'remote-replica' | 'offline-sync' | 'remote-only';
 
@@ -87,6 +88,12 @@ export function createDatastore(config: DbConfig): Datastore {
 
     // Initialize schemas
     eventsDb.exec(EVENTS_SCHEMA_V2);
+
+    // Run cache database migrations BEFORE schema exec to add any missing columns.
+    // This ensures columns exist before CACHE_SCHEMA_V1 tries to create indexes on them.
+    runCacheMigrations(cacheDb);
+
+    // Now create/verify all tables and indexes (safe because columns exist)
     cacheDb.exec(CACHE_SCHEMA_V1);
 
     // Ensure instance ID exists (generate if new database)
