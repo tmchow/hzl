@@ -189,6 +189,79 @@
       accent-color: var(--accent);
     }
 
+    /* Settings Dropdown */
+    .settings-group {
+      position: relative;
+    }
+
+    .settings-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg-primary);
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+      padding: 6px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .settings-toggle:hover {
+      border-color: var(--accent);
+      color: var(--text-primary);
+    }
+
+    .settings-dropdown {
+      display: none;
+      position: absolute;
+      top: 100%;
+      right: 0;
+      margin-top: 4px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px;
+      z-index: 100;
+      min-width: 180px;
+    }
+
+    .settings-dropdown.open {
+      display: block;
+    }
+
+    .settings-section {
+      margin-bottom: 12px;
+    }
+
+    .settings-section:last-child {
+      margin-bottom: 0;
+    }
+
+    .settings-label {
+      display: block;
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .settings-section select {
+      width: 100%;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+
+    .column-checkboxes {
+      display: flex;
+      flex-direction: column;
+    }
+
     /* Kanban Board */
     .board {
       display: flex;
@@ -259,10 +332,33 @@
       border-color: var(--accent);
     }
 
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
+    .card-header-left {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .card-emoji {
+      font-size: 12px;
+      flex-shrink: 0;
+    }
+
+    .card-parent {
+      box-shadow: 0 0 0 1px var(--family-color);
+    }
+
     .card-id {
       font-size: 10px;
       color: var(--text-muted);
-      margin-bottom: 4px;
     }
 
     .card-title {
@@ -291,6 +387,26 @@
 
     .card-agent {
       color: var(--accent);
+    }
+
+    .card-progress {
+      color: var(--accent);
+      background: rgba(245, 158, 11, 0.15);
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 10px;
+      flex-shrink: 0;
+    }
+
+    .card-progress.complete {
+      color: var(--status-done);
+      background: rgba(34, 197, 94, 0.15);
+    }
+
+    .card-subtask-count {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
     }
 
     .card-blocked {
@@ -741,34 +857,49 @@
           <option value="">All projects</option>
         </select>
       </div>
-      <div class="filter-group">
-        <label class="filter-label">Refresh:</label>
-        <select id="refreshFilter">
-          <option value="1000">1s</option>
-          <option value="2000">2s</option>
-          <option value="5000" selected>5s</option>
-          <option value="10000">10s</option>
-          <option value="30000">30s</option>
-        </select>
-      </div>
-      <div class="filter-group">
-        <button class="columns-toggle" id="columnsToggle">Columns</button>
-        <div class="columns-dropdown" id="columnsDropdown">
-          <label class="column-checkbox">
-            <input type="checkbox" value="backlog" checked> Backlog
-          </label>
-          <label class="column-checkbox">
-            <input type="checkbox" value="ready" checked> Ready
-          </label>
-          <label class="column-checkbox">
-            <input type="checkbox" value="in_progress" checked> In Progress
-          </label>
-          <label class="column-checkbox">
-            <input type="checkbox" value="blocked" checked> Blocked
-          </label>
-          <label class="column-checkbox">
-            <input type="checkbox" value="done" checked> Done
-          </label>
+      <div class="filter-group settings-group">
+        <button class="settings-toggle" id="settingsToggle" title="Settings">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492zM5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0z"/>
+            <path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52l-.094-.319zm-2.633.283c.246-.835 1.428-.835 1.674 0l.094.319a1.873 1.873 0 0 0 2.693 1.115l.291-.16c.764-.415 1.6.42 1.184 1.185l-.159.292a1.873 1.873 0 0 0 1.116 2.692l.318.094c.835.246.835 1.428 0 1.674l-.319.094a1.873 1.873 0 0 0-1.115 2.693l.16.291c.415.764-.42 1.6-1.185 1.184l-.291-.159a1.873 1.873 0 0 0-2.693 1.116l-.094.318c-.246.835-1.428.835-1.674 0l-.094-.319a1.873 1.873 0 0 0-2.692-1.115l-.292.16c-.764.415-1.6-.42-1.184-1.185l.159-.291A1.873 1.873 0 0 0 1.945 8.93l-.319-.094c-.835-.246-.835-1.428 0-1.674l.319-.094A1.873 1.873 0 0 0 3.06 4.377l-.16-.292c-.415-.764.42-1.6 1.185-1.184l.292.159a1.873 1.873 0 0 0 2.692-1.115l.094-.319z"/>
+          </svg>
+        </button>
+        <div class="settings-dropdown" id="settingsDropdown">
+          <div class="settings-section">
+            <label class="settings-label">Refresh</label>
+            <select id="refreshFilter">
+              <option value="1000">1s</option>
+              <option value="2000">2s</option>
+              <option value="5000" selected>5s</option>
+              <option value="10000">10s</option>
+              <option value="30000">30s</option>
+            </select>
+          </div>
+          <div class="settings-section">
+            <label class="settings-label">Columns</label>
+            <div class="column-checkboxes">
+              <label class="column-checkbox">
+                <input type="checkbox" value="backlog" checked> Backlog
+              </label>
+              <label class="column-checkbox">
+                <input type="checkbox" value="ready" checked> Ready
+              </label>
+              <label class="column-checkbox">
+                <input type="checkbox" value="in_progress" checked> In Progress
+              </label>
+              <label class="column-checkbox">
+                <input type="checkbox" value="blocked" checked> Blocked
+              </label>
+              <label class="column-checkbox">
+                <input type="checkbox" value="done" checked> Done
+              </label>
+            </div>
+          </div>
+          <div class="settings-section">
+            <label class="column-checkbox">
+              <input type="checkbox" id="showSubtasks" checked> Show subtasks
+            </label>
+          </div>
         </div>
       </div>
     </div>
@@ -877,6 +1008,8 @@
     let graphInstance = null;
     let graphInitialized = false;
     let nodeStatusMap = new Map();
+    let pendingModalRequestId = 0; // Track modal fetch requests to avoid race conditions
+    let isPolling = false; // Guard against concurrent poll() calls
 
     // DOM Elements
     const dateFilter = document.getElementById('dateFilter');
@@ -894,8 +1027,9 @@
     const modalBody = document.getElementById('modalBody');
     const hamburgerBtn = document.getElementById('hamburgerBtn');
     const mobileTabs = document.getElementById('mobileTabs');
-    const columnsToggle = document.getElementById('columnsToggle');
-    const columnsDropdown = document.getElementById('columnsDropdown');
+    const settingsToggle = document.getElementById('settingsToggle');
+    const settingsDropdown = document.getElementById('settingsDropdown');
+    const showSubtasksCheckbox = document.getElementById('showSubtasks');
     const viewToggle = document.getElementById('viewToggle');
     const board = document.getElementById('board');
     const graphContainer = document.getElementById('graphContainer');
@@ -904,9 +1038,81 @@
     // Column visibility
     const COLUMNS = ['backlog', 'ready', 'in_progress', 'blocked', 'done'];
 
+    // Emoji family system for parent/child task indicators
+    const FAMILY_EMOJIS = [
+      '🔷', '🔶', '🔴', '🟢', '🔵', '🟡', '🟣', '🟠',
+      '⬛', '⬜', '🔳', '🔲', '▪️', '▫️', '◾', '◽',
+      '💠', '🔹', '🔸', '♦️', '♠️', '♣️', '♥️', '🃏',
+      '⭐', '🌟', '✨', '💫', '🔆', '🔅', '☀️', '🌙',
+      '🎯', '🎪', '🎨', '🎭', '🎬', '🎮', '🎲', '🎸',
+      '🔑', '🔐', '🔒', '🔓', '🗝️', '⚡', '💡', '🔔'
+    ];
+
+    // djb2 hash for deterministic emoji assignment
+    function getTaskEmoji(taskId) {
+      let hash = 5381;
+      for (let i = 0; i < taskId.length; i++) {
+        hash = ((hash << 5) + hash) ^ taskId.charCodeAt(i);
+      }
+      return FAMILY_EMOJIS[Math.abs(hash) % FAMILY_EMOJIS.length];
+    }
+
+    function getTaskFamilyColor(taskId) {
+      let hash = 5381;
+      for (let i = 0; i < taskId.length; i++) {
+        hash = ((hash << 5) + hash) ^ taskId.charCodeAt(i);
+      }
+      const hue = Math.abs(hash) % 360;
+      return `hsl(${hue} 55% 55%)`;
+    }
+
+    // Build emoji map with suffix numbers for children
+    function buildEmojiMap(taskList) {
+      // Build set of known task IDs for visible parent detection
+      const taskIds = new Set(taskList.map(t => t.task_id));
+
+      // Group visible children by parent for suffix ordering
+      // Only children whose parent is visible get suffix numbers
+      const childrenByParent = new Map();
+
+      for (const task of taskList) {
+        if (task.parent_id && taskIds.has(task.parent_id)) {
+          if (!childrenByParent.has(task.parent_id)) {
+            childrenByParent.set(task.parent_id, []);
+          }
+          childrenByParent.get(task.parent_id).push(task);
+        }
+      }
+
+      // Sort children by task_id for stable suffix ordering
+      for (const children of childrenByParent.values()) {
+        children.sort((a, b) => a.task_id.localeCompare(b.task_id));
+      }
+
+      // Build emoji assignments
+      const emojiMap = new Map(); // task_id -> { emoji, suffix }
+
+      for (const task of taskList) {
+        if (task.parent_id) {
+          // Child task: always use parent's emoji for family consistency
+          // (even if parent is filtered out)
+          const emoji = getTaskEmoji(task.parent_id);
+          // Only show suffix if parent is visible (siblings can be compared)
+          const siblings = childrenByParent.get(task.parent_id) || [];
+          const suffix = siblings.length > 0 ? siblings.indexOf(task) + 1 : null;
+          emojiMap.set(task.task_id, { emoji, suffix: suffix || null });
+        } else {
+          // Parent or standalone task: use own emoji, no suffix
+          emojiMap.set(task.task_id, { emoji: getTaskEmoji(task.task_id), suffix: null });
+        }
+      }
+
+      return emojiMap;
+    }
+
     function updateColumnVisibility() {
       COLUMNS.forEach(status => {
-        const checkbox = columnsDropdown.querySelector(`input[value="${status}"]`);
+        const checkbox = settingsDropdown.querySelector(`input[value="${status}"]`);
         const column = document.querySelector(`.column[data-status="${status}"]`);
         if (column && checkbox) {
           column.classList.toggle('hidden', !checkbox.checked);
@@ -924,10 +1130,13 @@
           if (prefs.projectFilter) projectFilter.value = prefs.projectFilter;
           if (prefs.refreshFilter) refreshFilter.value = prefs.refreshFilter;
           if (Array.isArray(prefs.columnVisibility)) {
-            columnsDropdown.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+            settingsDropdown.querySelectorAll('.column-checkboxes input[type="checkbox"]').forEach(cb => {
               cb.checked = prefs.columnVisibility.includes(cb.value);
             });
             updateColumnVisibility();
+          }
+          if (prefs.showSubtasks !== undefined) {
+            showSubtasksCheckbox.checked = prefs.showSubtasks;
           }
           if (prefs.activeView && prefs.activeView !== 'kanban') {
             // Defer view switch until after ForceGraph may have loaded
@@ -943,8 +1152,9 @@
         projectFilter: projectFilter.value,
         refreshFilter: refreshFilter.value,
         columnVisibility: Array.from(
-          columnsDropdown.querySelectorAll('input[type="checkbox"]:checked')
+          settingsDropdown.querySelectorAll('.column-checkboxes input[type="checkbox"]:checked')
         ).map(cb => cb.value),
+        showSubtasks: showSubtasksCheckbox.checked,
         activeView: activeView,
       };
       localStorage.setItem('hzl-dashboard-prefs', JSON.stringify(prefs));
@@ -1258,9 +1468,42 @@
     }
 
     // Render functions
-    function renderCard(task) {
+    function renderCard(task, emojiInfo, showSubtasks) {
       const isBlocked = task.blocked_by && task.blocked_by.length > 0;
       const status = isBlocked ? 'blocked' : task.status;
+
+      const isParentTask = (task.subtask_total ?? 0) > 0;
+      const parentStyle = isParentTask
+        ? `style="--family-color: ${getTaskFamilyColor(task.task_id)}"`
+        : '';
+
+      // Build emoji indicator
+      let emojiHtml = '';
+      if (emojiInfo) {
+        const { emoji, suffix } = emojiInfo;
+        emojiHtml = suffix
+          ? `<span class="card-emoji">${emoji}-${suffix}</span>`
+          : `<span class="card-emoji">${emoji}</span>`;
+      }
+
+      // Build subtask count (for parents regardless of subtasks visibility)
+      let subtaskHtml = '';
+      const visibleCount = task.subtask_count ?? 0;
+      const totalCount = task.subtask_total ?? visibleCount;
+      if (totalCount > 0) {
+        const label = totalCount === 1 ? 'subtask' : 'subtasks';
+        const countLabel = visibleCount === totalCount
+          ? `${visibleCount} ${label}`
+          : `${visibleCount}/${totalCount} ${label}`;
+        subtaskHtml = `<div class="card-subtask-count">[${countLabel}]</div>`;
+      }
+
+      // Build progress badge
+      let progressHtml = '';
+      if (task.progress !== null && task.progress !== undefined && task.progress > 0) {
+        const progressClass = task.progress >= 100 ? 'card-progress complete' : 'card-progress';
+        progressHtml = `<span class="${progressClass}">${task.progress}%</span>`;
+      }
 
       let extra = '';
       if (isBlocked) {
@@ -1272,9 +1515,16 @@
       }
 
       return `
-        <div class="card" data-task-id="${task.task_id}">
-          <div class="card-id">${task.task_id.slice(0, 8)}</div>
+        <div class="card${isParentTask ? ' card-parent' : ''}" data-task-id="${task.task_id}" ${parentStyle}>
+          <div class="card-header">
+            <div class="card-header-left">
+              ${emojiHtml}
+              <span class="card-id">${task.task_id.slice(0, 8)}</span>
+            </div>
+            ${progressHtml}
+          </div>
           <div class="card-title">${escapeHtml(task.title)}</div>
+          ${subtaskHtml}
           <div class="card-meta">
             <span class="card-project">${escapeHtml(task.project)}</span>
             ${task.assignee ? `<span class="card-agent">${task.assignee.slice(0, 8)}</span>` : ''}
@@ -1304,7 +1554,16 @@
     }
 
     function renderBoard() {
-      const columns = groupTasksByStatus(tasks);
+      const showSubtasks = showSubtasksCheckbox.checked;
+      const emojiMap = buildEmojiMap(tasks);
+
+      // Filter tasks if subtasks are hidden
+      let visibleTasks = tasks;
+      if (!showSubtasks) {
+        visibleTasks = tasks.filter(t => !t.parent_id);
+      }
+
+      const columns = groupTasksByStatus(visibleTasks);
 
       for (const [status, statusTasks] of Object.entries(columns)) {
         const container = document.getElementById(`cards-${status}`);
@@ -1315,7 +1574,10 @@
           if (statusTasks.length === 0) {
             container.innerHTML = '<div class="empty-column">No tasks</div>';
           } else {
-            container.innerHTML = statusTasks.map(renderCard).join('');
+            container.innerHTML = statusTasks.map(task => {
+              const emojiInfo = emojiMap.get(task.task_id);
+              return renderCard(task, emojiInfo, showSubtasks);
+            }).join('');
           }
         }
         if (countEl) countEl.textContent = statusTasks.length;
@@ -1323,32 +1585,36 @@
       }
 
       // Render mobile cards for active tab
-      renderMobileCards();
+      renderMobileCards(showSubtasks, emojiMap);
 
-      // Add click handlers
-      document.querySelectorAll('.card').forEach(card => {
-        card.addEventListener('click', () => openTaskModal(card.dataset.taskId));
-      });
+      // Card click handlers are set up via event delegation in init
     }
 
-    function renderMobileCards() {
+    function renderMobileCards(showSubtasks, emojiMap) {
       const container = document.getElementById('mobileCardsContainer');
       if (!container) return;
 
-      const columns = groupTasksByStatus(tasks);
+      // Use same filtering as desktop
+      let visibleTasks = tasks;
+      if (!showSubtasks) {
+        visibleTasks = tasks.filter(t => !t.parent_id);
+      }
+
+      const columns = groupTasksByStatus(visibleTasks);
 
       container.innerHTML = Object.entries(columns).map(([status, statusTasks]) => `
         <div class="mobile-cards ${status === activeTab ? 'active' : ''}" data-status="${status}">
           ${statusTasks.length === 0
             ? '<div class="empty-column">No tasks</div>'
-            : statusTasks.map(renderCard).join('')
+            : statusTasks.map(task => {
+                const emojiInfo = emojiMap.get(task.task_id);
+                return renderCard(task, emojiInfo, showSubtasks);
+              }).join('')
           }
         </div>
       `).join('');
 
-      container.querySelectorAll('.card').forEach(card => {
-        card.addEventListener('click', () => openTaskModal(card.dataset.taskId));
-      });
+      // Card click handlers are set up via event delegation in init
     }
 
     function renderActivity() {
@@ -1380,10 +1646,16 @@
     }
 
     async function openTaskModal(taskId) {
+      // Track this request to handle rapid clicks (race condition prevention)
+      const requestId = ++pendingModalRequestId;
+
       try {
         const data = await fetchTaskDetail(taskId);
-        selectedTask = data;
 
+        // Discard stale response if a newer request was made
+        if (requestId !== pendingModalRequestId) return;
+
+        selectedTask = data;
         modalTitle.textContent = data.task.title;
 
         let html = `
@@ -1500,6 +1772,10 @@
 
     // Polling
     async function poll() {
+      // Guard against concurrent poll calls (e.g., rapid tab switching)
+      if (isPolling) return;
+      isPolling = true;
+
       try {
         const [newTasks, newEvents, stats] = await Promise.all([
           fetchTasks(),
@@ -1528,6 +1804,8 @@
       } catch (error) {
         console.error('Poll failed:', error);
         updateConnectionStatus(false);
+      } finally {
+        isPolling = false;
       }
     }
 
@@ -1634,7 +1912,7 @@
       if (e.key === 'Escape') {
         closeModal();
         activityPanel.classList.remove('open');
-        columnsDropdown.classList.remove('open');
+        settingsDropdown.classList.remove('open');
       }
     });
 
@@ -1667,21 +1945,30 @@
       filters.style.display = filters.style.display === 'none' ? 'flex' : 'none';
     });
 
-    // Column visibility dropdown
-    columnsToggle.addEventListener('click', (e) => {
+    // Settings dropdown
+    settingsToggle.addEventListener('click', (e) => {
       e.stopPropagation();
-      columnsDropdown.classList.toggle('open');
+      settingsDropdown.classList.toggle('open');
     });
 
     document.addEventListener('click', () => {
-      columnsDropdown.classList.remove('open');
+      settingsDropdown.classList.remove('open');
     });
 
-    columnsDropdown.addEventListener('click', (e) => e.stopPropagation());
+    settingsDropdown.addEventListener('click', (e) => e.stopPropagation());
 
-    columnsDropdown.addEventListener('change', () => {
-      updateColumnVisibility();
+    // Column visibility checkboxes
+    settingsDropdown.querySelectorAll('.column-checkboxes input').forEach(cb => {
+      cb.addEventListener('change', () => {
+        updateColumnVisibility();
+        savePreferences();
+      });
+    });
+
+    // Show subtasks toggle
+    showSubtasksCheckbox.addEventListener('change', () => {
       savePreferences();
+      renderBoard();
     });
 
     // View toggle (Kanban/Graph)
@@ -1727,6 +2014,17 @@
       if (btn && !btn.disabled && btn.dataset.view !== activeView) {
         setActiveView(btn.dataset.view);
       }
+    });
+
+    // Event delegation for card clicks (avoids re-adding handlers on every render)
+    board.addEventListener('click', (e) => {
+      const card = e.target.closest('.card');
+      if (card) openTaskModal(card.dataset.taskId);
+    });
+
+    document.getElementById('mobileCardsContainer').addEventListener('click', (e) => {
+      const card = e.target.closest('.card');
+      if (card) openTaskModal(card.dataset.taskId);
     });
 
     // Initialize

@@ -658,6 +658,41 @@ describe('TaskService', () => {
       const tasks = taskService.listTasks({});
       expect(tasks[0].task_id).toBe(high.task_id);
     });
+
+    it('returns parent_id for subtasks', () => {
+      const parent = taskService.createTask({ title: 'Parent', project: 'inbox' });
+      const child = taskService.createTask({
+        title: 'Child',
+        project: 'inbox',
+        parent_id: parent.task_id,
+      });
+
+      const tasks = taskService.listTasks({});
+      const childTask = tasks.find(t => t.task_id === child.task_id);
+      const parentTask = tasks.find(t => t.task_id === parent.task_id);
+
+      expect(childTask?.parent_id).toBe(parent.task_id);
+      expect(parentTask?.parent_id).toBeNull();
+    });
+
+    it('returns progress when set', () => {
+      const task = taskService.createTask({ title: 'Task', project: 'inbox' });
+      taskService.setProgress(task.task_id, 50);
+
+      const tasks = taskService.listTasks({});
+      const found = tasks.find(t => t.task_id === task.task_id);
+
+      expect(found?.progress).toBe(50);
+    });
+
+    it('returns null progress when not set', () => {
+      const task = taskService.createTask({ title: 'Task', project: 'inbox' });
+
+      const tasks = taskService.listTasks({});
+      const found = tasks.find(t => t.task_id === task.task_id);
+
+      expect(found?.progress).toBeNull();
+    });
   });
 
   describe('getBlockedByMap', () => {
@@ -695,6 +730,115 @@ describe('TaskService', () => {
 
       const map = taskService.getBlockedByMap();
       expect(map.has(blocked.task_id)).toBe(false);
+    });
+  });
+
+  describe('getSubtaskCounts', () => {
+    it('returns empty map when no subtasks exist', () => {
+      taskService.createTask({ title: 'Parent', project: 'inbox' });
+      const counts = taskService.getSubtaskCounts();
+      expect(counts.size).toBe(0);
+    });
+
+    it('returns subtask count for parent tasks', () => {
+      const parent = taskService.createTask({ title: 'Parent', project: 'inbox' });
+      taskService.createTask({
+        title: 'Child 1',
+        project: 'inbox',
+        parent_id: parent.task_id,
+      });
+      taskService.createTask({
+        title: 'Child 2',
+        project: 'inbox',
+        parent_id: parent.task_id,
+      });
+
+      const counts = taskService.getSubtaskCounts();
+      expect(counts.get(parent.task_id)).toBe(2);
+    });
+
+    it('excludes archived subtasks from count', () => {
+      const parent = taskService.createTask({ title: 'Parent', project: 'inbox' });
+      const child1 = taskService.createTask({
+        title: 'Child 1',
+        project: 'inbox',
+        parent_id: parent.task_id,
+      });
+      taskService.createTask({
+        title: 'Child 2',
+        project: 'inbox',
+        parent_id: parent.task_id,
+      });
+
+      // Archive child1
+      taskService.setStatus(child1.task_id, TaskStatus.Ready);
+      taskService.claimTask(child1.task_id);
+      taskService.completeTask(child1.task_id);
+      taskService.archiveTask(child1.task_id);
+
+      const counts = taskService.getSubtaskCounts();
+      expect(counts.get(parent.task_id)).toBe(1);
+    });
+
+    it('returns counts for multiple parent tasks', () => {
+      const parent1 = taskService.createTask({ title: 'Parent 1', project: 'inbox' });
+      const parent2 = taskService.createTask({ title: 'Parent 2', project: 'inbox' });
+
+      taskService.createTask({ title: 'Child 1-1', project: 'inbox', parent_id: parent1.task_id });
+      taskService.createTask({ title: 'Child 2-1', project: 'inbox', parent_id: parent2.task_id });
+      taskService.createTask({ title: 'Child 2-2', project: 'inbox', parent_id: parent2.task_id });
+      taskService.createTask({ title: 'Child 2-3', project: 'inbox', parent_id: parent2.task_id });
+
+      const counts = taskService.getSubtaskCounts();
+      expect(counts.get(parent1.task_id)).toBe(1);
+      expect(counts.get(parent2.task_id)).toBe(3);
+    });
+
+    it('filters by project', () => {
+      projectService.createProject('subtask-proj-a');
+      projectService.createProject('subtask-proj-b');
+
+      const parentA = taskService.createTask({ title: 'Parent A', project: 'subtask-proj-a' });
+      const parentB = taskService.createTask({ title: 'Parent B', project: 'subtask-proj-b' });
+
+      taskService.createTask({ title: 'Child A-1', project: 'subtask-proj-a', parent_id: parentA.task_id });
+      taskService.createTask({ title: 'Child A-2', project: 'subtask-proj-a', parent_id: parentA.task_id });
+      taskService.createTask({ title: 'Child B-1', project: 'subtask-proj-b', parent_id: parentB.task_id });
+
+      const countsA = taskService.getSubtaskCounts({ project: 'subtask-proj-a' });
+      expect(countsA.get(parentA.task_id)).toBe(2);
+      expect(countsA.has(parentB.task_id)).toBe(false);
+
+      const countsB = taskService.getSubtaskCounts({ project: 'subtask-proj-b' });
+      expect(countsB.get(parentB.task_id)).toBe(1);
+      expect(countsB.has(parentA.task_id)).toBe(false);
+    });
+
+    it('excludes done subtasks when excludeDone is true', () => {
+      const parent = taskService.createTask({ title: 'Parent', project: 'inbox' });
+      const child1 = taskService.createTask({
+        title: 'Child 1',
+        project: 'inbox',
+        parent_id: parent.task_id,
+      });
+      taskService.createTask({
+        title: 'Child 2',
+        project: 'inbox',
+        parent_id: parent.task_id,
+      });
+
+      // Complete child1
+      taskService.setStatus(child1.task_id, TaskStatus.Ready);
+      taskService.claimTask(child1.task_id);
+      taskService.completeTask(child1.task_id);
+
+      // Without excludeDone: count includes done subtask
+      const allCounts = taskService.getSubtaskCounts();
+      expect(allCounts.get(parent.task_id)).toBe(2);
+
+      // With excludeDone: count excludes done subtask
+      const activeCounts = taskService.getSubtaskCounts({ excludeDone: true });
+      expect(activeCounts.get(parent.task_id)).toBe(1);
     });
   });
 

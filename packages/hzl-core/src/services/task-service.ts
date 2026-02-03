@@ -127,6 +127,8 @@ export interface TaskListItem {
   assignee: string | null;
   lease_until: string | null;
   updated_at: string;
+  parent_id: string | null;
+  progress: number | null;
 }
 
 export interface TaskStats {
@@ -1019,6 +1021,8 @@ export class TaskService {
       assignee: row.assignee,
       lease_until: row.lease_until,
       updated_at: row.updated_at,
+      parent_id: row.parent_id,
+      progress: row.progress,
     }));
   }
 
@@ -1041,6 +1045,51 @@ export class TaskService {
       map.set(row.task_id, row.blocked_by.split(','));
     }
     return map;
+  }
+
+  /**
+   * Get a map of parent task_id -> count of subtasks.
+   * Used by web dashboard to show subtask counts on parent cards.
+   *
+   * @param opts.sinceDays - Filter to subtasks updated within N days (aligns with listTasks)
+   * @param opts.project - Filter to subtasks in specific project
+   * @param opts.excludeDone - If true, exclude 'done' subtasks (show only active work)
+   */
+  getSubtaskCounts(
+    opts: { sinceDays?: number; project?: string; excludeDone?: boolean } = {}
+  ): Map<string, number> {
+    const { sinceDays, project, excludeDone = false } = opts;
+
+    let query = `
+      SELECT parent_id, COUNT(*) as count
+      FROM tasks_current
+      WHERE parent_id IS NOT NULL
+        AND status != 'archived'
+    `;
+    const params: Array<string | number> = [];
+
+    if (excludeDone) {
+      query += ` AND status != 'done'`;
+    }
+
+    if (sinceDays !== undefined) {
+      query += ` AND updated_at >= datetime('now', ?)`;
+      params.push(`-${sinceDays} days`);
+    }
+
+    if (project) {
+      query += ` AND project = ?`;
+      params.push(project);
+    }
+
+    query += ` GROUP BY parent_id`;
+
+    const rows = this.db.prepare(query).all(...params) as Array<{
+      parent_id: string;
+      count: number;
+    }>;
+
+    return new Map(rows.map((r) => [r.parent_id, r.count]));
   }
 
   /**

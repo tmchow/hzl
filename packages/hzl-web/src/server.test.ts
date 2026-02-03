@@ -166,6 +166,105 @@ describe('hzl-web server', () => {
       const blockedTask = tasks.find((t) => t.title === 'Blocked Task');
       expect(blockedTask?.blocked_by).toContain(blocker.task_id);
     });
+
+    it('includes subtask_count for parent tasks', async () => {
+      const parent = taskService.createTask({
+        title: 'Parent Task',
+        project: 'test-project',
+      });
+      taskService.createTask({
+        title: 'Child 1',
+        project: 'test-project',
+        parent_id: parent.task_id,
+      });
+      taskService.createTask({
+        title: 'Child 2',
+        project: 'test-project',
+        parent_id: parent.task_id,
+      });
+
+      createServer(4515);
+      const { data } = await fetchJson('/api/tasks');
+
+      const tasks = (data as { tasks: Array<{ title: string; subtask_count: number }> }).tasks;
+      const parentTask = tasks.find((t) => t.title === 'Parent Task');
+      expect(parentTask?.subtask_count).toBe(2);
+    });
+
+    it('excludes archived subtasks from subtask_count', async () => {
+      const parent = taskService.createTask({
+        title: 'Parent Task',
+        project: 'test-project',
+      });
+      const child1 = taskService.createTask({
+        title: 'Child 1',
+        project: 'test-project',
+        parent_id: parent.task_id,
+      });
+      taskService.createTask({
+        title: 'Child 2',
+        project: 'test-project',
+        parent_id: parent.task_id,
+      });
+
+      // Archive child1
+      taskService.setStatus(child1.task_id, TaskStatus.Ready);
+      taskService.claimTask(child1.task_id);
+      taskService.completeTask(child1.task_id);
+      taskService.archiveTask(child1.task_id);
+
+      createServer(4516);
+      const { data } = await fetchJson('/api/tasks');
+
+      const tasks = (data as { tasks: Array<{ title: string; subtask_count: number }> }).tasks;
+      const parentTask = tasks.find((t) => t.title === 'Parent Task');
+      expect(parentTask?.subtask_count).toBe(1);
+    });
+
+    it('filters subtask_count by project', async () => {
+      projectService.createProject('other-project');
+
+      const parentA = taskService.createTask({
+        title: 'Parent A',
+        project: 'test-project',
+      });
+      const parentB = taskService.createTask({
+        title: 'Parent B',
+        project: 'other-project',
+      });
+
+      taskService.createTask({
+        title: 'Child A-1',
+        project: 'test-project',
+        parent_id: parentA.task_id,
+      });
+      taskService.createTask({
+        title: 'Child A-2',
+        project: 'test-project',
+        parent_id: parentA.task_id,
+      });
+      taskService.createTask({
+        title: 'Child B-1',
+        project: 'other-project',
+        parent_id: parentB.task_id,
+      });
+
+      createServer(4517);
+
+      // Filter by test-project - should only see Parent A with count 2
+      const { data: dataA } = await fetchJson('/api/tasks?project=test-project');
+      const tasksA = (dataA as { tasks: Array<{ title: string; subtask_count: number }> }).tasks;
+      const parentTaskA = tasksA.find((t) => t.title === 'Parent A');
+      expect(parentTaskA?.subtask_count).toBe(2);
+      // Parent B should not be in results
+      expect(tasksA.find((t) => t.title === 'Parent B')).toBeUndefined();
+
+      // Filter by other-project - should only see Parent B with count 1
+      const { data: dataB } = await fetchJson('/api/tasks?project=other-project');
+      const tasksB = (dataB as { tasks: Array<{ title: string; subtask_count: number }> }).tasks;
+      const parentTaskB = tasksB.find((t) => t.title === 'Parent B');
+      expect(parentTaskB?.subtask_count).toBe(1);
+    });
   });
 
   describe('GET /api/tasks/:id', () => {
