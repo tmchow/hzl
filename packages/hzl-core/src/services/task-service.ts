@@ -231,6 +231,7 @@ export class TaskService {
       priority: input.priority,
       due_at: input.due_at,
       metadata: input.metadata,
+      assignee: input.assignee,
     };
 
     const cleanedEventData = Object.fromEntries(
