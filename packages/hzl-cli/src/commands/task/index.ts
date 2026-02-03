@@ -22,6 +22,7 @@ import { createNextCommand } from './next.js';
 import { createBlockCommand } from './block.js';
 import { createUnblockCommand } from './unblock.js';
 import { createProgressCommand } from './progress.js';
+import { createPruneCommand } from './prune.js';
 
 export function createTaskCommand(): Command {
   const command = new Command('task').description('Task management commands');
@@ -49,6 +50,7 @@ export function createTaskCommand(): Command {
   command.addCommand(createBlockCommand());
   command.addCommand(createUnblockCommand());
   command.addCommand(createProgressCommand());
+  command.addCommand(createPruneCommand());
 
   return command;
 }
