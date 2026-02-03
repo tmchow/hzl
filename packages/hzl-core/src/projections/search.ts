@@ -36,16 +36,21 @@ export class SearchProjector implements Projector {
     const data = event.data as TaskUpdatedData;
     if (!SEARCHABLE_FIELDS.has(data.field)) return;
 
-    const task = db.prepare(
-      'SELECT title, description FROM tasks_current WHERE task_id = ?'
-    ).get(event.task_id) as { title: string; description: string | null } | undefined;
+    // Get current values from task_search (avoids N+1 query to tasks_current)
+    const current = db.prepare(
+      'SELECT title, description FROM task_search WHERE task_id = ?'
+    ).get(event.task_id) as { title: string; description: string } | undefined;
 
-    if (!task) return;
+    if (!current) return;
+
+    // Use the new value from the event for the changed field
+    const title = data.field === 'title' ? (data.new_value as string) : current.title;
+    const description = data.field === 'description' ? (data.new_value as string | null) ?? '' : current.description;
 
     db.prepare('DELETE FROM task_search WHERE task_id = ?').run(event.task_id);
     db.prepare(`
       INSERT INTO task_search (task_id, title, description)
       VALUES (?, ?, ?)
-    `).run(event.task_id, task.title, task.description ?? '');
+    `).run(event.task_id, title, description);
   }
 }
