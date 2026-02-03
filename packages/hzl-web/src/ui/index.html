@@ -1541,10 +1541,7 @@
       // Render mobile cards for active tab
       renderMobileCards(showSubtasks, emojiMap);
 
-      // Add click handlers
-      document.querySelectorAll('.card').forEach(card => {
-        card.addEventListener('click', () => openTaskModal(card.dataset.taskId));
-      });
+      // Card click handlers are set up via event delegation in init
     }
 
     function renderMobileCards(showSubtasks, emojiMap) {
@@ -1571,9 +1568,7 @@
         </div>
       `).join('');
 
-      container.querySelectorAll('.card').forEach(card => {
-        card.addEventListener('click', () => openTaskModal(card.dataset.taskId));
-      });
+      // Card click handlers are set up via event delegation in init
     }
 
     function renderActivity() {
@@ -1918,12 +1913,6 @@
       renderBoard();
     });
 
-    // Refresh rate change
-    refreshFilter.addEventListener('change', () => {
-      savePreferences();
-      startPolling();
-    });
-
     // View toggle (Kanban/Graph)
     function setActiveView(view) {
       activeView = view;
@@ -1967,6 +1956,17 @@
       if (btn && !btn.disabled && btn.dataset.view !== activeView) {
         setActiveView(btn.dataset.view);
       }
+    });
+
+    // Event delegation for card clicks (avoids re-adding handlers on every render)
+    board.addEventListener('click', (e) => {
+      const card = e.target.closest('.card');
+      if (card) openTaskModal(card.dataset.taskId);
+    });
+
+    document.getElementById('mobileCardsContainer').addEventListener('click', (e) => {
+      const card = e.target.closest('.card');
+      if (card) openTaskModal(card.dataset.taskId);
     });
 
     // Initialize
