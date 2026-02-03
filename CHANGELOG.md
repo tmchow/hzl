@@ -1,3 +1,10 @@
+# [1.16.0](https://github.com/tmchow/hzl/compare/v1.15.0...v1.16.0) (2026-02-03)
+
+
+### Features
+
+* **pruning:** add task prune command for cleaning old tasks ([#73](https://github.com/tmchow/hzl/issues/73)) ([30f1e2c](https://github.com/tmchow/hzl/commit/30f1e2cb29c85f5e43c646e25ed4a359143d134b))
+
 # [1.15.0](https://github.com/tmchow/hzl/compare/v1.14.1...v1.15.0) (2026-02-03)
 
 
