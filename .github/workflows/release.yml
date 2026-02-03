@@ -63,12 +63,10 @@ jobs:
         id: release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          # No NPM_TOKEN needed - using OIDC Trusted Publishing
+          # id-token: write permission + Trusted Publisher config on npmjs.com
         run: |
           # Capture semantic-release output to detect if a new release was made
-          # Use npx instead of pnpm exec to ensure NPM_TOKEN is properly passed
-          # to the @semantic-release/npm plugin's temp .npmrc for provenance
           npx semantic-release 2>&1 | tee release-output.txt
 
           # Check if a new version was published
