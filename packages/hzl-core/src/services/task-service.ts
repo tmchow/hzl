@@ -216,6 +216,7 @@ function validateProgress(progress: number): void {
 export class TaskService {
   private getIncompleteDepsStmt: Database.Statement;
   private getSubtasksStmt: Database.Statement;
+  private getTaskByIdStmt: Database.Statement;
 
   constructor(
     private db: Database.Database, // cache database
@@ -240,6 +241,15 @@ export class TaskService {
       FROM tasks_current
       WHERE parent_id = ?
       ORDER BY priority DESC, created_at ASC
+    `);
+
+    this.getTaskByIdStmt = db.prepare(`
+      SELECT task_id, title, project, status, parent_id, description,
+             links, tags, priority, due_at, metadata,
+             claimed_at, assignee, progress, lease_until,
+             created_at, updated_at
+      FROM tasks_current
+      WHERE task_id = ?
     `);
   }
 
@@ -868,9 +878,7 @@ export class TaskService {
   }
 
   getTaskById(taskId: string): Task | null {
-    const row = this.db.prepare(
-      'SELECT * FROM tasks_current WHERE task_id = ?'
-    ).get(taskId) as TaskRow | undefined;
+    const row = this.getTaskByIdStmt.get(taskId) as TaskRow | undefined;
     if (!row) return null;
     return this.rowToTask(row);
   }
@@ -1432,14 +1440,17 @@ export class TaskService {
       'tasks_current',
     ];
 
-    for (const table of tables) {
-      // Create temp table to avoid SQLite parameter limits
-      this.db.exec('CREATE TEMP TABLE prune_targets (task_id TEXT PRIMARY KEY)');
-      const insert = this.db.prepare('INSERT INTO prune_targets (task_id) VALUES (?)');
-      for (const id of taskIds) {
-        insert.run(id);
-      }
+    // Create temp table once to avoid SQLite parameter limits
+    this.db.exec('CREATE TEMP TABLE IF NOT EXISTS prune_targets (task_id TEXT PRIMARY KEY)');
+    this.db.exec('DELETE FROM prune_targets'); // Clear any previous data
 
+    const insert = this.db.prepare('INSERT INTO prune_targets (task_id) VALUES (?)');
+    for (const id of taskIds) {
+      insert.run(id);
+    }
+
+    // Delete from all tables using the same temp table
+    for (const table of tables) {
       if (table === 'task_dependencies') {
         // Delete both directions
         this.db.exec(
@@ -1455,9 +1466,9 @@ export class TaskService {
           `DELETE FROM ${table} WHERE task_id IN (SELECT task_id FROM prune_targets)`
         );
       }
-
-      this.db.exec('DROP TABLE prune_targets');
     }
+
+    this.db.exec('DROP TABLE prune_targets');
   }
 
   private deleteTasksFromEvents(taskIds: string[]): number {
