@@ -63,11 +63,10 @@ jobs:
         id: release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Clear token env vars - OIDC Trusted Publishing handles auth
-          NODE_AUTH_TOKEN: ''
-          NPM_TOKEN: ''
-          NPM_CONFIG_USERCONFIG: ''
         run: |
+          # Unset token env vars completely - empty string still prevents OIDC fallback
+          unset NODE_AUTH_TOKEN NPM_TOKEN NPM_CONFIG_USERCONFIG
+
           # Remove setup-node's .npmrc to let semantic-release use OIDC
           rm -f /home/runner/work/_temp/.npmrc
 
