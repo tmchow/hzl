@@ -990,6 +990,7 @@
     let graphInitialized = false;
     let nodeStatusMap = new Map();
     let pendingModalRequestId = 0; // Track modal fetch requests to avoid race conditions
+    let isPolling = false; // Guard against concurrent poll() calls
 
     // DOM Elements
     const dateFilter = document.getElementById('dateFilter');
@@ -1727,6 +1728,10 @@
 
     // Polling
     async function poll() {
+      // Guard against concurrent poll calls (e.g., rapid tab switching)
+      if (isPolling) return;
+      isPolling = true;
+
       try {
         const [newTasks, newEvents, stats] = await Promise.all([
           fetchTasks(),
@@ -1755,6 +1760,8 @@
       } catch (error) {
         console.error('Poll failed:', error);
         updateConnectionStatus(false);
+      } finally {
+        isPolling = false;
       }
     }
 
