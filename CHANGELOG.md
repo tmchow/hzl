@@ -1,3 +1,10 @@
+## [1.18.3](https://github.com/tmchow/hzl/compare/v1.18.2...v1.18.3) (2026-02-03)
+
+
+### Bug Fixes
+
+* add git+ prefix to repository URLs in package.json ([4c50c0f](https://github.com/tmchow/hzl/commit/4c50c0f1e23f876be769f9a71f3f7828454c5f1a))
+
 ## [1.18.2](https://github.com/tmchow/hzl/compare/v1.18.1...v1.18.2) (2026-02-03)
 
 ## [1.18.1](https://github.com/tmchow/hzl/compare/v1.18.0...v1.18.1) (2026-02-03)
