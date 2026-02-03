@@ -27,29 +27,37 @@ hzl task add "Cache statement" --parent <parent-id>
 
 ## Solution
 
-Update 4 files with a tiered approach:
+Update 4 files with a tiered approach based on Anthropic's skill best practices.
 
 ### Tier 1: Always-Present (Concise)
 
 These files are always loaded, so keep them brief and don't duplicate skill content.
 
+Per [Anthropic's skill best practices](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices):
+> "The context window is a public good. Only add context Claude doesn't already have."
+
 **`docs/snippets/agent-policy.md`:**
 - Add punchy anti-pattern warning with minimal wrong/right example
 - Strengthen workflow to emphasize checking for existing projects first
+- **Remove command reference** (belongs in skill, not always-present docs)
 
 **`docs/openclaw/tools-prompt.md`:**
 - Fix incorrect "one project per request" guidance
 - Establish single `openclaw` project model
-- Add minimal anti-pattern warning
+- Reference the skill for command syntax (don't duplicate)
 
 ### Tier 2: On-Demand Skills (Detailed)
 
 These files are loaded when working with HZL, so they can be thorough.
 
+Per [Claude Code skills docs](https://code.claude.com/docs/en/skills):
+> "At startup, only the metadata (name and description) from all Skills is pre-loaded. Claude reads SKILL.md only when the Skill becomes relevant."
+
 **`skills/hzl/SKILL.md`:**
 - Add "Anti-pattern: Project Sprawl" section with full wrong/right examples
 - Add "Sizing Parent Tasks" section with completability test
 - Mention `--links` for additional context
+- Contains full command reference (this is where it belongs)
 
 **`docs/openclaw/skills/hzl/SKILL.md`:**
 - Same sections as above
@@ -63,11 +71,35 @@ These files are loaded when working with HZL, so they can be thorough.
 4. **Completability test** - "I finished [parent task]" should describe a real outcome
 5. **Use `--links` for context** - When description isn't enough
 
-## Implementation Plan
+## Documentation Architecture Learnings
 
-1. Update `docs/snippets/agent-policy.md`
-2. Update `docs/openclaw/tools-prompt.md`
-3. Update `skills/hzl/SKILL.md`
-4. Update `docs/openclaw/skills/hzl/SKILL.md`
-5. Run snippet sync script to propagate agent-policy.md changes
-6. Commit with conventional commit message
+### AGENTS.md vs Skills
+
+| Layer | Purpose | Content |
+|-------|---------|---------|
+| AGENTS.md / tools-prompt.md | Always-present context | When to use, anti-patterns, workflow (high-level) |
+| SKILL.md | On-demand when relevant | Command syntax, detailed patterns, scenarios |
+
+**Key insight:** Command references belong in skills, not always-present docs. Claude discovers skills via description matching—no need to explicitly mention the skill in AGENTS.md.
+
+### OpenClaw vs Claude Code
+
+| Context | Project Model | Reason |
+|---------|--------------|--------|
+| Claude Code / Codex | One per repo | Running in repo context |
+| OpenClaw | Single `openclaw` project | Not repo-bound; simplifies `hzl task next` |
+
+## Implementation Summary
+
+| Commit | Changes |
+|--------|---------|
+| `aee38f5` | Add anti-sprawl guidance (anti-pattern + sizing sections) |
+| `c2dc340` | Remove command reference from agent-policy (belongs in skill) |
+
+## Files Changed
+
+- `docs/snippets/agent-policy.md` - Anti-pattern warning, workflow, removed commands
+- `docs/openclaw/tools-prompt.md` - Single project model, skill reference
+- `skills/hzl/SKILL.md` - Full anti-pattern + sizing sections
+- `docs/openclaw/skills/hzl/SKILL.md` - OpenClaw-specific framing
+- `AGENTS.md`, `README.md` - Auto-synced from snippet
