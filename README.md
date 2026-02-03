@@ -404,16 +404,6 @@ hzl task add "Fix N+1" --parent <parent-id>    # Subtask
 4. Claim before work, checkpoint progress, complete when done.
 5. Use `--json` for scripted output.
 
-**Key commands:**
-- `hzl task add "<title>" -P <project> [--depends-on <id>] [--parent <id>] [--links <file>]`
-- `hzl task claim <id> [--author <name>] [--agent-id <id>] [--lease 30]`
-- `hzl task checkpoint <id> "<message>" [--progress <0-100>]`
-- `hzl task progress <id> <value>` (set progress without checkpoint)
-- `hzl task block <id> [--reason "<why>"]` (mark as blocked)
-- `hzl task unblock <id>` (return to in_progress)
-- `hzl task complete <id>`
-- `hzl task next --project <project>` (returns next available; never returns parent tasks)
-
 **⚠️ DESTRUCTIVE - Never run without explicit user request:**
 - `hzl task prune` — **PERMANENTLY DELETES** old done/archived tasks. No undo.
 - **AI agents: NEVER run prune unless the user explicitly asks to delete old tasks**
