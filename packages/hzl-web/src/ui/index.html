@@ -1167,34 +1167,37 @@
     }
 
     function updateGraphData() {
-      if (graphInstance && graphInitialized) {
-        const newHash = hashTasks(tasks);
-        if (newHash !== lastGraphDataHash) {
-          lastGraphDataHash = newHash;
+      // Skip updates when graph isn't visible to save CPU
+      if (!graphInstance || !graphInitialized || activeView !== 'graph') {
+        return;
+      }
 
-          // Get current node positions
-          const currentData = graphInstance.graphData();
-          const positionMap = new Map();
-          for (const node of currentData.nodes) {
-            if (node.x !== undefined && node.y !== undefined) {
-              positionMap.set(node.id, { x: node.x, y: node.y, vx: node.vx, vy: node.vy });
-            }
+      const newHash = hashTasks(tasks);
+      if (newHash !== lastGraphDataHash) {
+        lastGraphDataHash = newHash;
+
+        // Get current node positions
+        const currentData = graphInstance.graphData();
+        const positionMap = new Map();
+        for (const node of currentData.nodes) {
+          if (node.x !== undefined && node.y !== undefined) {
+            positionMap.set(node.id, { x: node.x, y: node.y, vx: node.vx, vy: node.vy });
           }
-
-          // Create new graph data and preserve positions
-          const newData = transformTasksToGraph(tasks);
-          for (const node of newData.nodes) {
-            const pos = positionMap.get(node.id);
-            if (pos) {
-              node.x = pos.x;
-              node.y = pos.y;
-              node.vx = pos.vx;
-              node.vy = pos.vy;
-            }
-          }
-
-          graphInstance.graphData(newData);
         }
+
+        // Create new graph data and preserve positions
+        const newData = transformTasksToGraph(tasks);
+        for (const node of newData.nodes) {
+          const pos = positionMap.get(node.id);
+          if (pos) {
+            node.x = pos.x;
+            node.y = pos.y;
+            node.vx = pos.vx;
+            node.vy = pos.vy;
+          }
+        }
+
+        graphInstance.graphData(newData);
       }
     }
 
@@ -1696,6 +1699,11 @@
         graphContainer.classList.add('hidden');
         mobileTabs.style.display = '';
         document.getElementById('mobileCardsContainer').style.display = '';
+
+        // Pause graph to save CPU/memory when not visible
+        if (graphInstance) {
+          graphInstance.pauseAnimation();
+        }
       } else {
         board.style.display = 'none';
         graphContainer.classList.remove('hidden');
@@ -1705,6 +1713,9 @@
         // Initialize graph on first view
         if (!graphInitialized && typeof ForceGraph !== 'undefined') {
           initGraph();
+        } else if (graphInstance) {
+          // Resume graph animation when switching back
+          graphInstance.resumeAnimation();
         }
       }
 
