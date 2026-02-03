@@ -40,6 +40,56 @@ function checkAndMigrateSchema(
 
   // Count events for progress indicator
   const eventCount = (eventsDb.prepare('SELECT COUNT(*) as count FROM events').get() as { count: number }).count;
+
+  // No events: rebuild cache schema without replay
+  if (eventCount === 0) {
+    cacheDb.exec('BEGIN IMMEDIATE');
+    try {
+      // Drop all projection tables (preserves hzl_local_meta only)
+      cacheDb.exec('DROP TABLE IF EXISTS tasks_current');
+      cacheDb.exec('DROP TABLE IF EXISTS task_dependencies');
+      cacheDb.exec('DROP TABLE IF EXISTS task_tags');
+      cacheDb.exec('DROP TABLE IF EXISTS task_comments');
+      cacheDb.exec('DROP TABLE IF EXISTS task_checkpoints');
+      cacheDb.exec('DROP TABLE IF EXISTS task_search');
+      cacheDb.exec('DROP TABLE IF EXISTS projects');
+
+      // Drop projection metadata tables - these could contain stale cursor/state
+      // from a previous schema version that no longer matches rebuilt tables.
+      // Use DROP instead of DELETE in case old schema doesn't have these tables.
+      cacheDb.exec('DROP TABLE IF EXISTS projection_cursor');
+      cacheDb.exec('DROP TABLE IF EXISTS projection_state');
+
+      // Also drop indexes that reference these tables
+      cacheDb.exec('DROP INDEX IF EXISTS idx_tasks_current_project_status');
+      cacheDb.exec('DROP INDEX IF EXISTS idx_tasks_current_status');
+      cacheDb.exec('DROP INDEX IF EXISTS idx_tasks_current_priority');
+      cacheDb.exec('DROP INDEX IF EXISTS idx_tasks_current_claim_next');
+      cacheDb.exec('DROP INDEX IF EXISTS idx_tasks_current_stuck');
+      cacheDb.exec('DROP INDEX IF EXISTS idx_tasks_current_parent');
+      cacheDb.exec('DROP INDEX IF EXISTS idx_tasks_current_terminal_at');
+      cacheDb.exec('DROP INDEX IF EXISTS idx_deps_depends_on');
+      cacheDb.exec('DROP INDEX IF EXISTS idx_task_tags_tag');
+      cacheDb.exec('DROP INDEX IF EXISTS idx_task_comments_task');
+      cacheDb.exec('DROP INDEX IF EXISTS idx_task_checkpoints_task');
+      cacheDb.exec('DROP INDEX IF EXISTS idx_projects_protected');
+
+      // Recreate with new schema (no replay needed)
+      cacheDb.exec(CACHE_SCHEMA_V1);
+
+      // Update schema version
+      cacheDb.prepare(
+        "INSERT OR REPLACE INTO hzl_local_meta (key, value) VALUES ('schema_version', ?)"
+      ).run(CURRENT_SCHEMA_VERSION.toString());
+
+      cacheDb.exec('COMMIT');
+      return true;
+    } catch (e) {
+      cacheDb.exec('ROLLBACK');
+      throw e;
+    }
+  }
+
   console.error(`Upgrading database schema (v${currentVersion} → v${CURRENT_SCHEMA_VERSION})...`);
   console.error(`  Replaying ${eventCount.toLocaleString()} events...`);
 
@@ -62,6 +112,7 @@ function checkAndMigrateSchema(
     cacheDb.exec('DROP INDEX IF EXISTS idx_tasks_current_claim_next');
     cacheDb.exec('DROP INDEX IF EXISTS idx_tasks_current_stuck');
     cacheDb.exec('DROP INDEX IF EXISTS idx_tasks_current_parent');
+    cacheDb.exec('DROP INDEX IF EXISTS idx_tasks_current_terminal_at');
     cacheDb.exec('DROP INDEX IF EXISTS idx_deps_depends_on');
     cacheDb.exec('DROP INDEX IF EXISTS idx_task_tags_tag');
     cacheDb.exec('DROP INDEX IF EXISTS idx_task_comments_task');
