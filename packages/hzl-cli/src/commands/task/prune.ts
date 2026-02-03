@@ -1,11 +1,10 @@
 // packages/hzl-cli/src/commands/task/prune.ts
 import { Command } from 'commander';
-import readline from 'readline';
 import { resolveDbPaths } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError, CLIError, ExitCode } from '../../errors.js';
 import { GlobalOptionsSchema } from '../../types.js';
-import type { PrunableTask, PruneResult } from 'hzl-core/services/task-service.js';
+import type { PruneResult } from 'hzl-core/services/task-service.js';
 
 interface PruneCommandOptions {
   project?: string;
@@ -63,50 +62,6 @@ function parseAsOf(asOfStr: string): string {
     );
   }
   return new Date(ts).toISOString();
-}
-
-async function confirmPrune(
-  prunableTasks: PrunableTask[]
-): Promise<boolean> {
-  // Group by project
-  const byProject = new Map<string, PrunableTask[]>();
-  for (const task of prunableTasks) {
-    const list = byProject.get(task.project) || [];
-    list.push(task);
-    byProject.set(task.project, list);
-  }
-
-  console.error('');
-  console.error(`Ready to permanently delete ${prunableTasks.length} task(s):`);
-  console.error('');
-
-  for (const [project, tasks] of byProject) {
-    console.error(`  Project '${project}': ${tasks.length} task(s)`);
-    const shown = tasks.slice(0, 10);
-    for (const t of shown) {
-      const title = t.title.length > 40 ? t.title.slice(0, 37) + '...' : t.title;
-      console.error(`    [${t.task_id.slice(0, 8)}] ${title}`);
-    }
-    if (tasks.length > 10) {
-      console.error(`    ... and ${tasks.length - 10} more`);
-    }
-  }
-
-  console.error('');
-  console.error('WARNING: This action cannot be undone. Events will be permanently deleted.');
-  console.error('');
-
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stderr,
-  });
-
-  return new Promise((resolve) => {
-    rl.question("Type 'yes' to confirm: ", (answer) => {
-      rl.close();
-      resolve(answer.toLowerCase() === 'yes');
-    });
-  });
 }
 
 export function runPrune(options: {
@@ -191,17 +146,11 @@ export function runPrune(options: {
 
     // Confirmation (unless --yes)
     if (!yes) {
-      // Use sync confirmation since we can't use async in Commander action
-      let confirmed = false;
-      try {
-        // This is a simplified version - in real CLI we'd use async action
-        console.error(
-          'NOTE: Cannot prompt interactively from this context. Use --yes to auto-confirm.'
-        );
-        return null;
-      } catch {
-        return null;
-      }
+      // Cannot prompt interactively from sync Commander action
+      console.error(
+        'NOTE: Cannot prompt interactively from this context. Use --yes to auto-confirm.'
+      );
+      return null;
     }
 
     // Actually prune
