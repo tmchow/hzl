@@ -1,3 +1,10 @@
+# [1.19.0](https://github.com/tmchow/hzl/compare/v1.18.8...v1.19.0) (2026-02-03)
+
+
+### Features
+
+* **web:** enhance subtask display with filtered counts and visual styling ([#85](https://github.com/tmchow/hzl/issues/85)) ([1d3a332](https://github.com/tmchow/hzl/commit/1d3a332dd3a14e42ef21e2f429e42c7da181cdad))
+
 ## [1.18.8](https://github.com/tmchow/hzl/compare/v1.18.7...v1.18.8) (2026-02-03)
 
 
