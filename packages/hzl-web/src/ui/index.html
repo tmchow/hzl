@@ -15,11 +15,11 @@
       --accent: #f59e0b;
       --accent-dim: #b45309;
       --border: #404040;
-      --status-backlog: #6b7280;
-      --status-blocked: #ef4444;
-      --status-ready: #22c55e;
-      --status-in-progress: #3b82f6;
-      --status-done: #6b7280;
+      --status-backlog: #6b7280;     /* gray - not yet prioritized */
+      --status-blocked: #ef4444;     /* red - stuck, needs help */
+      --status-ready: #3b82f6;       /* blue - available to claim */
+      --status-in-progress: #f59e0b; /* orange - active work */
+      --status-done: #22c55e;        /* green - completed */
       --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
     }
 
@@ -548,6 +548,77 @@
       margin-top: 2px;
     }
 
+    /* View Toggle */
+    .view-toggle {
+      display: flex;
+      gap: 0;
+      background: var(--bg-primary);
+      border-radius: 6px;
+      padding: 2px;
+      border: 1px solid var(--border);
+    }
+
+    .view-btn {
+      padding: 6px 12px;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+    }
+
+    .view-btn.active {
+      background: var(--accent);
+      color: var(--bg-primary);
+    }
+
+    .view-btn:hover:not(.active):not(:disabled) {
+      color: var(--text-primary);
+    }
+
+    .view-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* Graph Container */
+    .graph-container {
+      flex: 1;
+      position: relative;
+      min-height: 400px;
+      background: var(--bg-primary);
+    }
+
+    .graph-container.hidden {
+      display: none;
+    }
+
+    .graph-loading {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      color: var(--text-secondary);
+    }
+
+    .graph-loading .spinner {
+      width: 24px;
+      height: 24px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
     /* Mobile Styles */
     @media (max-width: 768px) {
       .header {
@@ -563,6 +634,14 @@
 
       .board {
         display: none;
+      }
+
+      .graph-container {
+        min-height: calc(100vh - 150px);
+      }
+
+      .view-toggle {
+        margin-left: auto;
       }
 
       .mobile-tabs {
@@ -642,6 +721,10 @@
     <div class="header-left">
       <button class="hamburger" id="hamburgerBtn">&#9776;</button>
       <span class="logo">hzl dashboard</span>
+      <div class="view-toggle" id="viewToggle">
+        <button class="view-btn active" data-view="kanban">Kanban</button>
+        <button class="view-btn" data-view="graph">Graph</button>
+      </div>
     </div>
     <div class="header-filters">
       <div class="filter-group">
@@ -749,6 +832,14 @@
     </div>
   </main>
 
+  <!-- Graph View Container -->
+  <div id="graphContainer" class="graph-container hidden">
+    <div class="graph-loading" id="graphLoading">
+      <div class="spinner"></div>
+      <span>Loading graph...</span>
+    </div>
+  </div>
+
   <!-- Task Detail Modal -->
   <div class="modal-overlay" id="modalOverlay">
     <div class="modal">
@@ -782,6 +873,10 @@
     let lastPollTime = null;
     let selectedTask = null;
     let activeTab = 'ready';
+    let activeView = 'kanban';
+    let graphInstance = null;
+    let graphInitialized = false;
+    let nodeStatusMap = new Map();
 
     // DOM Elements
     const dateFilter = document.getElementById('dateFilter');
@@ -801,6 +896,10 @@
     const mobileTabs = document.getElementById('mobileTabs');
     const columnsToggle = document.getElementById('columnsToggle');
     const columnsDropdown = document.getElementById('columnsDropdown');
+    const viewToggle = document.getElementById('viewToggle');
+    const board = document.getElementById('board');
+    const graphContainer = document.getElementById('graphContainer');
+    const graphLoading = document.getElementById('graphLoading');
 
     // Column visibility
     const COLUMNS = ['backlog', 'ready', 'in_progress', 'blocked', 'done'];
@@ -830,6 +929,10 @@
             });
             updateColumnVisibility();
           }
+          if (prefs.activeView && prefs.activeView !== 'kanban') {
+            // Defer view switch until after ForceGraph may have loaded
+            setTimeout(() => setActiveView(prefs.activeView), 100);
+          }
         } catch (e) {}
       }
     }
@@ -842,9 +945,273 @@
         columnVisibility: Array.from(
           columnsDropdown.querySelectorAll('input[type="checkbox"]:checked')
         ).map(cb => cb.value),
+        activeView: activeView,
       };
       localStorage.setItem('hzl-dashboard-prefs', JSON.stringify(prefs));
     }
+
+    // Graph View Functions
+    function handleGraphLibError() {
+      console.warn('[hzl] force-graph CDN failed to load');
+      const graphBtn = viewToggle.querySelector('[data-view="graph"]');
+      if (graphBtn) {
+        graphBtn.disabled = true;
+        graphBtn.title = 'Graph unavailable - CDN failed to load';
+      }
+    }
+
+    function getStatusColor(status, type) {
+      if (type === 'root') return '#f59e0b';
+      if (type === 'project') return '#e5e5e5';
+      const colors = {
+        backlog: '#6b7280',     // gray - not yet prioritized
+        ready: '#3b82f6',       // blue - available to claim
+        in_progress: '#f59e0b', // orange - active work
+        blocked: '#ef4444',     // red - stuck, needs help
+        done: '#22c55e',        // green - completed
+      };
+      return colors[status] ?? '#6b7280';
+    }
+
+    function getNodeSize(node) {
+      if (node.type === 'root') return 20;
+      if (node.type === 'project') return 14;
+      const progress = node.progress ?? 0;
+      return 8 + (progress / 100) * 16;
+    }
+
+    function transformTasksToGraph(taskList) {
+      const nodes = [{ id: 'root', type: 'root', name: 'HZL', ring: 0, angle: 0 }];
+      const links = [];
+      const projectList = [];
+      const projectAngles = new Map();
+      nodeStatusMap.clear();
+
+      // First pass: collect unique projects
+      for (const task of taskList) {
+        if (task.project && !projectAngles.has(task.project)) {
+          projectList.push(task.project);
+          projectAngles.set(task.project, 0);
+        }
+      }
+
+      // Assign angles to projects (evenly distributed)
+      projectList.forEach((proj, i) => {
+        const angle = (2 * Math.PI * i) / projectList.length;
+        projectAngles.set(proj, angle);
+      });
+
+      // Second pass: create nodes
+      const addedProjects = new Set();
+      for (const task of taskList) {
+        if (!task.project || !task.task_id) {
+          console.warn('[hzl] Skipping task with missing required fields:', task);
+          continue;
+        }
+
+        const projAngle = projectAngles.get(task.project);
+
+        // Add project node if not seen
+        if (!addedProjects.has(task.project)) {
+          addedProjects.add(task.project);
+          const projectId = `project:${task.project}`;
+          nodes.push({ id: projectId, type: 'project', name: task.project, ring: 1, angle: projAngle });
+          links.push({ source: projectId, target: 'root', type: 'hierarchy' });
+          nodeStatusMap.set(projectId, null);
+        }
+
+        // Add task node with same angle as its project (with small random offset)
+        const ring = task.parent_id ? 3 : 2;
+        const angleOffset = (Math.random() - 0.5) * 0.3; // small spread within project
+        nodes.push({
+          id: task.task_id,
+          type: task.parent_id ? 'subtask' : 'task',
+          name: task.title,
+          status: task.status,
+          progress: task.progress ?? 0,
+          ring,
+          angle: projAngle + angleOffset,
+          project: task.project,
+        });
+        nodeStatusMap.set(task.task_id, task.status);
+
+        // Hierarchy link
+        const parent = task.parent_id || `project:${task.project}`;
+        links.push({ source: task.task_id, target: parent, type: 'hierarchy' });
+
+        // Dependency links (for particles)
+        if (task.blocked_by) {
+          for (const blockerId of task.blocked_by) {
+            links.push({ source: blockerId, target: task.task_id, type: 'dependency' });
+          }
+        }
+      }
+
+      return { nodes, links };
+    }
+
+    function initGraph() {
+      if (graphInitialized) return;
+
+      if (typeof ForceGraph === 'undefined') {
+        console.error('[hzl] ForceGraph not available - CDN may have failed');
+        handleGraphLibError();
+        return;
+      }
+
+      // Hide loading spinner
+      graphLoading.style.display = 'none';
+
+      const RING_RADII = { 0: 0, 1: 180, 2: 360, 3: 540 };
+      const baseRadius = window.innerWidth < 768 ? 0.6 : 1;
+
+      // Pre-position nodes based on angle and ring
+      const graphData = transformTasksToGraph(tasks);
+      for (const node of graphData.nodes) {
+        const radius = (RING_RADII[node.ring] ?? 300) * baseRadius;
+        node.x = Math.cos(node.angle || 0) * radius;
+        node.y = Math.sin(node.angle || 0) * radius;
+      }
+
+      graphInstance = ForceGraph()(graphContainer)
+        .graphData(graphData)
+        .backgroundColor('#1a1a1a')
+        .nodeLabel(n => n.name)
+        .nodeColor(n => getStatusColor(n.status, n.type))
+        .nodeVal(n => getNodeSize(n))
+        .linkColor(l => l.type === 'dependency' ? '#e57373' : '#40404080')
+        .linkWidth(l => l.type === 'dependency' ? 2 : 1)
+        .linkLabel(l => l.type === 'dependency' ? 'blocks' : '')
+        .linkDirectionalArrowLength(l => l.type === 'dependency' ? 6 : 0)
+        .linkDirectionalArrowRelPos(1)
+        .onNodeClick(n => {
+          if (n.type !== 'root' && n.type !== 'project') {
+            openTaskModal(n.id);
+          }
+        })
+        // Forces to keep nodes in their angular sectors
+        .d3Force('x', d3.forceX(d => {
+          const radius = (RING_RADII[d.ring] ?? 300) * baseRadius;
+          return Math.cos(d.angle || 0) * radius;
+        }).strength(0.3))
+        .d3Force('y', d3.forceY(d => {
+          const radius = (RING_RADII[d.ring] ?? 300) * baseRadius;
+          return Math.sin(d.angle || 0) * radius;
+        }).strength(0.3))
+        .d3Force('collision', d3.forceCollide(d => getNodeSize(d) + 15))
+        .d3Force('charge', d3.forceManyBody().strength(-50))
+        .d3Force('link', d3.forceLink().strength(0.1))
+        // Animated particles on dependency edges
+        .linkDirectionalParticles(l => l.type === 'dependency' ? 3 : 0)
+        .linkDirectionalParticleWidth(3)
+        .linkDirectionalParticleSpeed(0.005)
+        .linkDirectionalParticleColor(() => '#e57373')
+        // Custom node rendering for root glow
+        .nodeCanvasObject((node, ctx, globalScale) => {
+          if (node.type === 'root') {
+            // Pulsing glow effect
+            const pulse = Math.sin(Date.now() / 500) * 0.3 + 0.7;
+            ctx.beginPath();
+            ctx.arc(node.x, node.y, 25 * pulse, 0, 2 * Math.PI);
+            ctx.fillStyle = `rgba(245, 158, 11, ${0.3 * pulse})`;
+            ctx.fill();
+          }
+
+          // Draw node
+          const size = getNodeSize(node);
+          ctx.beginPath();
+          ctx.arc(node.x, node.y, size, 0, 2 * Math.PI);
+          ctx.fillStyle = getStatusColor(node.status, node.type);
+          ctx.fill();
+
+          // Label for root node
+          if (node.type === 'root') {
+            ctx.font = `bold ${11 / globalScale}px ui-monospace`;
+            ctx.fillStyle = '#1a1a1a';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('HZL', node.x, node.y + 1);
+          }
+
+          // Label for projects
+          if (node.type === 'project' && globalScale > 0.5) {
+            ctx.font = `${10 / globalScale}px ui-monospace`;
+            ctx.fillStyle = '#e5e5e5';
+            ctx.textAlign = 'center';
+            ctx.fillText(node.name, node.x, node.y + size + 12);
+          }
+        })
+        .nodePointerAreaPaint((node, color, ctx) => {
+          const size = getNodeSize(node);
+          ctx.beginPath();
+          ctx.arc(node.x, node.y, size + 4, 0, 2 * Math.PI);
+          ctx.fillStyle = color;
+          ctx.fill();
+        });
+
+      graphInitialized = true;
+
+      // Zoom to fit after layout settles
+      setTimeout(() => {
+        if (graphInstance) {
+          graphInstance.zoomToFit(400, 50);
+        }
+      }, 500);
+    }
+
+    let lastGraphDataHash = '';
+
+    function hashTasks(taskList) {
+      // Simple hash based on task ids, statuses, and dependencies
+      return taskList.map(t => `${t.task_id}:${t.status}:${t.progress}`).sort().join('|');
+    }
+
+    function updateGraphData() {
+      // Skip updates when graph isn't visible to save CPU
+      if (!graphInstance || !graphInitialized || activeView !== 'graph') {
+        return;
+      }
+
+      const newHash = hashTasks(tasks);
+      if (newHash !== lastGraphDataHash) {
+        lastGraphDataHash = newHash;
+
+        // Get current node positions
+        const currentData = graphInstance.graphData();
+        const positionMap = new Map();
+        for (const node of currentData.nodes) {
+          if (node.x !== undefined && node.y !== undefined) {
+            positionMap.set(node.id, { x: node.x, y: node.y, vx: node.vx, vy: node.vy });
+          }
+        }
+
+        // Create new graph data and preserve positions
+        const newData = transformTasksToGraph(tasks);
+        for (const node of newData.nodes) {
+          const pos = positionMap.get(node.id);
+          if (pos) {
+            node.x = pos.x;
+            node.y = pos.y;
+            node.vx = pos.vx;
+            node.vy = pos.vy;
+          }
+        }
+
+        graphInstance.graphData(newData);
+      }
+    }
+
+    // Debounced resize handling
+    let resizeTimeout;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        if (graphInstance && activeView === 'graph') {
+          graphInstance.width(graphContainer.clientWidth);
+          graphInstance.height(graphContainer.clientHeight);
+        }
+      }, 100);
+    });
 
     // API calls
     async function fetchTasks() {
@@ -1154,6 +1521,7 @@
 
         renderBoard();
         renderActivity();
+        updateGraphData();
 
         lastPollTime = Date.now();
         updateConnectionStatus(true);
@@ -1316,6 +1684,51 @@
       savePreferences();
     });
 
+    // View toggle (Kanban/Graph)
+    function setActiveView(view) {
+      activeView = view;
+
+      // Update toggle buttons
+      viewToggle.querySelectorAll('.view-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.view === view);
+      });
+
+      // Show/hide containers
+      if (view === 'kanban') {
+        board.style.display = '';
+        graphContainer.classList.add('hidden');
+        mobileTabs.style.display = '';
+        document.getElementById('mobileCardsContainer').style.display = '';
+
+        // Pause graph to save CPU/memory when not visible
+        if (graphInstance) {
+          graphInstance.pauseAnimation();
+        }
+      } else {
+        board.style.display = 'none';
+        graphContainer.classList.remove('hidden');
+        mobileTabs.style.display = 'none';
+        document.getElementById('mobileCardsContainer').style.display = 'none';
+
+        // Initialize graph on first view
+        if (!graphInitialized && typeof ForceGraph !== 'undefined') {
+          initGraph();
+        } else if (graphInstance) {
+          // Resume graph animation when switching back
+          graphInstance.resumeAnimation();
+        }
+      }
+
+      savePreferences();
+    }
+
+    viewToggle.addEventListener('click', (e) => {
+      const btn = e.target.closest('.view-btn');
+      if (btn && !btn.disabled && btn.dataset.view !== activeView) {
+        setActiveView(btn.dataset.view);
+      }
+    });
+
     // Initialize
     loadPreferences();
     startPolling();
@@ -1328,5 +1741,12 @@
       }
     }, 1000);
   </script>
+
+  <!-- d3 for graph layout forces -->
+  <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js" defer></script>
+  <!-- Force-graph library for Graph view -->
+  <script src="https://cdn.jsdelivr.net/npm/force-graph@1/dist/force-graph.min.js"
+          defer
+          onerror="handleGraphLibError()"></script>
 </body>
 </html>
