@@ -28,7 +28,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/tmchow/hzl.git",
+    "url": "git+https://github.com/tmchow/hzl.git",
     "directory": "packages/hzl-web"
   },
   "homepage": "https://www.hzl-tasks.com",
