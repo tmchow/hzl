@@ -42,7 +42,7 @@ If the skill is not installed, run `npx clawhub@latest install hzl` or use your 
   hzl task add "Fix query performance" -P openclaw   # Parent
   hzl task add "Fix N+1" --parent <id>               # Subtask
   ```
-- Name parent tasks for completable outcomes ("Install garage sensors"), not domains ("Home automation").
+- Name parent tasks for completable outcomes ("Book a haircut" or "Research vacation ideas for this summer"), not domains ("Home automation").
 - Use consistent author IDs:
   - `openclaw` (main orchestrator)
   - `subagent-claude-code`, `subagent-codex`, `subagent-gemini`, etc.
