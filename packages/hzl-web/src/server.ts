@@ -222,7 +222,7 @@ export function createWebServer(options: ServerOptions): ServerHandle {
   function handleRoot(res: ServerResponse): void {
     res.writeHead(200, {
       'Content-Type': 'text/html; charset=utf-8',
-      'Content-Security-Policy': "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'",
+      'Content-Security-Policy': "default-src 'self'; script-src 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'unsafe-inline'",
       'X-Content-Type-Options': 'nosniff',
       'X-Frame-Options': 'DENY',
       'Referrer-Policy': 'no-referrer',

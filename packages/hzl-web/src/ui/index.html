@@ -548,6 +548,77 @@
       margin-top: 2px;
     }
 
+    /* View Toggle */
+    .view-toggle {
+      display: flex;
+      gap: 0;
+      background: var(--bg-primary);
+      border-radius: 6px;
+      padding: 2px;
+      border: 1px solid var(--border);
+    }
+
+    .view-btn {
+      padding: 6px 12px;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+    }
+
+    .view-btn.active {
+      background: var(--accent);
+      color: var(--bg-primary);
+    }
+
+    .view-btn:hover:not(.active):not(:disabled) {
+      color: var(--text-primary);
+    }
+
+    .view-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* Graph Container */
+    .graph-container {
+      flex: 1;
+      position: relative;
+      min-height: 400px;
+      background: var(--bg-primary);
+    }
+
+    .graph-container.hidden {
+      display: none;
+    }
+
+    .graph-loading {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      color: var(--text-secondary);
+    }
+
+    .graph-loading .spinner {
+      width: 24px;
+      height: 24px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
     /* Mobile Styles */
     @media (max-width: 768px) {
       .header {
@@ -563,6 +634,14 @@
 
       .board {
         display: none;
+      }
+
+      .graph-container {
+        min-height: calc(100vh - 150px);
+      }
+
+      .view-toggle {
+        margin-left: auto;
       }
 
       .mobile-tabs {
@@ -642,6 +721,10 @@
     <div class="header-left">
       <button class="hamburger" id="hamburgerBtn">&#9776;</button>
       <span class="logo">hzl dashboard</span>
+      <div class="view-toggle" id="viewToggle">
+        <button class="view-btn active" data-view="kanban">Kanban</button>
+        <button class="view-btn" data-view="graph">Graph</button>
+      </div>
     </div>
     <div class="header-filters">
       <div class="filter-group">
@@ -749,6 +832,14 @@
     </div>
   </main>
 
+  <!-- Graph View Container -->
+  <div id="graphContainer" class="graph-container hidden">
+    <div class="graph-loading" id="graphLoading">
+      <div class="spinner"></div>
+      <span>Loading graph...</span>
+    </div>
+  </div>
+
   <!-- Task Detail Modal -->
   <div class="modal-overlay" id="modalOverlay">
     <div class="modal">
@@ -782,6 +873,10 @@
     let lastPollTime = null;
     let selectedTask = null;
     let activeTab = 'ready';
+    let activeView = 'kanban';
+    let graphInstance = null;
+    let graphInitialized = false;
+    let nodeStatusMap = new Map();
 
     // DOM Elements
     const dateFilter = document.getElementById('dateFilter');
@@ -801,6 +896,10 @@
     const mobileTabs = document.getElementById('mobileTabs');
     const columnsToggle = document.getElementById('columnsToggle');
     const columnsDropdown = document.getElementById('columnsDropdown');
+    const viewToggle = document.getElementById('viewToggle');
+    const board = document.getElementById('board');
+    const graphContainer = document.getElementById('graphContainer');
+    const graphLoading = document.getElementById('graphLoading');
 
     // Column visibility
     const COLUMNS = ['backlog', 'ready', 'in_progress', 'blocked', 'done'];
@@ -830,6 +929,10 @@
             });
             updateColumnVisibility();
           }
+          if (prefs.activeView && prefs.activeView !== 'kanban') {
+            // Defer view switch until after ForceGraph may have loaded
+            setTimeout(() => setActiveView(prefs.activeView), 100);
+          }
         } catch (e) {}
       }
     }
@@ -842,6 +945,7 @@
         columnVisibility: Array.from(
           columnsDropdown.querySelectorAll('input[type="checkbox"]:checked')
         ).map(cb => cb.value),
+        activeView: activeView,
       };
       localStorage.setItem('hzl-dashboard-prefs', JSON.stringify(prefs));
     }
@@ -1314,6 +1418,43 @@
     columnsDropdown.addEventListener('change', () => {
       updateColumnVisibility();
       savePreferences();
+    });
+
+    // View toggle (Kanban/Graph)
+    function setActiveView(view) {
+      activeView = view;
+
+      // Update toggle buttons
+      viewToggle.querySelectorAll('.view-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.view === view);
+      });
+
+      // Show/hide containers
+      if (view === 'kanban') {
+        board.style.display = '';
+        graphContainer.classList.add('hidden');
+        mobileTabs.style.display = '';
+        document.getElementById('mobileCardsContainer').style.display = '';
+      } else {
+        board.style.display = 'none';
+        graphContainer.classList.remove('hidden');
+        mobileTabs.style.display = 'none';
+        document.getElementById('mobileCardsContainer').style.display = 'none';
+
+        // Initialize graph on first view
+        if (!graphInitialized && typeof ForceGraph !== 'undefined') {
+          initGraph();
+        }
+      }
+
+      savePreferences();
+    }
+
+    viewToggle.addEventListener('click', (e) => {
+      const btn = e.target.closest('.view-btn');
+      if (btn && !btn.disabled && btn.dataset.view !== activeView) {
+        setActiveView(btn.dataset.view);
+      }
     });
 
     // Initialize
