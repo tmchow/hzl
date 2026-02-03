@@ -989,6 +989,7 @@
     let graphInstance = null;
     let graphInitialized = false;
     let nodeStatusMap = new Map();
+    let pendingModalRequestId = 0; // Track modal fetch requests to avoid race conditions
 
     // DOM Elements
     const dateFilter = document.getElementById('dateFilter');
@@ -1600,10 +1601,16 @@
     }
 
     async function openTaskModal(taskId) {
+      // Track this request to handle rapid clicks (race condition prevention)
+      const requestId = ++pendingModalRequestId;
+
       try {
         const data = await fetchTaskDetail(taskId);
-        selectedTask = data;
 
+        // Discard stale response if a newer request was made
+        if (requestId !== pendingModalRequestId) return;
+
+        selectedTask = data;
         modalTitle.textContent = data.task.title;
 
         let html = `
