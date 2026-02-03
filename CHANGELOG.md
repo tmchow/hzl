@@ -1,3 +1,10 @@
+# [1.17.0](https://github.com/tmchow/hzl/compare/v1.16.2...v1.17.0) (2026-02-03)
+
+
+### Features
+
+* **web:** Add Graph Orchard View to dashboard ([#76](https://github.com/tmchow/hzl/issues/76)) ([9fca548](https://github.com/tmchow/hzl/commit/9fca548bf8b1d6921825e121dbfd41e0308452f7))
+
 ## [1.16.2](https://github.com/tmchow/hzl/compare/v1.16.1...v1.16.2) (2026-02-03)
 
 
