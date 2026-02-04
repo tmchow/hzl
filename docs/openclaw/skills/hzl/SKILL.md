@@ -111,12 +111,24 @@ HZL supports one level of nesting (parent → subtasks). Scope parent tasks to c
 - Parts deliver independent value (can ship separately)
 - You're solving distinct problems that happen to be related
 
-**Adding context:** Use `--links` to attach specs or reference docs when the description isn't enough:
+**Adding context:** Use `-d` for details, `-l` for reference docs:
 ```bash
 hzl task add "Install garage sensors" -P openclaw \
-  --links docs/sensor-spec.md \
-  --links "https://example.com/wiring-guide"
+  -d "Per linked spec. Mount sensors at 7ft height." \
+  -l docs/sensor-spec.md,https://example.com/wiring-guide
 ```
+
+**Don't duplicate specs into descriptions**—this creates drift. Reference docs instead.
+
+**If no docs exist**, include enough detail for another agent to complete the task:
+```bash
+hzl task add "Configure motion alerts" -P openclaw -d "$(cat <<'EOF'
+Trigger alert when motion detected between 10pm-6am.
+Use Home Assistant automation. Notify via Pushover.
+EOF
+)"
+```
+Description supports markdown (16KB max).
 
 ## ⚠️ DESTRUCTIVE COMMANDS - READ CAREFULLY
 

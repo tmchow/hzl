@@ -412,6 +412,14 @@ hzl task add "Subtask A" --parent <id>                # Subtask
 hzl task add "Subtask B" --parent <id> --depends-on <subtask-a-id>  # With dependency
 ```
 
+**Task context:** Use `-d` for details, `-l` for reference docs:
+```bash
+hzl task add "Add rate limiting" -P myrepo -s ready \
+  -d "Per linked spec. Use RateLimiter from src/middleware/." \
+  -l docs/rate-limit-spec.md
+```
+If docs exist, reference them (don't duplicate—avoids drift). If no docs, include enough detail to complete the task. Description supports markdown/multiline.
+
 **Working on a task:**
 ```bash
 hzl task next -P myrepo                  # Next available task
