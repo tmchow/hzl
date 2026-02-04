@@ -13,6 +13,7 @@ The current documentation has significant duplication and gaps:
 3. **CLI reference only in README** - docs-site links back instead of hosting it
 4. **Key workflows scattered** - HZL-GUIDE.md, SKILL.md, scenarios all have unique content
 5. **Common confusion**: Users don't understand HZL's machine-level installation model
+6. **Undocumented constraints**: Intentional limits (one-level nesting, project-scoped dependencies) not clearly explained
 
 ## Key Decisions
 
@@ -54,6 +55,19 @@ This means:
 - Multiple repos share the same HZL installation
 - Projects in HZL are logical containers, not tied to filesystem paths
 - Agents working on different repos coordinate through the same ledger
+
+## Simplicity through Constraints
+
+HZL is intentionally limited:
+
+- **One level of nesting** — Tasks can have subtasks, but subtasks can't have subtasks
+- **Dependencies within projects only** — No cross-project dependencies
+
+Why? Cross-project dependencies are complex both technically and mentally. Partitioning at the project level keeps things manageable for agents and humans alike.
+
+**In practice:** One repo typically maps to one HZL project. Monorepos work naturally—tasks within the same repo can depend on each other. For split repos with cross-repo features, treat the higher-level initiative as the HZL project rather than individual repos.
+
+Most developers we've talked to love these constraints. They prevent the system from becoming a dependency graph nightmare.
 
 ## Quick Install
 
@@ -176,7 +190,7 @@ docs-site/
 
 | Page | Content Source | Details |
 |------|---------------|---------|
-| **index.md** | README "Why another task tracker?" + "Where HZL fits" + installation model | Philosophy, problem statement, **installation model explanation**, architecture diagrams (mermaid), what HZL does NOT do |
+| **index.md** | README "Why another task tracker?" + "Where HZL fits" + installation model + constraints | Philosophy, problem statement, **installation model explanation**, **simplicity through constraints**, architecture diagrams (mermaid), what HZL does NOT do |
 | **projects.md** | Existing | Add anti-pattern emphasis (project sprawl) |
 | **tasks.md** | Existing | Slim down: remove checkpoint details, remove claiming details, add links to new pages |
 | **subtasks.md** | Existing | Good as-is |
@@ -222,6 +236,64 @@ The only HZL-related content in your repos is the **agent policy snippet** in yo
 # Add the policy to your repo's agent instructions
 curl -fsSL https://raw.githubusercontent.com/tmchow/hzl/main/snippets/AGENT-POLICY.md >> AGENTS.md
 \`\`\`
+```
+
+#### Simplicity through Constraints Content (for concepts/index.md)
+
+```markdown
+## Simplicity through Constraints
+
+HZL enforces intentional limits that keep task management tractable:
+
+### One Level of Nesting
+
+```
+Project
+└── Task (can be a parent)
+    └── Subtask (max depth)
+```
+
+Tasks can have subtasks, but subtasks cannot have their own subtasks. This prevents deeply nested hierarchies that become hard to track and reason about.
+
+### Dependencies Within Projects Only
+
+Dependencies (`--depends-on`) only work between tasks in the same project. You cannot create a dependency from a task in `project-a` to a task in `project-b`.
+
+**Why this constraint?**
+
+Cross-project dependencies create complexity at multiple levels:
+
+| Level | Problem |
+|-------|---------|
+| Technical | Requires tracking relationships across separate task graphs |
+| Mental | Hard for agents and humans to reason about external blockers |
+| Practical | "When can I start?" becomes a distributed query |
+
+By partitioning dependencies at the project level, each project remains a self-contained unit of work.
+
+### Project-to-Repo Mapping
+
+**Typical pattern:** One repository = one HZL project.
+
+| Repo Structure | HZL Mapping |
+|---------------|-------------|
+| Single repo | One project for the repo |
+| Monorepo | One project for the monorepo (intra-repo deps work naturally) |
+| Split repos with shared features | One project per initiative/epic, not per repo |
+
+**Monorepos** work especially well—tasks across packages within the same repo can have dependencies since they share an HZL project.
+
+**Split repos** require thinking at a higher level. If you have `frontend-repo` and `backend-repo` both contributing to "Launch v2", consider making "launch-v2" the HZL project rather than creating separate projects per repo. Tasks within "launch-v2" can then depend on each other regardless of which repo they touch.
+
+### Why Developers Love This
+
+Feedback from users consistently shows appreciation for these constraints:
+
+- "I don't have to think about whether task X in another project is done"
+- "My project's task graph is always complete and self-contained"
+- "Forces me to scope work appropriately at the project level"
+
+The constraints push complexity to where it belongs: project scoping decisions made by humans, not runtime dependency resolution across arbitrary task graphs.
 ```
 
 ### Workflows Section
@@ -400,6 +472,7 @@ Recommended sequence to minimize breakage:
 | Duplicate content locations | 4+ | 1-2 (docs + synced snippets) |
 | CLI reference location | README only | docs-site/reference/cli.md |
 | Installation model explained | Nowhere clearly | README + concepts/index.md |
+| Constraints explained | Scattered/implicit | README + concepts/index.md |
 | Philosophy/architecture | README only | docs-site/concepts/index.md |
 
 ---
