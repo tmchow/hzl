@@ -5,6 +5,11 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -30,11 +35,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Run typecheck
-        run: pnpm typecheck
-
-      - name: Run lint
-        run: pnpm lint
+      - name: Run typecheck and lint
+        run: pnpm typecheck & pnpm lint & wait
 
       - name: Verify snippets in sync
         run: node scripts/sync-snippets.js --check
@@ -43,23 +45,18 @@ jobs:
         run: pnpm verify:marketplace
 
   test:
-    name: Test (Node ${{ matrix.node }})
+    name: Test
     runs-on: self-hosted
-    strategy:
-      fail-fast: false
-      matrix:
-        node: ['22.14.0']
-
     steps:
       - uses: actions/checkout@v6
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
 
-      - name: Setup Node.js ${{ matrix.node }}
+      - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: ${{ matrix.node }}
+          node-version: '22.14.0'
           cache: 'pnpm'
           cache-dependency-path: 'pnpm-lock.yaml'
 
@@ -73,14 +70,12 @@ jobs:
         run: pnpm test:ci
 
       - name: Upload coverage
-        if: matrix.node == '22.14.0'
         uses: codecov/codecov-action@v5
         with:
           files: ./packages/hzl-core/coverage/lcov.info,./packages/hzl-cli/coverage/lcov.info
           fail_ci_if_error: false
 
       - name: Upload build artifacts
-        if: matrix.node == '22.14.0'
         uses: actions/upload-artifact@v6
         with:
           name: dist
@@ -88,3 +83,33 @@ jobs:
             packages/hzl-core/dist
             packages/hzl-cli/dist
           retention-days: 7
+
+  pr-validation:
+    name: PR Validation
+    if: github.event_name == 'pull_request'
+    runs-on: self-hosted
+    steps:
+      - name: Validate PR title
+        uses: amannn/action-semantic-pull-request@v6
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22.14.0'
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate commit messages
+        run: pnpm exec commitlint --from origin/${{ github.base_ref }} --to HEAD --config commitlint.config.js

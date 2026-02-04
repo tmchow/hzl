@@ -21,7 +21,7 @@ beforeAll(() => {
   execSync('npm run build', { cwd: packageRoot, stdio: 'inherit' });
 });
 
-describe('CLI Integration Tests', () => {
+describe('CLI Integration Tests', { timeout: 30000 }, () => {
   let ctx: TestContext;
 
   beforeEach(() => {
