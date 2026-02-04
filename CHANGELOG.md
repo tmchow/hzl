@@ -1,3 +1,10 @@
+## [1.25.2](https://github.com/tmchow/hzl/compare/v1.25.1...v1.25.2) (2026-02-04)
+
+
+### Bug Fixes
+
+* **docs:** use short policy snippet in README drop-in section ([#99](https://github.com/tmchow/hzl/issues/99)) ([08817c1](https://github.com/tmchow/hzl/commit/08817c1101d3ac29b3a55caaf01dc7673ae9a6e5))
+
 ## [1.25.1](https://github.com/tmchow/hzl/compare/v1.25.0...v1.25.1) (2026-02-04)
 
 
