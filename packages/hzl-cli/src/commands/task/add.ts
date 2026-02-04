@@ -60,12 +60,13 @@ export function runAdd(options: AddOptions): AddResult {
       done: TaskStatus.Done,
     };
 
-    if (!validStatuses.includes(statusLower)) {
-      throw new CLIError(`Invalid status: ${status}. Valid: ${validStatuses.join(', ')}`, ExitCode.InvalidInput);
-    }
-
+    // Check for archived first - provide helpful message before generic validation
     if (statusLower === 'archived') {
       throw new CLIError('Cannot create task as archived. Use -s done, then archive separately.', ExitCode.InvalidInput);
+    }
+
+    if (!validStatuses.includes(statusLower)) {
+      throw new CLIError(`Invalid status: ${status}. Valid: ${validStatuses.join(', ')}`, ExitCode.InvalidInput);
     }
 
     // Note: --comment is optional but encouraged for blocked status

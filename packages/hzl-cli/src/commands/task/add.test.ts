@@ -209,5 +209,15 @@ describe('runAdd', () => {
         json: false,
       })).toThrow(/invalid status/i);
     });
+
+    it('errors on archived status with helpful message', () => {
+      expect(() => runAdd({
+        services,
+        project: 'inbox',
+        title: 'Task',
+        status: 'archived',
+        json: false,
+      })).toThrow(/cannot create task as archived.*use -s done/i);
+    });
   });
 });
