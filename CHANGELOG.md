@@ -1,3 +1,10 @@
+# [1.26.0](https://github.com/tmchow/hzl/compare/v1.25.3...v1.26.0) (2026-02-04)
+
+
+### Features
+
+* add one-liner install script ([#101](https://github.com/tmchow/hzl/issues/101)) ([d30cc8f](https://github.com/tmchow/hzl/commit/d30cc8f458b3b44bfca4e8207d6e9bbf69538563))
+
 ## [1.25.3](https://github.com/tmchow/hzl/compare/v1.25.2...v1.25.3) (2026-02-04)
 
 
