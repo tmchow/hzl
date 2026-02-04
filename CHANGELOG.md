@@ -1,3 +1,10 @@
+## [1.22.1](https://github.com/tmchow/hzl/compare/v1.22.0...v1.22.1) (2026-02-04)
+
+
+### Bug Fixes
+
+* use 4-backtick code fences for nested snippet wrapping ([#93](https://github.com/tmchow/hzl/issues/93)) ([5cd9f76](https://github.com/tmchow/hzl/commit/5cd9f76670be27e331eb0a5b3f272db3ee8f9cd8))
+
 # [1.22.0](https://github.com/tmchow/hzl/compare/v1.21.0...v1.22.0) (2026-02-04)
 
 
