@@ -323,7 +323,8 @@ When adding or modifying CLI commands, flags, or workflows, update **all** of th
 
 ### Node.js Version Updates
 
-When changing the minimum Node.js version, update both locations:
+When changing the minimum Node.js version, update these locations:
 
 1. `package.json` — `engines.node` field
 2. `scripts/install.sh` — `MIN_NODE_VERSION` constant
+3. `README.md` - mentions of node version

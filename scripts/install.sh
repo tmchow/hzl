@@ -57,6 +57,21 @@ die() {
     exit 1
 }
 
+# Resolve the hzl binary, preferring npm's global bin.
+resolve_hzl_bin() {
+    local npm_bin
+    npm_bin=$(npm bin -g 2>/dev/null || true)
+    if [ -n "$npm_bin" ] && [ -x "$npm_bin/hzl" ]; then
+        echo "$npm_bin/hzl"
+        return 0
+    fi
+    if command -v hzl &>/dev/null; then
+        command -v hzl
+        return 0
+    fi
+    return 1
+}
+
 # Compare semver versions: returns 0 if $1 >= $2
 version_gte() {
     local v1="$1" v2="$2"
@@ -141,8 +156,13 @@ install_hzl_cli() {
         die "Failed to install hzl-cli. Check npm permissions or try 'sudo npm install -g hzl-cli'"
     fi
 
+    local hzl_bin
+    if ! hzl_bin=$(resolve_hzl_bin); then
+        die "hzl binary not found after install. Check your npm global bin path"
+    fi
+
     local version
-    version=$(hzl --version 2>/dev/null || echo "unknown")
+    version=$("$hzl_bin" --version 2>/dev/null || echo "unknown")
     log_success "Installed hzl-cli v${version}"
 }
 
@@ -150,7 +170,12 @@ init_database() {
     log_info "Initializing database..."
 
     # hzl init is idempotent - safe to run if database exists
-    if ! hzl init 2>&1; then
+    local hzl_bin
+    if ! hzl_bin=$(resolve_hzl_bin); then
+        die "hzl binary not found. Check your npm global bin path"
+    fi
+
+    if ! "$hzl_bin" init 2>&1; then
         die "Failed to initialize HZL database"
     fi
 
@@ -268,15 +293,11 @@ do_uninstall() {
     echo ""
 
     # Uninstall npm package
-    if command -v hzl &>/dev/null; then
-        log_info "Removing hzl-cli..."
-        if npm uninstall -g hzl-cli 2>&1; then
-            log_success "Uninstalled hzl-cli"
-        else
-            log_warn "Failed to uninstall hzl-cli"
-        fi
+    log_info "Removing hzl-cli..."
+    if npm uninstall -g hzl-cli 2>&1; then
+        log_success "Uninstalled hzl-cli"
     else
-        log_warn "hzl-cli not found, skipping"
+        log_warn "Failed to uninstall hzl-cli"
     fi
 
     # Remove Claude Code plugin

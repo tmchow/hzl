@@ -129,7 +129,7 @@ Requires Node.js 22.14+.
 curl -fsSL "https://raw.githubusercontent.com/tmchow/hzl/main/scripts/install.sh?$(date +%s)" | bash
 ```
 
-This installs the CLI, initializes the database, and sets up Claude Code/Codex integrations.
+This installs the CLI, initializes the database, and sets up Claude Code/Codex integrations (if detected).
 
 <details>
 <summary>Alternative install methods</summary>

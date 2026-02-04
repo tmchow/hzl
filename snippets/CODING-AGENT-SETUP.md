@@ -2,7 +2,7 @@
 
 ### One-liner (recommended)
 
-Installs HZL CLI, initializes the database, and sets up Claude Code/Codex integrations:
+Installs HZL CLI, initializes the database, and sets up Claude Code/Codex integrations (if detected):
 
 ```bash
 curl -fsSL "https://raw.githubusercontent.com/tmchow/hzl/main/scripts/install.sh?$(date +%s)" | bash
