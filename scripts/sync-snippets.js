@@ -127,9 +127,10 @@ function processFile(filePath, snippetCache, checkOnly) {
 
       // Build the new content between markers
       // If [code:X] modifier present, wrap in code fence
+      // Use 4 backticks so nested ``` fences don't break out
       const warningLine = `<!-- ⚠️ DO NOT EDIT - Auto-generated from ${snippetPath} -->`;
       const snippetBody = codeFenceType
-        ? `\`\`\`${codeFenceType}\n${snippetContent}\n\`\`\``
+        ? `\`\`\`\`${codeFenceType}\n${snippetContent}\n\`\`\`\``
         : snippetContent;
       const newContent = `${warningLine}\n${snippetBody}`;
 
