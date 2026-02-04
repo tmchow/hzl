@@ -36,7 +36,7 @@ const ROOT_FILES = [
 ];
 
 // Directories to scan recursively for .md files
-const SCAN_DIRS = ['docs'];
+const SCAN_DIRS = ['docs', 'skills'];
 
 // Marker patterns
 const START_MARKER = /<!--\s*START\s*(\[code:(\w+)\])?\s*(docs\/snippets\/[\w\-\/]+\.md)\s*-->/;
