@@ -50,6 +50,14 @@ hzl task add "Subtask A" --parent <id>                # Subtask
 hzl task add "Subtask B" --parent <id> --depends-on <subtask-a-id>  # With dependency
 ```
 
+**Task context:** Use `-d` for details, `-l` for reference docs:
+```bash
+hzl task add "Add rate limiting" -P myrepo -s ready \
+  -d "Per linked spec. Use RateLimiter from src/middleware/." \
+  -l docs/rate-limit-spec.md
+```
+If docs exist, reference them (don't duplicate—avoids drift). If no docs, include enough detail to complete the task. Description supports markdown/multiline.
+
 **Working on a task:**
 ```bash
 hzl task next -P myrepo                  # Next available task
@@ -321,6 +329,11 @@ The skill includes `agent-policy.md` via snippet markers, so:
 - Agents without skill support get the core workflow from AGENTS.md
 - Agents with skill support get core + advanced topics (multi-agent, leases, recovery)
 - Updating `agent-policy.md` automatically updates the skill
+
+**Important: `agent-policy.md` must be self-sufficient.** Some coding agents (e.g., Gemini) don't support skills and rely entirely on the agent-policy snippet. When adding guidance:
+- Core workflows and essential flags belong in `agent-policy.md`
+- Advanced topics (leases, multi-agent coordination) can be skill-only
+- If an agent needs to know something to use HZL correctly, it goes in the policy
 
 **Marker syntax:**
 
