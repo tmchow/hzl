@@ -37,10 +37,10 @@ docs/snippets/
 Chose HTML comment markers over templating languages:
 
 ```markdown
-<!-- START docs/snippets/agent-policy.md -->
-<!-- ⚠️ DO NOT EDIT - Auto-generated from docs/snippets/agent-policy.md -->
+<!-- START snippets/AGENT-POLICY.md -->
+<!-- ⚠️ DO NOT EDIT - Auto-generated from snippets/AGENT-POLICY.md -->
 (content injected here)
-<!-- END docs/snippets/agent-policy.md -->
+<!-- END snippets/AGENT-POLICY.md -->
 ```
 
 **Decision rationale:**
@@ -68,7 +68,7 @@ We chose **inline content** for `coding-agent-setup.md`: it includes the agent p
 For showing snippets as copyable code blocks (e.g., in README "copy this to your CLAUDE.md"):
 
 ```markdown
-<!-- START [code:md] docs/snippets/agent-policy.md -->
+<!-- START [code:md] snippets/AGENT-POLICY.md -->
 ```
 
 Renders as:

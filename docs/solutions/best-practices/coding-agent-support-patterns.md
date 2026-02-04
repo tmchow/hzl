@@ -235,10 +235,10 @@ const versionFiles = [
 **Solution:** Add warning comments after START markers:
 
 ```markdown
-<!-- START docs/snippets/agent-policy.md -->
-<!-- ⚠️ DO NOT EDIT - Auto-generated from docs/snippets/agent-policy.md -->
+<!-- START snippets/AGENT-POLICY.md -->
+<!-- ⚠️ DO NOT EDIT - Auto-generated from snippets/AGENT-POLICY.md -->
 [synced content here]
-<!-- END docs/snippets/agent-policy.md -->
+<!-- END snippets/AGENT-POLICY.md -->
 ```
 
 **CI enforcement:**
@@ -255,7 +255,7 @@ This fails PRs if someone edited inline instead of editing the source snippet.
 ```
 skills/hzl/SKILL.md              # Claude Code + Codex (shared)
 docs/openclaw/skills/hzl/SKILL.md  # OpenClaw (different format)
-docs/snippets/agent-policy.md       # Minimal policy snippet (all agents)
+snippets/AGENT-POLICY.md       # Minimal policy snippet (all agents)
 .codex/INSTALL.md                   # Codex-specific installation guide
 ```
 
@@ -263,7 +263,7 @@ docs/snippets/agent-policy.md       # Minimal policy snippet (all agents)
 
 - `skills/hzl/SKILL.md` - Unified skill for Claude Code and Codex
 - `docs/openclaw/skills/hzl/SKILL.md` - OpenClaw-specific skill
-- `docs/snippets/agent-policy.md` - Minimal policy snippet
+- `snippets/AGENT-POLICY.md` - Minimal policy snippet
 - `docs/snippets/agent-skills-install.md` - Installation instructions for README
 - `docs/snippets/coding-agent-setup.md` - Full setup guide
 - `.codex/INSTALL.md` - Codex installation walkthrough

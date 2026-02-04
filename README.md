@@ -467,8 +467,8 @@ hzl task complete <parent-id>            # If all done, complete parent
 
 That snippet is intentionally concise. The goal is clear triggers and structure, not ceremony.
 
-<!-- START docs/snippets/agent-skills-install.md -->
-<!-- ⚠️ DO NOT EDIT - Auto-generated from docs/snippets/agent-skills-install.md -->
+<!-- START snippets/AGENT-SKILLS-INSTALL.md -->
+<!-- ⚠️ DO NOT EDIT - Auto-generated from snippets/AGENT-SKILLS-INSTALL.md -->
 ### Claude Code skill (optional)
 
 HZL includes a Claude Code skill that helps agents work effectively with HZL.
@@ -507,7 +507,7 @@ Codex will download the skill and ask whether to add HZL guidance user-wide or p
 **Option B: Manual install**
 
 Follow the steps in [`.codex/INSTALL.md`](https://github.com/tmchow/hzl/blob/main/.codex/INSTALL.md) yourself.
-<!-- END docs/snippets/agent-skills-install.md -->
+<!-- END snippets/AGENT-SKILLS-INSTALL.md -->
 
 ---
 

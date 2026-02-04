@@ -9,12 +9,12 @@
  * Scans specific paths for marker comments and fills them with snippet content.
  *
  * Markers:
- *   <!-- START docs/snippets/foo.md -->
- *   <!-- END docs/snippets/foo.md -->
+ *   <!-- START snippets/FOO.md -->
+ *   <!-- END snippets/FOO.md -->
  *
  * With code fence wrapper (for showing snippet as copyable code):
- *   <!-- START [code:md] docs/snippets/foo.md -->
- *   <!-- END [code:md] docs/snippets/foo.md -->
+ *   <!-- START [code:md] snippets/FOO.md -->
+ *   <!-- END [code:md] snippets/FOO.md -->
  *
  * Usage:
  *   node scripts/sync-snippets.js [--check]
@@ -36,11 +36,11 @@ const ROOT_FILES = [
 ];
 
 // Directories to scan recursively for .md files
-const SCAN_DIRS = ['docs', 'skills'];
+const SCAN_DIRS = ['docs', 'docs-site', 'skills'];
 
-// Marker patterns
-const START_MARKER = /<!--\s*START\s*(\[code:(\w+)\])?\s*(docs\/snippets\/[\w\-\/]+\.md)\s*-->/;
-const END_MARKER = /<!--\s*END\s*(\[code:\w+\])?\s*(docs\/snippets\/[\w\-\/]+\.md)\s*-->/;
+// Marker patterns (snippets/ at root level, uppercase filenames)
+const START_MARKER = /<!--\s*START\s*(\[code:(\w+)\])?\s*(snippets\/[\w\-\/]+\.md)\s*-->/i;
+const END_MARKER = /<!--\s*END\s*(\[code:\w+\])?\s*(snippets\/[\w\-\/]+\.md)\s*-->/i;
 
 function findMarkdownFiles(dir, files = []) {
   if (!fs.existsSync(dir)) return files;

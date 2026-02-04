@@ -2,13 +2,8 @@ title: HZL Documentation
 description: External task ledger for coding agents
 remote_theme: just-the-docs/just-the-docs
 
-# Exclude internal development docs from the site
+# Exclude system files
 exclude:
-  - plans/
-  - brainstorms/
-  - snippets/
-  - solutions/
-  - openclaw/
   - .DS_Store
 
 # Navigation
