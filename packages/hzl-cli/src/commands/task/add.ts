@@ -21,6 +21,7 @@ export interface AddOptions {
   project: string;
   title: string;
   description?: string;
+  links?: string[];
   tags?: string[];
   priority?: number;
   dependsOn?: string[];
@@ -34,6 +35,7 @@ export interface AddOptions {
 interface AddCommandOptions {
   project?: string;
   description?: string;
+  links?: string;
   tags?: string;
   priority?: string;
   dependsOn?: string;
@@ -44,7 +46,7 @@ interface AddCommandOptions {
 }
 
 export function runAdd(options: AddOptions): AddResult {
-  const { services, title, description, tags, priority, dependsOn, parent, status, assignee, comment, json } = options;
+  const { services, title, description, links, tags, priority, dependsOn, parent, status, assignee, comment, json } = options;
   let project = options.project;
 
   // Validate status flag
@@ -97,6 +99,7 @@ export function runAdd(options: AddOptions): AddResult {
     title,
     project,
     description,
+    links,
     tags,
     priority,
     depends_on: dependsOn,
@@ -132,6 +135,7 @@ export function createAddCommand(): Command {
     .argument('<title>', 'Task title')
     .option('-P, --project <project>', 'Project name', 'inbox')
     .option('-d, --description <desc>', 'Task description')
+    .option('-l, --links <links>', 'Comma-separated links (URLs or file paths)')
     .option('-t, --tags <tags>', 'Comma-separated tags')
     .option('-p, --priority <n>', 'Priority (0-3)', '0')
     .option('--depends-on <ids>', 'Comma-separated task IDs this depends on')
@@ -149,6 +153,7 @@ export function createAddCommand(): Command {
           project: opts.project ?? 'inbox',
           title,
           description: opts.description,
+          links: opts.links?.split(','),
           tags: opts.tags?.split(','),
           priority: parseInt(opts.priority ?? '0', 10),
           dependsOn: opts.dependsOn?.split(','),

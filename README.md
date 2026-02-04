@@ -173,8 +173,7 @@ Tasks stay lightweight. Use `--links` to reference design docs, brainstorms, or 
 ```bash
 # Create a task that links to context documents
 hzl task add "Implement auth flow per design" -P myapp --priority 3 \
-  --links docs/designs/auth-flow.md \
-  --links docs/brainstorm/2026-01-auth-options.md
+  --links docs/designs/auth-flow.md,docs/brainstorm/2026-01-auth-options.md
 
 # The agent reads linked files for context, task stays focused on the work
 hzl task show <id> --json

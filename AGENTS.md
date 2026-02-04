@@ -359,6 +359,8 @@ node scripts/sync-snippets.js --check  # Check if snippets are in sync (CI)
 
 ### ⚠️ Documentation to Update When CLI Changes
 
+**IMPORTANT:** After any CLI change, always ask: "Does the documentation site need to be updated?"
+
 When adding or modifying CLI commands, flags, or workflows, update **all** of the following:
 
 | Document | Path | What to update |
@@ -367,11 +369,12 @@ When adding or modifying CLI commands, flags, or workflows, update **all** of th
 | **Agent policy snippet** | `docs/snippets/agent-policy.md` | Key commands list |
 | **Claude Code / Codex skill** | `skills/hzl/SKILL.md` | Scenarios, examples, command reference |
 | **OpenClaw skill** | `docs/openclaw/skills/hzl/SKILL.md` | Quick reference, patterns, examples |
-| **Docs site - Tasks** | `docs/concepts/tasks.md` | Task statuses, claiming, workflows |
+| **Docs site - Tasks** | `docs/concepts/tasks.md` | Task creation flags, update options, workflows |
+| **Docs site - Other** | `docs/concepts/*.md` | Check if other concept pages are affected |
 
 **Changes that require updates:**
 - New CLI commands (e.g., `block`, `unblock`, `progress`)
-- New or renamed flags (e.g., `--agent-id`, `--progress`)
+- New or modified flags (e.g., `--links`, `--agent-id`, `--progress`)
 - Changed command behavior or workflows
 - New concepts (e.g., authorship tracking, blocked status)
 

@@ -10,13 +10,15 @@ export interface UpdateResult {
   task_id: string;
   title: string;
   description: string | null;
+  links: string[];
   priority: number;
   tags: string[];
 }
 
 export interface TaskUpdates {
   title?: string;
-  description?: string;
+  description?: string | null;
+  links?: string[];
   priority?: number;
   tags?: string[];
   parent_id?: string | null;
@@ -25,6 +27,7 @@ export interface TaskUpdates {
 interface UpdateCommandOptions {
   title?: string;
   desc?: string;
+  links?: string;
   priority?: string;
   tags?: string;
   parent?: string;
@@ -98,6 +101,15 @@ export function runUpdate(options: {
     projectionEngine.applyEvent(event);
   }
 
+  if (updates.links !== undefined) {
+    const event = eventStore.append({
+      task_id: taskId,
+      type: EventType.TaskUpdated,
+      data: { field: 'links', old_value: task.links, new_value: updates.links },
+    });
+    projectionEngine.applyEvent(event);
+  }
+
   // Get updated task
   const updatedTask = services.taskService.getTaskById(taskId)!;
 
@@ -105,6 +117,7 @@ export function runUpdate(options: {
     task_id: updatedTask.task_id,
     title: updatedTask.title,
     description: updatedTask.description,
+    links: updatedTask.links,
     priority: updatedTask.priority,
     tags: updatedTask.tags,
   };
@@ -115,6 +128,7 @@ export function runUpdate(options: {
     console.log(`✓ Updated task ${taskId}`);
     if (updates.title) console.log(`  Title: ${updatedTask.title}`);
     if (updates.description) console.log(`  Description: ${updatedTask.description}`);
+    if (updates.links) console.log(`  Links: ${updatedTask.links.join(', ')}`);
     if (updates.priority !== undefined) console.log(`  Priority: ${updatedTask.priority}`);
     if (updates.tags) console.log(`  Tags: ${updatedTask.tags.join(', ')}`);
   }
@@ -128,6 +142,7 @@ export function createUpdateCommand(): Command {
     .argument('<taskId>', 'Task ID')
     .option('--title <title>', 'New title')
     .option('--desc <description>', 'New description')
+    .option('-l, --links <links>', 'New links (comma-separated URLs or file paths)')
     .option('-p, --priority <n>', 'New priority (0-3)')
     .option('-t, --tags <tags>', 'New tags (comma-separated)')
     .option('--parent <taskId>', 'Set parent task (use "" to remove)')
@@ -138,9 +153,16 @@ export function createUpdateCommand(): Command {
       try {
         const updates: TaskUpdates = {};
         if (opts.title) updates.title = opts.title;
-        if (opts.desc) updates.description = opts.desc;
+        if (opts.desc !== undefined) {
+          updates.description = opts.desc === '' ? null : opts.desc;
+        }
+        if (opts.links !== undefined) {
+          updates.links = opts.links === '' ? [] : opts.links.split(',');
+        }
         if (opts.priority !== undefined) updates.priority = parseInt(opts.priority, 10);
-        if (opts.tags) updates.tags = opts.tags.split(',');
+        if (opts.tags !== undefined) {
+          updates.tags = opts.tags === '' ? [] : opts.tags.split(',');
+        }
         if (opts.parent !== undefined) {
           updates.parent_id = opts.parent === '' ? null : opts.parent;
         }

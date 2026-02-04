@@ -74,6 +74,78 @@ describe('runUpdate', () => {
     expect(result.description).toBe('New description');
   });
 
+  it('updates links', () => {
+    const task = services.taskService.createTask({
+      title: 'Test',
+      project: 'inbox',
+      links: ['old-link.md'],
+    });
+
+    const result = runUpdate({
+      services,
+      taskId: task.task_id,
+      updates: { links: ['new-link.md', 'https://example.com'] },
+      json: false,
+    });
+
+    expect(result.links).toEqual(['new-link.md', 'https://example.com']);
+
+    // Verify in database
+    const updated = services.taskService.getTaskById(task.task_id);
+    expect(updated?.links).toEqual(['new-link.md', 'https://example.com']);
+  });
+
+  it('clears links when set to empty array', () => {
+    const task = services.taskService.createTask({
+      title: 'Test',
+      project: 'inbox',
+      links: ['some-link.md'],
+    });
+
+    const result = runUpdate({
+      services,
+      taskId: task.task_id,
+      updates: { links: [] },
+      json: false,
+    });
+
+    expect(result.links).toEqual([]);
+  });
+
+  it('clears description when set to null', () => {
+    const task = services.taskService.createTask({
+      title: 'Test',
+      project: 'inbox',
+      description: 'Some description',
+    });
+
+    const result = runUpdate({
+      services,
+      taskId: task.task_id,
+      updates: { description: null },
+      json: false,
+    });
+
+    expect(result.description).toBeNull();
+  });
+
+  it('clears tags when set to empty array', () => {
+    const task = services.taskService.createTask({
+      title: 'Test',
+      project: 'inbox',
+      tags: ['old-tag'],
+    });
+
+    const result = runUpdate({
+      services,
+      taskId: task.task_id,
+      updates: { tags: [] },
+      json: false,
+    });
+
+    expect(result.tags).toEqual([]);
+  });
+
   it('sets parent on task', () => {
     services.projectService.createProject('myproject');
     const parent = services.taskService.createTask({ title: 'Parent', project: 'myproject' });
