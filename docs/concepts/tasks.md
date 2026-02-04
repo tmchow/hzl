@@ -35,7 +35,7 @@ Note: `blocked` is different from dependency blocking. A task with unmet depende
 
 ## Claiming Tasks
 
-Before working on a task, claim it:
+Before working on a task, claim it (you can also use `hzl task start` as an alias):
 
 ```bash
 hzl task claim <id> --author "Claude Code"

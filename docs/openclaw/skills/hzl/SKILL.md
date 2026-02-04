@@ -163,7 +163,8 @@ hzl task add "<title>" -P <project> -s ready               # Create ready to cla
 hzl task add "<title>" -P <project> -s in_progress --assignee <name>  # Create and claim
 
 # Work + persist progress
-hzl task claim <id> --assignee <agent-id>
+hzl task claim <id>                           # or: hzl task start <id>
+hzl task claim <id> --assignee <agent-id>     # optional: identify who's working
 hzl task checkpoint <id> "<what changed / what's next>" [--progress 50]
 hzl task progress <id> 50                     # Set progress without checkpoint
 hzl task show <id> --json

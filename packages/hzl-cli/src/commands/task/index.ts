@@ -19,6 +19,7 @@ import { createCheckpointCommand } from './checkpoint.js';
 import { createHistoryCommand } from './history.js';
 import { createSearchCommand } from './search.js';
 import { createNextCommand } from './next.js';
+import { createStartCommand } from './start.js';
 import { createBlockCommand } from './block.js';
 import { createUnblockCommand } from './unblock.js';
 import { createProgressCommand } from './progress.js';
@@ -31,6 +32,7 @@ export function createTaskCommand(): Command {
   command.addCommand(createListCommand());
   command.addCommand(createShowCommand());
   command.addCommand(createClaimCommand());
+  command.addCommand(createStartCommand());
   command.addCommand(createCompleteCommand());
   command.addCommand(createReleaseCommand());
   command.addCommand(createArchiveCommand());

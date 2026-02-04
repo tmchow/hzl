@@ -429,7 +429,7 @@ Agents should check for comments before completing tasks (see "Check for steerin
 | List available | `hzl task list --project <p> --available --json` |
 | List subtasks | `hzl task list --parent <id>` |
 | List root tasks | `hzl task list --root` |
-| Claim task | `hzl task claim <id> --assignee <name>` |
+| Claim task | `hzl task claim <id>` (or `start`) |
 | Checkpoint | `hzl task checkpoint <id> "<message>" [--progress 50]` |
 | Set progress | `hzl task progress <id> <0-100>` |
 | Block task | `hzl task block <id> [--comment "<context>"]` |
