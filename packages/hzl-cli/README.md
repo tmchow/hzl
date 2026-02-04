@@ -421,7 +421,7 @@ hzl task add "Fix N+1" --parent <parent-id>    # Subtask
 | Create (ready to work) | `hzl task add "title" -P project -s ready` |
 | Create and claim | `hzl task add "title" -P project -s in_progress --assignee <name>` |
 | Create (planning) | `hzl task add "title" -P project` |
-| Claim | `hzl task claim <id> --assignee <name>` |
+| Claim (start work) | `hzl task claim <id>` (or `start`) |
 | Complete | `hzl task complete <id>` |
 
 **⚠️ DESTRUCTIVE - Never run without explicit user request:**
@@ -569,8 +569,8 @@ hzl task list --project <project>             # List tasks (--available for clai
 hzl task next --project <project>             # Get highest priority available task
 
 # Working
-hzl task claim <id> --assignee <name>         # Claim task (--lease <minutes> for expiry)
-hzl task claim <id> --agent-id <id>           # Claim as AI agent (machine identifier)
+hzl task claim <id> --assignee <name>         # Claim task (or: hzl task start <id>)
+hzl task claim <id> --agent-id <id>           # --lease <minutes> for expiry
 hzl task checkpoint <id> "<message>"          # Save progress snapshot
 hzl task progress <id> <value>                # Set progress (0-100)
 hzl task complete <id>                        # Mark done

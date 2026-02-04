@@ -1,3 +1,10 @@
+# [1.21.0](https://github.com/tmchow/hzl/compare/v1.20.1...v1.21.0) (2026-02-04)
+
+
+### Features
+
+* add `task start` as alias for `task claim` ([#91](https://github.com/tmchow/hzl/issues/91)) ([91581a6](https://github.com/tmchow/hzl/commit/91581a6bf7540e5bdf43d4776323777c463bb49e))
+
 ## [1.20.1](https://github.com/tmchow/hzl/compare/v1.20.0...v1.20.1) (2026-02-04)
 
 
