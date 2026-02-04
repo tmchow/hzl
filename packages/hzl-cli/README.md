@@ -363,7 +363,7 @@ If your coding agent supports an instruction file (for example `CLAUDE.md`, `AGE
 
 ### Drop-in policy snippet
 
-<!-- START [code:md] snippets/HZL-GUIDE.md -->
+<!-- START [code:md] snippets/AGENT-POLICY.md -->
 <!-- ⚠️ DO NOT EDIT - Auto-generated from snippets/HZL-GUIDE.md -->
 ````md
 ### HZL task ledger (external task tracking)
@@ -463,7 +463,7 @@ hzl task complete <parent-id>            # If all done, complete parent
 **DESTRUCTIVE - Never run without explicit user request:**
 - `hzl task prune` — **PERMANENTLY DELETES** old done/archived tasks. No undo.
 ````
-<!-- END [code:md] snippets/HZL-GUIDE.md -->
+<!-- END [code:md] snippets/AGENT-POLICY.md -->
 
 That snippet is intentionally concise. The goal is clear triggers and structure, not ceremony.
 
