@@ -1,3 +1,10 @@
+## [1.19.1](https://github.com/tmchow/hzl/compare/v1.19.0...v1.19.1) (2026-02-04)
+
+
+### Bug Fixes
+
+* specify pnpm lock file path in setup-node cache config ([#87](https://github.com/tmchow/hzl/issues/87)) ([94ff4fd](https://github.com/tmchow/hzl/commit/94ff4fd3c24fc6989fe60ae96b96236e21dc1b4b)), closes [#issue](https://github.com/tmchow/hzl/issues/issue)
+
 # [1.19.0](https://github.com/tmchow/hzl/compare/v1.18.8...v1.19.0) (2026-02-03)
 
 
