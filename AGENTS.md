@@ -2,15 +2,17 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-<!-- START docs/snippets/agent-policy.md -->
-<!-- ⚠️ DO NOT EDIT - Auto-generated from docs/snippets/agent-policy.md -->
-### HZL task ledger (external task tracking)
+### HZL task ledger
 
-HZL is an external task database. Use it when external tracking helps clarity, handoff, or auditability.
+This project uses HZL for external task tracking.
+
+**IMPORTANT - Task tracking:** When starting work that is multi-step, may span sessions, or needs coordination, run `hzl guide` to learn how this project tracks tasks.
+
+**When delegating to sub-agents:** Include "use HZL for task tracking" in the sub-agent's instructions.
 
 **Use HZL when:**
 - Work has multiple steps or may not finish this session
-- You want durable record of progress or ownership
+- Durable record of progress or ownership needed
 - Handoff or review expected
 - Task is non-trivial (~30+ min or risky changes)
 
@@ -19,88 +21,6 @@ HZL is an external task database. Use it when external tracking helps clarity, h
 - Quick one-off answer or tiny change
 
 **Rule of thumb:** If you're tempted to make a multi-step plan, use HZL.
-
-**Structure:**
-- **Project** = repo name. One per repo. Always `hzl project list` first.
-- **Task** = feature or work item.
-- **Subtask** = breakdown (`--parent <id>`). Max 1 level.
-
-**Anti-pattern: project sprawl**
-```bash
-hzl project create "query-perf"  # Wrong: feature is not a project
-```
-Features are parent tasks:
-```bash
-hzl task add "Query perf" -P myrepo           # Parent task
-hzl task add "Fix N+1" --parent <parent-id>   # Subtask
-```
-
----
-
-**Setup:**
-```bash
-hzl project list                    # Always check first
-hzl project create <repo-name>      # Only if needed
-```
-
-**Adding work:**
-```bash
-hzl task add "Feature X" -P myrepo -s ready           # Ready to claim
-hzl task add "Subtask A" --parent <id>                # Subtask
-hzl task add "Subtask B" --parent <id> --depends-on <subtask-a-id>  # With dependency
-```
-
-**Task context:** Use `-d` for details, `-l` for reference docs:
-```bash
-hzl task add "Add rate limiting" -P myrepo -s ready \
-  -d "Per linked spec. Use RateLimiter from src/middleware/." \
-  -l docs/rate-limit-spec.md
-```
-If docs exist, reference them (don't duplicate—avoids drift). If no docs, include enough detail to complete the task. Description supports markdown/multiline.
-
-**Working on a task:**
-```bash
-hzl task next -P myrepo                  # Next available task
-hzl task next --parent <id>              # Next subtask of parent
-hzl task next -P myrepo --claim          # Find and claim in one step
-hzl task claim <id>                      # Claim specific task
-hzl task checkpoint <id> "milestone X"   # Notable progress or before pausing
-```
-
-**Changing status:**
-```bash
-hzl task set-status <id> ready           # Make claimable (from backlog)
-hzl task set-status <id> backlog         # Move back to planning
-```
-Statuses: `backlog` → `ready` → `in_progress` → `done` (or `blocked`)
-
-**When blocked:**
-```bash
-hzl task block <id> --comment "Waiting for API keys from DevOps"
-hzl task unblock <id>                    # When resolved
-```
-
-**Finishing work:**
-```bash
-hzl task comment <id> "Implemented X, tested Y"  # Optional: final notes
-hzl task complete <id>
-
-# After completing a subtask, check parent:
-hzl task show <parent-id> --json         # Any subtasks left?
-hzl task complete <parent-id>            # If all done, complete parent
-```
-
-**Troubleshooting:**
-| Error | Fix |
-|-------|-----|
-| "not claimable (status: backlog)" | `hzl task set-status <id> ready` |
-| "Cannot complete: status is X" | Claim first: `hzl task claim <id>` |
-
----
-
-**DESTRUCTIVE - Never run without explicit user request:**
-- `hzl task prune` — **PERMANENTLY DELETES** old done/archived tasks. No undo.
-<!-- END docs/snippets/agent-policy.md -->
 
 ## Build & Test Commands
 
@@ -300,69 +220,69 @@ Both packages are versioned together (linked versions).
 
 **README**: Edit `/README.md` (root) only. The release script copies it to `/packages/hzl-cli/README.md` for npm. Never edit the CLI README directly.
 
+### Documentation Structure
+
+The documentation is organized into three folders:
+
+| Folder | Purpose |
+|--------|---------|
+| `docs-site/` | External documentation site (GitHub Pages) |
+| `docs/` | Internal development docs (plans, brainstorms, solutions) |
+| `snippets/` | Source files for CLI output and snippet sync |
+
+**HZL documentation layers:**
+
+| Source | Purpose | When accessed |
+|--------|---------|---------------|
+| `snippets/AGENT-POLICY.md` | Full workflow guide | Via `hzl guide` command |
+| `skills/hzl/SKILL.md` | Advanced topics | On-demand (skill invocation) |
+| `docs-site/openclaw/tools-prompt.md` | OpenClaw-specific | OpenClaw context |
+
+Agents get the minimal HZL section in AGENTS.md, then run `hzl guide` for full workflow documentation.
+
 ### Documentation Includes (Snippet System)
 
-Reusable documentation lives in `docs/snippets/`. A GitHub Action syncs snippet content into target files automatically.
+Reusable documentation lives in `/snippets/` (root level, UPPERCASE filenames). A GitHub Action syncs snippet content into target files automatically.
 
 **Scanned paths:**
 - `README.md`, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `CODEX.md`
-- `docs/**/*.md`
+- `docs/**/*.md`, `docs-site/**/*.md`
 - `skills/**/*.md`
 
 **Available snippets:**
-- `docs/snippets/agent-policy.md` — HZL policy for coding agents (core workflow)
-- `docs/snippets/coding-agent-setup.md` — Setup instructions for Claude Code, Codex, Gemini
-- `docs/snippets/openclaw-setup-prompt.md` — OpenClaw quick start prompt
-- `docs/snippets/upgrade-hzl-prompt.md` — HZL upgrade prompt for OpenClaw
-
-**HZL documentation structure:**
-
-The HZL documentation is layered to serve different agent capabilities:
-
-| File | Purpose | When loaded |
-|------|---------|-------------|
-| `docs/snippets/agent-policy.md` | Core workflow commands | Every turn (via AGENTS.md) |
-| `skills/hzl/SKILL.md` | Core + advanced topics | On-demand (skill invocation) |
-| `docs/openclaw/tools-prompt.md` | OpenClaw-specific (uses `openclaw` project) | OpenClaw context |
-
-The skill includes `agent-policy.md` via snippet markers, so:
-- Agents without skill support get the core workflow from AGENTS.md
-- Agents with skill support get core + advanced topics (multi-agent, leases, recovery)
-- Updating `agent-policy.md` automatically updates the skill
-
-**Important: `agent-policy.md` must be self-sufficient.** Some coding agents (e.g., Gemini) don't support skills and rely entirely on the agent-policy snippet. When adding guidance:
-- Core workflows and essential flags belong in `agent-policy.md`
-- Advanced topics (leases, multi-agent coordination) can be skill-only
-- If an agent needs to know something to use HZL correctly, it goes in the policy
+- `snippets/AGENT-POLICY.md` — HZL workflow guide (also output by `hzl guide`)
+- `snippets/CODING-AGENT-SETUP.md` — Setup instructions for Claude Code, Codex, Gemini
+- `snippets/OPENCLAW-SETUP-PROMPT.md` — OpenClaw quick start prompt
+- `snippets/UPGRADE-HZL-PROMPT.md` — HZL upgrade prompt for OpenClaw
 
 **Marker syntax:**
 
 ```markdown
-<!-- START docs/snippets/your-snippet.md -->
-<!-- END docs/snippets/your-snippet.md -->
+<!-- START snippets/YOUR-SNIPPET.md -->
+<!-- END snippets/YOUR-SNIPPET.md -->
 ```
 
 To wrap the snippet in a code fence (for showing as copyable code):
 
 ```markdown
-<!-- START [code:md] docs/snippets/your-snippet.md -->
-<!-- END [code:md] docs/snippets/your-snippet.md -->
+<!-- START [code:md] snippets/YOUR-SNIPPET.md -->
+<!-- END [code:md] snippets/YOUR-SNIPPET.md -->
 ```
 
 The `[code:X]` modifier wraps content in triple backticks with language `X` (e.g., `md`, `txt`, `bash`).
 
 **How it works:**
-1. Edit the source file in `docs/snippets/`
+1. Edit the source file in `snippets/`
 2. Push to main
 3. GitHub Action runs `node scripts/sync-snippets.js`
 4. Action fills content between markers and commits
 
 **To add a new snippet:**
-1. Create the snippet file in `docs/snippets/`
+1. Create the snippet file in `snippets/` (UPPERCASE filename)
 2. Add markers in any scanned file (see paths above)
 3. Push — the action fills in the content
 
-**To edit a snippet:** Edit the source file in `docs/snippets/`, never the content between markers.
+**To edit a snippet:** Edit the source file in `snippets/`, never the content between markers.
 
 **Local testing:**
 ```bash
@@ -379,11 +299,11 @@ When adding or modifying CLI commands, flags, or workflows, update **all** of th
 | Document | Path | What to update |
 |----------|------|----------------|
 | **README** | `README.md` | CLI reference section |
-| **Agent policy snippet** | `docs/snippets/agent-policy.md` | Key commands list |
+| **Agent policy snippet** | `snippets/AGENT-POLICY.md` | Key commands list |
 | **Claude Code / Codex skill** | `skills/hzl/SKILL.md` | Scenarios, examples, command reference |
-| **OpenClaw skill** | `docs/openclaw/skills/hzl/SKILL.md` | Quick reference, patterns, examples |
-| **Docs site - Tasks** | `docs/concepts/tasks.md` | Task creation flags, update options, workflows |
-| **Docs site - Other** | `docs/concepts/*.md` | Check if other concept pages are affected |
+| **OpenClaw skill** | `docs-site/openclaw/skills/hzl/SKILL.md` | Quick reference, patterns, examples |
+| **Docs site - Tasks** | `docs-site/concepts/tasks.md` | Task creation flags, update options, workflows |
+| **Docs site - Other** | `docs-site/concepts/*.md` | Check if other concept pages are affected |
 
 **Changes that require updates:**
 - New CLI commands (e.g., `block`, `unblock`, `progress`)

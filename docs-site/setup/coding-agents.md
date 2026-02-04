@@ -9,8 +9,8 @@ nav_order: 1
 
 Works with **Claude Code**, **Codex**, **Gemini**, and similar AI coding assistants that can run CLI commands.
 
-<!-- START docs/snippets/coding-agent-setup.md -->
-<!-- ⚠️ DO NOT EDIT - Auto-generated from docs/snippets/coding-agent-setup.md -->
+<!-- START snippets/CODING-AGENT-SETUP.md -->
+<!-- ⚠️ DO NOT EDIT - Auto-generated from snippets/CODING-AGENT-SETUP.md -->
 ## Installation
 
 ```bash
@@ -116,7 +116,7 @@ hzl task list -P test-project
 ```
 
 You should see your task with status `ready`.
-<!-- END docs/snippets/coding-agent-setup.md -->
+<!-- END snippets/CODING-AGENT-SETUP.md -->
 
 ---
 
