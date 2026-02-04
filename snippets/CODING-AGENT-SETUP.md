@@ -1,17 +1,23 @@
 ## Installation
 
+### One-liner (recommended)
+
+Installs HZL CLI, initializes the database, and sets up Claude Code/Codex integrations:
+
+```bash
+curl -fsSL "https://raw.githubusercontent.com/tmchow/hzl/main/scripts/install.sh?$(date +%s)" | bash
+```
+
+### Manual install
+
 ```bash
 # Via npm
 npm install -g hzl-cli
+hzl init
 
 # Via Homebrew (macOS/Linux)
 brew tap tmchow/hzl
 brew install hzl
-```
-
-## Initialize
-
-```bash
 hzl init
 ```
 

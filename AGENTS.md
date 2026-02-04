@@ -320,3 +320,10 @@ When adding or modifying CLI commands, flags, or workflows, update **all** of th
 - AI agents won't know about new features (skills)
 - Users won't find documentation (docs site)
 - The README will be out of date
+
+### Node.js Version Updates
+
+When changing the minimum Node.js version, update both locations:
+
+1. `package.json` — `engines.node` field
+2. `scripts/install.sh` — `MIN_NODE_VERSION` constant

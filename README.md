@@ -125,11 +125,20 @@ HZL includes a basic [Kanban dashboard](#web-dashboard) for human visibility. Fo
 
 Requires Node.js 22.14+.
 
+#### One-liner (recommended)
+
+Installs HZL CLI, initializes the database, and sets up Claude Code/Codex integrations:
+
+```bash
+curl -fsSL "https://raw.githubusercontent.com/tmchow/hzl/main/scripts/install.sh?$(date +%s)" | bash
+```
+
 #### Via Homebrew (macOS/Linux)
 
 ```bash
 brew tap tmchow/hzl
 brew install hzl
+hzl init
 ```
 
 #### Via NPM
