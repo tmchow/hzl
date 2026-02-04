@@ -54,6 +54,7 @@ jobs:
           node-version: '22.14.0'
           # No registry-url: it sets NODE_AUTH_TOKEN which prevents OIDC fallback
           cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm build

@@ -29,7 +29,6 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: '22'
-          cache: 'npm'
 
       - name: Process snippet includes
         run: node scripts/sync-snippets.js
