@@ -144,6 +144,20 @@ brew tap tmchow/hzl && brew install hzl && hzl init
 npm install -g hzl-cli && hzl init
 ```
 
+**Then set up agent integrations:**
+
+*Claude Code (run in Claude Code):*
+```
+/plugin marketplace add tmchow/hzl
+/plugin install hzl@hzl
+```
+
+*Codex:*
+```bash
+mkdir -p ~/.codex/skills/hzl
+curl -fsSL https://raw.githubusercontent.com/tmchow/hzl/main/skills/hzl/SKILL.md -o ~/.codex/skills/hzl/SKILL.md
+```
+
 </details>
 
 ### 2. Add HZL to your project
