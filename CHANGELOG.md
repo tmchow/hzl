@@ -1,3 +1,10 @@
+# [1.25.0](https://github.com/tmchow/hzl/compare/v1.24.1...v1.25.0) (2026-02-04)
+
+
+### Features
+
+* **cli:** add `hzl guide` command for workflow documentation ([#97](https://github.com/tmchow/hzl/issues/97)) ([c0d7492](https://github.com/tmchow/hzl/commit/c0d7492f53076049f50c4ac86c188148936a53c3))
+
 ## [1.24.1](https://github.com/tmchow/hzl/compare/v1.24.0...v1.24.1) (2026-02-04)
 
 # [1.24.0](https://github.com/tmchow/hzl/compare/v1.23.0...v1.24.0) (2026-02-04)
