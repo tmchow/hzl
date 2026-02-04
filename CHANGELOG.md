@@ -1,3 +1,10 @@
+# [1.23.0](https://github.com/tmchow/hzl/compare/v1.22.1...v1.23.0) (2026-02-04)
+
+
+### Features
+
+* **web:** add markdown rendering for task descriptions ([#94](https://github.com/tmchow/hzl/issues/94)) ([09be69d](https://github.com/tmchow/hzl/commit/09be69d088a4294ce0fafb26fd960d46951e0e50))
+
 ## [1.22.1](https://github.com/tmchow/hzl/compare/v1.22.0...v1.22.1) (2026-02-04)
 
 
