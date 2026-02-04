@@ -1,3 +1,10 @@
+# [1.24.0](https://github.com/tmchow/hzl/compare/v1.23.0...v1.24.0) (2026-02-04)
+
+
+### Features
+
+* **cli:** add --links flag to task add and update commands ([#95](https://github.com/tmchow/hzl/issues/95)) ([d93c337](https://github.com/tmchow/hzl/commit/d93c337a08961b9e1f72a8b6a90b99d5b9d41fd6))
+
 # [1.23.0](https://github.com/tmchow/hzl/compare/v1.22.1...v1.23.0) (2026-02-04)
 
 
