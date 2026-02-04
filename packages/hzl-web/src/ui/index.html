@@ -531,6 +531,18 @@
       font-size: 12px;
     }
 
+    .modal-progress {
+      color: var(--accent);
+      background: rgba(245, 158, 11, 0.15);
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+
+    .modal-progress.complete {
+      color: var(--status-done);
+      background: rgba(34, 197, 94, 0.15);
+    }
+
     .modal-description {
       background: var(--bg-primary);
       padding: 12px;
@@ -569,6 +581,73 @@
     .comment-text {
       font-size: 12px;
       white-space: pre-wrap;
+    }
+
+    .show-more-btn {
+      width: 100%;
+      padding: 8px;
+      background: var(--bg-primary);
+      border: 1px dashed var(--border);
+      border-radius: 4px;
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+
+    .show-more-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .modal-tabs {
+      display: flex;
+      gap: 0;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 12px;
+    }
+
+    .modal-tab {
+      padding: 8px 16px;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+    }
+
+    .modal-tab:hover {
+      color: var(--text-primary);
+    }
+
+    .modal-tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+
+    .modal-tab:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .modal-tab-count {
+      background: var(--bg-primary);
+      padding: 1px 6px;
+      border-radius: 8px;
+      font-size: 10px;
+      margin-left: 6px;
+    }
+
+    .modal-tab-content {
+      display: none;
+    }
+
+    .modal-tab-content.active {
+      display: block;
     }
 
     /* Activity Panel */
@@ -1003,6 +1082,11 @@
     let pollTimer = null;
     let lastPollTime = null;
     let selectedTask = null;
+    let showAllComments = false;
+    let showAllCheckpoints = false;
+    let activeModalTab = 'comments';
+    const COMMENT_DISPLAY_LIMIT = 15;
+    const CHECKPOINT_DISPLAY_LIMIT = 15;
     let activeTab = 'ready';
     let activeView = 'kanban';
     let graphInstance = null;
@@ -1645,9 +1729,16 @@
       }).join('');
     }
 
-    async function openTaskModal(taskId) {
+    async function openTaskModal(taskId, preserveShowAll = false) {
       // Track this request to handle rapid clicks (race condition prevention)
       const requestId = ++pendingModalRequestId;
+
+      // Reset expansion state for new tasks
+      if (!preserveShowAll) {
+        showAllComments = false;
+        showAllCheckpoints = false;
+        activeModalTab = 'comments';
+      }
 
       try {
         const data = await fetchTaskDetail(taskId);
@@ -1658,12 +1749,19 @@
         selectedTask = data;
         modalTitle.textContent = data.task.title;
 
+        const progressValue = data.task.progress ?? 0;
+        const progressClass = progressValue >= 100 ? 'modal-progress complete' : 'modal-progress';
+
         let html = `
           <div class="modal-section">
             <div class="modal-meta">
               <div class="modal-meta-item">
                 <div class="modal-meta-label">Status</div>
                 <div class="modal-meta-value">${data.task.status}</div>
+              </div>
+              <div class="modal-meta-item">
+                <div class="modal-meta-label">Progress</div>
+                <div class="modal-meta-value"><span class="${progressClass}">${progressValue}%</span></div>
               </div>
               <div class="modal-meta-item">
                 <div class="modal-meta-label">Project</div>
@@ -1719,39 +1817,79 @@
           `;
         }
 
-        if (data.comments.length > 0) {
-          html += `
-            <div class="modal-section">
-              <div class="modal-section-title">Comments (${data.comments.length})</div>
-              <div class="modal-comments">
-                ${data.comments.map(c => `
-                  <div class="comment">
-                    <div class="comment-header">
-                      <span class="comment-author">${escapeHtml(c.agent_id || c.author || 'Unknown')}</span>
-                      <span>${formatTime(c.timestamp)}</span>
-                    </div>
-                    <div class="comment-text">${escapeHtml(c.text)}</div>
-                  </div>
-                `).join('')}
-              </div>
-            </div>
-          `;
-        }
+        // Tabbed interface for comments and checkpoints
+        if (data.comments.length > 0 || data.checkpoints.length > 0) {
+          // Default to checkpoints tab if no comments
+          if (data.comments.length === 0 && activeModalTab === 'comments') {
+            activeModalTab = 'checkpoints';
+          }
 
-        if (data.checkpoints.length > 0) {
+          const hasMoreComments = data.comments.length > COMMENT_DISPLAY_LIMIT && !showAllComments;
+          const visibleComments = hasMoreComments
+            ? data.comments.slice(-COMMENT_DISPLAY_LIMIT)
+            : data.comments;
+          const hiddenCommentCount = Math.max(0, data.comments.length - COMMENT_DISPLAY_LIMIT);
+
+          const hasMoreCheckpoints = data.checkpoints.length > CHECKPOINT_DISPLAY_LIMIT && !showAllCheckpoints;
+          const visibleCheckpoints = hasMoreCheckpoints
+            ? data.checkpoints.slice(-CHECKPOINT_DISPLAY_LIMIT)
+            : data.checkpoints;
+          const hiddenCheckpointCount = Math.max(0, data.checkpoints.length - CHECKPOINT_DISPLAY_LIMIT);
+
           html += `
             <div class="modal-section">
-              <div class="modal-section-title">Checkpoints (${data.checkpoints.length})</div>
-              <div class="modal-comments">
-                ${data.checkpoints.map(cp => `
-                  <div class="comment">
-                    <div class="comment-header">
-                      <span class="comment-author">${escapeHtml(cp.name)}</span>
-                      <span>${formatTime(cp.timestamp)}</span>
-                    </div>
-                    <div class="comment-text">${JSON.stringify(cp.data, null, 2)}</div>
+              <div class="modal-tabs">
+                <button class="modal-tab ${activeModalTab === 'comments' ? 'active' : ''}" data-tab="comments" ${data.comments.length === 0 ? 'disabled' : ''}>
+                  Comments<span class="modal-tab-count">${data.comments.length}</span>
+                </button>
+                <button class="modal-tab ${activeModalTab === 'checkpoints' ? 'active' : ''}" data-tab="checkpoints" ${data.checkpoints.length === 0 ? 'disabled' : ''}>
+                  Checkpoints<span class="modal-tab-count">${data.checkpoints.length}</span>
+                </button>
+              </div>
+
+              <div class="modal-tab-content ${activeModalTab === 'comments' ? 'active' : ''}" data-tab-content="comments">
+                ${data.comments.length === 0 ? '<div class="empty-column">No comments</div>' : `
+                  <div class="modal-comments">
+                    ${hasMoreComments ? `
+                      <button class="show-more-btn" id="showMoreComments">
+                        Show ${hiddenCommentCount} earlier comment${hiddenCommentCount === 1 ? '' : 's'}
+                      </button>
+                    ` : ''}
+                    ${visibleComments.map(c => `
+                      <div class="comment">
+                        <div class="comment-header">
+                          <span class="comment-author">${escapeHtml(c.agent_id || c.author || 'Unknown')}</span>
+                          <span>${formatTime(c.timestamp)}</span>
+                        </div>
+                        <div class="comment-text">${escapeHtml(c.text)}</div>
+                      </div>
+                    `).join('')}
                   </div>
-                `).join('')}
+                `}
+              </div>
+
+              <div class="modal-tab-content ${activeModalTab === 'checkpoints' ? 'active' : ''}" data-tab-content="checkpoints">
+                ${data.checkpoints.length === 0 ? '<div class="empty-column">No checkpoints</div>' : `
+                  <div class="modal-comments">
+                    ${hasMoreCheckpoints ? `
+                      <button class="show-more-btn" id="showMoreCheckpoints">
+                        Show ${hiddenCheckpointCount} earlier checkpoint${hiddenCheckpointCount === 1 ? '' : 's'}
+                      </button>
+                    ` : ''}
+                    ${visibleCheckpoints.map(cp => {
+                      const hasData = cp.data && Object.keys(cp.data).length > 0;
+                      return `
+                        <div class="comment">
+                          <div class="comment-header">
+                            <span class="comment-author">${escapeHtml(cp.name)}</span>
+                            <span>${formatTime(cp.timestamp)}</span>
+                          </div>
+                          ${hasData ? `<div class="comment-text">${escapeHtml(JSON.stringify(cp.data, null, 2))}</div>` : ''}
+                        </div>
+                      `;
+                    }).join('')}
+                  </div>
+                `}
               </div>
             </div>
           `;
@@ -1759,6 +1897,43 @@
 
         modalBody.innerHTML = html;
         modalOverlay.classList.add('open');
+
+        // Attach tab switching handlers (DOM-only, no re-fetch)
+        modalBody.querySelectorAll('.modal-tab').forEach(tab => {
+          tab.addEventListener('click', () => {
+            if (tab.hasAttribute('disabled')) return;
+            const targetTab = tab.dataset.tab;
+
+            // Update tab active states
+            modalBody.querySelectorAll('.modal-tab').forEach(t =>
+              t.classList.toggle('active', t.dataset.tab === targetTab));
+
+            // Update content visibility
+            modalBody.querySelectorAll('.modal-tab-content').forEach(c =>
+              c.classList.toggle('active', c.dataset.tabContent === targetTab));
+
+            // Update global state for re-opens
+            activeModalTab = targetTab;
+          });
+        });
+
+        // Attach "show more comments" handler if present
+        const showMoreCommentsBtn = document.getElementById('showMoreComments');
+        if (showMoreCommentsBtn) {
+          showMoreCommentsBtn.addEventListener('click', () => {
+            showAllComments = true;
+            openTaskModal(taskId, true);
+          });
+        }
+
+        // Attach "show more checkpoints" handler if present
+        const showMoreCheckpointsBtn = document.getElementById('showMoreCheckpoints');
+        if (showMoreCheckpointsBtn) {
+          showMoreCheckpointsBtn.addEventListener('click', () => {
+            showAllCheckpoints = true;
+            openTaskModal(taskId, true);
+          });
+        }
       } catch (error) {
         console.error('Failed to load task:', error);
         alert('Failed to load task details');
