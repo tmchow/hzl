@@ -13,12 +13,12 @@ OpenClaw is a self-hosted AI assistant that can coordinate tools and sub-agents.
 
 Copy/paste this into an OpenClaw chat:
 
-<!-- START [code:txt] docs/snippets/openclaw-setup-prompt.md -->
-<!-- ⚠️ DO NOT EDIT - Auto-generated from docs/snippets/openclaw-setup-prompt.md -->
+<!-- START [code:txt] snippets/OPENCLAW-SETUP-PROMPT.md -->
+<!-- ⚠️ DO NOT EDIT - Auto-generated from snippets/OPENCLAW-SETUP-PROMPT.md -->
 ````txt
 Install HZL from https://github.com/tmchow/hzl and run hzl init. Install the HZL skill from https://www.clawhub.ai/tmchow/hzl. Then append the HZL policy from https://raw.githubusercontent.com/tmchow/hzl/main/docs/openclaw/tools-prompt.md to my TOOLS.md.
 ````
-<!-- END [code:txt] docs/snippets/openclaw-setup-prompt.md -->
+<!-- END [code:txt] snippets/OPENCLAW-SETUP-PROMPT.md -->
 
 OpenClaw will handle the installation and configuration for you.
 
@@ -56,8 +56,8 @@ Or use a custom Docker image with HZL pre-installed.
 
 Copy/paste this into an OpenClaw chat to create a reusable upgrade script:
 
-<!-- START [code:txt] docs/snippets/upgrade-hzl-prompt.md -->
-<!-- ⚠️ DO NOT EDIT - Auto-generated from docs/snippets/upgrade-hzl-prompt.md -->
+<!-- START [code:txt] snippets/UPGRADE-HZL-PROMPT.md -->
+<!-- ⚠️ DO NOT EDIT - Auto-generated from snippets/UPGRADE-HZL-PROMPT.md -->
 ````txt
 Create a script at scripts/upgrade-hzl.sh (in your workspace) that upgrades both the hzl-cli npm package and the hzl skill from ClawHub. The script should:
 
@@ -67,7 +67,7 @@ Create a script at scripts/upgrade-hzl.sh (in your workspace) that upgrades both
 
 Make it executable. In the future when I say "upgrade hzl", run this script.
 ````
-<!-- END [code:txt] docs/snippets/upgrade-hzl-prompt.md -->
+<!-- END [code:txt] snippets/UPGRADE-HZL-PROMPT.md -->
 
 After running this once, just say "upgrade hzl" to OpenClaw to run the script.
 
