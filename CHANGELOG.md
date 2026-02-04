@@ -1,3 +1,10 @@
+## [1.25.3](https://github.com/tmchow/hzl/compare/v1.25.2...v1.25.3) (2026-02-04)
+
+
+### Bug Fixes
+
+* **docs:** move openclaw files to top-level, fix --author to --assignee ([#100](https://github.com/tmchow/hzl/issues/100)) ([ac1dc2b](https://github.com/tmchow/hzl/commit/ac1dc2bd01349e75bf2283de6c31d348c8daf76c))
+
 ## [1.25.2](https://github.com/tmchow/hzl/compare/v1.25.1...v1.25.2) (2026-02-04)
 
 
