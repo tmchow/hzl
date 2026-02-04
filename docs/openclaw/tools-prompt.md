@@ -1,57 +1,88 @@
-### Tasks: External tracking
+### Tasks: External tracking with HZL
 
-HZL is a tool that complements your existing memory tools. While memory handles user context, preferences, and past conversations, HZL handles *task execution state*: the work in flight, dependencies, and progress checkpoints.
+HZL is a task ledger that persists outside your context window. Use it when external tracking helps clarity, handoff, or auditability.
 
-It's a database-backed task ledger that persists outside the context window—queryable anytime without reconstructing from chat history.
+**Use HZL when:**
+- Work has multiple steps or may not finish this session
+- You want durable record of progress or ownership
+- Delegating to sub-agents or coordinating with other agents
+- Task is non-trivial (~30+ min or risky changes)
 
-**When to use HZL**
+**Skip HZL when:**
+- Small, clearly scoped work completed immediately
+- Quick one-off answer or tiny change
 
-Use HZL by default when any of the following is true:
+**Rule of thumb:** If you're tempted to make a multi-step plan, use HZL.
 
-- The work has multiple steps (especially with dependencies).
-- The work may outlive this session or is likely to be paused/resumed.
-- The work involves delegating to sub-agents or using multiple model providers/tools.
-- The work benefits from checkpoints so we can resume after failures.
-- We need accurate status reporting (done / in progress / blocked / next).
-- We want a durable record of decisions, progress, or ownership.
+**Structure:**
+- **Project** = `openclaw`. Use this single project for all work.
+- **Task** = feature or work item.
+- **Subtask** = breakdown (`--parent <id>`). Max 1 level.
 
-Multi-session or multi-agent work are common reasons to use HZL, not requirements.
-Use HZL for single-session, single-agent work when the task is non-trivial.
+**Anti-pattern: project sprawl**
+```bash
+hzl project create "query-perf"  # Wrong: feature is not a project
+```
+Features are parent tasks:
+```bash
+hzl task add "Query perf" -P openclaw         # Parent task
+hzl task add "Fix N+1" --parent <parent-id>   # Subtask
+```
 
-**When NOT to use HZL**
+---
 
-Prefer other mechanisms when:
+**Setup:**
+```bash
+hzl project list                    # Always check first
+hzl project create openclaw         # Only if needed
+```
 
-- The request is a single quick action that will be completed immediately.
-- The user needs time-based reminders or notifications (use cron + a notifier).
-- The "task" is better modeled as memory (preferences, decisions, facts).
+**Adding work:**
+```bash
+hzl task add "Feature X" -P openclaw -s ready         # Ready to claim
+hzl task add "Subtask A" --parent <id>                # Subtask
+hzl task add "Subtask B" --parent <id> --depends-on <subtask-a-id>  # With dependency
+```
 
-**Rule of thumb:** If you feel tempted to make a multi-step plan or there is any chance you will not finish in this session, use HZL.
+**Working on a task:**
+```bash
+hzl task next -P openclaw                # Next available task
+hzl task next --parent <id>              # Next subtask of parent
+hzl task next -P openclaw --claim        # Find and claim in one step
+hzl task claim <id>                      # Claim specific task
+hzl task checkpoint <id> "milestone X"   # Notable progress or before pausing
+```
 
-Example: "Investigate failing tests and fix root cause" -> use HZL because it likely involves multiple subtasks, even if you expect to finish within a session.
+**Changing status:**
+```bash
+hzl task set-status <id> ready           # Make claimable (from backlog)
+hzl task set-status <id> backlog         # Move back to planning
+```
+Statuses: `backlog` → `ready` → `in_progress` → `done` (or `blocked`)
 
-**How to use HZL**
+**When blocked:**
+```bash
+hzl task block <id> --comment "Waiting for API keys from DevOps"
+hzl task unblock <id>                    # When resolved
+```
 
-You should have the HZL skill installed (`hzl`). It contains the full command reference and recommended patterns. Use that skill for:
+**Finishing work:**
+```bash
+hzl task comment <id> "Implemented X, tested Y"  # Optional: final notes
+hzl task complete <id>
 
-- Command syntax and flags
-- Authorship and progress tracking
-- Blocked task handling
-- Sub-agent coordination with leases
-- Subtask organization
+# After completing a subtask, check parent:
+hzl task show <parent-id> --json         # Any subtasks left?
+hzl task complete <parent-id>            # If all done, complete parent
+```
 
-If the skill is not installed, run `npx clawhub@latest install hzl` or use your platform's official method to install the `hzl` skill.
+**Troubleshooting:**
+| Error | Fix |
+|-------|-----|
+| "not claimable (status: backlog)" | `hzl task set-status <id> ready` |
+| "Cannot complete: status is X" | Claim first: `hzl task claim <id>` |
 
-**Conventions**
+---
 
-- Use a single `openclaw` project. Check `hzl project list` first.
-- Multi-step requests become parent tasks (not new projects):
-  ```bash
-  hzl task add "Fix query performance" -P openclaw   # Parent
-  hzl task add "Fix N+1" --parent <id>               # Subtask
-  ```
-- Name parent tasks for completable outcomes ("Book a haircut" or "Research vacation ideas for this summer"), not domains ("Home automation").
-- Use consistent author IDs:
-  - `openclaw` (main orchestrator)
-  - `subagent-claude-code`, `subagent-codex`, `subagent-gemini`, etc.
-- Encode ordering with dependencies instead of relying on chat memory.
+**DESTRUCTIVE - Never run without explicit user request:**
+- `hzl task prune` — **PERMANENTLY DELETES** old done/archived tasks. No undo.
