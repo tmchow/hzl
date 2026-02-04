@@ -59,6 +59,7 @@
   "scripts": {
     "prebuild": "node ../../scripts/generate-guide-content.js",
     "build": "tsc -b",
+    "pretest": "node ../../scripts/generate-guide-content.js",
     "test": "vitest run",
     "test:watch": "vitest"
   },
