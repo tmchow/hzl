@@ -1,6 +1,6 @@
 {
   "name": "hzl-web",
-  "version": "1.19.1",
+  "version": "1.19.2",
   "description": "Web dashboard for HZL - A Kanban-style task monitoring UI.",
   "type": "module",
   "main": "dist/index.js",
