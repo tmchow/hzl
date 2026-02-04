@@ -24,6 +24,7 @@ NC='\033[0m'
 
 # --- State ---
 UNINSTALL=false
+LAST_DOWNLOAD_ERROR=""
 
 # --- Utility functions ---
 
@@ -41,6 +42,14 @@ log_warn() {
 
 log_error() {
     echo -e "${RED}✗${NC} $1" >&2
+}
+
+print_details() {
+    local output="$1"
+    echo -e "  ${YELLOW}→${NC} Details:" >&2
+    while IFS= read -r line; do
+        echo "    $line" >&2
+    done <<< "$output"
 }
 
 die() {
@@ -75,10 +84,13 @@ download_with_retry() {
     local dest="$2"
     local attempt=1
 
+    LAST_DOWNLOAD_ERROR=""
     while [ $attempt -le $MAX_RETRIES ]; do
-        if curl -fsSL "$url" -o "$dest" 2>/dev/null; then
+        local output
+        if output=$(curl -fsSL -S "$url" -o "$dest" 2>&1); then
             return 0
         fi
+        LAST_DOWNLOAD_ERROR="$output"
         if [ $attempt -lt $MAX_RETRIES ]; then
             log_warn "Download failed, retrying in ${RETRY_DELAY}s... (attempt $attempt/$MAX_RETRIES)"
             sleep $RETRY_DELAY
@@ -154,15 +166,18 @@ install_claude_plugin() {
         return 0
     fi
 
-    # Add marketplace (idempotent)
-    if ! claude plugin marketplace add tmchow/hzl 2>&1; then
-        log_warn "Failed to add HZL marketplace, skipping plugin install"
-        return 0
+    # Add marketplace (idempotent; may return non-zero if already added)
+    local marketplace_output
+    if ! marketplace_output=$(claude plugin marketplace add tmchow/hzl 2>&1); then
+        log_warn "Failed to add HZL marketplace (may already exist), continuing"
+        print_details "$marketplace_output"
     fi
 
     # Install plugin (idempotent - reinstalls/updates if exists)
-    if ! claude plugin install hzl@hzl 2>&1; then
+    local install_output
+    if ! install_output=$(claude plugin install hzl@hzl 2>&1); then
         log_warn "Failed to install HZL plugin"
+        print_details "$install_output"
         return 0
     fi
 
@@ -189,6 +204,9 @@ install_codex_skill() {
     if ! download_with_retry "$SKILL_URL" "$tmp_file"; then
         rm -f "$tmp_file"
         log_warn "Failed to download Codex skill after $MAX_RETRIES attempts"
+        if [ -n "$LAST_DOWNLOAD_ERROR" ]; then
+            print_details "$LAST_DOWNLOAD_ERROR"
+        fi
         return 0
     fi
 
@@ -266,17 +284,21 @@ do_uninstall() {
         log_info "Removing Claude Code plugin..."
 
         # Try to uninstall plugin (may fail if not installed)
-        if claude plugin uninstall hzl@hzl 2>&1; then
+        local uninstall_output
+        if uninstall_output=$(claude plugin uninstall hzl@hzl 2>&1); then
             log_success "Removed Claude Code plugin"
         else
             log_warn "Claude Code plugin not found or failed to remove"
+            print_details "$uninstall_output"
         fi
 
         # Try to remove marketplace
-        if claude plugin marketplace remove hzl 2>&1; then
+        local remove_marketplace_output
+        if remove_marketplace_output=$(claude plugin marketplace remove tmchow/hzl 2>&1); then
             log_success "Removed HZL marketplace"
         else
             log_warn "HZL marketplace not found or failed to remove"
+            print_details "$remove_marketplace_output"
         fi
     fi
 
