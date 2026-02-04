@@ -1,3 +1,10 @@
+# [1.20.0](https://github.com/tmchow/hzl/compare/v1.19.2...v1.20.0) (2026-02-04)
+
+
+### Features
+
+* **web:** improve task modal with tabs, pagination, and progress display ([#89](https://github.com/tmchow/hzl/issues/89)) ([d339232](https://github.com/tmchow/hzl/commit/d33923217592e1905d17bceefb140108d71dbea3))
+
 ## [1.19.2](https://github.com/tmchow/hzl/compare/v1.19.1...v1.19.2) (2026-02-04)
 
 ## [1.19.1](https://github.com/tmchow/hzl/compare/v1.19.0...v1.19.1) (2026-02-04)
