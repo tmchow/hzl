@@ -51,6 +51,19 @@ describe('runAdd', () => {
     expect(result.priority).toBe(2);
   });
 
+  it('creates a task with links', () => {
+    const result = runAdd({
+      services,
+      project: 'inbox',
+      title: 'Task with links',
+      links: ['docs/design.md', 'https://example.com/spec'],
+      json: false,
+    });
+
+    const task = services.taskService.getTaskById(result.task_id);
+    expect(task?.links).toEqual(['docs/design.md', 'https://example.com/spec']);
+  });
+
   it('creates a task with dependencies', () => {
     const dep = runAdd({ services, project: 'inbox', title: 'Dependency', json: false });
     const result = runAdd({
