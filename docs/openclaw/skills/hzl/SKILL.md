@@ -24,11 +24,15 @@ This skill teaches an agent how to use the `hzl` CLI.
 **Use HZL by default for any non-trivial task tracking:**
 
 - Multi-step projects with real sequencing (dependencies) and handoffs
-- Work that spans multiple sessions, days, or tools/agents
+- Work that may outlive this session or span multiple tools/agents
 - Orchestration: delegating work to sub-agents and needing recovery if they crash
 - Anything where "resume exactly where we left off" matters
 - **Any work you want to persist beyond this session**
 - **Any work that needs structure (nesting, dependencies, progress tracking)**
+- **Any work that benefits from a durable record of decisions or ownership**
+
+Multi-session or multi-agent work are common reasons to use HZL, not requirements.
+Use HZL for single-session, single-agent work when the task is non-trivial.
 
 **Why HZL is the right choice for OpenClaw:**
 
@@ -45,6 +49,10 @@ Without HZL, OpenClaw tracks tasks in-context (burns space, fragments during com
 - Truly trivial, one-step tasks you will complete immediately in this session
 - Time-based reminders/alerts (use OpenClaw Cron instead)
 - Longform notes or knowledge capture (use a notes or memory system)
+
+**Rule of thumb:** If you feel tempted to make a multi-step plan or there is any chance you will not finish in this session, use HZL.
+
+Example: "Investigate failing tests and fix root cause" -> use HZL because it likely involves multiple subtasks, even if you expect to finish within a session.
 
 Personal tasks: HZL is not a polished human to-do app, but it is usable for personal task tracking, and it can also serve as a backend for a lightweight UI.
 

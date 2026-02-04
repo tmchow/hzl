@@ -1,4 +1,4 @@
-### Tasks: Multi-session and long-running
+### Tasks: External tracking
 
 HZL is a tool that complements your existing memory tools. While memory handles user context, preferences, and past conversations, HZL handles *task execution state*: the work in flight, dependencies, and progress checkpoints.
 
@@ -6,13 +6,17 @@ It's a database-backed task ledger that persists outside the context window—qu
 
 **When to use HZL**
 
-Use HZL when any of the following is true:
+Use HZL by default when any of the following is true:
 
 - The work has multiple steps (especially with dependencies).
-- The work will likely span multiple sessions, whether across an hour or days.
+- The work may outlive this session or is likely to be paused/resumed.
 - The work involves delegating to sub-agents or using multiple model providers/tools.
 - The work benefits from checkpoints so we can resume after failures.
 - We need accurate status reporting (done / in progress / blocked / next).
+- We want a durable record of decisions, progress, or ownership.
+
+Multi-session or multi-agent work are common reasons to use HZL, not requirements.
+Use HZL for single-session, single-agent work when the task is non-trivial.
 
 **When NOT to use HZL**
 
@@ -21,6 +25,10 @@ Prefer other mechanisms when:
 - The request is a single quick action that will be completed immediately.
 - The user needs time-based reminders or notifications (use cron + a notifier).
 - The "task" is better modeled as memory (preferences, decisions, facts).
+
+**Rule of thumb:** If you feel tempted to make a multi-step plan or there is any chance you will not finish in this session, use HZL.
+
+Example: "Investigate failing tests and fix root cause" -> use HZL because it likely involves multiple subtasks, even if you expect to finish within a session.
 
 **How to use HZL**
 
