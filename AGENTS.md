@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+<!-- START snippets/AGENT-POLICY.md -->
+<!-- ⚠️ DO NOT EDIT - Auto-generated from snippets/AGENT-POLICY.md -->
 ### HZL task ledger
 
 This project uses HZL for external task tracking.
@@ -21,6 +23,7 @@ This project uses HZL for external task tracking.
 - Quick one-off answer or tiny change
 
 **Rule of thumb:** If you're tempted to make a multi-step plan, use HZL.
+<!-- END snippets/AGENT-POLICY.md -->
 
 ## Build & Test Commands
 
@@ -234,11 +237,12 @@ The documentation is organized into three folders:
 
 | Source | Purpose | When accessed |
 |--------|---------|---------------|
-| `snippets/AGENT-POLICY.md` | Full workflow guide | Via `hzl guide` command |
+| `snippets/AGENT-POLICY.md` | Minimal policy (when to use HZL) | Embedded in AGENTS.md via markers |
+| `snippets/HZL-GUIDE.md` | Full workflow guide | Via `hzl guide` command |
 | `skills/hzl/SKILL.md` | Advanced topics | On-demand (skill invocation) |
 | `docs-site/openclaw/tools-prompt.md` | OpenClaw-specific | OpenClaw context |
 
-Agents get the minimal HZL section in AGENTS.md, then run `hzl guide` for full workflow documentation.
+Agents get the minimal HZL policy in AGENTS.md (via snippet markers), then run `hzl guide` for full workflow documentation.
 
 ### Documentation Includes (Snippet System)
 
@@ -250,7 +254,8 @@ Reusable documentation lives in `/snippets/` (root level, UPPERCASE filenames). 
 - `skills/**/*.md`
 
 **Available snippets:**
-- `snippets/AGENT-POLICY.md` — HZL workflow guide (also output by `hzl guide`)
+- `snippets/AGENT-POLICY.md` — Minimal HZL policy (when to use HZL, embedded in AGENTS.md)
+- `snippets/HZL-GUIDE.md` — Full HZL workflow guide (output by `hzl guide` command)
 - `snippets/CODING-AGENT-SETUP.md` — Setup instructions for Claude Code, Codex, Gemini
 - `snippets/OPENCLAW-SETUP-PROMPT.md` — OpenClaw quick start prompt
 - `snippets/UPGRADE-HZL-PROMPT.md` — HZL upgrade prompt for OpenClaw

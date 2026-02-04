@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
 /**
- * Generate guide content from snippets/AGENT-POLICY.md
+ * Generate guide content from snippets/HZL-GUIDE.md
  *
- * This script reads the AGENT-POLICY.md snippet and generates a TypeScript
+ * This script reads the HZL-GUIDE.md snippet and generates a TypeScript
  * file that can be imported by the hzl guide command.
  *
  * Run during build: node scripts/generate-guide-content.js
@@ -12,7 +12,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const SNIPPET_PATH = path.join(__dirname, '..', 'snippets', 'AGENT-POLICY.md');
+const SNIPPET_PATH = path.join(__dirname, '..', 'snippets', 'HZL-GUIDE.md');
 const OUTPUT_PATH = path.join(__dirname, '..', 'packages', 'hzl-cli', 'src', 'commands', 'guide-content.ts');
 
 function main() {
@@ -29,7 +29,7 @@ function main() {
     .replace(/`/g, '\\`')
     .replace(/\$\{/g, '\\${');
 
-  const output = `// Auto-generated from snippets/AGENT-POLICY.md
+  const output = `// Auto-generated from snippets/HZL-GUIDE.md
 // Do not edit directly - edit the source snippet instead
 
 export const GUIDE_CONTENT = \`${escaped}\`;

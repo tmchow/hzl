@@ -20,7 +20,7 @@ describe('guide command', () => {
     expect(consoleSpy).toHaveBeenCalledWith(GUIDE_CONTENT);
   });
 
-  it('should have guide content from AGENT-POLICY.md', () => {
+  it('should have guide content from HZL-GUIDE.md', () => {
     // Verify the content includes expected sections
     expect(GUIDE_CONTENT).toContain('HZL task ledger');
     expect(GUIDE_CONTENT).toContain('Use HZL when:');
