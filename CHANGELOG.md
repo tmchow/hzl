@@ -1,3 +1,10 @@
+## [1.25.1](https://github.com/tmchow/hzl/compare/v1.25.0...v1.25.1) (2026-02-04)
+
+
+### Bug Fixes
+
+* **docs:** update snippet markers to new paths ([#98](https://github.com/tmchow/hzl/issues/98)) ([ed16744](https://github.com/tmchow/hzl/commit/ed16744d6e504c7f7c33257e15720c38a5a8b303))
+
 # [1.25.0](https://github.com/tmchow/hzl/compare/v1.24.1...v1.25.0) (2026-02-04)
 
 
