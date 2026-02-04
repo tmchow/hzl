@@ -18,6 +18,7 @@ import { createDoctorCommand } from './commands/doctor.js';
 import { createLockCommand } from './commands/lock.js';
 import { createSampleProjectCommand } from './commands/sample-project.js';
 import { createServeCommand } from './commands/serve.js';
+import { createGuideCommand } from './commands/guide.js';
 import { CLIError, ExitCode } from './errors.js';
 import { resolveDbPaths, readConfig } from './config.js';
 import { formatOutput, printSuccess, printError, printTable } from './output.js';
@@ -46,6 +47,7 @@ export function createProgram(): Command {
   program.addCommand(createDoctorCommand());
   program.addCommand(createLockCommand());
   program.addCommand(createServeCommand());
+  program.addCommand(createGuideCommand());
 
   return program;
 }

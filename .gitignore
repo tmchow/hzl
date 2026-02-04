@@ -149,3 +149,6 @@ packages/*/.claude/
 
 # Conductor workspace context
 .context/
+
+# Auto-generated files
+packages/hzl-cli/src/commands/guide-content.ts

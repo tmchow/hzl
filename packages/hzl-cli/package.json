@@ -57,6 +57,7 @@
     "node": ">=22.14.0"
   },
   "scripts": {
+    "prebuild": "node ../../scripts/generate-guide-content.js",
     "build": "tsc -b",
     "test": "vitest run",
     "test:watch": "vitest"
