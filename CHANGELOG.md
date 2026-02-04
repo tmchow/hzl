@@ -1,3 +1,10 @@
+## [1.20.1](https://github.com/tmchow/hzl/compare/v1.20.0...v1.20.1) (2026-02-04)
+
+
+### Bug Fixes
+
+* add GEMINI.md and broaden HZL usage guidance ([#90](https://github.com/tmchow/hzl/issues/90)) ([fe9a3e7](https://github.com/tmchow/hzl/commit/fe9a3e70fbdc9504b64dabf9762c4245599f890b))
+
 # [1.20.0](https://github.com/tmchow/hzl/compare/v1.19.2...v1.20.0) (2026-02-04)
 
 
