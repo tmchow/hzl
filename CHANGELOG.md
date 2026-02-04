@@ -1,3 +1,10 @@
+# [1.22.0](https://github.com/tmchow/hzl/compare/v1.21.0...v1.22.0) (2026-02-04)
+
+
+### Features
+
+* add explicit command reference to agent-policy for skill-less agents ([#92](https://github.com/tmchow/hzl/issues/92)) ([d39f79f](https://github.com/tmchow/hzl/commit/d39f79f5b2c0cc738198c03010ec27d527f2b7c7))
+
 # [1.21.0](https://github.com/tmchow/hzl/compare/v1.20.1...v1.21.0) (2026-02-04)
 
 

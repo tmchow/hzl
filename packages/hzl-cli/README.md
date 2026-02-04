@@ -369,64 +369,92 @@ If your coding agent supports an instruction file (for example `CLAUDE.md`, `AGE
 ```md
 ### HZL task ledger (external task tracking)
 
-HZL is an external task database. Use it whenever external tracking would help clarity, handoff, or auditability.
-Multi-session or multi-agent work are common reasons to use HZL, not requirements.
-Use HZL for single-session, single-agent work when the task is non-trivial.
+HZL is an external task database. Use it when external tracking helps clarity, handoff, or auditability.
 
-**Prefer using HZL when:**
-- Work may outlive this session or is likely to be paused/resumed
-- You want a durable record of decisions, progress, or ownership
-- You expect handoff or review by another agent/person
-- The user asks to track work in HZL
-- The task is non-trivial (multiple steps, ~30+ minutes, or risky changes)
+**Use HZL when:**
+- Work has multiple steps or may not finish this session
+- You want durable record of progress or ownership
+- Handoff or review expected
+- Task is non-trivial (~30+ min or risky changes)
 
-**You can skip HZL when:**
-- The work is small, clearly scoped, and will be completed immediately
-- The user asks for a quick one-off answer or tiny change
+**Skip HZL when:**
+- Small, clearly scoped work completed immediately
+- Quick one-off answer or tiny change
 
-**Rule of thumb:** If you feel tempted to make a multi-step plan or there is any chance you will not finish in this session, use HZL.
-
-Example: "Investigate failing tests and fix root cause" -> use HZL because it likely involves multiple subtasks, even if you expect to finish within a session.
+**Rule of thumb:** If you're tempted to make a multi-step plan, use HZL.
 
 **Structure:**
-- **Project** = stable container (one per repo). Check `hzl project list` before creating.
-- **Task** = top-level work item (often a feature). Use `--depends-on` to sequence separate tasks.
-- **Subtask** = breakdown of a task into parts (`--parent <id>`). Max 1 level of nesting.
+- **Project** = repo name. One per repo. Always `hzl project list` first.
+- **Task** = feature or work item.
+- **Subtask** = breakdown (`--parent <id>`). Max 1 level.
 
-**⚠️ Anti-pattern: project sprawl**
+**Anti-pattern: project sprawl**
 ```bash
-hzl project create "query-perf"  # ❌ Feature ≠ project
+hzl project create "query-perf"  # Wrong: feature is not a project
 ```
-Features are parent tasks, not projects:
+Features are parent tasks:
 ```bash
-hzl task add "Query perf fixes" -P myrepo      # Parent task
-hzl task add "Fix N+1" --parent <parent-id>    # Subtask
+hzl task add "Query perf" -P myrepo           # Parent task
+hzl task add "Fix N+1" --parent <parent-id>   # Subtask
 ```
 
-**Workflow:**
-1. `hzl project list` — **Always check first. Reuse existing repo project.**
-2. Only create a project for a NEW repo (not a feature).
-3. For multi-step work: create parent task, then subtasks with `--parent`.
-4. Claim before work, checkpoint progress, complete when done.
-5. Use `--json` for scripted output.
+---
 
-**Task lifecycle:**
-- New tasks start in `backlog` (not claimable)
-- To work: `set-status <id> ready` → `claim <id>` → work → `complete <id>`
-- Or create ready: `hzl task add "..." -P project -s ready`
+**Setup:**
+```bash
+hzl project list                    # Always check first
+hzl project create <repo-name>      # Only if needed
+```
 
-**Quick commands:**
-| Action | Command |
-|--------|---------|
-| Create (ready to work) | `hzl task add "title" -P project -s ready` |
-| Create and claim | `hzl task add "title" -P project -s in_progress --assignee <name>` |
-| Create (planning) | `hzl task add "title" -P project` |
-| Claim (start work) | `hzl task claim <id>` (or `start`) |
-| Complete | `hzl task complete <id>` |
+**Adding work:**
+```bash
+hzl task add "Feature X" -P myrepo -s ready           # Ready to claim
+hzl task add "Subtask A" --parent <id>                # Subtask
+hzl task add "Subtask B" --parent <id> --depends-on <subtask-a-id>  # With dependency
+```
 
-**⚠️ DESTRUCTIVE - Never run without explicit user request:**
+**Working on a task:**
+```bash
+hzl task next -P myrepo                  # Next available task
+hzl task next --parent <id>              # Next subtask of parent
+hzl task next -P myrepo --claim          # Find and claim in one step
+hzl task claim <id>                      # Claim specific task
+hzl task checkpoint <id> "milestone X"   # Notable progress or before pausing
+```
+
+**Changing status:**
+```bash
+hzl task set-status <id> ready           # Make claimable (from backlog)
+hzl task set-status <id> backlog         # Move back to planning
+```
+Statuses: `backlog` → `ready` → `in_progress` → `done` (or `blocked`)
+
+**When blocked:**
+```bash
+hzl task block <id> --comment "Waiting for API keys from DevOps"
+hzl task unblock <id>                    # When resolved
+```
+
+**Finishing work:**
+```bash
+hzl task comment <id> "Implemented X, tested Y"  # Optional: final notes
+hzl task complete <id>
+
+# After completing a subtask, check parent:
+hzl task show <parent-id> --json         # Any subtasks left?
+hzl task complete <parent-id>            # If all done, complete parent
+```
+
+**Troubleshooting:**
+| Error | Fix |
+|-------|-----|
+| "not claimable (status: backlog)" | `hzl task set-status <id> ready` |
+| "Cannot complete: status is X" | Claim first: `hzl task claim <id>` |
+
+---
+
+**DESTRUCTIVE - Never run without explicit user request:**
 - `hzl task prune` — **PERMANENTLY DELETES** old done/archived tasks. No undo.
-- **AI agents: NEVER run prune unless the user explicitly asks to delete old tasks**
 ```
 <!-- END [code:md] docs/snippets/agent-policy.md -->
 
