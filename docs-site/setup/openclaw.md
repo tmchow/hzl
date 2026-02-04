@@ -16,7 +16,7 @@ Copy/paste this into an OpenClaw chat:
 <!-- START [code:txt] snippets/OPENCLAW-SETUP-PROMPT.md -->
 <!-- ⚠️ DO NOT EDIT - Auto-generated from snippets/OPENCLAW-SETUP-PROMPT.md -->
 ````txt
-Install HZL from https://github.com/tmchow/hzl and run hzl init. Install the HZL skill from https://www.clawhub.ai/tmchow/hzl. Then append the HZL policy from https://raw.githubusercontent.com/tmchow/hzl/main/docs/openclaw/tools-prompt.md to my TOOLS.md.
+Install HZL from https://github.com/tmchow/hzl and run hzl init. Install the HZL skill from https://www.clawhub.ai/tmchow/hzl. Then append the HZL policy from https://raw.githubusercontent.com/tmchow/hzl/main/openclaw/OPENCLAW-TOOLS-PROMPT.md to my TOOLS.md.
 ````
 <!-- END [code:txt] snippets/OPENCLAW-SETUP-PROMPT.md -->
 
@@ -37,7 +37,7 @@ If you prefer to set things up yourself:
 3. **Teach OpenClaw when to use HZL** — tell OpenClaw:
    ```
    HZL is a tool available to you for task management in certain cases. I want you to add this information to your TOOLS.md in the right way so you remember how to use it:
-   https://raw.githubusercontent.com/tmchow/hzl/main/docs/openclaw/tools-prompt.md
+   https://raw.githubusercontent.com/tmchow/hzl/main/openclaw/OPENCLAW-TOOLS-PROMPT.md
    ```
 
 ## Sandbox Configuration

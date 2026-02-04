@@ -42,6 +42,58 @@ hzl task add "Implement auth flow per design" -P myapp \
 
 Agents can read linked files for context while the task stays actionable.
 
+## Parent Tasks and Subtasks
+
+HZL supports one level of task hierarchy: **parent tasks** contain **subtasks**.
+
+### Structure
+
+- **Project** = repository or workspace. One per repo. Always check `hzl project list` first.
+- **Task** = feature or work item (can be a parent task)
+- **Subtask** = breakdown of a parent (`--parent <id>`). Max 1 level deep.
+
+### Anti-pattern: Project Sprawl
+
+Don't create a new project for every feature:
+
+```bash
+# Wrong: feature is not a project
+hzl project create "query-perf"
+```
+
+Features should be parent tasks within a single project:
+
+```bash
+# Correct: parent task for the feature
+hzl task add "Query perf" -P myrepo
+
+# Subtasks break down the work
+hzl task add "Fix N+1 queries" --parent <parent-id>
+hzl task add "Add query caching" --parent <parent-id>
+```
+
+### Creating Subtasks
+
+Use `--parent` to create a subtask:
+
+```bash
+hzl task add "Subtask A" --parent <id>
+hzl task add "Subtask B" --parent <id> --depends-on <subtask-a-id>
+```
+
+### Working with Subtasks
+
+```bash
+# Get next available subtask of a parent
+hzl task next --parent <id>
+
+# After completing a subtask, check the parent
+hzl task show <parent-id> --json    # Any subtasks left?
+hzl task complete <parent-id>       # Complete parent when all subtasks done
+```
+
+See [Subtasks](subtasks.md) for more patterns and examples.
+
 ## Task Statuses
 
 Tasks move through these statuses:
@@ -61,39 +113,16 @@ Note: `blocked` is different from dependency blocking. A task with unmet depende
 Before working on a task, claim it (you can also use `hzl task start` as an alias):
 
 ```bash
-hzl task claim <id> --author "Claude Code"
+hzl task claim <id> --assignee "Claude Code"
 ```
 
-The `--author` flag identifies who's working on the task. This becomes the task's **assignee**.
+The `--assignee` flag identifies who's working on the task.
 
 For AI agents that need session tracking, add `--agent-id`:
 
 ```bash
-hzl task claim 1 --author "Claude Code" --agent-id "session-xyz"
+hzl task claim 1 --assignee "Claude Code" --agent-id "session-xyz"
 ```
-
-## Tracking Who Did What
-
-HZL tracks authorship at two levels:
-
-| Concept | What it tracks | Set by |
-|---------|----------------|--------|
-| **Assignee** | Who owns the task | `--author` or `--agent-id` on `claim` |
-| **Event author** | Who performed an action | `--author` on any command |
-
-The `--author` flag appears on many commands (checkpoint, comment, block, etc.) to record who performed each action:
-
-```bash
-# Task owned by Alice
-hzl task claim 1 --author "Alice"
-
-# Bob adds a checkpoint (doesn't change ownership)
-hzl task checkpoint 1 "Fixed the bug" --author "Bob"
-
-# The task is still assigned to Alice, but the checkpoint was recorded by Bob
-```
-
-This separation lets you track contributions even when someone else owns the task.
 
 ### Why Claim?
 
@@ -235,7 +264,7 @@ Archived tasks are hidden from normal lists but preserved in history.
 hzl task add "Build login form" -P auth
 
 # Claim it
-hzl task claim 1 --author claude-code
+hzl task claim 1 --assignee claude-code
 
 # Record progress
 hzl task checkpoint 1 "Form HTML complete, adding validation"
@@ -272,7 +301,7 @@ See [Pruning](pruning.md) for detailed guidance on when and how to prune.
 1. **Keep tasks small** - 1-2 hours of focused work
 2. **Use descriptive titles** - Future you will thank you
 3. **Checkpoint frequently** - Preserve context
-4. **Always identify yourself** - Use `--author` or `--agent-id` to track who did what
+4. **Always identify yourself** - Use `--assignee` or `--agent-id` to track who did what
 5. **Block when stuck** - Use `hzl task block` instead of leaving tasks in limbo
 6. **Complete or archive** - Don't leave tasks hanging
 7. **Prune periodically** - Clean up old done/archived tasks to keep the database lean

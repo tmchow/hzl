@@ -40,7 +40,7 @@ Built-in task tracking (if available) is fine for single-session work you'll com
 **Key commands:**
 - `hzl project create <name>` — Create a project
 - `hzl task add "<title>" -P <project>` — Add a task
-- `hzl task claim <id> --author <name>` — Claim a task
+- `hzl task claim <id> --assignee <name>` — Claim a task
 - `hzl task checkpoint <id> "<message>"` — Record progress
 - `hzl task complete <id>` — Mark done
 - `hzl task next --project <project>` — Get next available task

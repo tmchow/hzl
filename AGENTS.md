@@ -240,7 +240,7 @@ The documentation is organized into three folders:
 | `snippets/AGENT-POLICY.md` | Minimal policy (when to use HZL) | Embedded in AGENTS.md via markers |
 | `snippets/HZL-GUIDE.md` | Full workflow guide | Via `hzl guide` command |
 | `skills/hzl/SKILL.md` | Advanced topics | On-demand (skill invocation) |
-| `docs-site/openclaw/tools-prompt.md` | OpenClaw-specific | OpenClaw context |
+| `openclaw/OPENCLAW-TOOLS-PROMPT.md` | OpenClaw-specific | OpenClaw context |
 
 Agents get the minimal HZL policy in AGENTS.md (via snippet markers), then run `hzl guide` for full workflow documentation.
 
@@ -306,7 +306,7 @@ When adding or modifying CLI commands, flags, or workflows, update **all** of th
 | **README** | `README.md` | CLI reference section |
 | **Agent policy snippet** | `snippets/AGENT-POLICY.md` | Key commands list |
 | **Claude Code / Codex skill** | `skills/hzl/SKILL.md` | Scenarios, examples, command reference |
-| **OpenClaw skill** | `docs-site/openclaw/skills/hzl/SKILL.md` | Quick reference, patterns, examples |
+| **OpenClaw skill** | `openclaw/skills/hzl/SKILL.md` | Quick reference, patterns, examples |
 | **Docs site - Tasks** | `docs-site/concepts/tasks.md` | Task creation flags, update options, workflows |
 | **Docs site - Other** | `docs-site/concepts/*.md` | Check if other concept pages are affected |
 
