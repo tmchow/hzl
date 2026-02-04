@@ -121,23 +121,54 @@ HZL includes a basic [Kanban dashboard](#web-dashboard) for human visibility. Fo
 
 ## Quickstart
 
-### Install
+### 1. Install HZL
 
 Requires Node.js 22.14+.
 
-#### Via Homebrew (macOS/Linux)
-
 ```bash
-brew tap tmchow/hzl
-brew install hzl
+curl -fsSL "https://raw.githubusercontent.com/tmchow/hzl/main/scripts/install.sh?$(date +%s)" | bash
 ```
 
-#### Via NPM
+This installs the CLI, initializes the database, and sets up Claude Code/Codex integrations (if detected).
+
+<details>
+<summary>Alternative install methods</summary>
+
+**Via Homebrew (macOS/Linux):**
+```bash
+brew tap tmchow/hzl && brew install hzl && hzl init
+```
+
+**Via NPM:**
+```bash
+npm install -g hzl-cli && hzl init
+```
+
+**Then set up agent integrations:**
+
+*Claude Code (run in Claude Code):*
+```
+/plugin marketplace add tmchow/hzl
+/plugin install hzl@hzl
+```
+
+*Codex:*
+```bash
+mkdir -p ~/.codex/skills/hzl
+curl -fsSL https://raw.githubusercontent.com/tmchow/hzl/main/skills/hzl/SKILL.md -o ~/.codex/skills/hzl/SKILL.md
+```
+
+</details>
+
+### 2. Add HZL to your project
+
+Run this in your repo to append the agent policy to your AGENTS.md (or CLAUDE.md, GEMINI.md):
 
 ```bash
-npm install -g hzl-cli
-hzl init
+curl -fsSL https://raw.githubusercontent.com/tmchow/hzl/main/snippets/AGENT-POLICY.md >> AGENTS.md
 ```
+
+This teaches your coding agent when to use HZL.
 
 ### Enable Cloud Sync (Optional)
 

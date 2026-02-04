@@ -1,21 +1,41 @@
 ## Installation
 
+### One-liner (recommended)
+
+Installs HZL CLI, initializes the database, and sets up Claude Code/Codex integrations (if detected):
+
+```bash
+curl -fsSL "https://raw.githubusercontent.com/tmchow/hzl/main/scripts/install.sh?$(date +%s)" | bash
+```
+
+### Manual install
+
 ```bash
 # Via npm
 npm install -g hzl-cli
+hzl init
 
 # Via Homebrew (macOS/Linux)
 brew tap tmchow/hzl
 brew install hzl
-```
-
-## Initialize
-
-```bash
 hzl init
 ```
 
 This creates a local SQLite database for task storage. By default, data lives in `~/.local/share/hzl/` (XDG Base Directory spec).
+
+**Then set up agent integrations:**
+
+*Claude Code (run in Claude Code):*
+```
+/plugin marketplace add tmchow/hzl
+/plugin install hzl@hzl
+```
+
+*Codex:*
+```bash
+mkdir -p ~/.codex/skills/hzl
+curl -fsSL https://raw.githubusercontent.com/tmchow/hzl/main/skills/hzl/SKILL.md -o ~/.codex/skills/hzl/SKILL.md
+```
 
 ## Add HZL to Your Agent's Instructions
 
