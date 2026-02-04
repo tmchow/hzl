@@ -556,7 +556,7 @@ hzl task progress <id> <value>                # Set progress (0-100)
 hzl task complete <id>                        # Mark done
 
 # Status management
-hzl task block <id> --reason "<why>"          # Mark task as blocked
+hzl task block <id> --comment "<context>"     # Mark task as blocked
 hzl task unblock <id>                         # Unblock a task (returns to in_progress)
 
 # Coordination

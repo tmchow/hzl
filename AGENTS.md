@@ -41,6 +41,20 @@ hzl task add "Fix N+1" --parent <parent-id>    # Subtask
 4. Claim before work, checkpoint progress, complete when done.
 5. Use `--json` for scripted output.
 
+**Task lifecycle:**
+- New tasks start in `backlog` (not claimable)
+- To work: `set-status <id> ready` → `claim <id>` → work → `complete <id>`
+- Or create ready: `hzl task add "..." -P project -s ready`
+
+**Quick commands:**
+| Action | Command |
+|--------|---------|
+| Create (ready to work) | `hzl task add "title" -P project -s ready` |
+| Create and claim | `hzl task add "title" -P project -s in_progress --assignee <name>` |
+| Create (planning) | `hzl task add "title" -P project` |
+| Claim | `hzl task claim <id> --assignee <name>` |
+| Complete | `hzl task complete <id>` |
+
 **⚠️ DESTRUCTIVE - Never run without explicit user request:**
 - `hzl task prune` — **PERMANENTLY DELETES** old done/archived tasks. No undo.
 - **AI agents: NEVER run prune unless the user explicitly asks to delete old tasks**

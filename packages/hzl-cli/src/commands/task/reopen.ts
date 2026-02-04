@@ -14,7 +14,7 @@ export interface ReopenResult {
 
 interface ReopenCommandOptions {
   status?: string;
-  reason?: string;
+  comment?: string;
   author?: string;
 }
 
@@ -22,13 +22,13 @@ export function runReopen(options: {
   services: Services;
   taskId: string;
   toStatus?: TaskStatus.Ready | TaskStatus.Backlog;
-  reason?: string;
+  comment?: string;
   author?: string;
   json: boolean;
 }): ReopenResult {
-  const { services, taskId, toStatus, reason, author, json } = options;
+  const { services, taskId, toStatus, comment, author, json } = options;
 
-  const task = services.taskService.reopenTask(taskId, { to_status: toStatus, reason, author });
+  const task = services.taskService.reopenTask(taskId, { to_status: toStatus, comment, author });
 
   const result: ReopenResult = {
     task_id: task.task_id,
@@ -41,7 +41,7 @@ export function runReopen(options: {
   } else {
     console.log(`✓ Reopened task ${task.task_id}: ${task.title}`);
     console.log(`  Status: ${task.status}`);
-    if (reason) console.log(`  Reason: ${reason}`);
+    if (comment) console.log(`  Comment: ${comment}`);
   }
 
   return result;
@@ -52,7 +52,7 @@ export function createReopenCommand(): Command {
     .description('Reopen a done or archived task')
     .argument('<taskId>', 'Task ID')
     .option('-s, --status <status>', 'Target status (ready or backlog)', 'ready')
-    .option('--reason <reason>', 'Reopen reason')
+    .option('--comment <comment>', 'Comment explaining the reopen')
     .option('--author <name>', 'Author name')
     .action(function (this: Command, taskId: string, opts: ReopenCommandOptions) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
@@ -64,7 +64,7 @@ export function createReopenCommand(): Command {
           services,
           taskId,
           toStatus,
-          reason: opts.reason,
+          comment: opts.comment,
           author: opts.author,
           json: globalOpts.json ?? false,
         });

@@ -2,8 +2,9 @@
 import { Command } from 'commander';
 import { resolveDbPaths } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
-import { handleError } from '../../errors.js';
+import { CLIError, ExitCode, handleError } from '../../errors.js';
 import { GlobalOptionsSchema } from '../../types.js';
+import { TaskStatus } from 'hzl-core/events/types.js';
 
 export interface CompleteResult {
   task_id: string;
@@ -22,6 +23,15 @@ export function runComplete(options: {
   json: boolean;
 }): CompleteResult {
   const { services, taskId, author, json } = options;
+
+  // Check task status before completing to provide actionable error
+  const existingTask = services.taskService.getTaskById(taskId);
+  if (existingTask && existingTask.status !== TaskStatus.InProgress && existingTask.status !== TaskStatus.Blocked) {
+    throw new CLIError(
+      `Cannot complete task ${taskId} (status: ${existingTask.status})\nHint: Claim the task first to start working on it`,
+      ExitCode.InvalidInput
+    );
+  }
 
   const task = services.taskService.completeTask(taskId, { author });
 

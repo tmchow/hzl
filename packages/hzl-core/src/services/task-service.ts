@@ -24,6 +24,10 @@ export interface CreateTaskInput {
   due_at?: string;
   metadata?: Record<string, unknown>;
   assignee?: string;
+  /** Initial status for the task (defaults to Backlog) */
+  initial_status?: TaskStatus;
+  /** Comment to add when creating with initial_status (e.g. block reason) */
+  comment?: string;
 }
 
 export interface EventContext {
@@ -255,6 +259,23 @@ export class TaskService {
     `);
   }
 
+  private emitComment(taskId: string, text: string, ctx?: EventContext): void {
+    // Validate comment text - same validation as addComment
+    if (!text?.trim()) return; // Silently skip empty/whitespace comments
+
+    const event = this.eventStore.append({
+      task_id: taskId,
+      type: EventType.CommentAdded,
+      data: { text: text.trim() },
+      author: ctx?.author,
+      agent_id: ctx?.agent_id,
+      session_id: ctx?.session_id,
+      correlation_id: ctx?.correlation_id,
+      causation_id: ctx?.causation_id,
+    });
+    this.projectionEngine.applyEvent(event);
+  }
+
   createTask(input: CreateTaskInput, ctx?: EventContext): Task {
     if (this.projectService) {
       this.projectService.requireProject(input.project);
@@ -303,6 +324,31 @@ export class TaskService {
       });
 
       this.projectionEngine.applyEvent(event);
+
+      // Handle initial_status if different from Backlog
+      if (input.initial_status && input.initial_status !== TaskStatus.Backlog) {
+        const statusData: StatusChangedData = {
+          from: TaskStatus.Backlog,
+          to: input.initial_status,
+        };
+
+        // Emit StatusChanged event - author becomes assignee via projection for in_progress
+        const statusEvent = this.eventStore.append({
+          task_id: taskId,
+          type: EventType.StatusChanged,
+          data: statusData,
+          author: ctx?.author,
+          agent_id: ctx?.agent_id,
+          session_id: ctx?.session_id,
+          correlation_id: ctx?.correlation_id,
+          causation_id: ctx?.causation_id,
+        });
+        this.projectionEngine.applyEvent(statusEvent);
+      }
+
+      // Emit comment for any task creation if provided
+      if (input.comment) this.emitComment(taskId, input.comment, ctx);
+
       return this.getTaskById(taskId);
     });
 
@@ -541,7 +587,7 @@ export class TaskService {
     });
   }
 
-  releaseTask(taskId: string, opts?: { reason?: string } & EventContext): Task {
+  releaseTask(taskId: string, opts?: { comment?: string } & EventContext): Task {
     return withWriteTransaction(this.db, () => {
       const task = this.getTaskById(taskId);
       if (!task) throw new TaskNotFoundError(taskId);
@@ -552,17 +598,21 @@ export class TaskService {
       const event = this.eventStore.append({
         task_id: taskId,
         type: EventType.StatusChanged,
-        data: { from: TaskStatus.InProgress, to: TaskStatus.Ready, reason: opts?.reason },
+        data: { from: TaskStatus.InProgress, to: TaskStatus.Ready },
         author: opts?.author,
         agent_id: opts?.agent_id,
       });
 
       this.projectionEngine.applyEvent(event);
+
+      // If a comment was provided, emit CommentAdded event
+      if (opts?.comment) this.emitComment(taskId, opts.comment, opts);
+
       return this.getTaskById(taskId)!;
     });
   }
 
-  archiveTask(taskId: string, opts?: { reason?: string } & EventContext): Task {
+  archiveTask(taskId: string, opts?: { comment?: string } & EventContext): Task {
     return withWriteTransaction(this.db, () => {
       const task = this.getTaskById(taskId);
       if (!task) throw new TaskNotFoundError(taskId);
@@ -573,17 +623,21 @@ export class TaskService {
       const event = this.eventStore.append({
         task_id: taskId,
         type: EventType.TaskArchived,
-        data: { reason: opts?.reason },
+        data: {},
         author: opts?.author,
         agent_id: opts?.agent_id,
       });
 
       this.projectionEngine.applyEvent(event);
+
+      // If a comment was provided, emit CommentAdded event
+      if (opts?.comment) this.emitComment(taskId, opts.comment, opts);
+
       return this.getTaskById(taskId)!;
     });
   }
 
-  reopenTask(taskId: string, opts?: { to_status?: TaskStatus.Ready | TaskStatus.Backlog; reason?: string } & EventContext): Task {
+  reopenTask(taskId: string, opts?: { to_status?: TaskStatus.Ready | TaskStatus.Backlog; comment?: string } & EventContext): Task {
     return withWriteTransaction(this.db, () => {
       const task = this.getTaskById(taskId);
       if (!task) throw new TaskNotFoundError(taskId);
@@ -596,37 +650,48 @@ export class TaskService {
       const event = this.eventStore.append({
         task_id: taskId,
         type: EventType.StatusChanged,
-        data: { from: TaskStatus.Done, to: toStatus, reason: opts?.reason },
+        data: { from: TaskStatus.Done, to: toStatus },
         author: opts?.author,
         agent_id: opts?.agent_id,
       });
 
       this.projectionEngine.applyEvent(event);
+
+      // If a comment was provided, emit CommentAdded event
+      if (opts?.comment) this.emitComment(taskId, opts.comment, opts);
+
       return this.getTaskById(taskId)!;
     });
   }
 
   /**
    * Block a task that is stuck waiting for external dependencies.
-   * Only tasks in 'in_progress' status can be blocked.
+   * Tasks in 'in_progress' or 'blocked' status can be blocked.
+   * Calling on an already blocked task can add a new comment.
    */
-  blockTask(taskId: string, opts?: { reason?: string } & EventContext): Task {
+  blockTask(taskId: string, opts?: { comment?: string } & EventContext): Task {
     return withWriteTransaction(this.db, () => {
       const task = this.getTaskById(taskId);
       if (!task) throw new TaskNotFoundError(taskId);
-      if (task.status !== TaskStatus.InProgress) {
-        throw new Error(`Cannot block: status is ${task.status}, expected in_progress`);
+
+      // Allow blocked → blocked to add comments
+      if (task.status !== TaskStatus.InProgress && task.status !== TaskStatus.Blocked) {
+        throw new Error(`Cannot block: status is ${task.status}, expected in_progress or blocked`);
       }
 
       const event = this.eventStore.append({
         task_id: taskId,
         type: EventType.StatusChanged,
-        data: { from: TaskStatus.InProgress, to: TaskStatus.Blocked, reason: opts?.reason },
+        data: { from: task.status, to: TaskStatus.Blocked },
         author: opts?.author,
         agent_id: opts?.agent_id,
       });
 
       this.projectionEngine.applyEvent(event);
+
+      // If a comment was provided, emit CommentAdded event
+      if (opts?.comment) this.emitComment(taskId, opts.comment, opts);
+
       return this.getTaskById(taskId)!;
     });
   }
@@ -635,7 +700,7 @@ export class TaskService {
    * Unblock a blocked task, returning it to work.
    * By default returns to 'in_progress', use release=true to return to 'ready'.
    */
-  unblockTask(taskId: string, opts?: { release?: boolean; reason?: string } & EventContext): Task {
+  unblockTask(taskId: string, opts?: { release?: boolean; comment?: string } & EventContext): Task {
     return withWriteTransaction(this.db, () => {
       const task = this.getTaskById(taskId);
       if (!task) throw new TaskNotFoundError(taskId);
@@ -648,12 +713,16 @@ export class TaskService {
       const event = this.eventStore.append({
         task_id: taskId,
         type: EventType.StatusChanged,
-        data: { from: TaskStatus.Blocked, to: toStatus, reason: opts?.reason },
+        data: { from: TaskStatus.Blocked, to: toStatus },
         author: opts?.author,
         agent_id: opts?.agent_id,
       });
 
       this.projectionEngine.applyEvent(event);
+
+      // If a comment was provided, emit CommentAdded event
+      if (opts?.comment) this.emitComment(taskId, opts.comment, opts);
+
       return this.getTaskById(taskId)!;
     });
   }
@@ -1261,10 +1330,10 @@ export class TaskService {
     opts: {
       cascade?: boolean;
       orphan?: boolean;
-      reason?: string;
+      comment?: string;
     } & EventContext = {}
   ): { task: Task; archivedSubtaskCount: number; orphanedSubtaskCount: number } {
-    const { cascade, orphan, reason, ...ctx } = opts;
+    const { cascade, orphan, comment, ...ctx } = opts;
 
     if (cascade && orphan) {
       throw new Error('Cannot use both cascade and orphan options');
@@ -1300,7 +1369,7 @@ export class TaskService {
           const archiveEvent = this.eventStore.append({
             task_id: subtask.task_id,
             type: EventType.TaskArchived,
-            data: { reason },
+            data: {},
             author: ctx.author,
             agent_id: ctx.agent_id,
           });
@@ -1328,11 +1397,14 @@ export class TaskService {
       const archiveEvent = this.eventStore.append({
         task_id: taskId,
         type: EventType.TaskArchived,
-        data: { reason },
+        data: {},
         author: ctx.author,
         agent_id: ctx.agent_id,
       });
       this.projectionEngine.applyEvent(archiveEvent);
+
+      // If a comment was provided, emit CommentAdded event for the parent task
+      if (comment) this.emitComment(taskId, comment, ctx);
 
       return {
         task: this.getTaskById(taskId)!,

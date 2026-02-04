@@ -90,7 +90,7 @@ describe('CLI Integration Tests', () => {
       const afterReady = hzlJson<{ task: { status: string } }>(ctx, `task show ${taskId}`);
       expect(afterReady.task.status).toBe('ready');
 
-      hzlJson(ctx, `task claim ${taskId} --author agent-1 --lease 30`);
+      hzlJson(ctx, `task claim ${taskId} --assignee agent-1 --lease 30`);
       const afterClaim = hzlJson<{ task: { status: string; assignee: string | null } }>(
         ctx,
         `task show ${taskId}`
@@ -102,7 +102,7 @@ describe('CLI Integration Tests', () => {
       const afterComplete = hzlJson<{ task: { status: string } }>(ctx, `task show ${taskId}`);
       expect(afterComplete.task.status).toBe('done');
 
-      hzlJson(ctx, `task archive ${taskId} --reason done --author agent-1`);
+      hzlJson(ctx, `task archive ${taskId} --comment done --author agent-1`);
       const afterArchive = hzlJson<{ task: { status: string } }>(ctx, `task show ${taskId}`);
       expect(afterArchive.task.status).toBe('archived');
     });
@@ -134,7 +134,7 @@ describe('CLI Integration Tests', () => {
       const next1 = hzlJson<{ task_id: string }>(ctx, 'task next --project inbox');
       expect(next1.task_id).toBe(dep.task_id);
 
-      hzlJson(ctx, `task claim ${dep.task_id} --author agent-1`);
+      hzlJson(ctx, `task claim ${dep.task_id} --assignee agent-1`);
       hzlJson(ctx, `task complete ${dep.task_id} --author agent-1`);
 
       const next2 = hzlJson<{ task_id: string }>(ctx, 'task next --project inbox');
@@ -286,7 +286,7 @@ describe('CLI Integration Tests', () => {
     it('shows full event history for a task', () => {
       const task = addTask('inbox', 'Test task');
       hzlJson(ctx, `task set-status ${task.task_id} ready`);
-      hzlJson(ctx, `task claim ${task.task_id} --author agent-1`);
+      hzlJson(ctx, `task claim ${task.task_id} --assignee agent-1`);
       hzlJson(ctx, `task comment ${task.task_id} "Working on it"`);
       hzlJson(ctx, `task complete ${task.task_id} --author agent-1`);
 
@@ -311,9 +311,9 @@ describe('CLI Integration Tests', () => {
 
       hzlJson(ctx, `task set-status ${t2.task_id} ready`);
       hzlJson(ctx, `task set-status ${t3.task_id} ready`);
-      hzlJson(ctx, `task claim ${t3.task_id} --author agent-1`);
+      hzlJson(ctx, `task claim ${t3.task_id} --assignee agent-1`);
       hzlJson(ctx, `task set-status ${t4.task_id} ready`);
-      hzlJson(ctx, `task claim ${t4.task_id} --author agent-1`);
+      hzlJson(ctx, `task claim ${t4.task_id} --assignee agent-1`);
       hzlJson(ctx, `task complete ${t4.task_id} --author agent-1`);
 
       const stats = hzlJson<{ by_status: Record<string, number> }>(ctx, 'stats --project inbox');
@@ -364,7 +364,7 @@ describe('CLI Integration Tests', () => {
     it('releases a claimed task back to ready', () => {
       const task = addTask('inbox', 'Task to release');
       hzlJson(ctx, `task set-status ${task.task_id} ready`);
-      hzlJson(ctx, `task claim ${task.task_id} --author agent-1`);
+      hzlJson(ctx, `task claim ${task.task_id} --assignee agent-1`);
 
       const released = hzlJson<{ status: string; assignee: string | null }>(
         ctx,
@@ -378,7 +378,7 @@ describe('CLI Integration Tests', () => {
     it('reopens a done task', () => {
       const task = addTask('inbox', 'Task to reopen');
       hzlJson(ctx, `task set-status ${task.task_id} ready`);
-      hzlJson(ctx, `task claim ${task.task_id} --author agent-1`);
+      hzlJson(ctx, `task claim ${task.task_id} --assignee agent-1`);
       hzlJson(ctx, `task complete ${task.task_id} --author agent-1`);
 
       const reopened = hzlJson<{ status: string }>(ctx, `task reopen ${task.task_id}`);
@@ -390,7 +390,7 @@ describe('CLI Integration Tests', () => {
     it('steals a task with force flag', () => {
       const task = addTask('inbox', 'Task to steal');
       hzlJson(ctx, `task set-status ${task.task_id} ready`);
-      hzlJson(ctx, `task claim ${task.task_id} --author agent-1 --lease 60`);
+      hzlJson(ctx, `task claim ${task.task_id} --assignee agent-1 --lease 60`);
 
       const stolen = hzlJson<{ assignee: string | null }>(
         ctx,

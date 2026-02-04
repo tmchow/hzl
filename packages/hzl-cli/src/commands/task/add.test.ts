@@ -143,4 +143,81 @@ describe('runAdd', () => {
       json: false,
     })).toThrow(/max.*level|cannot create subtask of a subtask/i);
   });
+
+  describe('status flag', () => {
+    it('creates task with -s ready', () => {
+      const result = runAdd({
+        services,
+        project: 'inbox',
+        title: 'Ready task',
+        status: 'ready',
+        json: false,
+      });
+
+      const task = services.taskService.getTaskById(result.task_id);
+      expect(task?.status).toBe('ready');
+    });
+
+    it('creates task with -s in_progress and sets assignee', () => {
+      const result = runAdd({
+        services,
+        project: 'inbox',
+        title: 'In progress task',
+        status: 'in_progress',
+        assignee: 'agent-1',
+        json: false,
+      });
+
+      const task = services.taskService.getTaskById(result.task_id);
+      expect(task?.status).toBe('in_progress');
+      expect(task?.assignee).toBe('agent-1');
+    });
+
+    it('creates task with -s blocked and --comment', () => {
+      const result = runAdd({
+        services,
+        project: 'inbox',
+        title: 'Blocked task',
+        status: 'blocked',
+        comment: 'Waiting for API keys',
+        json: false,
+      });
+
+      const task = services.taskService.getTaskById(result.task_id);
+      expect(task?.status).toBe('blocked');
+    });
+
+    it('creates task with -s blocked without --comment (optional)', () => {
+      const result = runAdd({
+        services,
+        project: 'inbox',
+        title: 'Blocked task',
+        status: 'blocked',
+        json: false,
+      });
+
+      const task = services.taskService.getTaskById(result.task_id);
+      expect(task?.status).toBe('blocked');
+    });
+
+    it('errors on invalid status', () => {
+      expect(() => runAdd({
+        services,
+        project: 'inbox',
+        title: 'Task',
+        status: 'invalid',
+        json: false,
+      })).toThrow(/invalid status/i);
+    });
+
+    it('errors on archived status with helpful message', () => {
+      expect(() => runAdd({
+        services,
+        project: 'inbox',
+        title: 'Task',
+        status: 'archived',
+        json: false,
+      })).toThrow(/cannot create task as archived.*use -s done/i);
+    });
+  });
 });

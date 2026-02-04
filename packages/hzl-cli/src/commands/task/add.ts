@@ -25,6 +25,9 @@ export interface AddOptions {
   priority?: number;
   dependsOn?: string[];
   parent?: string;
+  status?: string;
+  assignee?: string;
+  comment?: string;
   json: boolean;
 }
 
@@ -35,11 +38,41 @@ interface AddCommandOptions {
   priority?: string;
   dependsOn?: string;
   parent?: string;
+  status?: string;
+  assignee?: string;
+  comment?: string;
 }
 
 export function runAdd(options: AddOptions): AddResult {
-  const { services, title, description, tags, priority, dependsOn, parent, json } = options;
+  const { services, title, description, tags, priority, dependsOn, parent, status, assignee, comment, json } = options;
   let project = options.project;
+
+  // Validate status flag
+  let initialStatus: TaskStatus | undefined;
+  if (status) {
+    const statusLower = status.toLowerCase();
+    const validStatuses = ['backlog', 'ready', 'in_progress', 'blocked', 'done'];
+    const statusMap: Record<string, TaskStatus> = {
+      backlog: TaskStatus.Backlog,
+      ready: TaskStatus.Ready,
+      in_progress: TaskStatus.InProgress,
+      blocked: TaskStatus.Blocked,
+      done: TaskStatus.Done,
+    };
+
+    // Check for archived first - provide helpful message before generic validation
+    if (statusLower === 'archived') {
+      throw new CLIError('Cannot create task as archived. Use -s done, then archive separately.', ExitCode.InvalidInput);
+    }
+
+    if (!validStatuses.includes(statusLower)) {
+      throw new CLIError(`Invalid status: ${status}. Valid: ${validStatuses.join(', ')}`, ExitCode.InvalidInput);
+    }
+
+    // Note: --comment is optional but encouraged for blocked status
+
+    initialStatus = statusMap[statusLower];
+  }
 
   // Validate parent and inherit project
   if (parent) {
@@ -68,6 +101,10 @@ export function runAdd(options: AddOptions): AddResult {
     priority,
     depends_on: dependsOn,
     parent_id: parent,
+    initial_status: initialStatus,
+    comment,
+  }, {
+    author: assignee,
   });
 
   const result: AddResult = {
@@ -99,6 +136,9 @@ export function createAddCommand(): Command {
     .option('-p, --priority <n>', 'Priority (0-3)', '0')
     .option('--depends-on <ids>', 'Comma-separated task IDs this depends on')
     .option('--parent <taskId>', 'Parent task ID (creates subtask, inherits project)')
+    .option('-s, --status <status>', 'Initial status (backlog, ready, in_progress, blocked, done)')
+    .option('--assignee <name>', 'Who to assign the task to (for -s in_progress)')
+    .option('--comment <comment>', 'Comment explaining the status (recommended for blocked)')
     .action(function (this: Command, title: string, opts: AddCommandOptions) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
@@ -113,6 +153,9 @@ export function createAddCommand(): Command {
           priority: parseInt(opts.priority ?? '0', 10),
           dependsOn: opts.dependsOn?.split(','),
           parent: opts.parent,
+          status: opts.status,
+          assignee: opts.assignee,
+          comment: opts.comment,
           json: globalOpts.json ?? false,
         });
       } catch (e) {

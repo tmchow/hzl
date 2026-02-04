@@ -146,10 +146,10 @@ describe('Projection Rebuild Equivalence Tests', () => {
 
       taskService.setStatus(tasks[1], TaskStatus.Ready);
       taskService.claimTask(tasks[1], { author: 'agent-2' });
-      taskService.releaseTask(tasks[1], { reason: 'Blocked' });
+      taskService.releaseTask(tasks[1], { comment: 'Blocked' });
       taskService.claimTask(tasks[1], { author: 'agent-3' });
 
-      taskService.archiveTask(tasks[5], { reason: 'No longer needed' });
+      taskService.archiveTask(tasks[5], { comment: 'No longer needed' });
 
       const originalState = captureProjectionState(db);
 

@@ -38,7 +38,7 @@ describe('runArchive', () => {
     expect(result.status).toBe(TaskStatus.Archived);
   });
 
-  it('accepts a reason', () => {
+  it('accepts a comment', () => {
     const task = services.taskService.createTask({ title: 'Test', project: 'inbox' });
     services.taskService.setStatus(task.task_id, TaskStatus.Ready);
     services.taskService.claimTask(task.task_id);
@@ -47,7 +47,7 @@ describe('runArchive', () => {
     const result = runArchive({
       services,
       taskId: task.task_id,
-      reason: 'project cancelled',
+      comment: 'project cancelled',
       json: false,
     });
 

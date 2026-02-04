@@ -13,20 +13,20 @@ export interface ReleaseResult {
 }
 
 interface ReleaseCommandOptions {
-  reason?: string;
+  comment?: string;
   author?: string;
 }
 
 export function runRelease(options: {
   services: Services;
   taskId: string;
-  reason?: string;
+  comment?: string;
   author?: string;
   json: boolean;
 }): ReleaseResult {
-  const { services, taskId, reason, author, json } = options;
+  const { services, taskId, comment, author, json } = options;
 
-  const task = services.taskService.releaseTask(taskId, { reason, author });
+  const task = services.taskService.releaseTask(taskId, { comment, author });
 
   const result: ReleaseResult = {
     task_id: task.task_id,
@@ -39,7 +39,7 @@ export function runRelease(options: {
     console.log(JSON.stringify(result));
   } else {
     console.log(`✓ Released task ${task.task_id}: ${task.title}`);
-    if (reason) console.log(`  Reason: ${reason}`);
+    if (comment) console.log(`  Comment: ${comment}`);
   }
 
   return result;
@@ -49,7 +49,7 @@ export function createReleaseCommand(): Command {
   return new Command('release')
     .description('Release a claimed task')
     .argument('<taskId>', 'Task ID')
-    .option('--reason <reason>', 'Release reason')
+    .option('--comment <comment>', 'Comment explaining the release')
     .option('--author <name>', 'Author name')
     .action(function (this: Command, taskId: string, opts: ReleaseCommandOptions) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
@@ -59,7 +59,7 @@ export function createReleaseCommand(): Command {
         runRelease({
           services,
           taskId,
-          reason: opts.reason,
+          comment: opts.comment,
           author: opts.author,
           json: globalOpts.json ?? false,
         });

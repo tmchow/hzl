@@ -106,7 +106,7 @@ Progress is shown in `hzl task show` and the web dashboard.
 When a task is stuck waiting on external factors, mark it blocked:
 
 ```bash
-hzl task block <id> --reason "Waiting for API credentials"
+hzl task block <id> --comment "Blocked: waiting for API credentials from DevOps"
 ```
 
 Blocked tasks:

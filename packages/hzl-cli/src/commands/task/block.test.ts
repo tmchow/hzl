@@ -31,7 +31,7 @@ describe('runBlock', () => {
     const result = runBlock({
       services,
       taskId: task.task_id,
-      reason: 'Waiting for API keys',
+      comment: 'Waiting for API keys',
       json: false,
     });
 

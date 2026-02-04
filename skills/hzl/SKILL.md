@@ -228,21 +228,38 @@ Always use `--json` for structured output that can be parsed programmatically.
 
 ```bash
 # Claim by ID
-hzl task claim <task-id> --author <agent-name>
+hzl task claim <task-id> --assignee <agent-name>
 
 # Or claim the next available task
-hzl task next --project myapp --claim --author <agent-name>
+hzl task next --project myapp --claim --assignee <agent-name>
 ```
 
-Use `--author` to identify which agent owns the task. This enables tracking who is working on what.
+Use `--assignee` to identify who owns the task. This enables tracking who is working on what.
 
 For long-running work, use leases:
 
 ```bash
-hzl task claim <task-id> --author <agent-name> --lease 30
+hzl task claim <task-id> --assignee <agent-name> --lease 30
 ```
 
 The lease (in minutes) indicates how long before the task is considered stuck.
+
+### Create and claim in one step
+
+You can create a task and immediately set its status:
+
+```bash
+# Create task ready to claim
+hzl task add "Fix bug" -P myapp -s ready
+
+# Create and immediately claim
+hzl task add "Fix bug" -P myapp -s in_progress --assignee <agent-name>
+
+# Create blocked task with reason
+hzl task add "API integration" -P myapp -s blocked --comment "Blocked: waiting for credentials from DevOps"
+```
+
+The `-s/--status` flag allows: `backlog`, `ready`, `in_progress`, `blocked`, `done`.
 
 ### Checkpoint progress
 
@@ -291,12 +308,17 @@ Only mark complete when the work is fully done and verified.
 When a task cannot proceed due to external factors, mark it as blocked:
 
 ```bash
-# Mark task as blocked with a reason
-hzl task block <task-id> --reason "Waiting for API credentials from DevOps"
+# Mark task as blocked (comment is optional but recommended)
+hzl task block <task-id> --comment "Blocked: waiting for API credentials from DevOps"
 
 # Check task status
 hzl task show <task-id> --json
 ```
+
+**Comment best practices:** Include context about the action, not just the state:
+- Good: "Blocked: waiting for API keys from infra team"
+- Good: "Unblocked: keys received, resuming work"
+- Bad: "waiting for API keys" (missing action context)
 
 Blocked tasks:
 - Stay visible in the dashboard (Blocked column)
@@ -329,14 +351,14 @@ HZL tracks authorship at two levels:
 
 | Concept | What it tracks | Set by |
 |---------|----------------|--------|
-| **Assignee** | Who owns the task | `--author` on `claim` |
-| **Event author** | Who performed an action | `--author` on any command |
+| **Assignee** | Who owns the task | `--assignee` on `claim` or `add` |
+| **Event author** | Who performed an action | `--author` on other commands |
 
-The `--author` flag appears on many commands (checkpoint, comment, block, etc.) to record who performed each action. This is separate from task ownership:
+The `--assignee` flag on `claim` and `add` (with `-s in_progress`) sets task ownership. The `--author` flag on other commands (checkpoint, comment, block, etc.) records who performed each action:
 
 ```bash
 # Alice owns the task
-hzl task claim <id> --author alice
+hzl task claim <id> --assignee alice
 
 # Bob adds a checkpoint (doesn't change ownership)
 hzl task checkpoint <id> "Reviewed the code" --author bob
@@ -346,7 +368,7 @@ hzl task checkpoint <id> "Reviewed the code" --author bob
 
 For AI agents that need session tracking, use `--agent-id` on claim:
 ```bash
-hzl task claim <id> --author "Claude Code" --agent-id "session-abc123"
+hzl task claim <id> --assignee "Claude Code" --agent-id "session-abc123"
 ```
 
 ### Recover stuck tasks
@@ -396,14 +418,16 @@ Agents should check for comments before completing tasks (see "Check for steerin
 | List projects | `hzl project list` |
 | Create project | `hzl project create <name>` |
 | Add task | `hzl task add "<title>" -P <project>` |
+| Add task ready | `hzl task add "<title>" -P <project> -s ready` |
+| Add and claim | `hzl task add "<title>" -P <project> -s in_progress --assignee <name>` |
 | Create subtask | `hzl task add "<title>" --parent <id>` |
 | List available | `hzl task list --project <p> --available --json` |
 | List subtasks | `hzl task list --parent <id>` |
 | List root tasks | `hzl task list --root` |
-| Claim task | `hzl task claim <id> --author <name>` |
+| Claim task | `hzl task claim <id> --assignee <name>` |
 | Checkpoint | `hzl task checkpoint <id> "<message>" [--progress 50]` |
 | Set progress | `hzl task progress <id> <0-100>` |
-| Block task | `hzl task block <id> --reason "<why>"` |
+| Block task | `hzl task block <id> [--comment "<context>"]` |
 | Unblock task | `hzl task unblock <id>` |
 | Show task | `hzl task show <id> --json` |
 | Complete | `hzl task complete <id>` |
@@ -413,6 +437,14 @@ Agents should check for comments before completing tasks (see "Check for steerin
 | Validate | `hzl validate` |
 
 For complete command options, use `hzl <command> --help`.
+
+## Troubleshooting
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| "Task is not claimable (status: backlog)" | Task needs to be ready before claiming | `hzl task set-status <id> ready`, or create with `-s ready` |
+| "Cannot block: status is X, expected in_progress or blocked" | Task must be claimed before blocking | Claim the task first: `hzl task claim <id> --assignee <name>` |
+| "Cannot complete: status is X" | Task must be in_progress or blocked | Claim the task first |
 
 ## Best Practices
 

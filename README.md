@@ -161,7 +161,7 @@ hzl task add "Shortlist 2-3 weekend options" -P portland-trip --priority 3 \
 ### Work with checkpoints
 
 ```bash
-hzl task claim <calendar-task-id> --author trevin-agent
+hzl task claim <calendar-task-id> --assignee trevin-agent
 hzl task checkpoint <calendar-task-id> "Found 3 options: Mar 7-9, 14-16, 21-23"
 hzl task complete <calendar-task-id>
 ```
@@ -265,7 +265,7 @@ hzl task add "Implement REST API endpoints" -P myapp --priority 2
 TASK_ID=<id>
 
 # Worker agent claims with a lease
-hzl task claim "$TASK_ID" --author claude-code --lease 30
+hzl task claim "$TASK_ID" --assignee claude-code --lease 30
 hzl task checkpoint "$TASK_ID" "Endpoints scaffolded; next: auth middleware"
 hzl task complete "$TASK_ID"
 ```
@@ -403,6 +403,20 @@ hzl task add "Fix N+1" --parent <parent-id>    # Subtask
 3. For multi-step work: create parent task, then subtasks with `--parent`.
 4. Claim before work, checkpoint progress, complete when done.
 5. Use `--json` for scripted output.
+
+**Task lifecycle:**
+- New tasks start in `backlog` (not claimable)
+- To work: `set-status <id> ready` → `claim <id>` → work → `complete <id>`
+- Or create ready: `hzl task add "..." -P project -s ready`
+
+**Quick commands:**
+| Action | Command |
+|--------|---------|
+| Create (ready to work) | `hzl task add "title" -P project -s ready` |
+| Create and claim | `hzl task add "title" -P project -s in_progress --assignee <name>` |
+| Create (planning) | `hzl task add "title" -P project` |
+| Claim | `hzl task claim <id> --assignee <name>` |
+| Complete | `hzl task complete <id>` |
 
 **⚠️ DESTRUCTIVE - Never run without explicit user request:**
 - `hzl task prune` — **PERMANENTLY DELETES** old done/archived tasks. No undo.
@@ -549,14 +563,14 @@ hzl task list --project <project>             # List tasks (--available for clai
 hzl task next --project <project>             # Get highest priority available task
 
 # Working
-hzl task claim <id> --author <name>           # Claim task (--lease <minutes> for expiry)
+hzl task claim <id> --assignee <name>         # Claim task (--lease <minutes> for expiry)
 hzl task claim <id> --agent-id <id>           # Claim as AI agent (machine identifier)
 hzl task checkpoint <id> "<message>"          # Save progress snapshot
 hzl task progress <id> <value>                # Set progress (0-100)
 hzl task complete <id>                        # Mark done
 
 # Status management
-hzl task block <id> --reason "<why>"          # Mark task as blocked
+hzl task block <id> --comment "<context>"     # Mark task as blocked
 hzl task unblock <id>                         # Unblock a task (returns to in_progress)
 
 # Coordination

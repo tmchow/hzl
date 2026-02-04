@@ -2,8 +2,9 @@
 import { Command } from 'commander';
 import { resolveDbPaths } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
-import { handleError } from '../../errors.js';
+import { CLIError, ExitCode, handleError } from '../../errors.js';
 import { GlobalOptionsSchema } from '../../types.js';
+import { TaskStatus } from 'hzl-core/events/types.js';
 
 export interface BlockResult {
   task_id: string;
@@ -13,20 +14,29 @@ export interface BlockResult {
 }
 
 interface BlockCommandOptions {
-  reason?: string;
+  comment?: string;
   author?: string;
 }
 
 export function runBlock(options: {
   services: Services;
   taskId: string;
-  reason?: string;
+  comment?: string;
   author?: string;
   json: boolean;
 }): BlockResult {
-  const { services, taskId, reason, author, json } = options;
+  const { services, taskId, comment, author, json } = options;
 
-  const task = services.taskService.blockTask(taskId, { reason, author });
+  // Check task status before blocking to provide actionable error
+  const existingTask = services.taskService.getTaskById(taskId);
+  if (existingTask && existingTask.status !== TaskStatus.InProgress && existingTask.status !== TaskStatus.Blocked) {
+    throw new CLIError(
+      `Cannot block task ${taskId} (status: ${existingTask.status})\nHint: hzl task claim ${taskId} --assignee <name>`,
+      ExitCode.InvalidInput
+    );
+  }
+
+  const task = services.taskService.blockTask(taskId, { comment, author });
 
   const result: BlockResult = {
     task_id: task.task_id,
@@ -39,7 +49,7 @@ export function runBlock(options: {
     console.log(JSON.stringify(result));
   } else {
     console.log(`⏸ Blocked task ${task.task_id}: ${task.title}`);
-    if (reason) console.log(`  Reason: ${reason}`);
+    if (comment) console.log(`  Comment: ${comment}`);
   }
 
   return result;
@@ -49,7 +59,7 @@ export function createBlockCommand(): Command {
   return new Command('block')
     .description('Block a task that is stuck waiting for external dependencies')
     .argument('<taskId>', 'Task ID')
-    .option('--reason <reason>', 'Block reason (why is this task stuck?)')
+    .option('--comment <comment>', 'Comment explaining why task is blocked')
     .option('--author <name>', 'Author name')
     .action(function (this: Command, taskId: string, opts: BlockCommandOptions) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
@@ -59,7 +69,7 @@ export function createBlockCommand(): Command {
         runBlock({
           services,
           taskId,
-          reason: opts.reason,
+          comment: opts.comment,
           author: opts.author,
           json: globalOpts.json ?? false,
         });
