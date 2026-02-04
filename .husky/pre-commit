@@ -4,3 +4,7 @@ pnpm install --frozen-lockfile --ignore-scripts 2>/dev/null || {
   echo "   Run 'pnpm install' and commit the updated lock file."
   exit 1
 }
+
+# Sync snippets and stage any changes
+node scripts/sync-snippets.js 2>/dev/null
+git add -u -- '*.md' 2>/dev/null || true

@@ -278,22 +278,15 @@ The `[code:X]` modifier wraps content in triple backticks with language `X` (e.g
 
 **How it works:**
 1. Edit the source file in `snippets/`
-2. Push to main
-3. GitHub Action runs `node scripts/sync-snippets.js`
-4. Action fills content between markers and commits
+2. Commit — the pre-commit hook runs `sync-snippets.js` and stages updated files
+3. CI verifies snippets are in sync
 
 **To add a new snippet:**
 1. Create the snippet file in `snippets/` (UPPERCASE filename)
 2. Add markers in any scanned file (see paths above)
-3. Push — the action fills in the content
+3. Commit — the hook syncs automatically
 
-**To edit a snippet:** Edit the source file in `snippets/`, never the content between markers.
-
-**Local testing:**
-```bash
-node scripts/sync-snippets.js          # Sync snippets locally
-node scripts/sync-snippets.js --check  # Check if snippets are in sync (CI)
-```
+**To edit a snippet:** Edit the source file in `snippets/`, never the content between markers. The pre-commit hook handles syncing.
 
 ### ⚠️ Documentation to Update When CLI Changes
 
