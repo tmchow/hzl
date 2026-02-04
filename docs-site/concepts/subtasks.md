@@ -91,11 +91,11 @@ hzl task add "Add avatar upload" -P frontend --parent 1
 hzl task add "Build settings form" -P frontend --parent 1
 
 # Work on subtasks
-hzl task claim 2 --author claude-code  # Profile component
+hzl task claim 2 --assignee claude-code  # Profile component
 # ... work ...
 hzl task complete 2
 
-hzl task claim 3 --author claude-code  # Avatar upload
+hzl task claim 3 --assignee claude-code  # Avatar upload
 # ... work ...
 hzl task complete 3
 

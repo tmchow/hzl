@@ -9,6 +9,16 @@ nav_order: 1
 
 Projects are stable containers for related work. They group tasks together and persist across sessions.
 
+## Typical Pattern: One Repo = One Project
+
+| Repo Structure | HZL Mapping |
+|---------------|-------------|
+| Single repo | One project |
+| Monorepo | One project (intra-repo deps work) |
+| Split repos with shared features | One project per initiative |
+
+See [Simplicity through Constraints](./index#simplicity-through-constraints) for why HZL enforces this pattern.
+
 ## Creating a Project
 
 ```bash
@@ -18,20 +28,39 @@ hzl project create my-feature
 Project names should be descriptive and kebab-case:
 - `auth-feature`
 - `api-refactor`
-- `bug-fixes-jan`
+- `myapp-backend`
+
+## Anti-pattern: Project Sprawl
+
+**Don't create a new project for every feature.** Features should be parent tasks within a single project.
+
+```bash
+# Wrong: feature is not a project
+hzl project create "query-perf"
+
+# Correct: parent task for the feature
+hzl task add "Query perf" -P myrepo
+hzl task add "Fix N+1 queries" --parent <parent-id>
+hzl task add "Add query caching" --parent <parent-id>
+```
+
+**Why?**
+- Projects are meant to be long-lived containers
+- Features come and go; repos persist
+- Dependencies only work within a project
+- Too many projects = cognitive overhead
 
 ## When to Create a Project
 
-**Create a project when:**
-- Starting a new feature or initiative
-- Work will span multiple sessions
-- Multiple agents might contribute
-- You want to track progress separately
+**Good reasons:**
+- Starting work in a new repository
+- New codebase or major initiative
+- Work that needs its own dependency graph
 
-**Examples:**
-- One project per feature branch
-- One project per epic/initiative
-- One project per repository (for ongoing maintenance)
+**Bad reasons:**
+- Every feature or bug fix
+- Every sprint or iteration
+- Every pull request
 
 ## Listing Projects
 
@@ -74,10 +103,11 @@ hzl task next -P my-feature
 
 ## Best Practices
 
-1. **Use descriptive names** - `user-auth` not `project1`
-2. **One project per initiative** - Don't mix unrelated work
-3. **Check existing projects first** - `hzl project list` before creating
-4. **Archive completed work** - Keep active project list manageable
+1. **One project per repo** - The typical pattern
+2. **Check existing projects first** - `hzl project list` before creating
+3. **Use descriptive names** - `user-auth` not `project1`
+4. **Features are parent tasks** - Not separate projects
+5. **Dependencies stay within projects** - By design
 
 ## Example Workflow
 
@@ -85,10 +115,10 @@ hzl task next -P my-feature
 # Check if project exists
 hzl project list
 
-# Create if needed
+# Create if needed (typically once per repo)
 hzl project create api-v2
 
-# Add tasks
+# Add tasks (features as parent tasks)
 hzl task add "Design new endpoints" -P api-v2
 hzl task add "Implement auth changes" -P api-v2 --depends-on 1
 hzl task add "Update documentation" -P api-v2 --depends-on 2

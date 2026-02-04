@@ -135,3 +135,5 @@ The dashboard is served by `hzl-web`, which reads from the same event-sourced da
         │  (events.db)│
         └─────────────┘
 ```
+
+For technical details on the event-sourced architecture, see [Architecture](/reference/architecture).
