@@ -19,6 +19,29 @@ Tasks require a title and project:
 - **Title:** Clear description of what to do
 - **Project:** Which project this belongs to (`-P` or `--project`)
 
+### Optional Flags
+
+| Flag | Description |
+|------|-------------|
+| `-d, --description` | Detailed description of the task |
+| `-l, --links` | Comma-separated URLs or file paths to reference docs |
+| `-t, --tags` | Comma-separated tags for filtering |
+| `-p, --priority` | Priority level 0-3 (higher = more important) |
+| `-s, --status` | Initial status (backlog, ready, in_progress, blocked, done) |
+| `--depends-on` | Comma-separated task IDs this depends on |
+| `--parent` | Parent task ID (creates a subtask) |
+
+### Linking to Context
+
+Keep tasks focused on the work itself. Use `--links` to reference supporting documents:
+
+```bash
+hzl task add "Implement auth flow per design" -P myapp \
+  --links docs/designs/auth-flow.md,https://example.com/spec
+```
+
+Agents can read linked files for context while the task stays actionable.
+
 ## Task Statuses
 
 Tasks move through these statuses:
@@ -174,6 +197,26 @@ Shows:
 - Status and author
 - Dependencies
 - Checkpoints
+
+## Updating Tasks
+
+Modify task properties after creation:
+
+```bash
+hzl task update <id> --title "New title"
+hzl task update <id> --desc "Updated description"
+hzl task update <id> --links doc1.md,doc2.md
+hzl task update <id> --tags bug,urgent
+hzl task update <id> --priority 2
+```
+
+To clear a field, pass an empty string:
+
+```bash
+hzl task update <id> --links ""    # Remove all links
+hzl task update <id> --tags ""     # Remove all tags
+hzl task update <id> --desc ""     # Clear description
+```
 
 ## Archiving Tasks
 
