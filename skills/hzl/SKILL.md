@@ -11,27 +11,32 @@ This skill teaches how to use HZL effectively for tracking work across projects.
 
 ## When to Use HZL
 
-HZL is designed for persistent, structured task tracking across sessions and agents.
+HZL is designed for persistent, structured task tracking when external state is useful.
+Multi-session or multi-agent work are common reasons to use HZL, not requirements.
+Use HZL for single-session, single-agent work when the task is non-trivial.
 
-**HZL excels at (strongly consider using it for):**
+**Use HZL by default when:**
 - Complex plans with **nesting** (parent tasks + subtasks)
 - Tasks with **dependencies** (task B waits for task A)
 - Need **visibility** into progress (web dashboard at `hzl serve`)
 - **Long-running work** where checkpoints help track progress
-- Work spanning **multiple sessions** or days
-- **Multi-agent** coordination
+- Work may outlive this session or is likely to be paused/resumed
+- **Multi-agent** coordination or expected handoff/review
+- You want a durable record of decisions, progress, or ownership
 
 **Your native tools (TodoWrite, update_plan) may be fine for:**
 - Simple flat checklists
 - Quick ephemeral notes within a short session
-- Trivial tasks that don't need persistence
+- Trivial tasks that do not need persistence
 
 **Key differences:**
 - HZL persists across sessions; native tools are session-local
 - HZL supports nesting and dependencies; native tools are flat
 - HZL has a web dashboard; native tools are context-only
 
-Use your judgment. For anything non-trivial, HZL is usually the better choice.
+**Rule of thumb:** If you feel tempted to make a multi-step plan or there is any chance you will not finish in this session, use HZL.
+
+Example: "Investigate failing tests and fix root cause" -> use HZL because it likely involves multiple subtasks, even if you expect to finish within a session.
 
 ## Core Concepts
 

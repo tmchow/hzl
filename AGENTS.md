@@ -4,20 +4,26 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 <!-- START docs/snippets/agent-policy.md -->
 <!-- ⚠️ DO NOT EDIT - Auto-generated from docs/snippets/agent-policy.md -->
-### HZL task ledger (external task tracking for multi-session/multi-agent work)
+### HZL task ledger (external task tracking)
 
-HZL is an external task database. Use it when work outlives this session or involves other agents.
-Built-in task tracking (if available) is fine for single-session work you'll complete now.
+HZL is an external task database. Use it whenever external tracking would help clarity, handoff, or auditability.
+Multi-session or multi-agent work are common reasons to use HZL, not requirements.
+Use HZL for single-session, single-agent work when the task is non-trivial.
 
-**When to use HZL:**
-- Work spanning multiple sessions or days
-- Coordination with other agents (Claude Code ↔ Codex ↔ Gemini)
-- Delegating to sub-agents with explicit handoff
-- User explicitly asks to track work in HZL
+**Prefer using HZL when:**
+- Work may outlive this session or is likely to be paused/resumed
+- You want a durable record of decisions, progress, or ownership
+- You expect handoff or review by another agent/person
+- The user asks to track work in HZL
+- The task is non-trivial (multiple steps, ~30+ minutes, or risky changes)
 
-**When NOT to use HZL:**
-- Single-session work you'll complete in this conversation
-- User hasn't mentioned persistence or multi-agent needs
+**You can skip HZL when:**
+- The work is small, clearly scoped, and will be completed immediately
+- The user asks for a quick one-off answer or tiny change
+
+**Rule of thumb:** If you feel tempted to make a multi-step plan or there is any chance you will not finish in this session, use HZL.
+
+Example: "Investigate failing tests and fix root cause" -> use HZL because it likely involves multiple subtasks, even if you expect to finish within a session.
 
 **Structure:**
 - **Project** = stable container (one per repo). Check `hzl project list` before creating.
