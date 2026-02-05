@@ -1,20 +1,20 @@
 ### Claude Code skill (optional)
 
-HZL includes a Claude Code skill that helps agents work effectively with HZL.
+The HZL skill is included in the iterative-engineering plugin.
 
 ```bash
-/plugin marketplace add tmchow/hzl
-/plugin install hzl@hzl
+/plugin marketplace add tmchow/tmc-marketplace
+/plugin install iterative-engineering@tmc-marketplace
 ```
 
 <details>
 <summary>Migrating from older versions?</summary>
 
-If you previously installed `hzl@hzl-marketplace`, uninstall it first:
+If you previously installed `hzl@hzl` or `hzl@hzl-marketplace`, uninstall it first:
 
 ```bash
-/plugin uninstall hzl@hzl-marketplace
-/plugin marketplace remove hzl-marketplace
+/plugin uninstall hzl@hzl
+/plugin marketplace remove hzl
 ```
 
 Then install the new version using the commands above.
