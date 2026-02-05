@@ -40,60 +40,6 @@ hzl task add "Implement auth flow per design" -P myapp \
   --links docs/designs/auth-flow.md,https://example.com/spec
 ```
 
-Agents can read linked files for context while the task stays actionable.
-
-## Parent Tasks and Subtasks
-
-HZL supports one level of task hierarchy: **parent tasks** contain **subtasks**.
-
-### Structure
-
-- **Project** = repository or workspace. One per repo. Always check `hzl project list` first.
-- **Task** = feature or work item (can be a parent task)
-- **Subtask** = breakdown of a parent (`--parent <id>`). Max 1 level deep.
-
-### Anti-pattern: Project Sprawl
-
-Don't create a new project for every feature:
-
-```bash
-# Wrong: feature is not a project
-hzl project create "query-perf"
-```
-
-Features should be parent tasks within a single project:
-
-```bash
-# Correct: parent task for the feature
-hzl task add "Query perf" -P myrepo
-
-# Subtasks break down the work
-hzl task add "Fix N+1 queries" --parent <parent-id>
-hzl task add "Add query caching" --parent <parent-id>
-```
-
-### Creating Subtasks
-
-Use `--parent` to create a subtask:
-
-```bash
-hzl task add "Subtask A" --parent <id>
-hzl task add "Subtask B" --parent <id> --depends-on <subtask-a-id>
-```
-
-### Working with Subtasks
-
-```bash
-# Get next available subtask of a parent
-hzl task next --parent <id>
-
-# After completing a subtask, check the parent
-hzl task show <parent-id> --json    # Any subtasks left?
-hzl task complete <parent-id>       # Complete parent when all subtasks done
-```
-
-See [Subtasks](subtasks.md) for more patterns and examples.
-
 ## Task Statuses
 
 Tasks move through these statuses:
@@ -110,25 +56,18 @@ Note: `blocked` is different from dependency blocking. A task with unmet depende
 
 ## Claiming Tasks
 
-Before working on a task, claim it (you can also use `hzl task start` as an alias):
+Before working on a task, claim it:
 
 ```bash
 hzl task claim <id> --assignee "Claude Code"
 ```
 
-The `--assignee` flag identifies who's working on the task.
+Claiming:
+- Changes status to `in_progress`
+- Records who is working on it
+- Prevents other agents from claiming
 
-For AI agents that need session tracking, add `--agent-id`:
-
-```bash
-hzl task claim 1 --assignee "Claude Code" --agent-id "session-xyz"
-```
-
-### Why Claim?
-
-- Prevents two agents from working on the same task
-- Creates audit trail of who did what
-- Enables `hzl task next` to skip claimed tasks
+See [Claiming & Leases](./claiming-leases) for atomic claiming, agent IDs, and lease-based recovery.
 
 ## Recording Progress
 
@@ -138,33 +77,21 @@ Use checkpoints to record progress while working:
 hzl task checkpoint <id> "Designed the schema, moving to implementation"
 ```
 
-Checkpoints:
-- Preserve context for future sessions
-- Show progress in the dashboard
-- Help other agents understand status
-
-### Progress Percentage
-
 Track completion with a 0-100 progress value:
 
 ```bash
 hzl task progress <id> 50   # 50% complete
 ```
 
-Progress is shown in `hzl task show` and the web dashboard.
+See [Checkpoints](./checkpoints) for best practices on preserving context across sessions.
 
 ## Blocking Tasks
 
-When a task is stuck waiting on external factors, mark it blocked:
+When a task is stuck waiting on external factors:
 
 ```bash
 hzl task block <id> --comment "Blocked: waiting for API credentials from DevOps"
 ```
-
-Blocked tasks:
-- Stay visible in the dashboard (Blocked column)
-- Keep their assignee
-- Don't appear in `--available` lists
 
 To resume work:
 
@@ -172,7 +99,7 @@ To resume work:
 hzl task unblock <id>
 ```
 
-This returns the task to `in_progress` status.
+See [Blocking & Unblocking](/workflows/blocking-unblocking) for the full workflow.
 
 ## Completing Tasks
 
@@ -184,7 +111,7 @@ hzl task complete <id>
 
 This marks the task as `done` and unblocks any dependent tasks.
 
-## Listing Tasks
+## Listing and Finding Tasks
 
 ```bash
 # All tasks
@@ -196,40 +123,19 @@ hzl task list -P my-project
 # Only available (ready, not blocked)
 hzl task list --available
 
-# JSON output
-hzl task list --json
-```
-
-## Getting the Next Task
-
-Let HZL pick the next available task:
-
-```bash
+# Get next available task
 hzl task next -P my-project
 ```
 
-This returns a task that is:
-- Status: `ready`
-- Not claimed by anyone
-- All dependencies satisfied
-
 ## Task Details
-
-View full task information:
 
 ```bash
 hzl task show <id>
 ```
 
-Shows:
-- Title and description
-- Status and author
-- Dependencies
-- Checkpoints
+Shows title, description, status, dependencies, and checkpoints.
 
 ## Updating Tasks
-
-Modify task properties after creation:
 
 ```bash
 hzl task update <id> --title "New title"
@@ -243,8 +149,6 @@ To clear a field, pass an empty string:
 
 ```bash
 hzl task update <id> --links ""    # Remove all links
-hzl task update <id> --tags ""     # Remove all tags
-hzl task update <id> --desc ""     # Clear description
 ```
 
 ## Archiving Tasks
@@ -257,26 +161,9 @@ hzl task archive <id>
 
 Archived tasks are hidden from normal lists but preserved in history.
 
-## Example Workflow
-
-```bash
-# Create task
-hzl task add "Build login form" -P auth
-
-# Claim it
-hzl task claim 1 --assignee claude-code
-
-# Record progress
-hzl task checkpoint 1 "Form HTML complete, adding validation"
-hzl task checkpoint 1 "Validation done, testing"
-
-# Mark complete
-hzl task complete 1
-```
-
 ## Pruning Old Tasks
 
-Over time, completed tasks accumulate. Pruning permanently removes old terminal tasks (done/archived) to keep HZL lean:
+Completed tasks accumulate over time. Pruning permanently removes old terminal tasks:
 
 ```bash
 # Preview what would be pruned (safe)
@@ -287,21 +174,15 @@ hzl task prune --project my-project --yes
 
 # Prune tasks older than 90 days
 hzl task prune --project my-project --older-than 90d --yes
-
-# Prune across all projects
-hzl task prune --all --yes
 ```
 
-**Important:** Pruning is destructive and cannot be undone. Always use `--dry-run` first to preview.
-
-See [Pruning](pruning.md) for detailed guidance on when and how to prune.
+**Warning:** Pruning is destructive and cannot be undone. Always use `--dry-run` first.
 
 ## Best Practices
 
 1. **Keep tasks small** - 1-2 hours of focused work
 2. **Use descriptive titles** - Future you will thank you
-3. **Checkpoint frequently** - Preserve context
-4. **Always identify yourself** - Use `--assignee` or `--agent-id` to track who did what
+3. **Checkpoint frequently** - Preserve context across sessions
+4. **Always identify yourself** - Use `--assignee` to track ownership
 5. **Block when stuck** - Use `hzl task block` instead of leaving tasks in limbo
 6. **Complete or archive** - Don't leave tasks hanging
-7. **Prune periodically** - Clean up old done/archived tasks to keep the database lean

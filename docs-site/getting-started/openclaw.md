@@ -1,8 +1,8 @@
 ---
 layout: default
 title: OpenClaw
-parent: Setup
-nav_order: 2
+parent: Getting Started
+nav_order: 4
 ---
 
 # Setup for OpenClaw
@@ -26,19 +26,27 @@ OpenClaw will handle the installation and configuration for you.
 
 If you prefer to set things up yourself:
 
-1. **Install HZL** on the machine running OpenClaw:
-   ```bash
-   npm install -g hzl
-   hzl init
-   ```
+### 1. Install HZL
 
-2. **Install the HZL skill** from [clawhub.ai/tmchow/hzl](https://www.clawhub.ai/tmchow/hzl)
+On the machine running OpenClaw:
 
-3. **Teach OpenClaw when to use HZL** — tell OpenClaw:
-   ```
-   HZL is a tool available to you for task management in certain cases. I want you to add this information to your TOOLS.md in the right way so you remember how to use it:
-   https://raw.githubusercontent.com/tmchow/hzl/main/openclaw/OPENCLAW-TOOLS-PROMPT.md
-   ```
+```bash
+npm install -g hzl-cli
+hzl init
+```
+
+### 2. Install the HZL Skill
+
+From [clawhub.ai/tmchow/hzl](https://www.clawhub.ai/tmchow/hzl)
+
+### 3. Teach OpenClaw When to Use HZL
+
+Tell OpenClaw:
+
+```
+HZL is a tool available to you for task management in certain cases. I want you to add this information to your TOOLS.md in the right way so you remember how to use it:
+https://raw.githubusercontent.com/tmchow/hzl/main/openclaw/OPENCLAW-TOOLS-PROMPT.md
+```
 
 ## Sandbox Configuration
 
@@ -47,10 +55,32 @@ If you're using OpenClaw's sandbox mode, the `hzl` binary must exist inside the 
 Add to your `agents.defaults.sandbox.docker.setupCommand`:
 
 ```bash
-npm install -g hzl
+npm install -g hzl-cli
 ```
 
 Or use a custom Docker image with HZL pre-installed.
+
+## OpenClaw-Specific Patterns
+
+### Single Project Model
+
+OpenClaw typically uses a single HZL project called `openclaw` for all work:
+
+```bash
+hzl project create openclaw
+hzl task add "Research vacation options" -P openclaw
+hzl task add "Book flights" -P openclaw --parent 1
+```
+
+This avoids project sprawl while still organizing work with parent tasks and subtasks.
+
+### Persistent Task State
+
+HZL provides durable task state that persists outside OpenClaw's context window. This is especially valuable when:
+
+- Chats compact and lose context
+- You're running multiple OpenClaw instances
+- Work spans multiple days
 
 ## Upgrading
 
@@ -73,5 +103,6 @@ After running this once, just say "upgrade hzl" to OpenClaw to run the script.
 
 ## Next Steps
 
-- [OpenClaw Skill Reference](../openclaw/skills/hzl/SKILL) — Full skill documentation
-- [Multi-Agent Coordination](../scenarios/multi-agent-coordination) — Coordinate multiple agents
+- [Quickstart Tutorial](./quickstart) — Hands-on introduction
+- [Multi-Agent Coordination](../workflows/multi-agent) — Coordinate with sub-agents
+- [CLI Reference](../reference/cli) — Full command documentation

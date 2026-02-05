@@ -1,13 +1,13 @@
 ---
 layout: default
-title: Claude Code, Codex, Gemini
-parent: Setup
+title: Installation
+parent: Getting Started
 nav_order: 1
 ---
 
-# Setup for Coding Agents
+# Installation
 
-Works with **Claude Code**, **Codex**, **Gemini**, and similar AI coding assistants that can run CLI commands.
+HZL is installed once per machine, not per repository.
 
 <!-- START snippets/CODING-AGENT-SETUP.md -->
 <!-- ⚠️ DO NOT EDIT - Auto-generated from snippets/CODING-AGENT-SETUP.md -->
@@ -140,64 +140,16 @@ You should see your task with status `ready`.
 
 ---
 
-## Agent-Specific Notes
+## What Just Happened?
 
-### Claude Code
+After installation:
 
-**Step 1: Add the HZL snippet to your project**
-
-Add the HZL snippet (from the "Add HZL to Your Agent's Instructions" section above) to your project's `CLAUDE.md` or `AGENTS.md` file. Claude Code reads these files automatically when starting a session.
-
-```
-your-project/
-├── CLAUDE.md      # Add HZL instructions here
-├── src/
-└── ...
-```
-
-**Step 2: Install the HZL Skills Plugin**
-
-Install the HZL skills plugin for richer agent guidance:
-
-```bash
-# Add the HZL marketplace
-/plugin marketplace add tmchow/hzl
-
-# Install the HZL plugin
-/plugin install hzl@hzl
-```
-
-The plugin teaches Claude Code effective HZL patterns through scenario-based skills that activate automatically when working with tasks.
-
-### Codex
-
-Add the HZL snippet to your repository's agent instructions or system prompt. Codex will use HZL commands when appropriate based on the instructions.
-
-### Gemini
-
-Add the HZL snippet to your system prompt or project context. Gemini Code Assist will recognize the HZL commands and use them for multi-session task tracking.
-
----
-
-## Multi-Agent Coordination
-
-When multiple agents work on the same project, use distinct `--assignee` values:
-
-```bash
-# Claude Code claims a task
-hzl task claim 1 --assignee "claude-code"
-
-# Codex claims a different task
-hzl task claim 2 --assignee "codex"
-
-# Check who's working on what
-hzl task list -P my-project
-```
-
-All agents share the same HZL database, so they see each other's progress in real-time.
+1. **CLI installed globally** — Run `hzl` from anywhere
+2. **Database initialized** — Located at `~/.local/share/hzl/`
+3. **Agent integrations set up** — If Claude Code or Codex were detected
 
 ## Next Steps
 
-- [Multi-Agent Coordination](../scenarios/multi-agent-coordination) — Coordinate Claude Code, Codex, and Gemini
-- [Session Handoffs](../scenarios/session-handoffs) — Continue work across sessions
-- [CLI Reference](https://github.com/tmchow/hzl#cli-reference) — Full command documentation
+- [Quickstart Tutorial](./quickstart) — Hands-on introduction
+- [Coding Agents Setup](./coding-agents) — Claude Code, Codex, Gemini specifics
+- [OpenClaw Setup](./openclaw) — OpenClaw-specific configuration

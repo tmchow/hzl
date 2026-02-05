@@ -9,6 +9,20 @@ nav_order: 4
 
 Dependencies sequence work using the `--depends-on` flag. A task with unmet dependencies is blocked until its prerequisites complete.
 
+## Project-Scoped Only
+
+**Dependencies only work between tasks in the same project.** No cross-project dependencies.
+
+Why? Cross-project dependencies create complexity:
+
+| Level | Problem |
+|-------|---------|
+| Technical | Tracking relationships across task graphs |
+| Mental | Hard to reason about external blockers |
+| Practical | "When can I start?" becomes a distributed query |
+
+If you need to coordinate across projects, use human communication or higher-level orchestration.
+
 ## Creating Dependencies
 
 ```bash
@@ -23,20 +37,132 @@ The second task won't be available until task 1 is marked `done`.
 
 ## How Dependencies Work
 
-- Tasks with unmet dependencies have status `blocked`
+- Tasks with unmet dependencies stay blocked
 - When a dependency completes, dependent tasks become `ready`
 - `hzl task next` never returns blocked tasks
 - Multiple dependencies are supported: `--depends-on 1,2,3`
 
+## Basic Sequencing
+
+```bash
+# Create a pipeline
+hzl task add "Design API" -P backend
+hzl task add "Implement API" -P backend --depends-on 1
+hzl task add "Write tests" -P backend --depends-on 2
+hzl task add "Deploy" -P backend --depends-on 3
+```
+
+Result:
+- Task 1: `ready` (no dependencies)
+- Task 2: blocked (waiting on 1)
+- Task 3: blocked (waiting on 2)
+- Task 4: blocked (waiting on 3)
+
 ## Checking Dependencies
 
 ```bash
-# Show task with its dependencies
+# See what's blocking a task
 hzl task show <id>
 
-# List only available (non-blocked) tasks
+# List only available tasks
 hzl task list --available
+
+# List blocked tasks
+hzl task list --status blocked
 ```
+
+## Common Patterns
+
+### Fan-out (Parallel Work)
+
+After one task completes, multiple can start:
+
+```bash
+hzl task add "Design system" -P feature
+hzl task add "Build frontend" -P feature --depends-on 1
+hzl task add "Build backend" -P feature --depends-on 1
+hzl task add "Build mobile" -P feature --depends-on 1
+```
+
+After design completes, all three tracks can be worked on simultaneously.
+
+### Fan-in (Convergence)
+
+Multiple tasks must complete before one can start:
+
+```bash
+hzl task add "Build frontend" -P app
+hzl task add "Build backend" -P app
+hzl task add "Integration tests" -P app --depends-on 1,2
+```
+
+Integration tests stay blocked until BOTH tasks complete.
+
+### Diamond Dependencies
+
+Combine fan-out and fan-in:
+
+```bash
+hzl task add "Design" -P proj
+hzl task add "Frontend" -P proj --depends-on 1
+hzl task add "Backend" -P proj --depends-on 1
+hzl task add "Integration" -P proj --depends-on 2,3
+```
+
+```
+      Design (1)
+       /    \
+  Frontend  Backend
+   (2)       (3)
+       \    /
+    Integration (4)
+```
+
+### Linear Pipeline
+
+Sequential steps:
+
+```bash
+hzl task add "Step 1" -P proj
+hzl task add "Step 2" -P proj --depends-on 1
+hzl task add "Step 3" -P proj --depends-on 2
+```
+
+## Example: CI/CD Pipeline
+
+```bash
+hzl project create release-v2
+
+# Build stage (parallel)
+hzl task add "Run linter" -P release-v2
+hzl task add "Run unit tests" -P release-v2
+hzl task add "Run integration tests" -P release-v2
+
+# Package stage (needs all builds)
+hzl task add "Build Docker image" -P release-v2 --depends-on 1,2,3
+
+# Deploy stages (sequential)
+hzl task add "Deploy to staging" -P release-v2 --depends-on 4
+hzl task add "Run smoke tests" -P release-v2 --depends-on 5
+hzl task add "Deploy to production" -P release-v2 --depends-on 6
+```
+
+```
+Linter (1) ─────┐
+                │
+Unit Tests (2) ─┼─→ Docker (4) → Staging (5) → Smoke (6) → Prod (7)
+                │
+Integration (3)─┘
+```
+
+## Dependencies vs Subtasks
+
+| Dependencies | Subtasks |
+|--------------|----------|
+| Sequence multiple tasks | Break down one task |
+| `--depends-on` flag | `--parent` flag |
+| Must complete in order | Can work in parallel |
+| Prerequisite relationships | Parts of a whole |
 
 ## When to Use Dependencies
 
@@ -49,71 +175,10 @@ hzl task list --available
 - Tasks can be done in any order (just create separate tasks)
 - Breaking down a single task (use [subtasks](./subtasks) instead)
 
-## Dependencies vs Subtasks
-
-| Dependencies | Subtasks |
-|--------------|----------|
-| Sequence multiple tasks | Break down one task |
-| `--depends-on` flag | `--parent` flag |
-| Must complete in order | Can work in parallel |
-| Prerequisite relationships | Parts of a whole |
-
-## Multiple Dependencies
-
-A task can depend on multiple tasks:
-
-```bash
-hzl task add "Deploy to production" -P proj --depends-on 1,2,3
-```
-
-The deploy task stays blocked until tasks 1, 2, AND 3 are all done.
-
-## Diamond Dependencies
-
-HZL handles complex dependency graphs:
-
-```bash
-# Task 1: Design
-hzl task add "Design system" -P proj
-
-# Tasks 2 & 3: Both depend on design
-hzl task add "Build frontend" -P proj --depends-on 1
-hzl task add "Build backend" -P proj --depends-on 1
-
-# Task 4: Depends on both frontend and backend
-hzl task add "Integration testing" -P proj --depends-on 2,3
-```
-
-```
-      Design (1)
-       /    \
-  Frontend  Backend
-   (2)       (3)
-       \    /
-    Integration (4)
-```
-
-## Example Workflow
-
-```bash
-# Create a deployment pipeline
-hzl task add "Write code" -P release
-hzl task add "Run tests" -P release --depends-on 1
-hzl task add "Code review" -P release --depends-on 2
-hzl task add "Deploy staging" -P release --depends-on 3
-hzl task add "Deploy production" -P release --depends-on 4
-
-# Work through in order
-hzl task claim 1 --author claude-code
-# ... work ...
-hzl task complete 1  # Task 2 becomes ready
-
-hzl task next -P release  # Returns task 2
-```
-
 ## Best Practices
 
-1. **Keep chains short** - Long dependency chains slow everything down
-2. **Parallelize when possible** - Not everything needs to be sequential
-3. **Use for real prerequisites** - Don't add dependencies "just in case"
-4. **Combine with subtasks** - Use dependencies between parent tasks, subtasks within them
+1. **Only add real dependencies** - Don't over-constrain
+2. **Keep chains reasonable** - Very long chains slow everything down
+3. **Use parallel branches** - Maximize concurrent work
+4. **Check with `--available`** - See what can be worked on now
+5. **Combine with subtasks** - Dependencies between groups, subtasks within
