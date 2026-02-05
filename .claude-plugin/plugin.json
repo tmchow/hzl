@@ -1,0 +1,18 @@
+{
+  "name": "hzl",
+  "version": "1.27.0",
+  "description": "HZL task management skill for multi-session, multi-agent workflows",
+  "author": {
+    "name": "Trevin Chow",
+    "url": "https://github.com/tmchow"
+  },
+  "repository": "https://github.com/tmchow/hzl",
+  "license": "MIT",
+  "keywords": [
+    "hzl",
+    "tasks",
+    "agents",
+    "tracking"
+  ],
+  "skills": "./skills/"
+}

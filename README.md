@@ -105,15 +105,15 @@ hzl init --sync-url libsql://<db>.turso.io --auth-token <token>
 ### Claude Code
 
 ```bash
-/plugin marketplace add tmchow/tmc-marketplace
-/plugin install iterative-engineering@tmc-marketplace
+/plugin marketplace add tmchow/hzl
+/plugin install hzl@hzl
 ```
 
 ### OpenAI Codex
 
 ```bash
 mkdir -p ~/.codex/skills/hzl
-curl -fsSL https://raw.githubusercontent.com/tmchow/tmc-marketplace/main/plugins/iterative-engineering/skills/hzl/SKILL.md -o ~/.codex/skills/hzl/SKILL.md
+curl -fsSL https://raw.githubusercontent.com/tmchow/hzl/main/skills/hzl/SKILL.md -o ~/.codex/skills/hzl/SKILL.md
 ```
 
 ### OpenClaw
