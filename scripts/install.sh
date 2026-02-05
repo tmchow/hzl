@@ -239,7 +239,46 @@ install_codex_skill() {
     log_success "Installed skill to ${skills_dir}/"
 }
 
+# Check if HZL policy snippet is present in a file
+# Returns 0 if both fingerprint phrases are found, 1 otherwise
+detect_hzl_snippet() {
+    local file="$1"
+
+    if [ ! -f "$file" ]; then
+        return 1
+    fi
+
+    # Both phrases must be present
+    if grep -q "HZL task ledger" "$file" 2>/dev/null && \
+       grep -q "This project uses HZL" "$file" 2>/dev/null; then
+        return 0
+    fi
+
+    return 1
+}
+
+# Check common agent instruction files for HZL snippet
+# Sets SNIPPET_FOUND_IN to the filename if found, empty otherwise
+check_agent_files() {
+    SNIPPET_FOUND_IN=""
+
+    for file in AGENTS.md CLAUDE.md GEMINI.md CODEX.md; do
+        if detect_hzl_snippet "$file"; then
+            SNIPPET_FOUND_IN="$file"
+            return 0
+        fi
+    done
+
+    return 1
+}
+
 print_agents_snippet() {
+    # Check if snippet is already present
+    if check_agent_files; then
+        log_success "HZL policy found in $SNIPPET_FOUND_IN"
+        return 0
+    fi
+
     local snippet
     snippet=$(curl -fsSL "$SNIPPET_URL" 2>/dev/null || echo "")
 
@@ -256,7 +295,7 @@ print_agents_snippet() {
         cat << 'SNIPPET'
 ### HZL task ledger
 
-This project uses HZL for external task tracking.
+This project uses HZL for task tracking.
 
 **IMPORTANT - Task tracking:** When starting work that is multi-step, may span sessions, or needs coordination, run `hzl guide` to learn how this project tracks tasks.
 

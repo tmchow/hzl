@@ -1,6 +1,6 @@
 ### HZL task ledger (external task tracking)
 
-HZL is an external task database. Use it when external tracking helps clarity, handoff, or auditability.
+This project uses HZL for task tracking. Use it when tracking helps clarity, handoff, or auditability.
 
 **Use HZL when:**
 - Work has multiple steps or may not finish this session

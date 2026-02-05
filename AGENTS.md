@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 <!-- ⚠️ DO NOT EDIT - Auto-generated from snippets/AGENT-POLICY.md -->
 ### HZL task ledger
 
-This project uses HZL for external task tracking.
+This project uses HZL for task tracking.
 
 **IMPORTANT - Task tracking:** When starting work that is multi-step, may span sessions, or needs coordination, run `hzl guide` to learn how this project tracks tasks.
 
