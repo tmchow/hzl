@@ -1,3 +1,10 @@
+# [1.27.0](https://github.com/tmchow/hzl/compare/v1.26.1...v1.27.0) (2026-02-05)
+
+
+### Features
+
+* detect existing HZL policy in install script ([#103](https://github.com/tmchow/hzl/issues/103)) ([46e191e](https://github.com/tmchow/hzl/commit/46e191eb4d6dd6c7ea7c8b263bc106c37c49cd65))
+
 ## [1.26.1](https://github.com/tmchow/hzl/compare/v1.26.0...v1.26.1) (2026-02-05)
 
 # [1.26.0](https://github.com/tmchow/hzl/compare/v1.25.3...v1.26.0) (2026-02-04)
