@@ -16,7 +16,6 @@
     "lint:fix": "eslint \"packages/*/src/**/*.ts\" --fix",
     "format": "prettier -w .",
     "format:check": "prettier -c .",
-    "verify:marketplace": "node scripts/verify-marketplace-versions.js",
     "clean": "rm -rf packages/*/dist packages/*/.turbo",
     "prepare": "husky && pnpm run build"
   },
