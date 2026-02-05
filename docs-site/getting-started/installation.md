@@ -40,14 +40,14 @@ This creates a local SQLite database for task storage. By default, data lives in
 
 *Claude Code (run in Claude Code):*
 ```
-/plugin marketplace add tmchow/hzl
-/plugin install hzl@hzl
+/plugin marketplace add tmchow/tmc-marketplace
+/plugin install iterative-engineering@tmc-marketplace
 ```
 
 *Codex:*
 ```bash
 mkdir -p ~/.codex/skills/hzl
-curl -fsSL https://raw.githubusercontent.com/tmchow/hzl/main/skills/hzl/SKILL.md -o ~/.codex/skills/hzl/SKILL.md
+curl -fsSL https://raw.githubusercontent.com/tmchow/tmc-marketplace/main/plugins/iterative-engineering/skills/hzl/SKILL.md -o ~/.codex/skills/hzl/SKILL.md
 ```
 
 ## Add HZL to Your Agent's Instructions
@@ -85,21 +85,21 @@ HZL provides pre-built skills for coding agents that include detailed usage patt
 
 ### Claude Code skill (optional)
 
-HZL includes a Claude Code skill that helps agents work effectively with HZL.
+The HZL skill is included in the iterative-engineering plugin.
 
 ```bash
-/plugin marketplace add tmchow/hzl
-/plugin install hzl@hzl
+/plugin marketplace add tmchow/tmc-marketplace
+/plugin install iterative-engineering@tmc-marketplace
 ```
 
 <details>
 <summary>Migrating from older versions?</summary>
 
-If you previously installed `hzl@hzl-marketplace`, uninstall it first:
+If you previously installed `hzl@hzl` or `hzl@hzl-marketplace`, uninstall it first:
 
 ```bash
-/plugin uninstall hzl@hzl-marketplace
-/plugin marketplace remove hzl-marketplace
+/plugin uninstall hzl@hzl
+/plugin marketplace remove hzl
 ```
 
 Then install the new version using the commands above.
