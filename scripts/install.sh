@@ -193,20 +193,20 @@ install_claude_plugin() {
 
     # Add marketplace (idempotent; may return non-zero if already added)
     local marketplace_output
-    if ! marketplace_output=$(claude plugin marketplace add tmchow/tmc-marketplace 2>&1); then
-        log_warn "Failed to add tmc-marketplace (may already exist), continuing"
+    if ! marketplace_output=$(claude plugin marketplace add tmchow/hzl 2>&1); then
+        log_warn "Failed to add HZL marketplace (may already exist), continuing"
         print_details "$marketplace_output"
     fi
 
     # Install plugin (idempotent - reinstalls/updates if exists)
     local install_output
-    if ! install_output=$(claude plugin install iterative-engineering@tmc-marketplace 2>&1); then
-        log_warn "Failed to install iterative-engineering plugin"
+    if ! install_output=$(claude plugin install hzl@hzl 2>&1); then
+        log_warn "Failed to install HZL plugin"
         print_details "$install_output"
         return 0
     fi
 
-    log_success "Installed iterative-engineering@tmc-marketplace plugin"
+    log_success "Installed hzl@hzl plugin"
 }
 
 install_codex_skill() {
@@ -345,19 +345,19 @@ do_uninstall() {
 
         # Try to uninstall plugin (may fail if not installed)
         local uninstall_output
-        if uninstall_output=$(claude plugin uninstall iterative-engineering@tmc-marketplace 2>&1); then
+        if uninstall_output=$(claude plugin uninstall hzl@hzl 2>&1); then
             log_success "Removed Claude Code plugin"
         else
             log_warn "Claude Code plugin not found or failed to remove"
             print_details "$uninstall_output"
         fi
 
-        # Try to remove marketplace (only if no other plugins from it)
+        # Try to remove marketplace
         local remove_marketplace_output
-        if remove_marketplace_output=$(claude plugin marketplace remove tmchow/tmc-marketplace 2>&1); then
-            log_success "Removed tmc-marketplace"
+        if remove_marketplace_output=$(claude plugin marketplace remove tmchow/hzl 2>&1); then
+            log_success "Removed HZL marketplace"
         else
-            log_warn "tmc-marketplace not found or failed to remove"
+            log_warn "HZL marketplace not found or failed to remove"
             print_details "$remove_marketplace_output"
         fi
     fi

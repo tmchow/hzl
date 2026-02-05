@@ -26,7 +26,7 @@ hzl init
 ```bash
 mkdir -p ~/.codex/skills/hzl
 curl -o ~/.codex/skills/hzl/SKILL.md \
-  https://raw.githubusercontent.com/tmchow/tmc-marketplace/main/plugins/iterative-engineering/skills/hzl/SKILL.md
+  https://raw.githubusercontent.com/tmchow/hzl/main/skills/hzl/SKILL.md
 ```
 
 ### Step 2: Add HZL guidance to AGENTS.md
@@ -94,5 +94,5 @@ Or Codex will auto-select the skill when you mention task tracking, checkpoints,
 To get the latest skill version:
 ```bash
 curl -o ~/.codex/skills/hzl/SKILL.md \
-  https://raw.githubusercontent.com/tmchow/tmc-marketplace/main/plugins/iterative-engineering/skills/hzl/SKILL.md
+  https://raw.githubusercontent.com/tmchow/hzl/main/skills/hzl/SKILL.md
 ```

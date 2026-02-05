@@ -26,18 +26,18 @@ Skills teach your agent effective HZL patterns.
 ### Claude Code
 
 ```bash
-/plugin marketplace add tmchow/tmc-marketplace
-/plugin install iterative-engineering@tmc-marketplace
+/plugin marketplace add tmchow/hzl
+/plugin install hzl@hzl
 ```
 
 <details>
 <summary>Migrating from older versions?</summary>
 
-If you previously installed `hzl@hzl` or `hzl@hzl-marketplace`, uninstall it first:
+If you previously installed `hzl@hzl-marketplace`, uninstall it first:
 
 ```bash
-/plugin uninstall hzl@hzl
-/plugin marketplace remove hzl
+/plugin uninstall hzl@hzl-marketplace
+/plugin marketplace remove hzl-marketplace
 ```
 
 Then install the new version using the commands above.
@@ -47,7 +47,7 @@ Then install the new version using the commands above.
 
 ```bash
 mkdir -p ~/.codex/skills/hzl
-curl -fsSL https://raw.githubusercontent.com/tmchow/tmc-marketplace/main/plugins/iterative-engineering/skills/hzl/SKILL.md -o ~/.codex/skills/hzl/SKILL.md
+curl -fsSL https://raw.githubusercontent.com/tmchow/hzl/main/skills/hzl/SKILL.md -o ~/.codex/skills/hzl/SKILL.md
 ```
 
 Or tell Codex:

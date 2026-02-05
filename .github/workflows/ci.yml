@@ -41,6 +41,9 @@ jobs:
       - name: Verify snippets in sync
         run: node scripts/sync-snippets.js --check
 
+      - name: Verify marketplace versions
+        run: pnpm verify:marketplace
+
   test:
     name: Test
     runs-on: self-hosted

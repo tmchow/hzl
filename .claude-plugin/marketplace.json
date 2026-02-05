@@ -1,0 +1,16 @@
+{
+  "name": "hzl",
+  "description": "HZL task tracking for coding agents",
+  "owner": {
+    "name": "Trevin Chow",
+    "url": "https://github.com/tmchow"
+  },
+  "plugins": [
+    {
+      "name": "hzl",
+      "description": "HZL task management skill for multi-session, multi-agent workflows",
+      "version": "1.27.0",
+      "source": "./"
+    }
+  ]
+}
