@@ -61,29 +61,30 @@ Add the agent policy snippet (below) to your system prompt or project context.
 
 Copy this snippet into your repo's `AGENTS.md`, `CLAUDE.md`, or equivalent:
 
-```markdown
-### HZL task ledger (external task tracking)
+<!-- START [code:md] snippets/AGENT-POLICY.md -->
+<!-- ⚠️ DO NOT EDIT - Auto-generated from snippets/AGENT-POLICY.md -->
+````md
+### HZL task ledger
 
-HZL is an external task database. Use it when work outlives this session or involves other agents.
+This project uses HZL for task tracking.
 
-**When to use HZL:**
-- Work spanning multiple sessions or days
-- Coordination with other agents (Claude Code ↔ Codex ↔ Gemini)
-- Delegating to sub-agents with explicit handoff
+**IMPORTANT - Task tracking:** When starting work that is multi-step, may span sessions, or needs coordination, run `hzl guide` to learn how this project tracks tasks.
+
+**When delegating to sub-agents:** Include "use HZL for task tracking" in the sub-agent's instructions.
+
+**Use HZL when:**
+- Work has multiple steps or may not finish this session
+- Durable record of progress or ownership needed
+- Handoff or review expected
 - Task is non-trivial (~30+ min or risky changes)
 
-**When NOT to use HZL:**
-- Single-session work you'll complete now
+**Skip HZL when:**
+- Small, clearly scoped work completed immediately
 - Quick one-off answer or tiny change
 
-**Key commands:**
-- `hzl project create <name>` — Create a project
-- `hzl task add "<title>" -P <project>` — Add a task
-- `hzl task claim <id> --assignee <name>` — Claim a task
-- `hzl task checkpoint <id> "<message>"` — Record progress
-- `hzl task complete <id>` — Mark done
-- `hzl task next --project <project>` — Get next available task
-```
+**Rule of thumb:** If you're tempted to make a multi-step plan, use HZL.
+````
+<!-- END [code:md] snippets/AGENT-POLICY.md -->
 
 Or append it with:
 
