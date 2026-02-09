@@ -6,7 +6,6 @@ import os from 'os';
 import { runShow } from './show.js';
 import { initializeDbFromPath, closeDb, type Services } from '../../db.js';
 import { CLIError, ExitCode } from '../../errors.js';
-import { TaskStatus } from 'hzl-core/events/types.js';
 
 describe('runShow', () => {
   let tempDir: string;
@@ -95,5 +94,42 @@ describe('runShow', () => {
 
     const result = runShow({ services, taskId: parent.task_id, showSubtasks: false, json: false });
     expect(result.subtasks).toBeUndefined();
+  });
+
+  describe('backfilled parent fields', () => {
+    it('includes links field (empty array for no links)', () => {
+      const task = services.taskService.createTask({ title: 'Test', project: 'inbox' });
+      const result = runShow({ services, taskId: task.task_id, json: false });
+      expect(result.task.links).toEqual([]);
+    });
+
+    it('includes links field with values when set', () => {
+      const task = services.taskService.createTask({
+        title: 'Test',
+        project: 'inbox',
+        links: ['docs/spec.md', 'https://example.com'],
+      });
+      const result = runShow({ services, taskId: task.task_id, json: false });
+      expect(result.task.links).toEqual(['docs/spec.md', 'https://example.com']);
+    });
+
+    it('includes metadata field (empty object for no metadata)', () => {
+      const task = services.taskService.createTask({ title: 'Test', project: 'inbox' });
+      const result = runShow({ services, taskId: task.task_id, json: false });
+      expect(result.task.metadata).toEqual({});
+    });
+
+    it('includes due_at field (null when not set)', () => {
+      const task = services.taskService.createTask({ title: 'Test', project: 'inbox' });
+      const result = runShow({ services, taskId: task.task_id, json: false });
+      expect(result.task.due_at).toBeNull();
+    });
+
+    it('includes claimed_at and lease_until fields (null when not set)', () => {
+      const task = services.taskService.createTask({ title: 'Test', project: 'inbox' });
+      const result = runShow({ services, taskId: task.task_id, json: false });
+      expect(result.task.claimed_at).toBeNull();
+      expect(result.task.lease_until).toBeNull();
+    });
   });
 });

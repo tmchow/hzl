@@ -5,26 +5,16 @@ import { initializeDb, closeDb, type Services } from '../../db.js';
 import { CLIError, ExitCode, handleError } from '../../errors.js';
 import { GlobalOptionsSchema } from '../../types.js';
 import { TaskStatus } from 'hzl-core/events/types.js';
-import type { Comment, Checkpoint } from 'hzl-core/services/task-service.js';
+import type { Task, Comment, Checkpoint } from 'hzl-core/services/task-service.js';
+
+export type SubtaskSummary = { task_id: string; title: string; status: string };
+export type DeepSubtask = Task & { blocked_by: string[] };
 
 export interface ShowResult {
-  task: {
-    task_id: string;
-    title: string;
-    project: string;
-    status: string;
-    priority: number;
-    parent_id: string | null;
-    description: string | null;
-    tags: string[];
-    created_at: string;
-    updated_at: string;
-    assignee: string | null;
-    progress: number | null;
-  };
+  task: Task;
   comments: Array<{ text: string; author?: string; timestamp: string }>;
   checkpoints: Array<{ name: string; data: Record<string, unknown>; timestamp: string }>;
-  subtasks?: Array<{ task_id: string; title: string; status: string }>;
+  subtasks?: Array<SubtaskSummary> | Array<DeepSubtask>;
 }
 
 export function runShow(options: {
@@ -43,7 +33,7 @@ export function runShow(options: {
   const comments = services.taskService.getComments(taskId);
   const checkpoints = services.taskService.getCheckpoints(taskId);
 
-  const subtasks = showSubtasks
+  const subtasks: Array<SubtaskSummary> | undefined = showSubtasks
     ? services.taskService.getSubtasks(taskId).map(t => ({
         task_id: t.task_id,
         title: t.title,
@@ -52,20 +42,7 @@ export function runShow(options: {
     : undefined;
 
   const result: ShowResult = {
-    task: {
-      task_id: task.task_id,
-      title: task.title,
-      project: task.project,
-      status: task.status,
-      priority: task.priority,
-      parent_id: task.parent_id,
-      description: task.description,
-      tags: task.tags,
-      created_at: task.created_at,
-      updated_at: task.updated_at,
-      assignee: task.assignee,
-      progress: task.progress,
-    },
+    task,
     comments: comments.map((c: Comment) => ({
       text: c.text,
       author: c.author,
