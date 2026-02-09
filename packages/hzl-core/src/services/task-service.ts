@@ -270,7 +270,7 @@ export class TaskService {
     `);
 
     this.resolveTaskIdStmt = db.prepare(`
-      SELECT task_id, title FROM tasks_current WHERE task_id LIKE ? || '%'
+      SELECT task_id, title FROM tasks_current WHERE task_id LIKE ? || '%' ESCAPE '\\'
     `);
   }
 
@@ -974,8 +974,9 @@ export class TaskService {
     const exact = this.getTaskByIdStmt.get(idOrPrefix) as TaskRow | undefined;
     if (exact) return exact.task_id;
 
-    // Prefix search
-    const rows = this.resolveTaskIdStmt.all(idOrPrefix) as Array<{ task_id: string; title: string }>;
+    // Escape LIKE metacharacters before prefix search
+    const escaped = idOrPrefix.replace(/[%_\\]/g, '\\$&');
+    const rows = this.resolveTaskIdStmt.all(escaped) as Array<{ task_id: string; title: string }>;
     if (rows.length === 0) return null;
     if (rows.length === 1) return rows[0].task_id;
     throw new AmbiguousPrefixError(idOrPrefix, rows);

@@ -2119,8 +2119,8 @@ describe('TaskService', () => {
       while (commonLen < task1.task_id.length && task1.task_id[commonLen] === task2.task_id[commonLen]) {
         commonLen++;
       }
-      // ULIDs from same ms always share ≥10 chars; assert to catch if this assumption breaks
-      expect(commonLen).toBeGreaterThanOrEqual(10);
+      // Need at least 1 shared char to form an ambiguous prefix
+      expect(commonLen).toBeGreaterThanOrEqual(1);
 
       const ambiguousPrefix = task1.task_id.slice(0, commonLen);
       expect(() => taskService.resolveTaskId(ambiguousPrefix)).toThrow(AmbiguousPrefixError);

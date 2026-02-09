@@ -90,6 +90,8 @@ export function runPrune(options: {
       );
     }
 
+    const shortId = createShortId(eligible.map(t => t.task_id));
+
     // Handle dry-run (no deletion)
     if (dryRun) {
       if (json) {
@@ -98,7 +100,6 @@ export function runPrune(options: {
         if (eligible.length === 0) {
           console.log('No tasks eligible for pruning');
         } else {
-          const shortId = createShortId(eligible.map(t => t.task_id));
           console.log(`Would prune ${eligible.length} task(s):`);
           for (const t of eligible.slice(0, 20)) {
             console.log(`  [${shortId(t.task_id)}] ${t.title} (${t.project})`);
@@ -126,10 +127,9 @@ export function runPrune(options: {
     // Require --yes for destructive operations
     // Show preview and require explicit confirmation
     if (!yes) {
-      const shortId2 = createShortId(eligible.map(t => t.task_id));
       console.log(`Found ${eligible.length} task(s) eligible for pruning:`);
       for (const t of eligible.slice(0, 10)) {
-        console.log(`  [${shortId2(t.task_id)}] ${t.title} (${t.project})`);
+        console.log(`  [${shortId(t.task_id)}] ${t.title} (${t.project})`);
       }
       if (eligible.length > 10) {
         console.log(`  ... and ${eligible.length - 10} more`);

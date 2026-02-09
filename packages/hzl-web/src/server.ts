@@ -165,7 +165,7 @@ export function createWebServer(options: ServerOptions): ServerHandle {
     }
 
     // Get blocking dependencies from service
-    const blocked_by = taskService.getBlockingDependencies(taskId);
+    const blocked_by = taskService.getBlockingDependencies(resolvedId);
 
     const taskDetail: TaskDetailResponse = {
       task_id: task.task_id,
