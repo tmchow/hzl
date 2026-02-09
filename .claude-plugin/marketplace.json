@@ -9,7 +9,7 @@
     {
       "name": "hzl",
       "description": "HZL task management skill for multi-session, multi-agent workflows",
-      "version": "1.28.0",
+      "version": "1.28.1",
       "source": "./"
     }
   ]
