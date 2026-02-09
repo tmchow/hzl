@@ -109,6 +109,7 @@ hzl task stuck --json
 
 # Review checkpoints before taking over
 hzl task show <task-id> --json
+hzl task show <task-id> --deep --json    # Full subtask details + blocked_by
 
 # Take over an expired task
 hzl task steal <task-id> --if-expired --author agent-2

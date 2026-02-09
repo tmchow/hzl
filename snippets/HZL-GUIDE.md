@@ -81,6 +81,7 @@ hzl task complete <id>
 
 # After completing a subtask, check parent:
 hzl task show <parent-id> --json         # Any subtasks left?
+hzl task show <parent-id> --deep --json  # Full subtask details + blocked_by
 hzl task complete <parent-id>            # If all done, complete parent
 ```
 

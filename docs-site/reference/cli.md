@@ -168,7 +168,14 @@ Show task details.
 ```bash
 hzl task show <id>
 hzl task show <id> --json
+hzl task show <id> --deep --json   # Full subtask fields + blocked_by
+hzl task show <id> --no-subtasks   # Hide subtasks from output
 ```
+
+| Flag | Description |
+|------|-------------|
+| `--deep` | Expand subtasks to full Task fields plus computed `blocked_by` array (best with `--json`) |
+| `--no-subtasks` | Hide subtasks from output. Takes precedence over `--deep` |
 
 ### Working on Tasks
 
