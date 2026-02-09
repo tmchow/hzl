@@ -97,7 +97,7 @@ const dependsOnArray = z.array(nonEmptyString).max(FIELD_LIMITS.ARRAY_MAX_ITEMS)
 
 // Metadata with size constraints
 const metadataRecord = z
-  .record(z.unknown())
+  .record(z.string(), z.unknown())
   .refine(
     (obj) => Object.keys(obj).length <= FIELD_LIMITS.METADATA_MAX_KEYS,
     { message: `Metadata cannot have more than ${FIELD_LIMITS.METADATA_MAX_KEYS} keys` }
@@ -109,7 +109,7 @@ const metadataRecord = z
 
 // Checkpoint data with size constraints
 const checkpointDataRecord = z
-  .record(z.unknown())
+  .record(z.string(), z.unknown())
   .refine(
     (obj) => JSON.stringify(obj).length <= FIELD_LIMITS.CHECKPOINT_DATA_MAX_BYTES,
     { message: `Checkpoint data cannot exceed ${FIELD_LIMITS.CHECKPOINT_DATA_MAX_BYTES} bytes` }

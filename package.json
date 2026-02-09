@@ -22,10 +22,10 @@
   },
   "devDependencies": {
     "@anolilab/semantic-release-pnpm": "^5.0.0",
-    "@commitlint/cli": "^19.0.0",
-    "@commitlint/config-conventional": "^19.0.0",
+    "@commitlint/cli": "^20.4.1",
+    "@commitlint/config-conventional": "^20.4.1",
     "@semantic-release/changelog": "^6.0.0",
-    "@semantic-release/exec": "^6.0.0",
+    "@semantic-release/exec": "^7.1.0",
     "@semantic-release/git": "^10.0.0",
     "@types/node": "^25.2.1",
     "@typescript-eslint/eslint-plugin": "^8.54.0",

@@ -68,7 +68,7 @@
     "commander": "^14.0.0",
     "hzl-core": "workspace:*",
     "hzl-web": "workspace:*",
-    "zod": "^3.23.8"
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
