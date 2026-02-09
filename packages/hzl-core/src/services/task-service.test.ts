@@ -2043,5 +2043,34 @@ describe('TaskService', () => {
       expect(result.has(readyTask.task_id)).toBe(true);
       expect(result.has(inProgressTask.task_id)).toBe(true);
     });
+
+    it('excludes archived tasks even if they have incomplete deps', () => {
+      const dep = taskService.createTask({ title: 'Dep', project: 'inbox' });
+      const task = taskService.createTask({
+        title: 'Archived task',
+        project: 'inbox',
+        depends_on: [dep.task_id],
+      });
+
+      taskService.setStatus(task.task_id, TaskStatus.Archived);
+
+      const result = taskService.getBlockedByForTasks([task.task_id]);
+      expect(result.has(task.task_id)).toBe(false);
+    });
+
+    it('treats archived dependency as a blocker', () => {
+      const dep = taskService.createTask({ title: 'Archived dep', project: 'inbox' });
+      const task = taskService.createTask({
+        title: 'Task with archived dep',
+        project: 'inbox',
+        depends_on: [dep.task_id],
+      });
+
+      taskService.setStatus(dep.task_id, TaskStatus.Archived);
+
+      const result = taskService.getBlockedByForTasks([task.task_id]);
+      expect(result.has(task.task_id)).toBe(true);
+      expect(result.get(task.task_id)).toEqual([dep.task_id]);
+    });
   });
 });

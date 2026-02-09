@@ -99,10 +99,14 @@ describe('runShow', () => {
   });
 
   describe('backfilled parent fields', () => {
-    it('includes links field (empty array for no links)', () => {
+    it('includes default values for all Task fields', () => {
       const task = services.taskService.createTask({ title: 'Test', project: 'inbox' });
       const result = runShow({ services, taskId: task.task_id, json: false });
       expect(result.task.links).toEqual([]);
+      expect(result.task.metadata).toEqual({});
+      expect(result.task.due_at).toBeNull();
+      expect(result.task.claimed_at).toBeNull();
+      expect(result.task.lease_until).toBeNull();
     });
 
     it('includes links field with values when set', () => {
@@ -113,25 +117,6 @@ describe('runShow', () => {
       });
       const result = runShow({ services, taskId: task.task_id, json: false });
       expect(result.task.links).toEqual(['docs/spec.md', 'https://example.com']);
-    });
-
-    it('includes metadata field (empty object for no metadata)', () => {
-      const task = services.taskService.createTask({ title: 'Test', project: 'inbox' });
-      const result = runShow({ services, taskId: task.task_id, json: false });
-      expect(result.task.metadata).toEqual({});
-    });
-
-    it('includes due_at field (null when not set)', () => {
-      const task = services.taskService.createTask({ title: 'Test', project: 'inbox' });
-      const result = runShow({ services, taskId: task.task_id, json: false });
-      expect(result.task.due_at).toBeNull();
-    });
-
-    it('includes claimed_at and lease_until fields (null when not set)', () => {
-      const task = services.taskService.createTask({ title: 'Test', project: 'inbox' });
-      const result = runShow({ services, taskId: task.task_id, json: false });
-      expect(result.task.claimed_at).toBeNull();
-      expect(result.task.lease_until).toBeNull();
     });
   });
 
@@ -146,13 +131,13 @@ describe('runShow', () => {
       const sub = result.subtasks![0] as DeepSubtask;
       expect(sub.title).toBe('Child 1');
       expect(sub.blocked_by).toEqual([]);
-      // Verify full Task fields are present
-      expect(sub).toHaveProperty('project');
-      expect(sub).toHaveProperty('tags');
-      expect(sub).toHaveProperty('priority');
-      expect(sub).toHaveProperty('links');
-      expect(sub).toHaveProperty('metadata');
-      expect(sub).toHaveProperty('created_at');
+      // Verify full Task field values
+      expect(sub.project).toBe('myproject');
+      expect(sub.tags).toEqual([]);
+      expect(sub.priority).toBe(0);
+      expect(sub.links).toEqual([]);
+      expect(sub.metadata).toEqual({});
+      expect(sub.created_at).toBeDefined();
     });
 
     it('includes blocked_by with incomplete dependency', () => {
