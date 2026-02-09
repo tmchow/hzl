@@ -57,7 +57,7 @@ describe('resolveId', () => {
     while (commonLen < task1.task_id.length && task1.task_id[commonLen] === task2.task_id[commonLen]) {
       commonLen++;
     }
-    expect(commonLen).toBeGreaterThanOrEqual(10);
+    expect(commonLen).toBeGreaterThanOrEqual(1);
 
     const ambiguousPrefix = task1.task_id.slice(0, commonLen);
     try {

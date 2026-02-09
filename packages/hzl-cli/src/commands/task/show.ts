@@ -107,6 +107,17 @@ export function runShow(options: {
       for (const st of subtasks) {
         const icon = st.status === TaskStatus.Done ? '✓' : st.status === TaskStatus.InProgress ? '→' : '○';
         console.log(`  ${icon} [${shortId(st.task_id)}] ${st.title} (${st.status})`);
+        if (deep && 'blocked_by' in st) {
+          const ds = st as DeepSubtask;
+          const details: string[] = [];
+          if (ds.priority !== 0) details.push(`Priority: ${ds.priority}`);
+          if (ds.assignee) details.push(`Assignee: ${ds.assignee}`);
+          if (ds.progress !== null) details.push(`Progress: ${ds.progress}%`);
+          if (details.length > 0) console.log(`    ${details.join(' | ')}`);
+          if (ds.description) console.log(`    Description: ${ds.description}`);
+          if (ds.blocked_by.length > 0) console.log(`    Blocked by: ${ds.blocked_by.map(id => shortId(id)).join(', ')}`);
+          if (ds.tags.length > 0) console.log(`    Tags: ${ds.tags.join(', ')}`);
+        }
       }
     }
   }
@@ -119,7 +130,7 @@ export function createShowCommand(): Command {
     .description('Show task details with comments, checkpoints, and subtasks')
     .argument('<taskId>', 'Task ID')
     .option('--no-subtasks', 'Hide subtasks in output')
-    .option('--deep', 'Include full task fields and blocked_by for subtasks (JSON mode)')
+    .option('--deep', 'Include full task fields and blocked_by for each subtask')
     .action(function (this: Command, rawTaskId: string, opts: { subtasks?: boolean; deep?: boolean }) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
