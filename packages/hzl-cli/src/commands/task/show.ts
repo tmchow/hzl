@@ -21,9 +21,10 @@ export function runShow(options: {
   services: Services;
   taskId: string;
   showSubtasks?: boolean;
+  deep?: boolean;
   json: boolean;
 }): ShowResult {
-  const { services, taskId, showSubtasks = true, json } = options;
+  const { services, taskId, showSubtasks = true, deep = false, json } = options;
 
   const task = services.taskService.getTaskById(taskId);
   if (!task) {
@@ -33,13 +34,25 @@ export function runShow(options: {
   const comments = services.taskService.getComments(taskId);
   const checkpoints = services.taskService.getCheckpoints(taskId);
 
-  const subtasks: Array<SubtaskSummary> | undefined = showSubtasks
-    ? services.taskService.getSubtasks(taskId).map(t => ({
-        task_id: t.task_id,
-        title: t.title,
-        status: t.status,
-      }))
-    : undefined;
+  let subtasks: Array<SubtaskSummary> | Array<DeepSubtask> | undefined;
+  if (!showSubtasks) {
+    subtasks = undefined;
+  } else if (deep) {
+    const rawSubtasks = services.taskService.getSubtasks(taskId);
+    const blockedByMap = services.taskService.getBlockedByForTasks(
+      rawSubtasks.map(t => t.task_id),
+    );
+    subtasks = rawSubtasks.map(t => ({
+      ...t,
+      blocked_by: blockedByMap.get(t.task_id) ?? [],
+    }));
+  } else {
+    subtasks = services.taskService.getSubtasks(taskId).map(t => ({
+      task_id: t.task_id,
+      title: t.title,
+      status: t.status,
+    }));
+  }
 
   const result: ShowResult = {
     task,
@@ -103,7 +116,8 @@ export function createShowCommand(): Command {
     .description('Show task details with comments, checkpoints, and subtasks')
     .argument('<taskId>', 'Task ID')
     .option('--no-subtasks', 'Hide subtasks in output')
-    .action(function (this: Command, taskId: string, opts: { subtasks?: boolean }) {
+    .option('--deep', 'Include full task fields and blocked_by for subtasks (JSON mode)')
+    .action(function (this: Command, taskId: string, opts: { subtasks?: boolean; deep?: boolean }) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
       const services = initializeDb({ eventsDbPath, cacheDbPath });
@@ -112,6 +126,7 @@ export function createShowCommand(): Command {
           services,
           taskId,
           showSubtasks: opts.subtasks !== false,
+          deep: opts.deep ?? false,
           json: globalOpts.json ?? false,
         });
       } catch (e) {
