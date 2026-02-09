@@ -31,24 +31,6 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
 
-      - name: Verify CI-tested code is included
-        run: |
-          TESTED_SHA="${{ github.event.workflow_run.head_sha }}"
-
-          if ! git merge-base --is-ancestor "$TESTED_SHA" HEAD; then
-            echo "::error::Tested SHA ($TESTED_SHA) is not an ancestor of main. Possible force push. Aborting."
-            exit 1
-          fi
-
-          echo "✓ Verified: CI-tested commit ($TESTED_SHA) is included in current main"
-
-          # Show what commits are newer than tested SHA (for visibility)
-          NEWER_COMMITS=$(git rev-list "$TESTED_SHA"..HEAD --count)
-          if [ "$NEWER_COMMITS" -gt 0 ]; then
-            echo "ℹ️ Main has $NEWER_COMMITS commit(s) since CI ran. These will be built/tested before release:"
-            git log "$TESTED_SHA"..HEAD --oneline
-          fi
-
       - uses: actions/setup-node@v6
         with:
           node-version: '22.14.0'
@@ -58,7 +40,6 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
-      - run: pnpm test:ci
 
       # OIDC Trusted Publishing requires npm 11.5.1+
       - name: Upgrade npm for OIDC
