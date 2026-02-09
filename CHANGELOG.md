@@ -1,3 +1,10 @@
+# [1.28.0](https://github.com/tmchow/hzl/compare/v1.27.0...v1.28.0) (2026-02-09)
+
+
+### Features
+
+* keep hzl skill in repo, migrate workflow skills to tmc-marketplace ([#108](https://github.com/tmchow/hzl/issues/108)) ([f334958](https://github.com/tmchow/hzl/commit/f334958a4d41ffc90d50301447069db083770777))
+
 # [1.27.0](https://github.com/tmchow/hzl/compare/v1.26.1...v1.27.0) (2026-02-05)
 
 
