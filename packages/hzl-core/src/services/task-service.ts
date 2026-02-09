@@ -209,6 +209,16 @@ export class CrossProjectDependencyError extends Error {
   }
 }
 
+export class AmbiguousPrefixError extends Error {
+  public readonly matches: Array<{ task_id: string; title: string }>;
+
+  constructor(prefix: string, matches: Array<{ task_id: string; title: string }>) {
+    const lines = matches.map(m => `  ${m.task_id}  ${m.title}`).join('\n');
+    super(`Ambiguous prefix '${prefix}' matches ${matches.length} tasks:\n${lines}`);
+    this.matches = matches;
+  }
+}
+
 /**
  * Validate progress value is an integer between 0 and 100.
  * @throws Error if progress is invalid
@@ -223,6 +233,7 @@ export class TaskService {
   private getIncompleteDepsStmt: Database.Statement;
   private getSubtasksStmt: Database.Statement;
   private getTaskByIdStmt: Database.Statement;
+  private resolveTaskIdStmt: Database.Statement;
 
   constructor(
     private db: Database.Database, // cache database
@@ -256,6 +267,10 @@ export class TaskService {
              created_at, updated_at
       FROM tasks_current
       WHERE task_id = ?
+    `);
+
+    this.resolveTaskIdStmt = db.prepare(`
+      SELECT task_id, title FROM tasks_current WHERE task_id LIKE ? || '%'
     `);
   }
 
@@ -952,6 +967,18 @@ export class TaskService {
     const row = this.getTaskByIdStmt.get(taskId) as TaskRow | undefined;
     if (!row) return null;
     return this.rowToTask(row);
+  }
+
+  resolveTaskId(idOrPrefix: string): string | null {
+    // Fast path: exact match
+    const exact = this.getTaskByIdStmt.get(idOrPrefix) as TaskRow | undefined;
+    if (exact) return exact.task_id;
+
+    // Prefix search
+    const rows = this.resolveTaskIdStmt.all(idOrPrefix) as Array<{ task_id: string; title: string }>;
+    if (rows.length === 0) return null;
+    if (rows.length === 1) return rows[0].task_id;
+    throw new AmbiguousPrefixError(idOrPrefix, rows);
   }
 
   getSubtasks(taskId: string): Task[] {

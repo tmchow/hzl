@@ -4,6 +4,7 @@ import { resolveDbPaths } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError } from '../../errors.js';
 import { GlobalOptionsSchema } from '../../types.js';
+import { createShortId } from '../../short-id.js';
 
 export interface StuckTask {
   task_id: string;
@@ -93,10 +94,11 @@ export function runStuck(options: {
     if (tasks.length === 0) {
       console.log('No stuck tasks found');
     } else {
+      const shortId = createShortId(tasks.map(t => t.task_id));
       console.log(`Stuck tasks (${tasks.length}):`);
       for (const task of tasks) {
         const expiredMinutes = Math.round(task.expired_for_ms / 60000);
-        console.log(`  [${task.task_id.slice(0, 8)}] ${task.title} (${task.project})`);
+        console.log(`  [${shortId(task.task_id)}] ${task.title} (${task.project})`);
         console.log(`    Assignee: ${task.assignee ?? 'unknown'} | Expired: ${expiredMinutes}m ago`);
       }
     }

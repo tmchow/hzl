@@ -4,6 +4,7 @@ import { resolveDbPaths } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError, CLIError, ExitCode } from '../../errors.js';
 import { GlobalOptionsSchema } from '../../types.js';
+import { createShortId } from '../../short-id.js';
 import type { PruneResult } from 'hzl-core/services/task-service.js';
 
 interface PruneCommandOptions {
@@ -97,9 +98,10 @@ export function runPrune(options: {
         if (eligible.length === 0) {
           console.log('No tasks eligible for pruning');
         } else {
+          const shortId = createShortId(eligible.map(t => t.task_id));
           console.log(`Would prune ${eligible.length} task(s):`);
           for (const t of eligible.slice(0, 20)) {
-            console.log(`  [${t.task_id.slice(0, 8)}] ${t.title} (${t.project})`);
+            console.log(`  [${shortId(t.task_id)}] ${t.title} (${t.project})`);
           }
           if (eligible.length > 20) {
             console.log(`  ... and ${eligible.length - 20} more`);
@@ -124,9 +126,10 @@ export function runPrune(options: {
     // Require --yes for destructive operations
     // Show preview and require explicit confirmation
     if (!yes) {
+      const shortId2 = createShortId(eligible.map(t => t.task_id));
       console.log(`Found ${eligible.length} task(s) eligible for pruning:`);
       for (const t of eligible.slice(0, 10)) {
-        console.log(`  [${t.task_id.slice(0, 8)}] ${t.title} (${t.project})`);
+        console.log(`  [${shortId2(t.task_id)}] ${t.title} (${t.project})`);
       }
       if (eligible.length > 10) {
         console.log(`  ... and ${eligible.length - 10} more`);

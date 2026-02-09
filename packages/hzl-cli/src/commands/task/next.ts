@@ -4,6 +4,7 @@ import { resolveDbPaths } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError, CLIError, ExitCode } from '../../errors.js';
 import { GlobalOptionsSchema } from '../../types.js';
+import { createShortId } from '../../short-id.js';
 
 export interface NextResult {
   task_id: string;
@@ -66,7 +67,8 @@ export function runNext(options: NextOptions): NextResult | null {
   if (json) {
     console.log(JSON.stringify(result));
   } else {
-    console.log(`Next task: [${task.task_id.slice(0, 8)}] ${task.title} (${task.project})`);
+    const shortId = createShortId([task.task_id]);
+    console.log(`Next task: [${shortId(task.task_id)}] ${task.title} (${task.project})`);
   }
 
   return result;

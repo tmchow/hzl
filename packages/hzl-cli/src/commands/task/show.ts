@@ -4,6 +4,8 @@ import { resolveDbPaths } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { CLIError, ExitCode, handleError } from '../../errors.js';
 import { GlobalOptionsSchema } from '../../types.js';
+import { resolveId } from '../../resolve-id.js';
+import { createShortId } from '../../short-id.js';
 import { TaskStatus } from 'hzl-core/events/types.js';
 import type { Task, Comment, Checkpoint } from 'hzl-core/services/task-service.js';
 
@@ -100,10 +102,11 @@ export function runShow(options: {
     }
 
     if (subtasks && subtasks.length > 0) {
+      const shortId = createShortId(subtasks.map(st => st.task_id));
       console.log(`\nSubtasks (${subtasks.length}):`);
       for (const st of subtasks) {
         const icon = st.status === TaskStatus.Done ? '✓' : st.status === TaskStatus.InProgress ? '→' : '○';
-        console.log(`  ${icon} [${st.task_id.slice(0, 8)}] ${st.title} (${st.status})`);
+        console.log(`  ${icon} [${shortId(st.task_id)}] ${st.title} (${st.status})`);
       }
     }
   }
@@ -117,11 +120,12 @@ export function createShowCommand(): Command {
     .argument('<taskId>', 'Task ID')
     .option('--no-subtasks', 'Hide subtasks in output')
     .option('--deep', 'Include full task fields and blocked_by for subtasks (JSON mode)')
-    .action(function (this: Command, taskId: string, opts: { subtasks?: boolean; deep?: boolean }) {
+    .action(function (this: Command, rawTaskId: string, opts: { subtasks?: boolean; deep?: boolean }) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
       const services = initializeDb({ eventsDbPath, cacheDbPath });
       try {
+        const taskId = resolveId(services, rawTaskId);
         runShow({
           services,
           taskId,

@@ -4,6 +4,7 @@ import { resolveDbPaths } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError, CLIError, ExitCode } from '../../errors.js';
 import { GlobalOptionsSchema } from '../../types.js';
+import { resolveId } from '../../resolve-id.js';
 
 export interface CommentResult {
   task_id: string;
@@ -54,7 +55,7 @@ export function createCommentCommand(): Command {
     .option('--author <name>', 'Author name')
     .action(function (
       this: Command,
-      taskId: string,
+      rawTaskId: string,
       text: string,
       opts: CommentCommandOptions
     ) {
@@ -62,6 +63,7 @@ export function createCommentCommand(): Command {
       const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
       const services = initializeDb({ eventsDbPath, cacheDbPath });
       try {
+        const taskId = resolveId(services, rawTaskId);
         runComment({
           services,
           taskId,

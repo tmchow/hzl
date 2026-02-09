@@ -4,6 +4,7 @@ import { resolveDbPaths } from '../config.js';
 import { initializeDb, closeDb, type Services } from '../db.js';
 import { handleError } from '../errors.js';
 import { GlobalOptionsSchema } from '../types.js';
+import { createShortId } from '../short-id.js';
 import type { ValidationResult } from 'hzl-core/services/validation-service.js';
 
 export function runValidate(options: {
@@ -26,16 +27,20 @@ export function runValidate(options: {
         console.log(`  ${icon} [${issue.type}] ${issue.message}`);
       }
       if (result.cycles.length > 0) {
+        const cycleIds = result.cycles.flat().map(c => c.taskId);
+        const shortId = createShortId(cycleIds);
         console.log(`\nCycles (${result.cycles.length}):`);
         for (const cycle of result.cycles) {
-          const path = cycle.map((c) => c.taskId.slice(0, 8)).join(' → ');
+          const path = cycle.map((c) => shortId(c.taskId)).join(' → ');
           console.log(`  ${path} → (cycle)`);
         }
       }
       if (result.missingDeps.length > 0) {
+        const depIds = result.missingDeps.flatMap(m => [m.taskId, m.missingDepId]);
+        const shortId2 = createShortId(depIds);
         console.log(`\nMissing dependencies (${result.missingDeps.length}):`);
         for (const missing of result.missingDeps) {
-          console.log(`  ${missing.taskId.slice(0, 8)} → ${missing.missingDepId.slice(0, 8)} (missing)`);
+          console.log(`  ${shortId2(missing.taskId)} → ${shortId2(missing.missingDepId)} (missing)`);
         }
       }
     }

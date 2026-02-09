@@ -1,7 +1,7 @@
 // packages/hzl-core/src/services/task-service.test.ts
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import Database from 'libsql';
-import { TaskService, CrossProjectDependencyError } from './task-service.js';
+import { TaskService, CrossProjectDependencyError, AmbiguousPrefixError } from './task-service.js';
 import { ProjectService, ProjectNotFoundError } from './project-service.js';
 import { createTestDb } from '../db/test-utils.js';
 import { EventStore } from '../events/store.js';
@@ -2071,6 +2071,110 @@ describe('TaskService', () => {
       const result = taskService.getBlockedByForTasks([task.task_id]);
       expect(result.has(task.task_id)).toBe(true);
       expect(result.get(task.task_id)).toEqual([dep.task_id]);
+    });
+  });
+
+  describe('resolveTaskId', () => {
+    it('returns full ID for exact match', () => {
+      const task = taskService.createTask({ title: 'Exact match test', project: 'inbox' });
+      const resolved = taskService.resolveTaskId(task.task_id);
+      expect(resolved).toBe(task.task_id);
+    });
+
+    it('resolves unique prefix to full ID', () => {
+      const task = taskService.createTask({ title: 'Prefix test', project: 'inbox' });
+      // Use the full ID minus last char — guaranteed unique with one task
+      const prefix = task.task_id.slice(0, task.task_id.length - 1);
+      const resolved = taskService.resolveTaskId(prefix);
+      expect(resolved).toBe(task.task_id);
+    });
+
+    it('returns null for no match', () => {
+      taskService.createTask({ title: 'Some task', project: 'inbox' });
+      const resolved = taskService.resolveTaskId('ZZZZZZZZ');
+      expect(resolved).toBeNull();
+    });
+
+    it('returns null for full-length non-existent ID', () => {
+      const resolved = taskService.resolveTaskId('01ZZZZZZZZZZZZZZZZZZZZZZZZ');
+      expect(resolved).toBeNull();
+    });
+
+    it('prefers exact match over prefix search', () => {
+      // Insert a fake task whose full ID happens to be a prefix of another
+      // We test this by verifying exact match returns immediately
+      const task = taskService.createTask({ title: 'Exact match priority', project: 'inbox' });
+      // Even if the LIKE query would match, exact match should win
+      const resolved = taskService.resolveTaskId(task.task_id);
+      expect(resolved).toBe(task.task_id);
+    });
+
+    it('throws AmbiguousPrefixError when prefix matches multiple tasks', () => {
+      // ULIDs created in the same ms share the first 10 chars (timestamp component)
+      const task1 = taskService.createTask({ title: 'Task one', project: 'inbox' });
+      const task2 = taskService.createTask({ title: 'Task two', project: 'inbox' });
+
+      // Find shared prefix length
+      let commonLen = 0;
+      while (commonLen < task1.task_id.length && task1.task_id[commonLen] === task2.task_id[commonLen]) {
+        commonLen++;
+      }
+      // ULIDs from same ms always share ≥10 chars; assert to catch if this assumption breaks
+      expect(commonLen).toBeGreaterThanOrEqual(10);
+
+      const ambiguousPrefix = task1.task_id.slice(0, commonLen);
+      expect(() => taskService.resolveTaskId(ambiguousPrefix)).toThrow(AmbiguousPrefixError);
+    });
+
+    it('AmbiguousPrefixError includes matching task IDs and titles', () => {
+      const task1 = taskService.createTask({ title: 'Alpha task', project: 'inbox' });
+      const task2 = taskService.createTask({ title: 'Beta task', project: 'inbox' });
+
+      let commonLen = 0;
+      while (commonLen < task1.task_id.length && task1.task_id[commonLen] === task2.task_id[commonLen]) {
+        commonLen++;
+      }
+
+      const ambiguousPrefix = task1.task_id.slice(0, commonLen);
+      try {
+        taskService.resolveTaskId(ambiguousPrefix);
+        expect.unreachable('should have thrown');
+      } catch (e) {
+        expect(e).toBeInstanceOf(AmbiguousPrefixError);
+        const err = e as AmbiguousPrefixError;
+        expect(err.matches).toHaveLength(2);
+        const ids = err.matches.map(m => m.task_id).sort();
+        expect(ids).toEqual([task1.task_id, task2.task_id].sort());
+        const titles = err.matches.map(m => m.title).sort();
+        expect(titles).toEqual(['Alpha task', 'Beta task']);
+        expect(err.message).toContain(ambiguousPrefix);
+        expect(err.message).toContain('Alpha task');
+        expect(err.message).toContain('Beta task');
+      }
+    });
+
+    it('resolves when one of many tasks has a unique prefix', () => {
+      const task1 = taskService.createTask({ title: 'Task A', project: 'inbox' });
+      const task2 = taskService.createTask({ title: 'Task B', project: 'inbox' });
+
+      // The full ID of task1 is unique even though its prefix overlaps with task2
+      const resolved = taskService.resolveTaskId(task1.task_id);
+      expect(resolved).toBe(task1.task_id);
+
+      // A prefix that's one char longer than the common prefix should disambiguate
+      let commonLen = 0;
+      while (commonLen < task1.task_id.length && task1.task_id[commonLen] === task2.task_id[commonLen]) {
+        commonLen++;
+      }
+      // commonLen is the first differing position, so slice(0, commonLen+1) is unique to task1
+      const uniquePrefix = task1.task_id.slice(0, commonLen + 1);
+      const resolved2 = taskService.resolveTaskId(uniquePrefix);
+      expect(resolved2).toBe(task1.task_id);
+    });
+
+    it('returns null when no tasks exist', () => {
+      const resolved = taskService.resolveTaskId('01ABCDEF');
+      expect(resolved).toBeNull();
     });
   });
 });

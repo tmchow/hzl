@@ -2,6 +2,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'http';
 import {
   TaskService,
   EventStore,
+  AmbiguousPrefixError,
   type TaskListItem as CoreTaskListItem,
 } from 'hzl-core';
 import { DASHBOARD_HTML } from './ui-embed.js';
@@ -140,7 +141,23 @@ export function createWebServer(options: ServerOptions): ServerHandle {
   }
 
   function handleTaskDetail(taskId: string, res: ServerResponse): void {
-    const task = taskService.getTaskById(taskId);
+    let resolvedId: string;
+    try {
+      const result = taskService.resolveTaskId(taskId);
+      if (!result) {
+        notFound(res, `Task not found: ${taskId}`);
+        return;
+      }
+      resolvedId = result;
+    } catch (e) {
+      if (e instanceof AmbiguousPrefixError) {
+        json(res, { error: e.message }, 400);
+        return;
+      }
+      throw e;
+    }
+
+    const task = taskService.getTaskById(resolvedId);
 
     if (!task) {
       notFound(res, `Task not found: ${taskId}`);

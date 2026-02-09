@@ -4,6 +4,7 @@ import { resolveDbPaths } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError, CLIError, ExitCode } from '../../errors.js';
 import { GlobalOptionsSchema } from '../../types.js';
+import { resolveId } from '../../resolve-id.js';
 
 export interface ArchiveResult {
   task_id: string;
@@ -80,11 +81,12 @@ export function createArchiveCommand(): Command {
     .option('--author <name>', 'Author name')
     .option('--cascade', 'Archive all subtasks (if task has children)', false)
     .option('--orphan', 'Promote subtasks to top-level (if task has children)', false)
-    .action(function (this: Command, taskId: string, opts: ArchiveCommandOptions) {
+    .action(function (this: Command, rawTaskId: string, opts: ArchiveCommandOptions) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
       const services = initializeDb({ eventsDbPath, cacheDbPath });
       try {
+        const taskId = resolveId(services, rawTaskId);
         runArchive({
           services,
           taskId,

@@ -6,6 +6,7 @@ import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError, CLIError, ExitCode } from '../../errors.js';
 import { EventType } from 'hzl-core/events/types.js';
 import { GlobalOptionsSchema } from '../../types.js';
+import { resolveId } from '../../resolve-id.js';
 
 export interface AddDepResult {
   task_id: string;
@@ -90,11 +91,13 @@ export function createAddDepCommand(): Command {
     .description('Add a dependency between tasks')
     .argument('<taskId>', 'Task ID that will depend on the other')
     .argument('<dependsOnId>', 'Task ID that must be completed first')
-    .action(function (this: Command, taskId: string, dependsOnId: string) {
+    .action(function (this: Command, rawTaskId: string, rawDependsOnId: string) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
       const services = initializeDb({ eventsDbPath, cacheDbPath });
       try {
+        const taskId = resolveId(services, rawTaskId);
+        const dependsOnId = resolveId(services, rawDependsOnId);
         runAddDep({ services, taskId, dependsOnId, json: globalOpts.json ?? false });
       } catch (e) {
         handleError(e, globalOpts.json);

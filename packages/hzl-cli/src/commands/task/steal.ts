@@ -4,6 +4,7 @@ import { resolveDbPaths } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError, CLIError, ExitCode } from '../../errors.js';
 import { GlobalOptionsSchema } from '../../types.js';
+import { resolveId } from '../../resolve-id.js';
 
 export interface StealResult {
   task_id: string;
@@ -95,11 +96,12 @@ export function createStealCommand(): Command {
     .option('--owner <name>', 'New owner name')
     .option('--force', 'Force steal even if lease is active')
     .option('--if-expired', 'Only steal if lease has expired')
-    .action(function (this: Command, taskId: string, opts: StealCommandOptions) {
+    .action(function (this: Command, rawTaskId: string, opts: StealCommandOptions) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
       const services = initializeDb({ eventsDbPath, cacheDbPath });
       try {
+        const taskId = resolveId(services, rawTaskId);
         runSteal({
           services,
           taskId,

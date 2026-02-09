@@ -4,6 +4,7 @@ import { resolveDbPaths } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { CLIError, ExitCode, handleError } from '../../errors.js';
 import { GlobalOptionsSchema } from '../../types.js';
+import { resolveId } from '../../resolve-id.js';
 import { TaskStatus } from 'hzl-core/events/types.js';
 
 export interface ClaimResult {
@@ -74,11 +75,12 @@ export function createClaimCommand(): Command {
     .option('--assignee <name>', 'Who to assign the task to')
     .option('--agent-id <id>', 'Agent ID (machine/AI identifier)')
     .option('-l, --lease <minutes>', 'Lease duration in minutes')
-    .action(function (this: Command, taskId: string, opts: ClaimCommandOptions) {
+    .action(function (this: Command, rawTaskId: string, opts: ClaimCommandOptions) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
       const services = initializeDb({ eventsDbPath, cacheDbPath });
       try {
+        const taskId = resolveId(services, rawTaskId);
         runClaim({
           services,
           taskId,
