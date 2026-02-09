@@ -131,9 +131,12 @@ hzl task next -P my-project
 
 ```bash
 hzl task show <id>
+hzl task show <id> --deep --json   # Full subtask fields + blocked_by
 ```
 
 Shows title, description, status, dependencies, and checkpoints.
+
+The `--deep` flag expands subtask data from a summary (`task_id`, `title`, `status`) to all Task fields plus a computed `blocked_by` array. This lets agents get complete context on a parent task and all its children in a single call.
 
 ## Updating Tasks
 

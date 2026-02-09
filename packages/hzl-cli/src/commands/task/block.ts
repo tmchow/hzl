@@ -4,6 +4,7 @@ import { resolveDbPaths } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { CLIError, ExitCode, handleError } from '../../errors.js';
 import { GlobalOptionsSchema } from '../../types.js';
+import { resolveId } from '../../resolve-id.js';
 import { TaskStatus } from 'hzl-core/events/types.js';
 
 export interface BlockResult {
@@ -61,11 +62,12 @@ export function createBlockCommand(): Command {
     .argument('<taskId>', 'Task ID')
     .option('--comment <comment>', 'Comment explaining why task is blocked')
     .option('--author <name>', 'Author name')
-    .action(function (this: Command, taskId: string, opts: BlockCommandOptions) {
+    .action(function (this: Command, rawTaskId: string, opts: BlockCommandOptions) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
       const services = initializeDb({ eventsDbPath, cacheDbPath });
       try {
+        const taskId = resolveId(services, rawTaskId);
         runBlock({
           services,
           taskId,

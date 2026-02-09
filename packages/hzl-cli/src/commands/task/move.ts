@@ -4,6 +4,7 @@ import { resolveDbPaths } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError, CLIError, ExitCode } from '../../errors.js';
 import { GlobalOptionsSchema } from '../../types.js';
+import { resolveId } from '../../resolve-id.js';
 
 export interface MoveResult {
   task_id: string;
@@ -72,11 +73,12 @@ export function createMoveCommand(): Command {
     .description('Move a task to a different project')
     .argument('<taskId>', 'Task ID')
     .argument('<project>', 'Target project name')
-    .action(function (this: Command, taskId: string, project: string) {
+    .action(function (this: Command, rawTaskId: string, project: string) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
       const services = initializeDb({ eventsDbPath, cacheDbPath });
       try {
+        const taskId = resolveId(services, rawTaskId);
         runMove({ services, taskId, toProject: project, json: globalOpts.json ?? false });
       } catch (e) {
         handleError(e, globalOpts.json);

@@ -4,6 +4,7 @@ import { resolveDbPaths } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError, CLIError, ExitCode } from '../../errors.js';
 import { GlobalOptionsSchema } from '../../types.js';
+import { resolveId } from '../../resolve-id.js';
 
 export interface CheckpointResult {
   task_id: string;
@@ -68,7 +69,7 @@ export function createCheckpointCommand(): Command {
     .option('--author <name>', 'Author name')
     .action(function (
       this: Command,
-      taskId: string,
+      rawTaskId: string,
       name: string,
       opts: CheckpointCommandOptions
     ) {
@@ -76,6 +77,7 @@ export function createCheckpointCommand(): Command {
       const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
       const services = initializeDb({ eventsDbPath, cacheDbPath });
       try {
+        const taskId = resolveId(services, rawTaskId);
         let data: Record<string, unknown> | undefined;
         if (opts.data) {
           try {

@@ -4,36 +4,29 @@ import { resolveDbPaths } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { CLIError, ExitCode, handleError } from '../../errors.js';
 import { GlobalOptionsSchema } from '../../types.js';
+import { resolveId } from '../../resolve-id.js';
+import { createShortId } from '../../short-id.js';
 import { TaskStatus } from 'hzl-core/events/types.js';
-import type { Comment, Checkpoint } from 'hzl-core/services/task-service.js';
+import type { Task, Comment, Checkpoint } from 'hzl-core/services/task-service.js';
+
+export type SubtaskSummary = { task_id: string; title: string; status: string };
+export type DeepSubtask = Task & { blocked_by: string[] };
 
 export interface ShowResult {
-  task: {
-    task_id: string;
-    title: string;
-    project: string;
-    status: string;
-    priority: number;
-    parent_id: string | null;
-    description: string | null;
-    tags: string[];
-    created_at: string;
-    updated_at: string;
-    assignee: string | null;
-    progress: number | null;
-  };
+  task: Task;
   comments: Array<{ text: string; author?: string; timestamp: string }>;
   checkpoints: Array<{ name: string; data: Record<string, unknown>; timestamp: string }>;
-  subtasks?: Array<{ task_id: string; title: string; status: string }>;
+  subtasks?: Array<SubtaskSummary> | Array<DeepSubtask>;
 }
 
 export function runShow(options: {
   services: Services;
   taskId: string;
   showSubtasks?: boolean;
+  deep?: boolean;
   json: boolean;
 }): ShowResult {
-  const { services, taskId, showSubtasks = true, json } = options;
+  const { services, taskId, showSubtasks = true, deep = false, json } = options;
 
   const task = services.taskService.getTaskById(taskId);
   if (!task) {
@@ -43,29 +36,28 @@ export function runShow(options: {
   const comments = services.taskService.getComments(taskId);
   const checkpoints = services.taskService.getCheckpoints(taskId);
 
-  const subtasks = showSubtasks
-    ? services.taskService.getSubtasks(taskId).map(t => ({
-        task_id: t.task_id,
-        title: t.title,
-        status: t.status,
-      }))
-    : undefined;
+  let subtasks: Array<SubtaskSummary> | Array<DeepSubtask> | undefined;
+  if (!showSubtasks) {
+    subtasks = undefined;
+  } else if (deep) {
+    const rawSubtasks = services.taskService.getSubtasks(taskId);
+    const blockedByMap = services.taskService.getBlockedByForTasks(
+      rawSubtasks.map(t => t.task_id),
+    );
+    subtasks = rawSubtasks.map(t => ({
+      ...t,
+      blocked_by: blockedByMap.get(t.task_id) ?? [],
+    }));
+  } else {
+    subtasks = services.taskService.getSubtasks(taskId).map(t => ({
+      task_id: t.task_id,
+      title: t.title,
+      status: t.status,
+    }));
+  }
 
   const result: ShowResult = {
-    task: {
-      task_id: task.task_id,
-      title: task.title,
-      project: task.project,
-      status: task.status,
-      priority: task.priority,
-      parent_id: task.parent_id,
-      description: task.description,
-      tags: task.tags,
-      created_at: task.created_at,
-      updated_at: task.updated_at,
-      assignee: task.assignee,
-      progress: task.progress,
-    },
+    task,
     comments: comments.map((c: Comment) => ({
       text: c.text,
       author: c.author,
@@ -110,10 +102,22 @@ export function runShow(options: {
     }
 
     if (subtasks && subtasks.length > 0) {
+      const shortId = createShortId(subtasks.map(st => st.task_id));
       console.log(`\nSubtasks (${subtasks.length}):`);
       for (const st of subtasks) {
         const icon = st.status === TaskStatus.Done ? '✓' : st.status === TaskStatus.InProgress ? '→' : '○';
-        console.log(`  ${icon} [${st.task_id.slice(0, 8)}] ${st.title} (${st.status})`);
+        console.log(`  ${icon} [${shortId(st.task_id)}] ${st.title} (${st.status})`);
+        if (deep && 'blocked_by' in st) {
+          const ds = st as DeepSubtask;
+          const details: string[] = [];
+          if (ds.priority !== 0) details.push(`Priority: ${ds.priority}`);
+          if (ds.assignee) details.push(`Assignee: ${ds.assignee}`);
+          if (ds.progress !== null) details.push(`Progress: ${ds.progress}%`);
+          if (details.length > 0) console.log(`    ${details.join(' | ')}`);
+          if (ds.description) console.log(`    Description: ${ds.description}`);
+          if (ds.blocked_by.length > 0) console.log(`    Blocked by: ${ds.blocked_by.map(id => shortId(id)).join(', ')}`);
+          if (ds.tags.length > 0) console.log(`    Tags: ${ds.tags.join(', ')}`);
+        }
       }
     }
   }
@@ -126,15 +130,18 @@ export function createShowCommand(): Command {
     .description('Show task details with comments, checkpoints, and subtasks')
     .argument('<taskId>', 'Task ID')
     .option('--no-subtasks', 'Hide subtasks in output')
-    .action(function (this: Command, taskId: string, opts: { subtasks?: boolean }) {
+    .option('--deep', 'Include full task fields and blocked_by for each subtask')
+    .action(function (this: Command, rawTaskId: string, opts: { subtasks?: boolean; deep?: boolean }) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
       const services = initializeDb({ eventsDbPath, cacheDbPath });
       try {
+        const taskId = resolveId(services, rawTaskId);
         runShow({
           services,
           taskId,
           showSubtasks: opts.subtasks !== false,
+          deep: opts.deep ?? false,
           json: globalOpts.json ?? false,
         });
       } catch (e) {

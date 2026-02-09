@@ -5,6 +5,7 @@ import { initializeDb, closeDb, type Services } from '../../db.js';
 import { CLIError, ExitCode, handleError } from '../../errors.js';
 import { TaskStatus } from 'hzl-core/events/types.js';
 import { GlobalOptionsSchema } from '../../types.js';
+import { resolveId } from '../../resolve-id.js';
 
 export interface AddResult {
   task_id: string;
@@ -148,6 +149,8 @@ export function createAddCommand(): Command {
       const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
       const services = initializeDb({ eventsDbPath, cacheDbPath });
       try {
+        const parent = opts.parent ? resolveId(services, opts.parent) : undefined;
+        const dependsOn = opts.dependsOn?.split(',').map(id => resolveId(services, id.trim()));
         runAdd({
           services,
           project: opts.project ?? 'inbox',
@@ -156,8 +159,8 @@ export function createAddCommand(): Command {
           links: opts.links?.split(','),
           tags: opts.tags?.split(','),
           priority: parseInt(opts.priority ?? '0', 10),
-          dependsOn: opts.dependsOn?.split(','),
-          parent: opts.parent,
+          dependsOn,
+          parent,
           status: opts.status,
           assignee: opts.assignee,
           comment: opts.comment,

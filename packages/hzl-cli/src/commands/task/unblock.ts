@@ -4,6 +4,7 @@ import { resolveDbPaths } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError } from '../../errors.js';
 import { GlobalOptionsSchema } from '../../types.js';
+import { resolveId } from '../../resolve-id.js';
 
 export interface UnblockResult {
   task_id: string;
@@ -55,11 +56,12 @@ export function createUnblockCommand(): Command {
     .option('--release', 'Return task to ready status instead of in_progress')
     .option('--comment <comment>', 'Comment explaining the unblock')
     .option('--author <name>', 'Author name')
-    .action(function (this: Command, taskId: string, opts: UnblockCommandOptions) {
+    .action(function (this: Command, rawTaskId: string, opts: UnblockCommandOptions) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
       const services = initializeDb({ eventsDbPath, cacheDbPath });
       try {
+        const taskId = resolveId(services, rawTaskId);
         runUnblock({
           services,
           taskId,

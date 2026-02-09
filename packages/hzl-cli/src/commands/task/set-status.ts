@@ -5,6 +5,7 @@ import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError, CLIError, ExitCode } from '../../errors.js';
 import { TaskStatus } from 'hzl-core/events/types.js';
 import { GlobalOptionsSchema } from '../../types.js';
+import { resolveId } from '../../resolve-id.js';
 
 export interface SetStatusResult {
   task_id: string;
@@ -60,7 +61,7 @@ export function createSetStatusCommand(): Command {
     .option('--author <name>', 'Author name')
     .action(function (
       this: Command,
-      taskId: string,
+      rawTaskId: string,
       status: string,
       opts: SetStatusCommandOptions
     ) {
@@ -71,6 +72,7 @@ export function createSetStatusCommand(): Command {
         if (!validStatuses.includes(status as TaskStatus)) {
           throw new CLIError(`Invalid status: ${status}. Valid: ${validStatuses.join(', ')}`, ExitCode.InvalidInput);
         }
+        const taskId = resolveId(services, rawTaskId);
         runSetStatus({
           services,
           taskId,

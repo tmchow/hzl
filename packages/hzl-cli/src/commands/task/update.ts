@@ -5,6 +5,7 @@ import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError, CLIError, ExitCode } from '../../errors.js';
 import { EventType } from 'hzl-core/events/types.js';
 import { GlobalOptionsSchema } from '../../types.js';
+import { resolveId } from '../../resolve-id.js';
 
 export interface UpdateResult {
   task_id: string;
@@ -146,11 +147,12 @@ export function createUpdateCommand(): Command {
     .option('-p, --priority <n>', 'New priority (0-3)')
     .option('-t, --tags <tags>', 'New tags (comma-separated)')
     .option('--parent <taskId>', 'Set parent task (use "" to remove)')
-    .action(function (this: Command, taskId: string, opts: UpdateCommandOptions) {
+    .action(function (this: Command, rawTaskId: string, opts: UpdateCommandOptions) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
       const services = initializeDb({ eventsDbPath, cacheDbPath });
       try {
+        const taskId = resolveId(services, rawTaskId);
         const updates: TaskUpdates = {};
         if (opts.title) updates.title = opts.title;
         if (opts.desc !== undefined) {
@@ -164,7 +166,7 @@ export function createUpdateCommand(): Command {
           updates.tags = opts.tags === '' ? [] : opts.tags.split(',');
         }
         if (opts.parent !== undefined) {
-          updates.parent_id = opts.parent === '' ? null : opts.parent;
+          updates.parent_id = opts.parent === '' ? null : resolveId(services, opts.parent);
         }
 
         runUpdate({ services, taskId, updates, json: globalOpts.json ?? false });

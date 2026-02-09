@@ -109,6 +109,7 @@ export {
   TaskNotClaimableError,
   DependenciesNotDoneError,
   CrossProjectDependencyError,
+  AmbiguousPrefixError,
   type CreateTaskInput,
   type EventContext,
   type Task,

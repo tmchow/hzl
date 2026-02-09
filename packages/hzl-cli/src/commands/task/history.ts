@@ -4,6 +4,7 @@ import { resolveDbPaths } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError } from '../../errors.js';
 import { GlobalOptionsSchema } from '../../types.js';
+import { resolveId } from '../../resolve-id.js';
 
 export interface HistoryEvent {
   rowid: number;
@@ -75,11 +76,12 @@ export function createHistoryCommand(): Command {
     .description('Show full event history for a task')
     .argument('<taskId>', 'Task ID')
     .option('-l, --limit <n>', 'Limit number of events', '100')
-    .action(function (this: Command, taskId: string, opts: { limit: string }) {
+    .action(function (this: Command, rawTaskId: string, opts: { limit: string }) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
       const services = initializeDb({ eventsDbPath, cacheDbPath });
       try {
+        const taskId = resolveId(services, rawTaskId);
         runHistory({
           services,
           taskId,

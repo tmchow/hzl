@@ -378,6 +378,7 @@ hzl task complete <subtask-id>
 
 # Check parent status
 hzl task show abc123 --json         # Any subtasks left?
+hzl task show abc123 --deep --json  # Full subtask details + blocked_by
 hzl task complete abc123            # If all done, complete parent
 ```
 

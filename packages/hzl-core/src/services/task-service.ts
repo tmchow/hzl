@@ -209,6 +209,16 @@ export class CrossProjectDependencyError extends Error {
   }
 }
 
+export class AmbiguousPrefixError extends Error {
+  public readonly matches: Array<{ task_id: string; title: string }>;
+
+  constructor(prefix: string, matches: Array<{ task_id: string; title: string }>) {
+    const lines = matches.map(m => `  ${m.task_id}  ${m.title}`).join('\n');
+    super(`Ambiguous prefix '${prefix}' matches ${matches.length} tasks:\n${lines}`);
+    this.matches = matches;
+  }
+}
+
 /**
  * Validate progress value is an integer between 0 and 100.
  * @throws Error if progress is invalid
@@ -223,6 +233,7 @@ export class TaskService {
   private getIncompleteDepsStmt: Database.Statement;
   private getSubtasksStmt: Database.Statement;
   private getTaskByIdStmt: Database.Statement;
+  private resolveTaskIdStmt: Database.Statement;
 
   constructor(
     private db: Database.Database, // cache database
@@ -256,6 +267,10 @@ export class TaskService {
              created_at, updated_at
       FROM tasks_current
       WHERE task_id = ?
+    `);
+
+    this.resolveTaskIdStmt = db.prepare(`
+      SELECT task_id, title FROM tasks_current WHERE task_id LIKE ? || '%' ESCAPE '\\'
     `);
   }
 
@@ -954,6 +969,19 @@ export class TaskService {
     return this.rowToTask(row);
   }
 
+  resolveTaskId(idOrPrefix: string): string | null {
+    // Fast path: exact match
+    const exact = this.getTaskByIdStmt.get(idOrPrefix) as TaskRow | undefined;
+    if (exact) return exact.task_id;
+
+    // Escape LIKE metacharacters before prefix search
+    const escaped = idOrPrefix.replace(/[%_\\]/g, '\\$&');
+    const rows = this.resolveTaskIdStmt.all(escaped) as Array<{ task_id: string; title: string }>;
+    if (rows.length === 0) return null;
+    if (rows.length === 1) return rows[0].task_id;
+    throw new AmbiguousPrefixError(idOrPrefix, rows);
+  }
+
   getSubtasks(taskId: string): Task[] {
     const rows = this.getSubtasksStmt.all(taskId) as TaskRow[];
     return rows.map((row) => this.rowToTask(row));
@@ -1220,6 +1248,33 @@ export class TaskService {
       titleMap.set(row.task_id, row.title);
     }
     return titleMap;
+  }
+
+  /**
+   * Get incomplete (blocking) dependencies for multiple tasks in a single batched query.
+   * Returns a Map of task_id -> array of blocking dependency IDs.
+   * Absent keys mean zero blockers. Terminal-status tasks (done, archived) are excluded.
+   */
+  getBlockedByForTasks(taskIds: string[]): Map<string, string[]> {
+    const map = new Map<string, string[]>();
+    if (taskIds.length === 0) return map;
+
+    const placeholders = taskIds.map(() => '?').join(',');
+    const rows = this.db.prepare(`
+      SELECT td.task_id, GROUP_CONCAT(td.depends_on_id) as blocked_by
+      FROM task_dependencies td
+      JOIN tasks_current subj ON td.task_id = subj.task_id
+      JOIN tasks_current dep ON td.depends_on_id = dep.task_id
+      WHERE td.task_id IN (${placeholders})
+        AND subj.status NOT IN ('done', 'archived')
+        AND dep.status != 'done'
+      GROUP BY td.task_id
+    `).all(...taskIds) as Array<{ task_id: string; blocked_by: string }>;
+
+    for (const row of rows) {
+      map.set(row.task_id, row.blocked_by.split(','));
+    }
+    return map;
   }
 
   setParent(taskId: string, parentId: string | null, opts?: EventContext): Task {

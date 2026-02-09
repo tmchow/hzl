@@ -5,6 +5,7 @@ import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError, CLIError, ExitCode } from '../../errors.js';
 import { EventType } from 'hzl-core/events/types.js';
 import { GlobalOptionsSchema } from '../../types.js';
+import { resolveId } from '../../resolve-id.js';
 
 export interface RemoveDepResult {
   task_id: string;
@@ -55,11 +56,13 @@ export function createRemoveDepCommand(): Command {
     .description('Remove a dependency between tasks')
     .argument('<taskId>', 'Task ID that has the dependency')
     .argument('<dependsOnId>', 'Task ID to remove as dependency')
-    .action(function (this: Command, taskId: string, dependsOnId: string) {
+    .action(function (this: Command, rawTaskId: string, rawDependsOnId: string) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
       const services = initializeDb({ eventsDbPath, cacheDbPath });
       try {
+        const taskId = resolveId(services, rawTaskId);
+        const dependsOnId = resolveId(services, rawDependsOnId);
         runRemoveDep({ services, taskId, dependsOnId, json: globalOpts.json ?? false });
       } catch (e) {
         handleError(e, globalOpts.json);

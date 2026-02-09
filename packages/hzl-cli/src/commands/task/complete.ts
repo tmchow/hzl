@@ -4,6 +4,7 @@ import { resolveDbPaths } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { CLIError, ExitCode, handleError } from '../../errors.js';
 import { GlobalOptionsSchema } from '../../types.js';
+import { resolveId } from '../../resolve-id.js';
 import { TaskStatus } from 'hzl-core/events/types.js';
 
 export interface CompleteResult {
@@ -55,11 +56,12 @@ export function createCompleteCommand(): Command {
     .description('Mark a task as done')
     .argument('<taskId>', 'Task ID')
     .option('--author <name>', 'Author name')
-    .action(function (this: Command, taskId: string, opts: CompleteCommandOptions) {
+    .action(function (this: Command, rawTaskId: string, opts: CompleteCommandOptions) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
       const services = initializeDb({ eventsDbPath, cacheDbPath });
       try {
+        const taskId = resolveId(services, rawTaskId);
         runComplete({
           services,
           taskId,

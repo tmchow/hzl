@@ -4,6 +4,7 @@ import { resolveDbPaths } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError } from '../../errors.js';
 import { GlobalOptionsSchema } from '../../types.js';
+import { resolveId } from '../../resolve-id.js';
 
 export interface ProgressResult {
   task_id: string;
@@ -55,11 +56,12 @@ export function createProgressCommand(): Command {
     .argument('<taskId>', 'Task ID')
     .argument('<value>', 'Progress value (0-100)', parseProgress)
     .option('--author <name>', 'Author name')
-    .action(function (this: Command, taskId: string, value: number, opts: ProgressCommandOptions) {
+    .action(function (this: Command, rawTaskId: string, value: number, opts: ProgressCommandOptions) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
       const services = initializeDb({ eventsDbPath, cacheDbPath });
       try {
+        const taskId = resolveId(services, rawTaskId);
         runProgress({
           services,
           taskId,

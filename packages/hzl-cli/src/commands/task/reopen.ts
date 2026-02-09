@@ -5,6 +5,7 @@ import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError } from '../../errors.js';
 import { TaskStatus } from 'hzl-core/events/types.js';
 import { GlobalOptionsSchema } from '../../types.js';
+import { resolveId } from '../../resolve-id.js';
 
 export interface ReopenResult {
   task_id: string;
@@ -54,12 +55,13 @@ export function createReopenCommand(): Command {
     .option('-s, --status <status>', 'Target status (ready or backlog)', 'ready')
     .option('--comment <comment>', 'Comment explaining the reopen')
     .option('--author <name>', 'Author name')
-    .action(function (this: Command, taskId: string, opts: ReopenCommandOptions) {
+    .action(function (this: Command, rawTaskId: string, opts: ReopenCommandOptions) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
       const services = initializeDb({ eventsDbPath, cacheDbPath });
       try {
         const toStatus = opts.status === 'backlog' ? TaskStatus.Backlog : TaskStatus.Ready;
+        const taskId = resolveId(services, rawTaskId);
         runReopen({
           services,
           taskId,

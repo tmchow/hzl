@@ -5,6 +5,7 @@ import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError, CLIError, ExitCode } from '../../errors.js';
 import { TaskStatus } from 'hzl-core/events/types.js';
 import { GlobalOptionsSchema } from '../../types.js';
+import { createShortId } from '../../short-id.js';
 
 const validStatuses = Object.values(TaskStatus);
 
@@ -110,10 +111,11 @@ export function runList(options: ListOptions): ListResult {
     if (rows.length === 0) {
       console.log('No tasks found');
     } else {
+      const shortId = createShortId(rows.map(t => t.task_id));
       console.log('Tasks:');
       for (const task of rows) {
         const statusIcon = task.status === 'done' ? '✓' : task.status === 'in_progress' ? '→' : '○';
-        console.log(`  ${statusIcon} [${task.task_id.slice(0, 8)}] ${task.title} (${task.project})`);
+        console.log(`  ${statusIcon} [${shortId(task.task_id)}] ${task.title} (${task.project})`);
       }
     }
   }

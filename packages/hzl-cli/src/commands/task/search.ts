@@ -4,6 +4,7 @@ import { resolveDbPaths } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError } from '../../errors.js';
 import { GlobalOptionsSchema } from '../../types.js';
+import { createShortId } from '../../short-id.js';
 import type { SearchTaskResult } from 'hzl-core/services/search-service.js';
 
 export interface SearchTask {
@@ -81,9 +82,10 @@ export function runSearch(options: {
     if (tasks.length === 0) {
       console.log(`No tasks matching "${query}"`);
     } else {
+      const shortId = createShortId(tasks.map(t => t.task_id));
       console.log(`Found ${tasks.length} task(s):`);
       for (const task of tasks) {
-        console.log(`  [${task.task_id.slice(0, 8)}] ${task.title} (${task.project})`);
+        console.log(`  [${shortId(task.task_id)}] ${task.title} (${task.project})`);
       }
     }
   }
