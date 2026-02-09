@@ -1222,6 +1222,33 @@ export class TaskService {
     return titleMap;
   }
 
+  /**
+   * Get incomplete (blocking) dependencies for multiple tasks in a single batched query.
+   * Returns a Map of task_id -> array of blocking dependency IDs.
+   * Absent keys mean zero blockers. Terminal-status tasks (done, archived) are excluded.
+   */
+  getBlockedByForTasks(taskIds: string[]): Map<string, string[]> {
+    const map = new Map<string, string[]>();
+    if (taskIds.length === 0) return map;
+
+    const placeholders = taskIds.map(() => '?').join(',');
+    const rows = this.db.prepare(`
+      SELECT td.task_id, GROUP_CONCAT(td.depends_on_id) as blocked_by
+      FROM task_dependencies td
+      JOIN tasks_current subj ON td.task_id = subj.task_id
+      JOIN tasks_current dep ON td.depends_on_id = dep.task_id
+      WHERE td.task_id IN (${placeholders})
+        AND subj.status NOT IN ('done', 'archived')
+        AND dep.status != 'done'
+      GROUP BY td.task_id
+    `).all(...taskIds) as Array<{ task_id: string; blocked_by: string }>;
+
+    for (const row of rows) {
+      map.set(row.task_id, row.blocked_by.split(','));
+    }
+    return map;
+  }
+
   setParent(taskId: string, parentId: string | null, opts?: EventContext): Task {
     return withWriteTransaction(this.db, () => {
       const task = this.getTaskById(taskId);

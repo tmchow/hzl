@@ -1948,4 +1948,100 @@ describe('TaskService', () => {
       expect(taskServiceWithEventsDb.getTaskById(taskC.task_id)).toBeNull();
     });
   });
+
+  describe('getBlockedByForTasks', () => {
+    it('returns empty map for empty input', () => {
+      const result = taskService.getBlockedByForTasks([]);
+      expect(result.size).toBe(0);
+    });
+
+    it('returns empty map for tasks with no dependencies', () => {
+      const task = taskService.createTask({ title: 'No deps', project: 'inbox' });
+      const result = taskService.getBlockedByForTasks([task.task_id]);
+      expect(result.size).toBe(0);
+    });
+
+    it('returns blocking dependency IDs for task with incomplete deps', () => {
+      const dep1 = taskService.createTask({ title: 'Dep 1', project: 'inbox' });
+      const dep2 = taskService.createTask({ title: 'Dep 2', project: 'inbox' });
+      const task = taskService.createTask({
+        title: 'Blocked task',
+        project: 'inbox',
+        depends_on: [dep1.task_id, dep2.task_id],
+      });
+
+      const result = taskService.getBlockedByForTasks([task.task_id]);
+      expect(result.has(task.task_id)).toBe(true);
+      expect(result.get(task.task_id)!.sort()).toEqual([dep1.task_id, dep2.task_id].sort());
+    });
+
+    it('excludes task from map when all dependencies are done', () => {
+      const dep = taskService.createTask({ title: 'Dep', project: 'inbox' });
+      const task = taskService.createTask({
+        title: 'Task',
+        project: 'inbox',
+        depends_on: [dep.task_id],
+      });
+
+      // Complete the dependency: backlog → ready → in_progress → done
+      taskService.setStatus(dep.task_id, TaskStatus.Ready);
+      taskService.claimTask(dep.task_id);
+      taskService.completeTask(dep.task_id);
+
+      const result = taskService.getBlockedByForTasks([task.task_id]);
+      expect(result.has(task.task_id)).toBe(false);
+    });
+
+    it('returns only blocked tasks in a mix of blocked and unblocked', () => {
+      const dep = taskService.createTask({ title: 'Dep', project: 'inbox' });
+      const blocked = taskService.createTask({
+        title: 'Blocked',
+        project: 'inbox',
+        depends_on: [dep.task_id],
+      });
+      const unblocked = taskService.createTask({ title: 'Unblocked', project: 'inbox' });
+
+      const result = taskService.getBlockedByForTasks([blocked.task_id, unblocked.task_id]);
+      expect(result.has(blocked.task_id)).toBe(true);
+      expect(result.has(unblocked.task_id)).toBe(false);
+    });
+
+    it('excludes done tasks even if they have incomplete deps', () => {
+      const dep = taskService.createTask({ title: 'Dep', project: 'inbox' });
+      const task = taskService.createTask({
+        title: 'Done task',
+        project: 'inbox',
+        depends_on: [dep.task_id],
+      });
+
+      // Force task to done status directly (bypassing dep check)
+      taskService.setStatus(task.task_id, TaskStatus.Done);
+
+      const result = taskService.getBlockedByForTasks([task.task_id]);
+      expect(result.has(task.task_id)).toBe(false);
+    });
+
+    it('includes non-terminal status tasks with incomplete deps', () => {
+      const dep = taskService.createTask({ title: 'Dep', project: 'inbox' });
+
+      // ready status (default after backlog → ready transition)
+      const readyTask = taskService.createTask({
+        title: 'Ready task',
+        project: 'inbox',
+        depends_on: [dep.task_id],
+      });
+
+      // in_progress status (set directly to bypass dep check)
+      const inProgressTask = taskService.createTask({
+        title: 'In-progress task',
+        project: 'inbox',
+        depends_on: [dep.task_id],
+      });
+      taskService.setStatus(inProgressTask.task_id, TaskStatus.InProgress);
+
+      const result = taskService.getBlockedByForTasks([readyTask.task_id, inProgressTask.task_id]);
+      expect(result.has(readyTask.task_id)).toBe(true);
+      expect(result.has(inProgressTask.task_id)).toBe(true);
+    });
+  });
 });
