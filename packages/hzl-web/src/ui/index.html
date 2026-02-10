@@ -1031,6 +1031,86 @@
         display: block;
       }
     }
+
+    /* Calendar View */
+    .calendar-container {
+      padding: 16px 24px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .calendar-container.hidden { display: none; }
+    .calendar-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .calendar-nav-btn {
+      font-family: var(--font-mono);
+      font-size: 14px;
+      background: var(--bg-card);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px 10px;
+      cursor: pointer;
+    }
+    .calendar-nav-btn:hover { background: var(--bg-hover); }
+    .calendar-month-label {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-primary);
+      min-width: 200px;
+      text-align: center;
+    }
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .calendar-day-header {
+      background: var(--bg-card);
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 600;
+      text-align: center;
+      padding: 8px 4px;
+      text-transform: uppercase;
+    }
+    .calendar-day {
+      background: var(--bg-card);
+      min-height: 100px;
+      padding: 4px;
+      display: flex;
+      flex-direction: column;
+    }
+    .calendar-day.other-month {
+      opacity: 0.35;
+    }
+    .calendar-day.today {
+      border: 2px solid var(--accent);
+      border-radius: 2px;
+    }
+    .calendar-day-number {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+      font-weight: 500;
+    }
+    .calendar-day.today .calendar-day-number {
+      color: var(--accent);
+      font-weight: 700;
+    }
+    .calendar-empty-state {
+      text-align: center;
+      color: var(--text-muted);
+      padding: 32px 16px;
+      font-size: 14px;
+    }
   </style>
 </head>
 <body>
@@ -1773,8 +1853,78 @@
     }
 
     function renderCalendar() {
-      // Stub — implemented in subtask 2.2
-      calendarContainer.innerHTML = '<div style="padding: 24px; color: var(--text-muted);">Calendar view loading...</div>';
+      const now = new Date();
+      const isCurrentMonth = calendarYear === now.getFullYear() && calendarMonth === now.getMonth();
+      const todayDate = now.getDate();
+
+      // Month label
+      const monthLabel = new Date(calendarYear, calendarMonth, 1)
+        .toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+
+      // First day of month (0=Sun) and number of days
+      const firstDow = new Date(calendarYear, calendarMonth, 1).getDay();
+      const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate();
+      const daysInPrevMonth = new Date(calendarYear, calendarMonth, 0).getDate();
+
+      // Build header
+      let html = `
+        <div class="calendar-header">
+          <button class="calendar-nav-btn" id="calPrev">&larr;</button>
+          <div class="calendar-month-label">${monthLabel}</div>
+          <button class="calendar-nav-btn" id="calNext">&rarr;</button>
+          <button class="calendar-nav-btn" id="calToday">Today</button>
+        </div>
+        <div class="calendar-grid">
+      `;
+
+      // Day-of-week headers
+      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      for (const d of dayNames) {
+        html += `<div class="calendar-day-header">${d}</div>`;
+      }
+
+      // Leading days from previous month
+      for (let i = firstDow - 1; i >= 0; i--) {
+        const day = daysInPrevMonth - i;
+        html += `<div class="calendar-day other-month"><span class="calendar-day-number">${day}</span></div>`;
+      }
+
+      // Current month days
+      for (let d = 1; d <= daysInMonth; d++) {
+        const isToday = isCurrentMonth && d === todayDate;
+        html += `<div class="calendar-day${isToday ? ' today' : ''}" data-date="${calendarYear}-${String(calendarMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}">`;
+        html += `<span class="calendar-day-number">${d}</span>`;
+        html += `<div class="calendar-day-tasks"></div>`;
+        html += `</div>`;
+      }
+
+      // Trailing days to fill last week
+      const totalCells = firstDow + daysInMonth;
+      const trailingDays = (7 - (totalCells % 7)) % 7;
+      for (let d = 1; d <= trailingDays; d++) {
+        html += `<div class="calendar-day other-month"><span class="calendar-day-number">${d}</span></div>`;
+      }
+
+      html += `</div>`;
+      calendarContainer.innerHTML = html;
+
+      // Wire navigation
+      document.getElementById('calPrev').addEventListener('click', () => {
+        calendarMonth--;
+        if (calendarMonth < 0) { calendarMonth = 11; calendarYear--; }
+        poll();
+      });
+      document.getElementById('calNext').addEventListener('click', () => {
+        calendarMonth++;
+        if (calendarMonth > 11) { calendarMonth = 0; calendarYear++; }
+        poll();
+      });
+      document.getElementById('calToday').addEventListener('click', () => {
+        const today = new Date();
+        calendarYear = today.getFullYear();
+        calendarMonth = today.getMonth();
+        poll();
+      });
     }
 
     function renderBoard() {
