@@ -18,6 +18,7 @@ The dashboard is a single HTML file (`packages/hzl-web/src/ui/index.html`) with 
 │                                                 │
 │  TaskListItem + due_at                          │
 │  New due_month param queries by due_at range    │
+│  (padded ±1 day for timezone safety)            │
 │                                                 │
 │  /api/tasks?since=3d         (Kanban/Graph)     │
 │  /api/tasks?due_month=2026-02 (Calendar)        │
@@ -34,13 +35,13 @@ The dashboard is a single HTML file (`packages/hzl-web/src/ui/index.html`) with 
 │         └─► updateGraphData() [Graph view]      │
 │                                                 │
 │  renderCalendar():                              │
-│    1. Tasks already filtered by due_month       │
+│    1. Filter server results to local-tz month   │
 │    2. Build 7-col CSS Grid (Sun–Sat)            │
-│    3. Place mini cards in day cells             │
+│    3. Place mini cards in current-month days     │
 │    4. Show "+N more" after 3 cards per cell     │
 │                                                 │
 │  Popover (click "+N more"):                     │
-│    - Anchored to day cell                       │
+│    - Anchored below "+N more" link              │
 │    - Lists all tasks for that day               │
 │    - Click-outside dismisses                    │
 │    - Cards inside open task modal               │
@@ -51,11 +52,13 @@ The dashboard is a single HTML file (`packages/hzl-web/src/ui/index.html`) with 
 
 **Key decisions:**
 
-- **Server-side `due_month` filtering** — When calendar is active, `fetchTasks()` sends `due_month=YYYY-MM` instead of `since=Xd`. The server queries tasks where `due_at` falls within that month — semantically correct (filters by due date, not last-updated date). This ensures a task due next week is always visible regardless of when it was last modified. When switching back to Kanban/Graph, the regular `since` filter resumes.
+- **Server-side `due_month` filtering with timezone padding** — When calendar is active, `fetchTasks()` sends `due_month=YYYY-MM`. The server queries tasks where `due_at` falls within that month, padded by 1 day on each side to account for UTC-vs-local timezone offsets (e.g., for February: `due_at >= Jan 31 AND due_at < Mar 2` in UTC). The client then filters precisely to local-timezone days within the visible month. This ensures a task due `2026-03-01T05:00:00Z` (which is Feb 28 in US Pacific) is returned by the February query and displayed on the correct local day.
 
 - **Separate data paths per view** — Kanban/Graph fetch tasks by `updated_at` (via `since`). Calendar fetches tasks by `due_at` (via `due_month`). The `tasks` global holds whatever the active view needs. Switching views triggers a re-poll with the appropriate parameters.
 
 - **Mini cards, not full Kanban cards** — Calendar cells are small, so cards show only title (single-line, ellipsis) and project badge with a status-colored left border. Created by a new `renderMiniCard(task)` function, separate from the Kanban `renderCard()`.
+
+- **Adjacent-month grid padding cells are empty** — The calendar grid may show leading/trailing days from the previous/next month to fill out weeks. These cells show the dimmed date number only — no task cards. Task cards only appear on days within the current month.
 
 ---
 
@@ -66,11 +69,13 @@ The dashboard is a single HTML file (`packages/hzl-web/src/ui/index.html`) with 
 **Depends on:** none
 **Files:** `packages/hzl-core/src/services/task-service.ts`, `packages/hzl-core/src/services/task-service.test.ts`
 
-The `TaskListItem` interface (defined near `listTasks()`) omits `due_at` even though the SQL query already selects it. Add `due_at: string | null` to the interface and include it in the `rows.map()` return object inside `listTasks()`.
+Two changes needed:
 
-The web server's `TaskListItemResponse` extends `CoreTaskListItem` via spread, so `due_at` will flow through to the API response automatically — no `server.ts` change needed for this field.
+1. **Interface:** Add `due_at: string | null` to the `TaskListItem` interface (defined near `listTasks()`). Follow the pattern of other nullable fields like `assignee` and `lease_until`.
 
-Follow the pattern of other nullable fields like `assignee` and `lease_until` in the interface. (Satisfies R11.)
+2. **Mapping:** Add `due_at: row.due_at` to the `rows.map()` return object inside `listTasks()`. The SQL query already selects `due_at` from `tasks_current`, but the mapping explicitly omits it — this is the line that needs to change.
+
+The web server's `TaskListItemResponse` extends `CoreTaskListItem` via spread (`...row`), so once the mapping includes `due_at`, it flows through to the API response automatically — no `server.ts` change needed. (Satisfies R11.)
 
 **Test scenarios:** (`packages/hzl-core/src/services/task-service.test.ts`)
 - Task created with `due_at` → `listTasks()` result includes `due_at` value
@@ -84,13 +89,18 @@ Follow the pattern of other nullable fields like `assignee` and `lease_until` in
 **Depends on:** 1.1
 **Files:** `packages/hzl-core/src/services/task-service.ts`, `packages/hzl-core/src/services/task-service.test.ts`, `packages/hzl-web/src/server.ts`, `packages/hzl-web/src/server.test.ts`
 
-Add a new `due_month` parameter to the `/api/tasks` endpoint. When `due_month=YYYY-MM` is present, the server queries tasks where `due_at` falls within that month instead of filtering by `updated_at`.
+Add a new `due_month` parameter to the `/api/tasks` endpoint. When `due_month=YYYY-MM` is present, the server queries tasks where `due_at` falls within that month (with timezone padding) instead of filtering by `updated_at`.
 
-**Core layer:** Add a new option to `listTasks()` — e.g., `dueMonth?: string` (format `YYYY-MM`). When present, replace the `updated_at >= datetime(...)` WHERE clause with `due_at >= ? AND due_at < ?` using the first and last instants of the month (e.g., `2026-02-01T00:00:00Z` to `2026-03-01T00:00:00Z`). Still exclude archived tasks. Still respect the `project` filter. The `sinceDays` parameter should be ignored when `dueMonth` is provided.
+**Server layer:** In `handleTasks()`, check for a `due_month` query param. Validate format with regex (`/^\d{4}-\d{2}$/`) and verify month is 01-12 — return 400 Bad Request for invalid values. If valid, pass it to `taskService.listTasks({ dueMonth, project })`. If absent, use the existing `since`/`sinceDays` logic unchanged. This keeps backward compatibility.
 
-**Server layer:** In `handleTasks()`, check for a `due_month` query param. If present, pass it to `taskService.listTasks({ dueMonth, project })`. If absent, use the existing `since`/`sinceDays` logic unchanged. This keeps backward compatibility — Kanban/Graph requests are unaffected.
+**Core layer:** Add a new option to `listTasks()` — `dueMonth?: string` (format `YYYY-MM`). When present:
+- Compute date boundaries with ±1 day padding for timezone safety: for `2026-02`, query `due_at >= '2026-01-31T00:00:00Z' AND due_at < '2026-03-02T00:00:00Z'`
+- Replace the `updated_at >= datetime(...)` WHERE clause entirely — do not apply the `sinceDays` filter
+- Still exclude archived tasks, still respect `project` filter
 
-Follow the pattern of how `project` is passed through from the server to the service. (Satisfies R11 data availability.)
+**Query branching:** `listTasks()` currently has two SQL paths (with/without `project`). Adding `dueMonth` creates a third condition. Recommend building the WHERE clause dynamically: start with `status != 'archived'`, conditionally append the date clause (`due_at` range when `dueMonth` is set, `updated_at >= datetime(...)` when `sinceDays` is set), and conditionally append `project = ?`. This avoids a combinatorial explosion of SQL strings.
+
+(Satisfies R11 data availability.)
 
 **Test scenarios:** (`packages/hzl-core/src/services/task-service.test.ts`, `packages/hzl-web/src/server.test.ts`)
 - `listTasks({ dueMonth: '2026-02' })` → returns only tasks with `due_at` in February 2026
@@ -99,7 +109,9 @@ Follow the pattern of how `project` is passed through from the server to the ser
 - `due_month` with `project` filter → both filters apply
 - `GET /api/tasks?due_month=2026-02` → returns tasks due in February
 - `GET /api/tasks?due_month=2026-02&project=demo` → project filter applies
-- Tasks with `due_at` at month boundaries (first/last instant) → correctly included/excluded
+- Tasks near month boundaries included by ±1 day padding (e.g., `2026-03-01T05:00:00Z` included in Feb query)
+- `GET /api/tasks?due_month=abc` → 400 Bad Request
+- `GET /api/tasks?due_month=2026-13` → 400 Bad Request
 
 **Verify:** `pnpm --filter hzl-core test src/services/task-service.test.ts && pnpm --filter hzl-web test`
 
@@ -118,21 +130,24 @@ Create a new container div `<div id="calendarContainer" class="calendar-containe
 
 Extend `setActiveView(view)` to handle the `'calendar'` case:
 - Show `#calendarContainer`, hide `#board` (+ mobile tabs) and `#graphContainer`
-- Hide the date filter control: `dateFilter.closest('.filter-group').style.display = 'none'` for calendar, restore to `''` for other views. (Satisfies R10.)
-- When switching TO calendar: trigger a re-poll so data is fetched with `due_month`
-- When switching FROM calendar: trigger a re-poll so data reverts to the regular `since` value
+- Hide the date filter control: `dateFilter.closest('.filter-group').style.display = 'none'` for calendar, restore to `''` for other views. Note: hiding via `display: none` preserves the `<select>` element's value in the DOM, so no separate storage is needed — when switching back, `dateFilter.value` still has the user's previous selection. (Satisfies R10.)
+- Trigger a re-poll on every view switch (both TO and FROM calendar), so data is fetched with the appropriate parameters for the new view
 
-Modify `fetchTasks()` to check `activeView`: if `'calendar'`, build the URL as `/api/tasks?due_month=YYYY-MM` (using `calendarYear` and `calendarMonth` globals from subtask 2.2) instead of the `since` parameter. Project filter still appended as usual. (Depends on 1.2 for the server to support `due_month`.)
+Modify `fetchTasks()` to check `activeView`: if `'calendar'`, build the URL as `/api/tasks?due_month=YYYY-MM` instead of the `since` parameter. The `calendarMonth` global is 0-indexed (JS Date convention), so convert to 1-indexed for the API: `` `${calendarYear}-${String(calendarMonth + 1).padStart(2, '0')}` ``. Project filter still appended as usual. (Depends on 1.2 for the server to support `due_month`.)
 
 Also extend `poll()` to call a new `renderCalendar()` function when `activeView === 'calendar'`. Follow the pattern of how `renderBoard()` and `updateGraphData()` are called conditionally.
+
+**State persistence on view switch:** When the user switches from Calendar to Kanban and back, `calendarYear` and `calendarMonth` globals persist — the user returns to the month they were viewing, not reset to the current month.
 
 No test file for this subtask — it's HTML/CSS/JS in the single-page app, verified manually.
 
 **Test scenarios:** (manual)
 - Click Calendar tab → calendar container visible, Kanban hidden, Graph hidden
 - Date filter hidden when Calendar active, visible when switching to Kanban/Graph
-- Switching to Calendar triggers data re-fetch (visible in Network tab)
+- Switching to Calendar triggers data re-fetch (visible in Network tab: `due_month` param)
 - Calendar tab shows `.active` class styling (orange background)
+- Switch to Kanban and back → calendar remembers the navigated month
+- Date filter value preserved after switching to Calendar and back
 
 **Verify:** Build (`pnpm build`), start server (`node packages/hzl-cli/dist/cli.js serve`), open dashboard, click Calendar tab.
 
@@ -141,20 +156,20 @@ No test file for this subtask — it's HTML/CSS/JS in the single-page app, verif
 **Depends on:** 2.1
 **Files:** `packages/hzl-web/src/ui/index.html`
 
-**CSS:** Add styles for the calendar layout:
+**CSS:** Add styles for the calendar layout. Use existing CSS variables (`var(--bg-card)`, `var(--border)`, `var(--text-muted)`, `var(--accent)`) for consistency with the dashboard theme:
 - `.calendar-container` — full width, padding consistent with `.board`
-- `.calendar-header` — flexbox row with prev/next arrows, month/year label, and "Today" button. Style arrows and button consistent with existing `.view-btn` styling (using `var(--bg-card)`, `var(--text-primary)`, hover effects)
-- `.calendar-grid` — CSS Grid with `grid-template-columns: repeat(7, 1fr)`. This creates the 7-day week layout
-- `.calendar-day-header` — day-of-week labels (Sun, Mon, ..., Sat). Use `var(--text-muted)` color, centered, small uppercase text
-- `.calendar-day` — individual day cell. Dark background (`var(--bg-card)`), border (`var(--border)`), min-height for consistent row sizing (~120px), padding for content
-- `.calendar-day.today` — today's cell gets a distinguished border color (`var(--accent)`) and subtle background tint. (Satisfies R7.)
-- `.calendar-day.other-month` — days from prev/next month that fill out the grid get dimmed styling (`var(--text-muted)` for the date number, slightly transparent background)
-- `.calendar-day-number` — the date number in each cell, positioned top-left
+- `.calendar-header` — flexbox row: prev/next arrows, month/year label, "Today" button. Style consistently with existing `.view-btn`
+- `.calendar-grid` — 7-column CSS Grid for the week layout
+- `.calendar-day-header` — day-of-week labels (Sun–Sat), muted color, centered
+- `.calendar-day` — day cell with dark background, border, consistent min-height for uniform rows
+- `.calendar-day.today` — distinguished with accent border color and subtle background tint. (Satisfies R7.)
+- `.calendar-day.other-month` — leading/trailing days from adjacent months: dimmed date number, no task content (empty padding cells)
+- `.calendar-day-number` — date number in each cell
 
 **JS:** Add `renderCalendar()` function and month navigation state:
-- Track `calendarYear` and `calendarMonth` (0-indexed) globals, initialized to current date
-- `renderCalendar()` builds the grid: compute first day of month, number of days, leading/trailing days from adjacent months (so the grid always starts on Sunday). Generate the day cells. Place content (mini cards come in 2.3)
-- Navigation functions: `calendarPrev()` decrements month (wrapping year), `calendarNext()` increments, `calendarToday()` resets to current month/year. Each calls `renderCalendar()` to re-render
+- Track `calendarYear` and `calendarMonth` (0-indexed, matching JS Date convention) globals, initialized to current date
+- `renderCalendar()` builds the grid: compute first day of month, number of days, leading/trailing empty days from adjacent months (so the grid always starts on Sunday). Adjacent-month cells show only the dimmed date number — no task cards
+- Navigation functions: `calendarPrev()`, `calendarNext()`, `calendarToday()` — each updates the month/year globals AND triggers `poll()` to re-fetch data for the new month. The poll callback calls `renderCalendar()` with the fresh data. Call sequence: update globals → `poll()` → (poll calls `renderCalendar()`)
 - Month/year label shows `"February 2026"` format using `Date.toLocaleDateString()` with `{ month: 'long', year: 'numeric' }`. (Satisfies R3.)
 - Weeks start on Sunday. (Key decision from PRD.)
 
@@ -166,7 +181,8 @@ No test file — manual verification.
 - Today's date has visual distinction (accent border)
 - Prev/Next arrows navigate months correctly, including year boundary (Dec → Jan)
 - "Today" button returns to current month from any other month
-- Leading/trailing days from adjacent months are visually dimmed
+- Leading/trailing days from adjacent months are visually dimmed with no task content
+- Navigating months triggers a new API call with the correct `due_month` param (visible in Network tab)
 
 **Verify:** Build, open dashboard, switch to Calendar, navigate months, verify grid correctness.
 
@@ -175,24 +191,26 @@ No test file — manual verification.
 **Depends on:** 1.1, 2.2
 **Files:** `packages/hzl-web/src/ui/index.html`
 
-**CSS:** Add styles for mini cards:
-- `.calendar-mini-card` — small card with `border-left: 3px solid var(--status-color)`. Dark background (`var(--bg-secondary)` or slightly lighter than cell), rounded corners (3px), padding (4px 6px), cursor pointer, hover effect. Height ~24-28px
-- `.calendar-mini-title` — single-line text with `overflow: hidden; text-overflow: ellipsis; white-space: nowrap`. Use small font size (~11px)
-- `.calendar-mini-project` — small badge matching Kanban `.card-project` style but smaller. Inline after title or below it depending on space
-- `.calendar-more-link` — the "+N more" text link. Use `var(--accent)` color, smaller font, cursor pointer
+**CSS:** Add styles for mini cards — compact, single-line, status-colored left border, styled consistently with existing Kanban card components (use same CSS variables). Key classes:
+- `.calendar-mini-card` — status-colored left border, dark background, rounded corners, cursor pointer, hover effect
+- `.calendar-mini-title` — single-line with ellipsis truncation
+- `.calendar-mini-project` — small badge matching Kanban `.card-project` style but smaller
+- `.calendar-more-link` — "+N more" text link in accent color
+
+Exact sizing should be tuned visually during implementation — the plan specifies behavior, not pixel values.
 
 **JS:** In `renderCalendar()`, after building the grid:
-1. Filter the `tasks` array: only tasks where `due_at` is not null AND the `due_at` date (in browser local timezone) falls within the visible month. Apply project filter if active (check `projectFilter.value`)
-2. Group filtered tasks by day-of-month using `new Date(task.due_at).getDate()` (after converting to local timezone)
-3. For each day cell, render up to 3 mini cards using a new `renderMiniCard(task)` helper. Each card gets a `data-task-id` attribute for click handling
-4. If a day has more than 3 tasks, render a "+N more" link below the 3rd card (where N = total - 3). Add a `data-date` attribute for the popover (subtask 3.1). (Satisfies R1, R5, R6.)
+1. Filter the `tasks` array to the current month in local timezone. The server returns tasks with ±1 day padding (for timezone safety), so the client must filter precisely: convert each task's `due_at` to a local `Date`, check that its year and month match `calendarYear` and `calendarMonth`. Apply project filter if active (`projectFilter.value`)
+2. Group filtered tasks by local day using the full local date as key (not just `getDate()` — avoids collisions with adjacent-month days from the padded server response)
+3. For each current-month day cell, render up to 3 mini cards using a `renderMiniCard(task)` helper. Each card gets a `data-task-id` attribute for click handling
+4. If a day has more than 3 tasks, render a "+N more" link (where N = total - 3). Add a `data-date` attribute for the popover (subtask 3.1). (Satisfies R1, R5, R6.)
 
 `renderMiniCard(task)` returns an HTML string:
-- Left border color: map `task.status` to the CSS variable (e.g., `var(--status-ready)`). Follow the same status→color mapping used in the Kanban `renderCard()` function's family color logic
+- Left border color: map `task.status` to the CSS variable (e.g., `var(--status-ready)`). Follow the same status→color mapping used in the Kanban `renderCard()` function
 - Title: `task.title` escaped with `escapeHtml()` (existing utility)
-- Project badge: small `<span>` with project name, styled like Kanban `.card-project` but smaller
+- Project badge: small `<span>` with project name
 
-**Important:** The existing project filter should apply to the calendar view. When rendering, check `projectFilter.value` and filter accordingly. (Satisfies R8.)
+The project filter applies to the calendar view — when rendering, filter by `projectFilter.value`. (Satisfies R8.)
 
 No test file — manual verification.
 
@@ -203,7 +221,8 @@ No test file — manual verification.
 - Mini card left border color matches task status
 - Day with 4+ tasks shows 3 cards + "+1 more" link
 - Project filter limits which tasks appear on calendar
-- Tasks from adjacent months' overflow days appear dimmed (if applicable)
+- Adjacent-month padding cells remain empty (no task cards)
+- Task due at `2026-02-15T05:00:00Z` appears on Feb 14 for UTC-8 users (timezone conversion)
 
 **Verify:** Create test tasks with `due_at` via CLI (`node packages/hzl-cli/dist/cli.js task add "Test" -p demo --due 2026-02-15`), build, open dashboard Calendar view.
 
@@ -216,15 +235,11 @@ No test file — manual verification.
 **Depends on:** 2.3
 **Files:** `packages/hzl-web/src/ui/index.html`
 
-**CSS:** Add popover styles:
-- `.calendar-popover` — positioned absolute, anchored below/above the "+N more" link (use JS to calculate position). Dark background (`var(--bg-card)`), border (`var(--border)`), box-shadow for depth, rounded corners (6px), padding, z-index above the grid. Max-height with overflow-y auto for very long lists
-- `.calendar-popover-header` — shows the date (e.g., "February 15") in small text at top
-- Mini cards inside the popover reuse `.calendar-mini-card` styles
+**CSS:** Add popover styles — dark background (`var(--bg-card)`), border, box-shadow for depth, rounded corners, z-index above the grid. Max-height with overflow-y auto for long lists. Popover header shows the date (e.g., "February 15"). Mini cards inside reuse `.calendar-mini-card` styles.
 
 **JS:** Add popover show/hide logic:
-- Click handler on "+N more" links: create and position the popover element. Populate with all tasks for that day (not just the overflow — show all tasks so the user sees the complete list in one place). Each card gets `data-task-id` for click-through to modal
-- Position calculation: anchor to the "+N more" element. If near bottom of viewport, open upward. Use `getBoundingClientRect()` for positioning
-- Dismiss: add a click-outside listener on `document`. If click target is not inside the popover, remove it. Also dismiss when opening a different day's popover. Follow the pattern of how the modal overlay handles click-outside (the existing `modalOverlay` click handler)
+- Click handler on "+N more" links: create and position the popover element absolutely below the "+N more" link. Populate with all tasks for that day (the complete list, not just overflow). Each card gets `data-task-id` for click-through to modal
+- Dismiss on click-outside: add a document click listener. If click target is not inside the popover, remove it. Follow the pattern of the existing `modalOverlay` click handler
 - Only one popover visible at a time — opening a new one closes the previous
 
 (Satisfies R6 popover behavior.)
@@ -232,12 +247,11 @@ No test file — manual verification.
 No test file — manual verification.
 
 **Test scenarios:** (manual)
-- Click "+2 more" → popover appears showing all tasks for that day (not just the 2 overflow)
+- Click "+2 more" → popover appears showing all tasks for that day
 - Popover has date header (e.g., "February 15")
 - Click outside popover → dismisses
 - Click "+N more" on different day → previous popover closes, new one opens
 - Popover cards are clickable (verified in 3.2)
-- Popover near bottom of screen opens upward
 
 **Verify:** Create 5+ tasks on the same due date, build, open Calendar, click "+N more".
 
@@ -248,7 +262,7 @@ No test file — manual verification.
 
 **Click handling:** Add event delegation on `#calendarContainer` for clicks on `.calendar-mini-card` elements. Extract `data-task-id` from the clicked card and call `openTaskModal(taskId)` — the existing modal function handles everything. This works for cards in both day cells and the popover. If a popover is open, dismiss it when the modal opens. (Satisfies R2.)
 
-**Add `due_at` to modal meta grid:** In the `openTaskModal()` function, after the existing meta items (Status, Progress, Project, Priority, Created), add a conditional "Due Date" item when `data.task.due_at` is not null. Format using `new Date(data.task.due_at).toLocaleDateString()` for locale-appropriate display (e.g., "2/15/2026" in en-US). Insert it in the meta grid HTML template string, following the same `modal-meta-item` / `modal-meta-label` / `modal-meta-value` structure as existing items. (Satisfies R9.)
+**Add `due_at` to modal meta grid:** In the `openTaskModal()` function, after the existing meta items (Status, Progress, Project, Priority, Created), add a conditional "Due Date" item when `data.task.due_at` is not null. Format using `new Date(data.task.due_at).toLocaleDateString()` for locale-appropriate display (e.g., "2/15/2026" in en-US). Follow the same `modal-meta-item` / `modal-meta-label` / `modal-meta-value` structure as existing items. (Satisfies R9.)
 
 No test file — manual verification.
 
@@ -266,11 +280,11 @@ No test file — manual verification.
 **Depends on:** 2.2
 **Files:** `packages/hzl-web/src/ui/index.html`
 
-In `renderCalendar()`, after filtering tasks for the visible month, check if the filtered list is empty. If so, display a centered empty state message inside the calendar container (below the navigation header, overlaying or replacing the grid). Message: "No tasks with due dates in [Month Year]". Use `var(--text-muted)` color, centered text, with some vertical padding.
+In `renderCalendar()`, after filtering tasks for the visible month, check if the filtered list is empty. If so, display a centered empty state message inside the calendar container (below the navigation header, overlaying the grid). Message: "No tasks with due dates in [Month Year]". Use `var(--text-muted)` color, centered text.
 
-This should also handle the case where the project filter excludes all tasks for the month — the empty state message is the same. (Satisfies R12.)
+This handles both cases: no tasks have `due_at` in this month, or the project filter excludes all tasks. (Satisfies R12.)
 
-Still render the month grid behind/around the message so the calendar structure is visible and navigable. The empty state is a message overlaid on the grid or placed where cards would go, not a replacement for the entire calendar.
+Still render the month grid so the calendar structure is visible and navigable.
 
 No test file — manual verification.
 
@@ -284,24 +298,12 @@ No test file — manual verification.
 
 ---
 
-## Testing Strategy
-
-- **Unit tests (backend):** `task-service.test.ts` for `due_at` in `TaskListItem` and `dueMonth` filtering, `server.test.ts` for `due_month` parameter
-- **Integration tests:** None needed — the calendar is client-side rendering from the same API
-- **Manual verification steps:**
-  1. Build: `pnpm build`
-  2. Create test data: `node packages/hzl-cli/dist/cli.js task add "Due today" -p demo --due $(date -u +%Y-%m-%dT%H:%M:%SZ)` and several more with various dates
-  3. Start server: `node packages/hzl-cli/dist/cli.js serve`
-  4. Open `http://localhost:3456`, switch to Calendar view
-  5. Verify: tasks on correct days, navigation works, "+N more" popover, click-to-modal, empty state, project filter, date filter hidden
-
 ## Risks and Mitigations
 
 | Risk | Mitigation |
 |------|------------|
-| `due_month` query returns many tasks for a busy month | Bounded by one month; even a very busy month is manageable. Server-side filtering keeps response size proportional to the month |
-| Timezone edge case: task appears on wrong day | Use `new Date(isoString)` which handles timezone conversion to browser local. Document this behavior |
-| Popover positioning near viewport edges | Use `getBoundingClientRect()` and flip direction (up vs down) when near bottom. Same approach used by tooltip libraries |
+| `due_month` query returns many tasks for a busy month | Bounded by one month + 2 days padding. Even a very busy month is manageable for a CLI task tracker |
+| Timezone month-boundary mismatch | Server pads ±1 day; client filters precisely by local timezone. A task due `2026-03-01T05:00:00Z` (Feb 28 in US Pacific) is included in Feb query and rendered on the correct local day |
 | Single HTML file becomes unwieldy (~2500+ lines) | Already ~2400 lines. Calendar adds ~300-400 lines. Manageable for now; extraction to separate files is a future concern |
 
 ## Open Questions
