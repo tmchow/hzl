@@ -350,6 +350,27 @@ describe('hzl-web server', () => {
       expect(status).toBe(400);
     });
 
+    it('ignores since param when due_month is present', async () => {
+      createServer(4538);
+      taskService.createTask({
+        title: 'Feb task',
+        project: 'test-project',
+        due_at: '2026-02-15T00:00:00Z',
+      });
+
+      // Set updated_at far in the past
+      const allTasks = taskService.listTasks({});
+      const task = allTasks.find(t => t.title === 'Feb task');
+      db.prepare('UPDATE tasks_current SET updated_at = ? WHERE task_id = ?')
+        .run('2025-01-01T00:00:00Z', task!.task_id);
+
+      // since=1d would normally exclude this old task, but due_month should take precedence
+      const { data } = await fetchJson('/api/tasks?due_month=2026-02&since=1d');
+      const tasks = (data as { tasks: Array<{ title: string }> }).tasks;
+      expect(tasks).toHaveLength(1);
+      expect(tasks[0].title).toBe('Feb task');
+    });
+
     it('returns subtask counts for parent tasks in due_month mode', async () => {
       createServer(4537);
       const parent = taskService.createTask({

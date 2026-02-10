@@ -1878,7 +1878,7 @@
 
       let extra = '';
       if (isBlocked) {
-        extra = `<div class="card-blocked">Blocked by: ${task.blocked_by.map(id => id.slice(0, 8)).join(', ')}</div>`;
+        extra = `<div class="card-blocked">Blocked by: ${task.blocked_by.map(id => escapeHtml(id.slice(0, 8))).join(', ')}</div>`;
       }
       if (task.status === 'in_progress' && task.lease_until) {
         const remaining = formatTimeRemaining(task.lease_until);
@@ -1898,7 +1898,7 @@
           ${subtaskHtml}
           <div class="card-meta">
             <span class="card-project">${escapeHtml(task.project)}</span>
-            ${task.assignee ? `<span class="card-agent">${task.assignee.slice(0, 8)}</span>` : ''}
+            ${task.assignee ? `<span class="card-agent">${escapeHtml(task.assignee.slice(0, 8))}</span>` : ''}
           </div>
           ${extra}
         </div>

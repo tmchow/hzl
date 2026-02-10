@@ -967,6 +967,23 @@ describe('TaskService', () => {
       expect(tasks).toHaveLength(0);
     });
 
+    it('dueMonth takes precedence over sinceDays when both provided', () => {
+      const task = taskService.createTask({
+        title: 'Feb task',
+        project: 'inbox',
+        due_at: '2026-02-15T00:00:00Z',
+      });
+
+      // Set updated_at far in the past so sinceDays=1 would exclude it
+      db.prepare('UPDATE tasks_current SET updated_at = ? WHERE task_id = ?')
+        .run('2025-01-01T00:00:00Z', task.task_id);
+
+      // With dueMonth, sinceDays should be ignored — task should still appear
+      const tasks = taskService.listTasks({ dueMonth: '2026-02', sinceDays: 1 });
+      expect(tasks).toHaveLength(1);
+      expect(tasks[0].title).toBe('Feb task');
+    });
+
     it('throws on invalid dueMonth format', () => {
       expect(() => taskService.listTasks({ dueMonth: 'abc' }))
         .toThrow('Invalid dueMonth format');
