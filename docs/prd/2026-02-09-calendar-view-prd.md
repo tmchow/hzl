@@ -23,7 +23,7 @@ Add a calendar month view to the hzl web dashboard so users can visualize tasks 
 - Date filter control is hidden when calendar view is active (restores previous value when switching back to Kanban/Graph)
 - Display `due_at` in the task detail modal (currently missing from modal), formatted in the user's locale
 - Empty state: when no tasks have `due_at` in the visible month, show a message like "No tasks with due dates this month"
-- Task list API needs to include `due_at` in list responses (currently only returned by detail endpoint) so the calendar can render without N+1 requests
+- Task list API needs to include `due_at` in list responses (currently only returned by detail endpoint) and support a `due_month` query parameter that filters by `due_at` range — so the calendar fetches tasks by when they're due, not when they were last updated
 
 ### Boundaries
 
@@ -50,7 +50,7 @@ Add a calendar month view to the hzl web dashboard so users can visualize tasks 
 | R8 | Must | Existing project filter applies to calendar view (filters which tasks appear) |
 | R9 | Must | `due_at` field displayed in the task detail modal metadata grid, locale-formatted |
 | R10 | Must | Date filter control hidden when calendar view is active; restores previous value when switching views |
-| R11 | Must | Task list API includes `due_at` so calendar can render without per-task detail requests |
+| R11 | Must | Task list API includes `due_at` and supports querying by due date month so calendar can render efficiently |
 | R12 | Must | Empty state message when no tasks have due dates in the visible month |
 | R13 | Out | Drag-to-reschedule — calendar is view-only |
 | R14 | Out | Week/day views — month view only for v1 |

@@ -16,21 +16,25 @@ The dashboard is a single HTML file (`packages/hzl-web/src/ui/index.html`) with 
 ┌─────────────────────────────────────────────────┐
 │  Backend (hzl-core + hzl-web server)            │
 │                                                 │
-│  TaskListItem + due_at  ──►  /api/tasks?since=  │
-│  New "all" option skips updated_at filter       │
+│  TaskListItem + due_at                          │
+│  New due_month param queries by due_at range    │
+│                                                 │
+│  /api/tasks?since=3d         (Kanban/Graph)     │
+│  /api/tasks?due_month=2026-02 (Calendar)        │
 └──────────────────────┬──────────────────────────┘
                        │ JSON
 ┌──────────────────────▼──────────────────────────┐
 │  Frontend (index.html)                          │
 │                                                 │
-│  poll() ─► fetchTasks(since=all when calendar)  │
+│  poll() ─► fetchTasks()                         │
+│         │  (uses due_month when calendar active) │
 │         │                                       │
 │         ├─► renderBoard()     [Kanban view]     │
 │         ├─► renderCalendar()  [Calendar view]   │
 │         └─► updateGraphData() [Graph view]      │
 │                                                 │
 │  renderCalendar():                              │
-│    1. Filter tasks with due_at in visible month │
+│    1. Tasks already filtered by due_month       │
 │    2. Build 7-col CSS Grid (Sun–Sat)            │
 │    3. Place mini cards in day cells             │
 │    4. Show "+N more" after 3 cards per cell     │
@@ -47,11 +51,9 @@ The dashboard is a single HTML file (`packages/hzl-web/src/ui/index.html`) with 
 
 **Key decisions:**
 
-- **`since=all` for calendar data** — When calendar is active, `fetchTasks()` sends `since=all` to skip the `updated_at` filter. The full non-archived task set is small enough for a CLI tool. Client-side filtering by `due_at` month avoids a new API endpoint. When switching back to Kanban/Graph, the regular `since` filter resumes.
+- **Server-side `due_month` filtering** — When calendar is active, `fetchTasks()` sends `due_month=YYYY-MM` instead of `since=Xd`. The server queries tasks where `due_at` falls within that month — semantically correct (filters by due date, not last-updated date). This ensures a task due next week is always visible regardless of when it was last modified. When switching back to Kanban/Graph, the regular `since` filter resumes.
 
-- **Single `tasks` array** — The calendar renders from the same `tasks` global that Kanban and Graph use. When the view changes, `poll()` re-fetches with the appropriate `since` value, so the data matches the view.
-
-- **Client-side month filtering** — `renderCalendar()` filters the `tasks` array for items where `due_at` falls in the visible month (using browser local timezone via `new Date(task.due_at)`). No server-side month query needed.
+- **Separate data paths per view** — Kanban/Graph fetch tasks by `updated_at` (via `since`). Calendar fetches tasks by `due_at` (via `due_month`). The `tasks` global holds whatever the active view needs. Switching views triggers a re-poll with the appropriate parameters.
 
 - **Mini cards, not full Kanban cards** — Calendar cells are small, so cards show only title (single-line, ellipsis) and project badge with a status-colored left border. Created by a new `renderMiniCard(task)` function, separate from the Kanban `renderCard()`.
 
@@ -77,22 +79,29 @@ Follow the pattern of other nullable fields like `assignee` and `lease_until` in
 
 **Verify:** `pnpm --filter hzl-core test src/services/task-service.test.ts`
 
-### 1.2 Add `since=all` option to skip date filtering
+### 1.2 Add `due_month` query parameter for calendar data
 
-**Depends on:** none
-**Files:** `packages/hzl-web/src/server.ts`, `packages/hzl-web/src/server.test.ts`
+**Depends on:** 1.1
+**Files:** `packages/hzl-core/src/services/task-service.ts`, `packages/hzl-core/src/services/task-service.test.ts`, `packages/hzl-web/src/server.ts`, `packages/hzl-web/src/server.test.ts`
 
-In the `handleTasks()` function, the `DATE_PRESETS` map converts string values like `"3d"` to numeric days. Add handling for `since=all`: when `since` is `"all"`, pass `undefined` as `sinceDays` to `taskService.listTasks()`. The `listTasks()` method already accepts `sinceDays` as optional — verify it skips the `updated_at` WHERE clause when undefined. If it doesn't (e.g., applies a default), update the method to skip the filter when `sinceDays` is `undefined`.
+Add a new `due_month` parameter to the `/api/tasks` endpoint. When `due_month=YYYY-MM` is present, the server queries tasks where `due_at` falls within that month instead of filtering by `updated_at`.
 
-This enables the calendar to fetch all non-archived tasks regardless of when they were last updated. (Satisfies R11 data availability.)
+**Core layer:** Add a new option to `listTasks()` — e.g., `dueMonth?: string` (format `YYYY-MM`). When present, replace the `updated_at >= datetime(...)` WHERE clause with `due_at >= ? AND due_at < ?` using the first and last instants of the month (e.g., `2026-02-01T00:00:00Z` to `2026-03-01T00:00:00Z`). Still exclude archived tasks. Still respect the `project` filter. The `sinceDays` parameter should be ignored when `dueMonth` is provided.
 
-**Test scenarios:** (`packages/hzl-web/src/server.test.ts`)
-- `GET /api/tasks?since=all` → returns tasks regardless of `updated_at` age
-- Task updated 60 days ago with `since=all` → included in response
-- Same task with `since=3d` → excluded from response
-- `since=all` with `project=foo` → project filter still applies
+**Server layer:** In `handleTasks()`, check for a `due_month` query param. If present, pass it to `taskService.listTasks({ dueMonth, project })`. If absent, use the existing `since`/`sinceDays` logic unchanged. This keeps backward compatibility — Kanban/Graph requests are unaffected.
 
-**Verify:** `pnpm --filter hzl-web test`
+Follow the pattern of how `project` is passed through from the server to the service. (Satisfies R11 data availability.)
+
+**Test scenarios:** (`packages/hzl-core/src/services/task-service.test.ts`, `packages/hzl-web/src/server.test.ts`)
+- `listTasks({ dueMonth: '2026-02' })` → returns only tasks with `due_at` in February 2026
+- Task with `due_at` in January → excluded from February query
+- Task with no `due_at` → excluded from `dueMonth` query
+- `due_month` with `project` filter → both filters apply
+- `GET /api/tasks?due_month=2026-02` → returns tasks due in February
+- `GET /api/tasks?due_month=2026-02&project=demo` → project filter applies
+- Tasks with `due_at` at month boundaries (first/last instant) → correctly included/excluded
+
+**Verify:** `pnpm --filter hzl-core test src/services/task-service.test.ts && pnpm --filter hzl-web test`
 
 ---
 
@@ -110,10 +119,10 @@ Create a new container div `<div id="calendarContainer" class="calendar-containe
 Extend `setActiveView(view)` to handle the `'calendar'` case:
 - Show `#calendarContainer`, hide `#board` (+ mobile tabs) and `#graphContainer`
 - Hide the date filter control: `dateFilter.closest('.filter-group').style.display = 'none'` for calendar, restore to `''` for other views. (Satisfies R10.)
-- When switching TO calendar: trigger a re-poll so data is fetched with `since=all`
+- When switching TO calendar: trigger a re-poll so data is fetched with `due_month`
 - When switching FROM calendar: trigger a re-poll so data reverts to the regular `since` value
 
-Modify `fetchTasks()` to check `activeView`: if `'calendar'`, use `since=all` instead of `dateFilter.value`. (Depends on 1.2 for the server to support `since=all`.)
+Modify `fetchTasks()` to check `activeView`: if `'calendar'`, build the URL as `/api/tasks?due_month=YYYY-MM` (using `calendarYear` and `calendarMonth` globals from subtask 2.2) instead of the `since` parameter. Project filter still appended as usual. (Depends on 1.2 for the server to support `due_month`.)
 
 Also extend `poll()` to call a new `renderCalendar()` function when `activeView === 'calendar'`. Follow the pattern of how `renderBoard()` and `updateGraphData()` are called conditionally.
 
@@ -277,7 +286,7 @@ No test file — manual verification.
 
 ## Testing Strategy
 
-- **Unit tests (backend):** `task-service.test.ts` for `due_at` in `TaskListItem`, `server.test.ts` for `since=all` parameter
+- **Unit tests (backend):** `task-service.test.ts` for `due_at` in `TaskListItem` and `dueMonth` filtering, `server.test.ts` for `due_month` parameter
 - **Integration tests:** None needed — the calendar is client-side rendering from the same API
 - **Manual verification steps:**
   1. Build: `pnpm build`
@@ -290,7 +299,7 @@ No test file — manual verification.
 
 | Risk | Mitigation |
 |------|------------|
-| `since=all` fetches too many tasks for large projects | Unlikely for a CLI task tracker. If needed, add server-side month filtering later |
+| `due_month` query returns many tasks for a busy month | Bounded by one month; even a very busy month is manageable. Server-side filtering keeps response size proportional to the month |
 | Timezone edge case: task appears on wrong day | Use `new Date(isoString)` which handles timezone conversion to browser local. Document this behavior |
 | Popover positioning near viewport edges | Use `getBoundingClientRect()` and flip direction (up vs down) when near bottom. Same approach used by tooltip libraries |
 | Single HTML file becomes unwieldy (~2500+ lines) | Already ~2400 lines. Calendar adds ~300-400 lines. Manageable for now; extraction to separate files is a future concern |
