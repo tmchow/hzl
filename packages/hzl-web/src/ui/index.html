@@ -1939,15 +1939,15 @@
 
       // Filter to current month in local timezone and group by day in single pass
       // (Server already filters by project via ?project= param, no client-side filter needed)
-      const tasksByDay = {};
+      calendarTasksByDay = {};
       let monthTaskCount = 0;
       for (const t of tasks) {
         if (!t.due_at) continue;
         const d = new Date(t.due_at);
         if (d.getFullYear() !== calendarYear || d.getMonth() !== calendarMonth) continue;
         const day = d.getDate();
-        if (!tasksByDay[day]) tasksByDay[day] = [];
-        tasksByDay[day].push(t);
+        if (!calendarTasksByDay[day]) calendarTasksByDay[day] = [];
+        calendarTasksByDay[day].push(t);
         monthTaskCount++;
       }
 
@@ -1970,16 +1970,9 @@
         </div>
       `;
 
-      // Empty state — skip grid when no tasks
+      // Empty state message (grid still renders for visual context)
       if (monthTaskCount === 0) {
         html += `<div class="calendar-empty-state">No tasks with due dates in ${monthLabel}</div>`;
-        calendarContainer.innerHTML = html;
-
-        // Wire navigation even in empty state
-        document.getElementById('calPrev').addEventListener('click', navPrev);
-        document.getElementById('calNext').addEventListener('click', navNext);
-        document.getElementById('calToday').addEventListener('click', navToday);
-        return;
       }
 
       html += `<div class="calendar-grid">`;
@@ -2004,7 +1997,7 @@
         html += `<span class="calendar-day-number">${d}</span>`;
         html += `<div class="calendar-day-tasks">`;
 
-        const dayTasks = tasksByDay[d] || [];
+        const dayTasks = calendarTasksByDay[d] || [];
         const visible = dayTasks.slice(0, MAX_CARDS);
         for (const t of visible) {
           html += renderMiniCard(t);
@@ -2049,6 +2042,9 @@
       poll();
     }
 
+    // Calendar state shared between renderCalendar and popover
+    let calendarTasksByDay = {};
+
     // Calendar popover for "+N more" links
     let activePopover = null;
     let popoverOutsideListener = null;
@@ -2067,13 +2063,9 @@
     function showCalendarPopover(dateStr, anchorEl) {
       dismissPopover();
 
-      // Find all tasks for this date (server already filters by project)
+      // Reuse grouped data from renderCalendar instead of re-filtering
       const [y, m, d] = dateStr.split('-').map(Number);
-      const dayTasks = tasks.filter(t => {
-        if (!t.due_at) return false;
-        const dt = new Date(t.due_at);
-        return dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d;
-      });
+      const dayTasks = calendarTasksByDay[d] || [];
 
       if (dayTasks.length === 0) return;
 
@@ -2086,13 +2078,19 @@
       popover.innerHTML = `<div class="calendar-popover-header">${headerDate}</div>`
         + dayTasks.map(t => renderMiniCard(t)).join('');
 
-      // Position below the anchor, clamped to viewport right edge
+      // Position below the anchor, clamped to viewport edges
       const rect = anchorEl.getBoundingClientRect();
-      const popoverWidth = 280; // matches CSS min-width
+      const popoverWidth = 280; // matches CSS max-width
+      const popoverMaxHeight = 300; // matches CSS max-height
       const left = Math.min(rect.left, window.innerWidth - popoverWidth - 8);
+      // If popover would overflow bottom, position above the anchor instead
+      const spaceBelow = window.innerHeight - rect.bottom - 8;
+      const top = spaceBelow >= popoverMaxHeight
+        ? rect.bottom + 4
+        : Math.max(8, rect.top - popoverMaxHeight - 4);
       popover.style.position = 'fixed';
       popover.style.left = left + 'px';
-      popover.style.top = (rect.bottom + 4) + 'px';
+      popover.style.top = top + 'px';
 
       document.body.appendChild(popover);
       activePopover = popover;
@@ -2292,7 +2290,7 @@
               <div class="modal-meta">
                 <div class="modal-meta-item">
                   <div class="modal-meta-label">Agent</div>
-                  <div class="modal-meta-value">${data.task.assignee}</div>
+                  <div class="modal-meta-value">${escapeHtml(data.task.assignee)}</div>
                 </div>
                 ${data.task.lease_until ? `
                   <div class="modal-meta-item">

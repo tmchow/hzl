@@ -343,6 +343,32 @@ describe('hzl-web server', () => {
       expect(response.due_month).toBe('2026-02');
       expect(response.since).toBeUndefined();
     });
+
+    it('returns 400 for month 00 in due_month', async () => {
+      createServer(4536);
+      const { status } = await fetchJson('/api/tasks?due_month=2026-00');
+      expect(status).toBe(400);
+    });
+
+    it('returns subtask counts for parent tasks in due_month mode', async () => {
+      createServer(4537);
+      const parent = taskService.createTask({
+        title: 'Parent with due date',
+        project: 'test-project',
+        due_at: '2026-02-15T00:00:00Z',
+      });
+      taskService.createTask({
+        title: 'Child task',
+        project: 'test-project',
+        parent_id: parent.task_id,
+      });
+
+      const { data } = await fetchJson('/api/tasks?due_month=2026-02');
+      const tasks = (data as { tasks: Array<{ title: string; subtask_count: number; subtask_total: number }> }).tasks;
+      const parentTask = tasks.find(t => t.title === 'Parent with due date');
+      expect(parentTask?.subtask_count).toBe(1);
+      expect(parentTask?.subtask_total).toBe(1);
+    });
   });
 
   describe('GET /api/tasks/:id', () => {

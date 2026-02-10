@@ -1087,10 +1087,17 @@ export class TaskService {
     const params: (string | number)[] = [];
 
     if (dueMonth) {
+      // Validate YYYY-MM format
+      if (!/^\d{4}-\d{2}$/.test(dueMonth)) {
+        throw new Error(`Invalid dueMonth format: ${dueMonth}. Expected YYYY-MM.`);
+      }
       // Parse YYYY-MM and compute padded UTC boundaries (±1 day for timezone safety)
       const [yearStr, monthStr] = dueMonth.split('-');
       const year = parseInt(yearStr, 10);
       const month = parseInt(monthStr, 10); // 1-indexed
+      if (month < 1 || month > 12) {
+        throw new Error(`Invalid month in dueMonth: ${dueMonth}. Expected 01-12.`);
+      }
       // Start: first day of month minus 1 day
       const startDate = new Date(Date.UTC(year, month - 1, 1));
       startDate.setUTCDate(startDate.getUTCDate() - 1);

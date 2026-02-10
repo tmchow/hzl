@@ -937,6 +937,47 @@ describe('TaskService', () => {
       expect(tasks).toHaveLength(1);
       expect(tasks[0].title).toBe('Old task with due date');
     });
+
+    it('dueMonth handles December year-rollover boundary', () => {
+      // End-of-December boundary: padding extends into Jan 2027
+      taskService.createTask({
+        title: 'Dec task',
+        project: 'inbox',
+        due_at: '2026-12-31T20:00:00Z',
+      });
+      taskService.createTask({
+        title: 'Jan boundary task',
+        project: 'inbox',
+        due_at: '2027-01-01T05:00:00Z',
+      });
+
+      const tasks = taskService.listTasks({ dueMonth: '2026-12' });
+      expect(tasks).toHaveLength(2);
+    });
+
+    it('dueMonth excludes archived tasks', () => {
+      const task = taskService.createTask({
+        title: 'Archived task with due date',
+        project: 'inbox',
+        due_at: '2026-04-15T00:00:00Z',
+      });
+      taskService.archiveTask(task.task_id);
+
+      const tasks = taskService.listTasks({ dueMonth: '2026-04' });
+      expect(tasks).toHaveLength(0);
+    });
+
+    it('throws on invalid dueMonth format', () => {
+      expect(() => taskService.listTasks({ dueMonth: 'abc' }))
+        .toThrow('Invalid dueMonth format');
+    });
+
+    it('throws on invalid month in dueMonth', () => {
+      expect(() => taskService.listTasks({ dueMonth: '2026-00' }))
+        .toThrow('Invalid month in dueMonth');
+      expect(() => taskService.listTasks({ dueMonth: '2026-13' }))
+        .toThrow('Invalid month in dueMonth');
+    });
   });
 
   describe('getBlockedByMap', () => {
