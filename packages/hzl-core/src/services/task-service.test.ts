@@ -829,6 +829,58 @@ describe('TaskService', () => {
 
       expect(found?.due_at).toBeNull();
     });
+
+    it('filters by dueMonth returning only tasks with due_at in that month', () => {
+      taskService.createTask({
+        title: 'Feb task',
+        project: 'inbox',
+        due_at: '2026-02-15T00:00:00Z',
+      });
+      taskService.createTask({
+        title: 'Jan task',
+        project: 'inbox',
+        due_at: '2026-01-10T00:00:00Z',
+      });
+      taskService.createTask({
+        title: 'No due date',
+        project: 'inbox',
+      });
+
+      const tasks = taskService.listTasks({ dueMonth: '2026-02' });
+      expect(tasks).toHaveLength(1);
+      expect(tasks[0].title).toBe('Feb task');
+    });
+
+    it('dueMonth includes tasks near month boundaries with timezone padding', () => {
+      // Task on March 1 in UTC but could be Feb 28 in US Pacific (UTC-8)
+      taskService.createTask({
+        title: 'Boundary task',
+        project: 'inbox',
+        due_at: '2026-03-01T05:00:00Z',
+      });
+
+      const tasks = taskService.listTasks({ dueMonth: '2026-02' });
+      // Should be included due to ±1 day padding
+      expect(tasks).toHaveLength(1);
+      expect(tasks[0].title).toBe('Boundary task');
+    });
+
+    it('dueMonth with project filter applies both filters', () => {
+      taskService.createTask({
+        title: 'Feb in project-a',
+        project: 'project-a',
+        due_at: '2026-02-15T00:00:00Z',
+      });
+      taskService.createTask({
+        title: 'Feb in project-b',
+        project: 'project-b',
+        due_at: '2026-02-15T00:00:00Z',
+      });
+
+      const tasks = taskService.listTasks({ dueMonth: '2026-02', project: 'project-a' });
+      expect(tasks).toHaveLength(1);
+      expect(tasks[0].title).toBe('Feb in project-a');
+    });
   });
 
   describe('getBlockedByMap', () => {

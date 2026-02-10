@@ -1080,35 +1080,46 @@ export class TaskService {
    * List tasks with optional filtering by date range and project.
    * Used by the web dashboard.
    */
-  listTasks(opts: { sinceDays?: number; project?: string } = {}): TaskListItem[] {
-    const { sinceDays = 3, project } = opts;
-    const dateOffset = `-${sinceDays} days`;
+  listTasks(opts: { sinceDays?: number; project?: string; dueMonth?: string } = {}): TaskListItem[] {
+    const { sinceDays = 3, project, dueMonth } = opts;
 
-    let rows: TaskRow[];
-    if (project) {
-      rows = this.db.prepare(`
-        SELECT task_id, title, project, status, priority,
-               assignee, progress, lease_until, updated_at,
-               parent_id, description, links, tags, due_at, metadata,
-               claimed_at, created_at
-        FROM tasks_current
-        WHERE status != 'archived'
-          AND updated_at >= datetime('now', ?)
-          AND project = ?
-        ORDER BY priority DESC, updated_at DESC
-      `).all(dateOffset, project) as TaskRow[];
+    const conditions: string[] = ["status != 'archived'"];
+    const params: (string | number)[] = [];
+
+    if (dueMonth) {
+      // Parse YYYY-MM and compute padded UTC boundaries (±1 day for timezone safety)
+      const [yearStr, monthStr] = dueMonth.split('-');
+      const year = parseInt(yearStr, 10);
+      const month = parseInt(monthStr, 10); // 1-indexed
+      // Start: first day of month minus 1 day
+      const startDate = new Date(Date.UTC(year, month - 1, 1));
+      startDate.setUTCDate(startDate.getUTCDate() - 1);
+      // End: first day of next month plus 1 day
+      const endDate = new Date(Date.UTC(year, month, 1));
+      endDate.setUTCDate(endDate.getUTCDate() + 1);
+      conditions.push('due_at >= ? AND due_at < ?');
+      params.push(startDate.toISOString(), endDate.toISOString());
     } else {
-      rows = this.db.prepare(`
-        SELECT task_id, title, project, status, priority,
-               assignee, progress, lease_until, updated_at,
-               parent_id, description, links, tags, due_at, metadata,
-               claimed_at, created_at
-        FROM tasks_current
-        WHERE status != 'archived'
-          AND updated_at >= datetime('now', ?)
-        ORDER BY priority DESC, updated_at DESC
-      `).all(dateOffset) as TaskRow[];
+      const dateOffset = `-${sinceDays} days`;
+      conditions.push("updated_at >= datetime('now', ?)");
+      params.push(dateOffset);
     }
+
+    if (project) {
+      conditions.push('project = ?');
+      params.push(project);
+    }
+
+    const sql = `
+      SELECT task_id, title, project, status, priority,
+             assignee, progress, lease_until, updated_at,
+             parent_id, description, links, tags, due_at, metadata,
+             claimed_at, created_at
+      FROM tasks_current
+      WHERE ${conditions.join(' AND ')}
+      ORDER BY priority DESC, updated_at DESC
+    `;
+    const rows = this.db.prepare(sql).all(...params) as TaskRow[];
 
     return rows.map((row) => ({
       task_id: row.task_id,
