@@ -1111,9 +1111,15 @@
       gap: 2px;
       flex: 1;
     }
+    .calendar-mini-card { border-left-color: var(--text-muted); }
+    .calendar-mini-card[data-status="backlog"] { border-left-color: var(--status-backlog); }
+    .calendar-mini-card[data-status="ready"] { border-left-color: var(--status-ready); }
+    .calendar-mini-card[data-status="in_progress"] { border-left-color: var(--status-in-progress); }
+    .calendar-mini-card[data-status="blocked"] { border-left-color: var(--status-blocked); }
+    .calendar-mini-card[data-status="done"] { border-left-color: var(--status-done); }
     .calendar-mini-card {
       background: var(--bg-primary);
-      border-left: 3px solid var(--text-muted);
+      border-left: 3px solid;
       border-radius: 3px;
       padding: 2px 4px;
       cursor: pointer;
@@ -1918,17 +1924,8 @@
       return columns;
     }
 
-    const STATUS_COLORS = {
-      backlog: 'var(--status-backlog)',
-      ready: 'var(--status-ready)',
-      in_progress: 'var(--status-in-progress)',
-      blocked: 'var(--status-blocked)',
-      done: 'var(--status-done)',
-    };
-
     function renderMiniCard(task) {
-      const color = STATUS_COLORS[task.status] || 'var(--text-muted)';
-      return `<div class="calendar-mini-card" data-task-id="${task.task_id}" style="border-left-color: ${color}">
+      return `<div class="calendar-mini-card" data-task-id="${task.task_id}" data-status="${task.status}">
         <span class="calendar-mini-title">${escapeHtml(task.title)}</span>
         <span class="calendar-mini-project">${escapeHtml(task.project)}</span>
       </div>`;
@@ -1940,21 +1937,18 @@
       const todayDate = now.getDate();
       const MAX_CARDS = 3;
 
-      // Filter tasks to current month in local timezone
-      const projectVal = projectFilter.value;
-      const monthTasks = tasks.filter(t => {
-        if (!t.due_at) return false;
-        if (projectVal && t.project !== projectVal) return false;
-        const d = new Date(t.due_at);
-        return d.getFullYear() === calendarYear && d.getMonth() === calendarMonth;
-      });
-
-      // Group by local day
+      // Filter to current month in local timezone and group by day in single pass
+      // (Server already filters by project via ?project= param, no client-side filter needed)
       const tasksByDay = {};
-      for (const t of monthTasks) {
-        const day = new Date(t.due_at).getDate();
+      let monthTaskCount = 0;
+      for (const t of tasks) {
+        if (!t.due_at) continue;
+        const d = new Date(t.due_at);
+        if (d.getFullYear() !== calendarYear || d.getMonth() !== calendarMonth) continue;
+        const day = d.getDate();
         if (!tasksByDay[day]) tasksByDay[day] = [];
         tasksByDay[day].push(t);
+        monthTaskCount++;
       }
 
       // Month label
@@ -1976,9 +1970,16 @@
         </div>
       `;
 
-      // Empty state
-      if (monthTasks.length === 0) {
+      // Empty state — skip grid when no tasks
+      if (monthTaskCount === 0) {
         html += `<div class="calendar-empty-state">No tasks with due dates in ${monthLabel}</div>`;
+        calendarContainer.innerHTML = html;
+
+        // Wire navigation even in empty state
+        document.getElementById('calPrev').addEventListener('click', navPrev);
+        document.getElementById('calNext').addEventListener('click', navNext);
+        document.getElementById('calToday').addEventListener('click', navToday);
+        return;
       }
 
       html += `<div class="calendar-grid">`;
@@ -2025,29 +2026,38 @@
       html += `</div>`;
       calendarContainer.innerHTML = html;
 
-      // Wire navigation
-      document.getElementById('calPrev').addEventListener('click', () => {
-        calendarMonth--;
-        if (calendarMonth < 0) { calendarMonth = 11; calendarYear--; }
-        poll();
-      });
-      document.getElementById('calNext').addEventListener('click', () => {
-        calendarMonth++;
-        if (calendarMonth > 11) { calendarMonth = 0; calendarYear++; }
-        poll();
-      });
-      document.getElementById('calToday').addEventListener('click', () => {
-        const today = new Date();
-        calendarYear = today.getFullYear();
-        calendarMonth = today.getMonth();
-        poll();
-      });
+      // Wire navigation (named functions to avoid re-adding anonymous listeners)
+      document.getElementById('calPrev').addEventListener('click', navPrev);
+      document.getElementById('calNext').addEventListener('click', navNext);
+      document.getElementById('calToday').addEventListener('click', navToday);
+    }
+
+    function navPrev() {
+      calendarMonth--;
+      if (calendarMonth < 0) { calendarMonth = 11; calendarYear--; }
+      poll();
+    }
+    function navNext() {
+      calendarMonth++;
+      if (calendarMonth > 11) { calendarMonth = 0; calendarYear++; }
+      poll();
+    }
+    function navToday() {
+      const today = new Date();
+      calendarYear = today.getFullYear();
+      calendarMonth = today.getMonth();
+      poll();
     }
 
     // Calendar popover for "+N more" links
     let activePopover = null;
+    let popoverOutsideListener = null;
 
     function dismissPopover() {
+      if (popoverOutsideListener) {
+        document.removeEventListener('click', popoverOutsideListener);
+        popoverOutsideListener = null;
+      }
       if (activePopover) {
         activePopover.remove();
         activePopover = null;
@@ -2057,12 +2067,10 @@
     function showCalendarPopover(dateStr, anchorEl) {
       dismissPopover();
 
-      // Find all tasks for this date
+      // Find all tasks for this date (server already filters by project)
       const [y, m, d] = dateStr.split('-').map(Number);
       const dayTasks = tasks.filter(t => {
         if (!t.due_at) return false;
-        const projectVal = projectFilter.value;
-        if (projectVal && t.project !== projectVal) return false;
         const dt = new Date(t.due_at);
         return dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d;
       });
@@ -2078,10 +2086,12 @@
       popover.innerHTML = `<div class="calendar-popover-header">${headerDate}</div>`
         + dayTasks.map(t => renderMiniCard(t)).join('');
 
-      // Position below the anchor
+      // Position below the anchor, clamped to viewport right edge
       const rect = anchorEl.getBoundingClientRect();
+      const popoverWidth = 280; // matches CSS min-width
+      const left = Math.min(rect.left, window.innerWidth - popoverWidth - 8);
       popover.style.position = 'fixed';
-      popover.style.left = rect.left + 'px';
+      popover.style.left = left + 'px';
       popover.style.top = (rect.bottom + 4) + 'px';
 
       document.body.appendChild(popover);
@@ -2089,12 +2099,12 @@
 
       // Dismiss on click-outside (next tick to avoid immediate dismiss)
       setTimeout(() => {
-        document.addEventListener('click', function onClickOutside(e) {
+        popoverOutsideListener = function onClickOutside(e) {
           if (activePopover && !activePopover.contains(e.target)) {
             dismissPopover();
-            document.removeEventListener('click', onClickOutside);
           }
-        });
+        };
+        document.addEventListener('click', popoverOutsideListener);
       }, 0);
     }
 
@@ -2664,6 +2674,11 @@
 
     // View toggle (Kanban/Graph)
     function setActiveView(view) {
+      // Dismiss calendar popover when leaving calendar view
+      if (activeView === 'calendar' && view !== 'calendar') {
+        dismissPopover();
+      }
+
       activeView = view;
 
       // Update toggle buttons

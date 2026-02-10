@@ -334,6 +334,15 @@ describe('hzl-web server', () => {
       expect(tasks).toHaveLength(1);
       expect(tasks[0].title).toBe('Has due date');
     });
+
+    it('includes due_month in response metadata when querying by month', async () => {
+      createServer(4535);
+
+      const { data } = await fetchJson('/api/tasks?due_month=2026-02');
+      const response = data as { due_month?: string; since?: string };
+      expect(response.due_month).toBe('2026-02');
+      expect(response.since).toBeUndefined();
+    });
   });
 
   describe('GET /api/tasks/:id', () => {

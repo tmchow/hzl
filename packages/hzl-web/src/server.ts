@@ -138,10 +138,13 @@ export function createWebServer(options: ServerOptions): ServerHandle {
     const blockedMap = taskService.getBlockedByMap();
 
     // Get subtask counts for parent tasks (filtered + total)
+    // In calendar mode (dueMonth), no date filter — subtasks don't have due_at,
+    // so we count all non-archived subtasks for the returned parent tasks.
     const subtaskCounts = taskService.getSubtaskCounts({
       ...(dueMonth ? {} : { sinceDays: days }),
       project: project ?? undefined,
     });
+    // Note: In calendar mode the filtered count matches total because no sinceDays filter applies.
     const subtaskTotals = taskService.getSubtaskCounts();
 
     // Merge blocked info and subtask counts into tasks
