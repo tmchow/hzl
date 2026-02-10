@@ -46,7 +46,7 @@ Add a calendar month view to the hzl web dashboard so users can visualize tasks 
 | R8 | Must | Existing project filter applies to calendar view (filters which tasks appear) |
 | R9 | Must | `due_at` field displayed in the task detail modal metadata grid |
 | R10 | Nice | Calendar respects the current color theme (dark mode support if dashboard has it) |
-| R11 | Nice | Mobile-responsive layout (calendar usable on small screens) |
+| R11 | Nice | Mobile-responsive: compact grid with smaller cells, tap a day to see tasks in a bottom sheet or popover |
 | R12 | Out | Drag-to-reschedule — calendar is view-only |
 | R13 | Out | Week/day views — month view only for v1 |
 | R14 | Out | Task creation from clicking empty days |
@@ -64,14 +64,10 @@ Custom vanilla JS + CSS Grid calendar, built from scratch without external libra
 
 - **Status color-coding (not project or priority):** Mini cards use the same status-based color scheme as Kanban cards for visual consistency across views.
 - **Mini cards (not pills or dots):** Each task shows title + project badge rather than just a colored dot or pill. Provides enough context to be useful without needing to click every task.
-- **"+N more" overflow (not scrollable cells):** Keeps the calendar grid visually clean with uniform row heights. A popover or expansion reveals overflow tasks.
+- **"+N more" popover (not scrollable cells or inline expansion):** Keeps the calendar grid visually clean with uniform row heights. A floating popover anchored to the day cell lists all tasks without disrupting the grid layout.
+- **Mobile: compact grid (not list layout):** Same month grid on small screens but with smaller cells. Tapping a day opens a bottom sheet or popover showing that day's tasks.
 - **No overdue treatment:** Tasks past their due date are displayed normally. Avoids visual clutter and keeps the implementation simple.
 - **Date filter does not apply to calendar:** The existing date filter filters by `updated_at` for recent activity. The calendar has its own month-based navigation, so the date filter is not relevant and should be hidden or disabled in calendar view.
-
-## Open Questions
-
-- **[Affects R6]** What should the "+N more" interaction be — a popover anchored to the day cell, or an inline expansion that pushes other rows down?
-- **[Affects R11]** How should the calendar adapt on mobile — smaller cells with abbreviated content, or a list-based layout for the month?
 
 ## Next Steps
 
