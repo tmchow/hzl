@@ -1040,6 +1040,7 @@
       <span class="logo">hzl dashboard</span>
       <div class="view-toggle" id="viewToggle">
         <button class="view-btn active" data-view="kanban">Kanban</button>
+        <button class="view-btn" data-view="calendar">Calendar</button>
         <button class="view-btn" data-view="graph">Graph</button>
       </div>
     </div>
@@ -1164,6 +1165,9 @@
     </div>
   </main>
 
+  <!-- Calendar View Container -->
+  <div id="calendarContainer" class="calendar-container hidden"></div>
+
   <!-- Graph View Container -->
   <div id="graphContainer" class="graph-container hidden">
     <div class="graph-loading" id="graphLoading">
@@ -1216,6 +1220,8 @@
     let nodeStatusMap = new Map();
     let pendingModalRequestId = 0; // Track modal fetch requests to avoid race conditions
     let isPolling = false; // Guard against concurrent poll() calls
+    let calendarYear = new Date().getFullYear();
+    let calendarMonth = new Date().getMonth(); // 0-indexed
 
     // DOM Elements
     const dateFilter = document.getElementById('dateFilter');
@@ -1238,6 +1244,7 @@
     const showSubtasksCheckbox = document.getElementById('showSubtasks');
     const viewToggle = document.getElementById('viewToggle');
     const board = document.getElementById('board');
+    const calendarContainer = document.getElementById('calendarContainer');
     const graphContainer = document.getElementById('graphContainer');
     const graphLoading = document.getElementById('graphLoading');
 
@@ -1631,9 +1638,15 @@
 
     // API calls
     async function fetchTasks() {
-      const since = dateFilter.value;
       const project = projectFilter.value;
-      const url = `/api/tasks?since=${since}${project ? `&project=${encodeURIComponent(project)}` : ''}`;
+      let url;
+      if (activeView === 'calendar') {
+        const mm = String(calendarMonth + 1).padStart(2, '0');
+        url = `/api/tasks?due_month=${calendarYear}-${mm}${project ? `&project=${encodeURIComponent(project)}` : ''}`;
+      } else {
+        const since = dateFilter.value;
+        url = `/api/tasks?since=${since}${project ? `&project=${encodeURIComponent(project)}` : ''}`;
+      }
       const res = await fetch(url);
       if (!res.ok) throw new Error('Failed to fetch tasks');
       const data = await res.json();
@@ -1757,6 +1770,11 @@
         }
       }
       return columns;
+    }
+
+    function renderCalendar() {
+      // Stub — implemented in subtask 2.2
+      calendarContainer.innerHTML = '<div style="padding: 24px; color: var(--text-muted);">Calendar view loading...</div>';
     }
 
     function renderBoard() {
@@ -2092,9 +2110,13 @@
         projectFilter.innerHTML = '<option value="">All projects</option>' +
           stats.projects.map(p => `<option value="${escapeHtml(p)}" ${p === currentProject ? 'selected' : ''}>${escapeHtml(p)}</option>`).join('');
 
-        renderBoard();
+        if (activeView === 'calendar') {
+          renderCalendar();
+        } else {
+          renderBoard();
+          updateGraphData();
+        }
         renderActivity();
-        updateGraphData();
 
         lastPollTime = Date.now();
         updateConnectionStatus(true);
@@ -2294,32 +2316,28 @@
       });
 
       // Show/hide containers
-      if (view === 'kanban') {
-        board.style.display = '';
-        graphContainer.classList.add('hidden');
-        mobileTabs.style.display = '';
-        document.getElementById('mobileCardsContainer').style.display = '';
+      board.style.display = view === 'kanban' ? '' : 'none';
+      calendarContainer.classList.toggle('hidden', view !== 'calendar');
+      graphContainer.classList.toggle('hidden', view !== 'graph');
+      mobileTabs.style.display = view === 'kanban' ? '' : 'none';
+      document.getElementById('mobileCardsContainer').style.display = view === 'kanban' ? '' : 'none';
 
-        // Pause graph to save CPU/memory when not visible
-        if (graphInstance) {
-          graphInstance.pauseAnimation();
-        }
-      } else {
-        board.style.display = 'none';
-        graphContainer.classList.remove('hidden');
-        mobileTabs.style.display = 'none';
-        document.getElementById('mobileCardsContainer').style.display = 'none';
+      // Hide date filter when calendar is active (calendar has its own month navigation)
+      dateFilter.closest('.filter-group').style.display = view === 'calendar' ? 'none' : '';
 
-        // Initialize graph on first view
+      // Pause/resume graph
+      if (view === 'graph') {
         if (!graphInitialized && typeof ForceGraph !== 'undefined') {
           initGraph();
         } else if (graphInstance) {
-          // Resume graph animation when switching back
           graphInstance.resumeAnimation();
         }
+      } else if (graphInstance) {
+        graphInstance.pauseAnimation();
       }
 
       savePreferences();
+      poll();
     }
 
     viewToggle.addEventListener('click', (e) => {
