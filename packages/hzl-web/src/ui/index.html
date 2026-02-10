@@ -1147,6 +1147,30 @@
       padding: 1px 4px;
     }
     .calendar-more-link:hover { text-decoration: underline; }
+    .calendar-popover {
+      position: absolute;
+      z-index: 100;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      padding: 8px;
+      min-width: 200px;
+      max-width: 280px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    .calendar-popover-header {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid var(--border);
+    }
+    .calendar-popover .calendar-mini-card {
+      margin-bottom: 2px;
+    }
     .calendar-empty-state {
       text-align: center;
       color: var(--text-muted);
@@ -2019,6 +2043,89 @@
         poll();
       });
     }
+
+    // Calendar popover for "+N more" links
+    let activePopover = null;
+
+    function dismissPopover() {
+      if (activePopover) {
+        activePopover.remove();
+        activePopover = null;
+      }
+    }
+
+    function showCalendarPopover(dateStr, anchorEl) {
+      dismissPopover();
+
+      // Find all tasks for this date
+      const [y, m, d] = dateStr.split('-').map(Number);
+      const dayTasks = tasks.filter(t => {
+        if (!t.due_at) return false;
+        const projectVal = projectFilter.value;
+        if (projectVal && t.project !== projectVal) return false;
+        const dt = new Date(t.due_at);
+        return dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d;
+      });
+
+      if (dayTasks.length === 0) return;
+
+      // Format date for header
+      const headerDate = new Date(y, m - 1, d)
+        .toLocaleDateString(undefined, { month: 'long', day: 'numeric' });
+
+      const popover = document.createElement('div');
+      popover.className = 'calendar-popover';
+      popover.innerHTML = `<div class="calendar-popover-header">${headerDate}</div>`
+        + dayTasks.map(t => renderMiniCard(t)).join('');
+
+      // Position below the anchor
+      const rect = anchorEl.getBoundingClientRect();
+      popover.style.position = 'fixed';
+      popover.style.left = rect.left + 'px';
+      popover.style.top = (rect.bottom + 4) + 'px';
+
+      document.body.appendChild(popover);
+      activePopover = popover;
+
+      // Dismiss on click-outside (next tick to avoid immediate dismiss)
+      setTimeout(() => {
+        document.addEventListener('click', function onClickOutside(e) {
+          if (activePopover && !activePopover.contains(e.target)) {
+            dismissPopover();
+            document.removeEventListener('click', onClickOutside);
+          }
+        });
+      }, 0);
+    }
+
+    // Event delegation for calendar interactions
+    calendarContainer.addEventListener('click', (e) => {
+      // "+N more" link
+      const moreLink = e.target.closest('.calendar-more-link');
+      if (moreLink) {
+        e.stopPropagation();
+        showCalendarPopover(moreLink.dataset.date, moreLink);
+        return;
+      }
+
+      // Mini card click → open task modal
+      const card = e.target.closest('.calendar-mini-card');
+      if (card) {
+        dismissPopover();
+        openTaskModal(card.dataset.taskId);
+        return;
+      }
+    });
+
+    // Also handle clicks inside popover (which is appended to body, not calendarContainer)
+    document.addEventListener('click', (e) => {
+      if (!activePopover) return;
+      const card = e.target.closest('.calendar-popover .calendar-mini-card');
+      if (card) {
+        dismissPopover();
+        openTaskModal(card.dataset.taskId);
+      }
+    });
 
     function renderBoard() {
       const showSubtasks = showSubtasksCheckbox.checked;
