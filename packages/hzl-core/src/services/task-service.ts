@@ -133,6 +133,7 @@ export interface TaskListItem {
   updated_at: string;
   parent_id: string | null;
   progress: number | null;
+  due_at: string | null;
 }
 
 export interface TaskStats {
@@ -1120,6 +1121,7 @@ export class TaskService {
       updated_at: row.updated_at,
       parent_id: row.parent_id,
       progress: row.progress,
+      due_at: row.due_at,
     }));
   }
 

@@ -807,6 +807,28 @@ describe('TaskService', () => {
 
       expect(found?.progress).toBeNull();
     });
+
+    it('returns due_at when set', () => {
+      const task = taskService.createTask({
+        title: 'Task with due date',
+        project: 'inbox',
+        due_at: '2026-02-15T00:00:00Z',
+      });
+
+      const tasks = taskService.listTasks({});
+      const found = tasks.find(t => t.task_id === task.task_id);
+
+      expect(found?.due_at).toBe('2026-02-15T00:00:00Z');
+    });
+
+    it('returns null due_at when not set', () => {
+      const task = taskService.createTask({ title: 'Task without due date', project: 'inbox' });
+
+      const tasks = taskService.listTasks({});
+      const found = tasks.find(t => t.task_id === task.task_id);
+
+      expect(found?.due_at).toBeNull();
+    });
   });
 
   describe('getBlockedByMap', () => {
