@@ -1,0 +1,78 @@
+# Calendar View for Web Dashboard - PRD
+
+**Date:** 2026-02-09
+**Status:** Brainstorming
+
+## Goal
+
+Add a calendar month view to the hzl web dashboard so users can visualize tasks by their due dates. Tasks with a `due_at` date appear on the calendar on the day they're due, and tapping a task opens the existing task detail modal. This gives users a time-oriented perspective on their work alongside the existing status-oriented (Kanban) and relationship-oriented (Graph) views.
+
+## Scope
+
+### In Scope
+
+- Month-view calendar as a third view tab (tab order: Kanban → Calendar → Graph)
+- Tasks with `due_at` dates displayed as mini cards on their due day
+- Mini cards show task title + project badge, color-coded by status (same palette as Kanban)
+- Tapping a mini card opens the existing task detail modal
+- Month navigation: previous/next month arrows and a "Today" button to return to current month
+- Overflow handling: show as many mini cards as fit in a day cell, then a "+N more" link
+- "+N more" opens a popover or expands to reveal all tasks for that day
+- Today's date visually highlighted on the calendar grid
+- Existing project filter applies to the calendar view
+- Display `due_at` in the task detail modal (currently missing from modal)
+
+### Boundaries
+
+- **No drag-to-reschedule** — the calendar is view-only. Editing due dates is done through the CLI or future modal enhancements, not by dragging on the calendar.
+- **No task creation from calendar** — clicking an empty day does not create a task.
+- **No overdue visual treatment** — tasks past their due date look the same as any other task. Simplicity over visual noise.
+- **No week or day views** — month view only. Other time scales can be added later if needed.
+- **No external calendar library** — built with vanilla JS and CSS Grid, consistent with the existing dashboard approach.
+- **No due date editing from the modal** — the modal displays `due_at` as read-only information.
+- **Tasks without `due_at` do not appear on the calendar** — the calendar only shows tasks that have a due date set.
+
+## Requirements
+
+| ID | Priority | Requirement |
+|----|----------|-------------|
+| R1 | Core | Calendar displays a month grid with tasks positioned on their `due_at` date |
+| R2 | Core | Tapping a task mini card opens the existing task detail modal |
+| R3 | Must | Month navigation via prev/next arrows and a "Today" button |
+| R4 | Must | Calendar is the second tab in the view toggle (Kanban → Calendar → Graph) |
+| R5 | Must | Mini cards show task title and project badge, with left-border color indicating status |
+| R6 | Must | Day cells handle overflow with a "+N more" link that reveals hidden tasks |
+| R7 | Must | Today's date is visually distinguished on the calendar grid |
+| R8 | Must | Existing project filter applies to calendar view (filters which tasks appear) |
+| R9 | Must | `due_at` field displayed in the task detail modal metadata grid |
+| R10 | Nice | Calendar respects the current color theme (dark mode support if dashboard has it) |
+| R11 | Nice | Mobile-responsive layout (calendar usable on small screens) |
+| R12 | Out | Drag-to-reschedule — calendar is view-only |
+| R13 | Out | Week/day views — month view only for v1 |
+| R14 | Out | Task creation from clicking empty days |
+
+## Chosen Direction
+
+Custom vanilla JS + CSS Grid calendar, built from scratch without external libraries. The dashboard is already a single HTML file with vanilla JS, and the calendar is view-only (no drag/drop complexity), making a custom implementation straightforward and consistent with the existing codebase. This avoids adding CDN dependencies for what is fundamentally a styled grid with click handlers.
+
+## Alternatives Considered
+
+- **Lightweight calendar library via CDN** — would reduce initial code but adds a dependency and may fight the library's styling opinions for a simple view-only grid.
+- **FullCalendar via CDN** — full-featured but heavyweight (~100KB+) for a view-only calendar with no drag/drop or event editing.
+
+## Key Decisions
+
+- **Status color-coding (not project or priority):** Mini cards use the same status-based color scheme as Kanban cards for visual consistency across views.
+- **Mini cards (not pills or dots):** Each task shows title + project badge rather than just a colored dot or pill. Provides enough context to be useful without needing to click every task.
+- **"+N more" overflow (not scrollable cells):** Keeps the calendar grid visually clean with uniform row heights. A popover or expansion reveals overflow tasks.
+- **No overdue treatment:** Tasks past their due date are displayed normally. Avoids visual clutter and keeps the implementation simple.
+- **Date filter does not apply to calendar:** The existing date filter filters by `updated_at` for recent activity. The calendar has its own month-based navigation, so the date filter is not relevant and should be hidden or disabled in calendar view.
+
+## Open Questions
+
+- **[Affects R6]** What should the "+N more" interaction be — a popover anchored to the day cell, or an inline expansion that pushes other rows down?
+- **[Affects R11]** How should the calendar adapt on mobile — smaller cells with abbreviated content, or a list-based layout for the month?
+
+## Next Steps
+
+> Review PRD, then create technical plan.
