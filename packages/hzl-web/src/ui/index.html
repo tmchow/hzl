@@ -2265,6 +2265,12 @@
                 <div class="modal-meta-label">Created</div>
                 <div class="modal-meta-value">${formatTime(data.task.created_at)}</div>
               </div>
+              ${data.task.due_at ? `
+              <div class="modal-meta-item">
+                <div class="modal-meta-label">Due Date</div>
+                <div class="modal-meta-value">${new Date(data.task.due_at).toLocaleDateString()}</div>
+              </div>
+              ` : ''}
             </div>
           </div>
         `;
