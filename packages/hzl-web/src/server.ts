@@ -109,22 +109,34 @@ export function createWebServer(options: ServerOptions): ServerHandle {
 
   // Route handlers
   function handleTasks(params: URLSearchParams, res: ServerResponse): void {
-    const since = params.get('since') || '3d';
+    const dueMonth = params.get('due_month');
     const project = params.get('project');
+
+    const since = params.get('since') || '3d';
     const days = DATE_PRESETS[since] ?? 3;
 
-    // Get tasks from service
-    const rows = taskService.listTasks({
-      sinceDays: days,
-      project: project ?? undefined,
-    });
+    // Get tasks from service (service validates dueMonth format/range)
+    let rows;
+    try {
+      rows = taskService.listTasks({
+        ...(dueMonth ? { dueMonth } : { sinceDays: days }),
+        project: project ?? undefined,
+      });
+    } catch (err) {
+      // Only treat dueMonth validation errors as 400; re-throw others (e.g. DB errors → 500)
+      if (err instanceof Error && (err.message.startsWith('Invalid dueMonth') || err.message.startsWith('Invalid month'))) {
+        json(res, { error: err.message }, 400);
+        return;
+      }
+      throw err;
+    }
 
     // Get blocked tasks map from service
     const blockedMap = taskService.getBlockedByMap();
 
     // Get subtask counts for parent tasks (filtered + total)
     const subtaskCounts = taskService.getSubtaskCounts({
-      sinceDays: days,
+      ...(dueMonth ? {} : { sinceDays: days }),
       project: project ?? undefined,
     });
     const subtaskTotals = taskService.getSubtaskCounts();
@@ -137,7 +149,7 @@ export function createWebServer(options: ServerOptions): ServerHandle {
       subtask_total: subtaskTotals.get(row.task_id) ?? 0,
     }));
 
-    json(res, { tasks, since, project });
+    json(res, { tasks, since: dueMonth ? undefined : since, project, due_month: dueMonth ?? undefined });
   }
 
   function handleTaskDetail(taskId: string, res: ServerResponse): void {

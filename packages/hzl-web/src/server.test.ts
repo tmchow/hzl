@@ -265,6 +265,132 @@ describe('hzl-web server', () => {
       const parentTaskB = tasksB.find((t) => t.title === 'Parent B');
       expect(parentTaskB?.subtask_count).toBe(1);
     });
+
+    it('returns tasks filtered by due_month', async () => {
+      createServer(4530);
+      taskService.createTask({
+        title: 'Feb task',
+        project: 'test-project',
+        due_at: '2026-02-15T00:00:00Z',
+      });
+      taskService.createTask({
+        title: 'Jan task',
+        project: 'test-project',
+        due_at: '2026-01-10T00:00:00Z',
+      });
+
+      const { data } = await fetchJson('/api/tasks?due_month=2026-02');
+      const tasks = (data as { tasks: Array<{ title: string; due_at: string | null }> }).tasks;
+      expect(tasks).toHaveLength(1);
+      expect(tasks[0].title).toBe('Feb task');
+      expect(tasks[0].due_at).toBe('2026-02-15T00:00:00Z');
+    });
+
+    it('applies project filter with due_month', async () => {
+      createServer(4531);
+      projectService.createProject('other-project');
+      taskService.createTask({
+        title: 'Feb in test',
+        project: 'test-project',
+        due_at: '2026-02-15T00:00:00Z',
+      });
+      taskService.createTask({
+        title: 'Feb in other',
+        project: 'other-project',
+        due_at: '2026-02-15T00:00:00Z',
+      });
+
+      const { data } = await fetchJson('/api/tasks?due_month=2026-02&project=test-project');
+      const tasks = (data as { tasks: Array<{ title: string }> }).tasks;
+      expect(tasks).toHaveLength(1);
+      expect(tasks[0].title).toBe('Feb in test');
+    });
+
+    it('returns 400 for invalid due_month format', async () => {
+      createServer(4532);
+      const { status } = await fetchJson('/api/tasks?due_month=abc');
+      expect(status).toBe(400);
+    });
+
+    it('returns 400 for invalid month in due_month', async () => {
+      createServer(4533);
+      const { status } = await fetchJson('/api/tasks?due_month=2026-13');
+      expect(status).toBe(400);
+    });
+
+    it('excludes tasks without due_at from due_month query', async () => {
+      createServer(4534);
+      taskService.createTask({
+        title: 'No due date',
+        project: 'test-project',
+      });
+      taskService.createTask({
+        title: 'Has due date',
+        project: 'test-project',
+        due_at: '2026-02-15T00:00:00Z',
+      });
+
+      const { data } = await fetchJson('/api/tasks?due_month=2026-02');
+      const tasks = (data as { tasks: Array<{ title: string }> }).tasks;
+      expect(tasks).toHaveLength(1);
+      expect(tasks[0].title).toBe('Has due date');
+    });
+
+    it('includes due_month in response metadata when querying by month', async () => {
+      createServer(4535);
+
+      const { data } = await fetchJson('/api/tasks?due_month=2026-02');
+      const response = data as { due_month?: string; since?: string };
+      expect(response.due_month).toBe('2026-02');
+      expect(response.since).toBeUndefined();
+    });
+
+    it('returns 400 for month 00 in due_month', async () => {
+      createServer(4536);
+      const { status } = await fetchJson('/api/tasks?due_month=2026-00');
+      expect(status).toBe(400);
+    });
+
+    it('ignores since param when due_month is present', async () => {
+      createServer(4538);
+      taskService.createTask({
+        title: 'Feb task',
+        project: 'test-project',
+        due_at: '2026-02-15T00:00:00Z',
+      });
+
+      // Set updated_at far in the past
+      const allTasks = taskService.listTasks({});
+      const task = allTasks.find(t => t.title === 'Feb task');
+      db.prepare('UPDATE tasks_current SET updated_at = ? WHERE task_id = ?')
+        .run('2025-01-01T00:00:00Z', task!.task_id);
+
+      // since=1d would normally exclude this old task, but due_month should take precedence
+      const { data } = await fetchJson('/api/tasks?due_month=2026-02&since=1d');
+      const tasks = (data as { tasks: Array<{ title: string }> }).tasks;
+      expect(tasks).toHaveLength(1);
+      expect(tasks[0].title).toBe('Feb task');
+    });
+
+    it('returns subtask counts for parent tasks in due_month mode', async () => {
+      createServer(4537);
+      const parent = taskService.createTask({
+        title: 'Parent with due date',
+        project: 'test-project',
+        due_at: '2026-02-15T00:00:00Z',
+      });
+      taskService.createTask({
+        title: 'Child task',
+        project: 'test-project',
+        parent_id: parent.task_id,
+      });
+
+      const { data } = await fetchJson('/api/tasks?due_month=2026-02');
+      const tasks = (data as { tasks: Array<{ title: string; subtask_count: number; subtask_total: number }> }).tasks;
+      const parentTask = tasks.find(t => t.title === 'Parent with due date');
+      expect(parentTask?.subtask_count).toBe(1);
+      expect(parentTask?.subtask_total).toBe(1);
+    });
   });
 
   describe('GET /api/tasks/:id', () => {

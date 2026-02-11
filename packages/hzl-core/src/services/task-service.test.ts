@@ -807,6 +807,194 @@ describe('TaskService', () => {
 
       expect(found?.progress).toBeNull();
     });
+
+    it('returns due_at when set', () => {
+      const task = taskService.createTask({
+        title: 'Task with due date',
+        project: 'inbox',
+        due_at: '2026-02-15T00:00:00Z',
+      });
+
+      const tasks = taskService.listTasks({});
+      const found = tasks.find(t => t.task_id === task.task_id);
+
+      expect(found?.due_at).toBe('2026-02-15T00:00:00Z');
+    });
+
+    it('returns null due_at when not set', () => {
+      const task = taskService.createTask({ title: 'Task without due date', project: 'inbox' });
+
+      const tasks = taskService.listTasks({});
+      const found = tasks.find(t => t.task_id === task.task_id);
+
+      expect(found?.due_at).toBeNull();
+    });
+
+    it('filters by dueMonth returning only tasks with due_at in that month', () => {
+      taskService.createTask({
+        title: 'Feb task',
+        project: 'inbox',
+        due_at: '2026-02-15T00:00:00Z',
+      });
+      taskService.createTask({
+        title: 'Jan task',
+        project: 'inbox',
+        due_at: '2026-01-10T00:00:00Z',
+      });
+      taskService.createTask({
+        title: 'No due date',
+        project: 'inbox',
+      });
+
+      const tasks = taskService.listTasks({ dueMonth: '2026-02' });
+      expect(tasks).toHaveLength(1);
+      expect(tasks[0].title).toBe('Feb task');
+    });
+
+    it('dueMonth includes tasks near month boundaries with timezone padding', () => {
+      // Task on March 1 in UTC but could be Feb 28 in US Pacific (UTC-8)
+      taskService.createTask({
+        title: 'Boundary task',
+        project: 'inbox',
+        due_at: '2026-03-01T05:00:00Z',
+      });
+
+      const tasks = taskService.listTasks({ dueMonth: '2026-02' });
+      // Should be included due to ±1 day padding
+      expect(tasks).toHaveLength(1);
+      expect(tasks[0].title).toBe('Boundary task');
+    });
+
+    it('dueMonth with project filter applies both filters', () => {
+      taskService.createTask({
+        title: 'Feb in project-a',
+        project: 'project-a',
+        due_at: '2026-02-15T00:00:00Z',
+      });
+      taskService.createTask({
+        title: 'Feb in project-b',
+        project: 'project-b',
+        due_at: '2026-02-15T00:00:00Z',
+      });
+
+      const tasks = taskService.listTasks({ dueMonth: '2026-02', project: 'project-a' });
+      expect(tasks).toHaveLength(1);
+      expect(tasks[0].title).toBe('Feb in project-a');
+    });
+
+    it('due_at updated via event is reflected in listTasks', () => {
+      const task = taskService.createTask({
+        title: 'Task to update due date',
+        project: 'inbox',
+      });
+
+      // Verify no due_at initially
+      let tasks = taskService.listTasks({});
+      let found = tasks.find(t => t.task_id === task.task_id);
+      expect(found?.due_at).toBeNull();
+
+      // Update due_at via event
+      const event = eventStore.append({
+        task_id: task.task_id,
+        type: EventType.TaskUpdated,
+        data: { field: 'due_at', old_value: null, new_value: '2026-03-20T00:00:00Z' },
+      });
+      projectionEngine.applyEvent(event);
+
+      tasks = taskService.listTasks({ dueMonth: '2026-03' });
+      found = tasks.find(t => t.task_id === task.task_id);
+      expect(found?.due_at).toBe('2026-03-20T00:00:00Z');
+    });
+
+    it('dueMonth includes tasks near start-of-month boundary with timezone padding', () => {
+      // Task on Jan 31 in UTC could be Feb 1 in UTC+13 (e.g., Samoa)
+      taskService.createTask({
+        title: 'Start boundary task',
+        project: 'inbox',
+        due_at: '2026-01-31T20:00:00Z',
+      });
+
+      const tasks = taskService.listTasks({ dueMonth: '2026-02' });
+      // Should be included due to ±1 day padding
+      expect(tasks).toHaveLength(1);
+      expect(tasks[0].title).toBe('Start boundary task');
+    });
+
+    it('dueMonth returns tasks regardless of updated_at age', () => {
+      // Create a task with a due date — even if updated_at is very old,
+      // dueMonth queries by due_at not updated_at
+      const task = taskService.createTask({
+        title: 'Old task with due date',
+        project: 'inbox',
+        due_at: '2026-06-15T00:00:00Z',
+      });
+
+      // Manually set updated_at to a long time ago
+      db.prepare('UPDATE tasks_current SET updated_at = ? WHERE task_id = ?')
+        .run('2025-01-01T00:00:00Z', task.task_id);
+
+      const tasks = taskService.listTasks({ dueMonth: '2026-06' });
+      expect(tasks).toHaveLength(1);
+      expect(tasks[0].title).toBe('Old task with due date');
+    });
+
+    it('dueMonth handles December year-rollover boundary', () => {
+      // End-of-December boundary: padding extends into Jan 2027
+      taskService.createTask({
+        title: 'Dec task',
+        project: 'inbox',
+        due_at: '2026-12-31T20:00:00Z',
+      });
+      taskService.createTask({
+        title: 'Jan boundary task',
+        project: 'inbox',
+        due_at: '2027-01-01T05:00:00Z',
+      });
+
+      const tasks = taskService.listTasks({ dueMonth: '2026-12' });
+      expect(tasks).toHaveLength(2);
+    });
+
+    it('dueMonth excludes archived tasks', () => {
+      const task = taskService.createTask({
+        title: 'Archived task with due date',
+        project: 'inbox',
+        due_at: '2026-04-15T00:00:00Z',
+      });
+      taskService.archiveTask(task.task_id);
+
+      const tasks = taskService.listTasks({ dueMonth: '2026-04' });
+      expect(tasks).toHaveLength(0);
+    });
+
+    it('dueMonth takes precedence over sinceDays when both provided', () => {
+      const task = taskService.createTask({
+        title: 'Feb task',
+        project: 'inbox',
+        due_at: '2026-02-15T00:00:00Z',
+      });
+
+      // Set updated_at far in the past so sinceDays=1 would exclude it
+      db.prepare('UPDATE tasks_current SET updated_at = ? WHERE task_id = ?')
+        .run('2025-01-01T00:00:00Z', task.task_id);
+
+      // With dueMonth, sinceDays should be ignored — task should still appear
+      const tasks = taskService.listTasks({ dueMonth: '2026-02', sinceDays: 1 });
+      expect(tasks).toHaveLength(1);
+      expect(tasks[0].title).toBe('Feb task');
+    });
+
+    it('throws on invalid dueMonth format', () => {
+      expect(() => taskService.listTasks({ dueMonth: 'abc' }))
+        .toThrow('Invalid dueMonth format');
+    });
+
+    it('throws on invalid month in dueMonth', () => {
+      expect(() => taskService.listTasks({ dueMonth: '2026-00' }))
+        .toThrow('Invalid month in dueMonth');
+      expect(() => taskService.listTasks({ dueMonth: '2026-13' }))
+        .toThrow('Invalid month in dueMonth');
+    });
   });
 
   describe('getBlockedByMap', () => {
