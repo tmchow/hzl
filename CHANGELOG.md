@@ -1,3 +1,10 @@
+# [1.30.0](https://github.com/tmchow/hzl/compare/v1.29.0...v1.30.0) (2026-02-11)
+
+
+### Features
+
+* add calendar month view to web dashboard ([#111](https://github.com/tmchow/hzl/issues/111)) ([1a4071e](https://github.com/tmchow/hzl/commit/1a4071e8951f69b91c5ca9d2663c93eca59e8ebf))
+
 # [1.29.0](https://github.com/tmchow/hzl/compare/v1.28.3...v1.29.0) (2026-02-09)
 
 
