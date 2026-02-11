@@ -280,9 +280,10 @@ describe('hzl-web server', () => {
       });
 
       const { data } = await fetchJson('/api/tasks?due_month=2026-02');
-      const tasks = (data as { tasks: Array<{ title: string }> }).tasks;
+      const tasks = (data as { tasks: Array<{ title: string; due_at: string | null }> }).tasks;
       expect(tasks).toHaveLength(1);
       expect(tasks[0].title).toBe('Feb task');
+      expect(tasks[0].due_at).toBe('2026-02-15T00:00:00Z');
     });
 
     it('applies project filter with due_month', async () => {

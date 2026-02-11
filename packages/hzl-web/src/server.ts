@@ -112,27 +112,24 @@ export function createWebServer(options: ServerOptions): ServerHandle {
     const dueMonth = params.get('due_month');
     const project = params.get('project');
 
-    // Validate due_month if provided
-    if (dueMonth) {
-      if (!/^\d{4}-\d{2}$/.test(dueMonth)) {
-        json(res, { error: 'Invalid due_month format. Expected YYYY-MM.' }, 400);
-        return;
-      }
-      const month = parseInt(dueMonth.split('-')[1], 10);
-      if (month < 1 || month > 12) {
-        json(res, { error: 'Invalid month in due_month. Expected 01-12.' }, 400);
-        return;
-      }
-    }
-
     const since = params.get('since') || '3d';
     const days = DATE_PRESETS[since] ?? 3;
 
-    // Get tasks from service
-    const rows = taskService.listTasks({
-      ...(dueMonth ? { dueMonth } : { sinceDays: days }),
-      project: project ?? undefined,
-    });
+    // Get tasks from service (service validates dueMonth format/range)
+    let rows;
+    try {
+      rows = taskService.listTasks({
+        ...(dueMonth ? { dueMonth } : { sinceDays: days }),
+        project: project ?? undefined,
+      });
+    } catch (err) {
+      // Only treat dueMonth validation errors as 400; re-throw others (e.g. DB errors → 500)
+      if (err instanceof Error && (err.message.startsWith('Invalid dueMonth') || err.message.startsWith('Invalid month'))) {
+        json(res, { error: err.message }, 400);
+        return;
+      }
+      throw err;
+    }
 
     // Get blocked tasks map from service
     const blockedMap = taskService.getBlockedByMap();
@@ -142,8 +139,7 @@ export function createWebServer(options: ServerOptions): ServerHandle {
       ...(dueMonth ? {} : { sinceDays: days }),
       project: project ?? undefined,
     });
-    // Total is always unfiltered (global count across all projects/time)
-    const subtaskTotals = (!project && dueMonth) ? subtaskCounts : taskService.getSubtaskCounts();
+    const subtaskTotals = taskService.getSubtaskCounts();
 
     // Merge blocked info and subtask counts into tasks
     const tasks: TaskListItemResponse[] = rows.map((row) => ({

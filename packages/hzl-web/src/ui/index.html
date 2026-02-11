@@ -1924,6 +1924,9 @@
       return columns;
     }
 
+    // Calendar state shared between renderCalendar and popover
+    let calendarTasksByDay = {};
+
     function renderMiniCard(task) {
       return `<div class="calendar-mini-card" data-task-id="${task.task_id}" data-status="${task.status}">
         <span class="calendar-mini-title">${escapeHtml(task.title)}</span>
@@ -1964,7 +1967,7 @@
       let html = `
         <div class="calendar-header">
           <button class="calendar-nav-btn" id="calPrev">&larr;</button>
-          <div class="calendar-month-label">${monthLabel}</div>
+          <div class="calendar-month-label">${escapeHtml(monthLabel)}</div>
           <button class="calendar-nav-btn" id="calNext">&rarr;</button>
           <button class="calendar-nav-btn" id="calToday">Today</button>
         </div>
@@ -1972,7 +1975,7 @@
 
       // Empty state message (grid still renders for visual context)
       if (monthTaskCount === 0) {
-        html += `<div class="calendar-empty-state">No tasks with due dates in ${monthLabel}</div>`;
+        html += `<div class="calendar-empty-state">No tasks with due dates in ${escapeHtml(monthLabel)}</div>`;
       }
 
       html += `<div class="calendar-grid">`;
@@ -2042,9 +2045,6 @@
       poll();
     }
 
-    // Calendar state shared between renderCalendar and popover
-    let calendarTasksByDay = {};
-
     // Calendar popover for "+N more" links
     let activePopover = null;
     let popoverOutsideListener = null;
@@ -2075,7 +2075,7 @@
 
       const popover = document.createElement('div');
       popover.className = 'calendar-popover';
-      popover.innerHTML = `<div class="calendar-popover-header">${headerDate}</div>`
+      popover.innerHTML = `<div class="calendar-popover-header">${escapeHtml(headerDate)}</div>`
         + dayTasks.map(t => renderMiniCard(t)).join('');
 
       // Position below the anchor, clamped to viewport edges
