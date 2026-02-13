@@ -15,6 +15,7 @@ const DEFAULT_PORT = 3456;
 interface ServeCommandOptions {
   port?: string;
   host?: string;
+  allowFraming?: boolean;
   background?: boolean;
   stop?: boolean;
   status?: boolean;
@@ -160,7 +161,7 @@ function runStop(): void {
   }
 }
 
-function runBackground(port: number, host: string, dbOption?: string): void {
+function runBackground(port: number, host: string, dbOption?: string, allowFraming = false): void {
   const existing = readPidFile();
   if (existing) {
     console.log(`hzl dashboard is already running on port ${existing.port} (PID: ${existing.pid})`);
@@ -173,6 +174,9 @@ function runBackground(port: number, host: string, dbOption?: string): void {
 
   // Build args for child process
   const args = ['serve', '--port', String(port), '--host', host];
+  if (allowFraming) {
+    args.push('--allow-framing');
+  }
   if (dbOption) {
     args.unshift('--db', dbOption);
   }
@@ -200,13 +204,14 @@ function runBackground(port: number, host: string, dbOption?: string): void {
   console.log(`Run 'hzl serve --stop' to stop`);
 }
 
-async function runForeground(port: number, host: string, dbOption?: string): Promise<void> {
+async function runForeground(port: number, host: string, dbOption?: string, allowFraming = false): Promise<void> {
   const { eventsDbPath, cacheDbPath } = resolveDbPaths(dbOption);
   const services = initializeDb({ eventsDbPath, cacheDbPath });
 
   const server = createWebServer({
     port,
     host,
+    allowFraming,
     taskService: services.taskService,
     eventStore: services.eventStore,
   });
@@ -247,6 +252,7 @@ export function createServeCommand(): Command {
     .option('-p, --port <port>', `Port to listen on (default: ${DEFAULT_PORT})`)
     .option('-H, --host <host>', `Host to bind to (default: ${DEFAULT_HOST} for network/Tailscale, use 127.0.0.1 for localhost only)`)
     .option('-b, --background', 'Run in background')
+    .option('--allow-framing', 'Allow embedding in iframes (disables X-Frame-Options)')
     .option('--stop', 'Stop the background server')
     .option('--status', 'Check if server is running')
     .option('--print-systemd', 'Print systemd unit file')
@@ -274,15 +280,15 @@ export function createServeCommand(): Command {
         if (opts.background) {
           // Don't re-fork if we're already the background process
           if (process.env.HZL_SERVE_BACKGROUND === '1') {
-            await runForeground(port, host, globalOpts.db);
+            await runForeground(port, host, globalOpts.db, opts.allowFraming);
           } else {
-            runBackground(port, host, globalOpts.db);
+            runBackground(port, host, globalOpts.db, opts.allowFraming);
           }
           return;
         }
 
         // Default: foreground mode
-        await runForeground(port, host, globalOpts.db);
+        await runForeground(port, host, globalOpts.db, opts.allowFraming);
       } catch (e) {
         handleError(e, globalOpts.json);
       }

@@ -44,8 +44,8 @@ describe('hzl-web server', () => {
     db.close();
   });
 
-  function createServer(port: number, host = '127.0.0.1'): ServerHandle {
-    server = createWebServer({ port, host, taskService, eventStore });
+  function createServer(port: number, host = '127.0.0.1', allowFraming = false): ServerHandle {
+    server = createWebServer({ port, host, allowFraming, taskService, eventStore });
     return server;
   }
 
@@ -552,6 +552,17 @@ describe('hzl-web server', () => {
       expect(res.headers.get('x-frame-options')).toBe('DENY');
       expect(res.headers.get('x-content-type-options')).toBe('nosniff');
       expect(res.headers.get('content-security-policy')).toBeTruthy();
+      expect(res.headers.get('content-security-policy')).not.toContain('frame-ancestors');
+      expect(res.headers.get('referrer-policy')).toBe('no-referrer');
+    });
+
+    it('omits X-Frame-Options and adds frame-ancestors when allowFraming is true', async () => {
+      server = createServer(4562, '127.0.0.1', true);
+
+      const res = await globalThis.fetch(server.url);
+      expect(res.headers.get('x-frame-options')).toBeNull();
+      expect(res.headers.get('content-security-policy')).toContain('frame-ancestors *');
+      expect(res.headers.get('x-content-type-options')).toBe('nosniff');
       expect(res.headers.get('referrer-policy')).toBe('no-referrer');
     });
   });

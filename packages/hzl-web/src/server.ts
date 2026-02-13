@@ -10,6 +10,7 @@ import { DASHBOARD_HTML } from './ui-embed.js';
 export interface ServerOptions {
   port: number;
   host?: string; // Default: '0.0.0.0' (all interfaces for network/Tailscale access)
+  allowFraming?: boolean; // Allow embedding in iframes (disables X-Frame-Options and adds frame-ancestors *)
   taskService: TaskService;
   eventStore: EventStore;
 }
@@ -105,7 +106,7 @@ function serverError(res: ServerResponse, error: unknown): void {
 }
 
 export function createWebServer(options: ServerOptions): ServerHandle {
-  const { port, host = '0.0.0.0', taskService, eventStore } = options;
+  const { port, host = '0.0.0.0', allowFraming = false, taskService, eventStore } = options;
 
   // Route handlers
   function handleTasks(params: URLSearchParams, res: ServerResponse): void {
@@ -260,13 +261,22 @@ export function createWebServer(options: ServerOptions): ServerHandle {
   }
 
   function handleRoot(res: ServerResponse): void {
-    res.writeHead(200, {
+    const csp = allowFraming
+      ? "default-src 'self'; script-src 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'unsafe-inline'; frame-ancestors *"
+      : "default-src 'self'; script-src 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'unsafe-inline'";
+
+    const headers: Record<string, string> = {
       'Content-Type': 'text/html; charset=utf-8',
-      'Content-Security-Policy': "default-src 'self'; script-src 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'unsafe-inline'",
+      'Content-Security-Policy': csp,
       'X-Content-Type-Options': 'nosniff',
-      'X-Frame-Options': 'DENY',
       'Referrer-Policy': 'no-referrer',
-    });
+    };
+
+    if (!allowFraming) {
+      headers['X-Frame-Options'] = 'DENY';
+    }
+
+    res.writeHead(200, headers);
     res.end(DASHBOARD_HTML);
   }
 
