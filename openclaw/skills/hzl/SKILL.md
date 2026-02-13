@@ -1,7 +1,6 @@
 ---
 name: hzl
 description: OpenClaw's persistent task database. Coordinate sub-agents, checkpoint progress, survive session boundaries.
-homepage: https://github.com/tmchow/hzl
 metadata:
   { "openclaw": { "emoji": "🧾", "homepage": "https://github.com/tmchow/hzl", "requires": { "bins": ["hzl"] }, "install": [ { "id": "brew", "kind": "brew", "package": "hzl", "bins": ["hzl"], "label": "Install HZL (Homebrew)" }, { "id": "node", "kind": "node", "package": "hzl-cli", "bins": ["hzl"], "label": "Install HZL (npm)" } ] } }
 ---
@@ -63,6 +62,22 @@ Personal tasks: HZL is not a polished human to-do app, but it is usable for pers
 - **Subtask**: breakdown of a task into parts (`--parent <id>`). Max 1 level of nesting. Parent tasks are organizational containers—never returned by `hzl task next`.
 - **Checkpoint**: short progress snapshot to support recovery
 - **Lease**: time-limited claim (prevents orphaned work in multi-agent flows)
+
+## ⚠️ DESTRUCTIVE COMMANDS — READ FIRST
+
+The following commands **PERMANENTLY DELETE HZL DATA** and cannot be undone:
+
+| Command | Effect |
+|---------|--------|
+| `hzl init --force` | **DELETES ALL DATA.** Prompts for confirmation. |
+| `hzl init --force --yes` | **DELETES ALL DATA WITHOUT CONFIRMATION.** Extremely dangerous. |
+| `hzl task prune ... --yes` | **PERMANENTLY DELETES** old done/archived tasks and their event history. |
+
+**AI agents: NEVER run these commands unless the user EXPLICITLY asks you to delete data.**
+
+- `hzl init --force` deletes the entire event database: all projects, tasks, checkpoints, and history
+- `hzl task prune` deletes only tasks in terminal states (done/archived) older than the specified age
+- There is NO undo. There is NO recovery without a backup.
 
 ## Anti-pattern: Project Sprawl
 
@@ -130,22 +145,6 @@ EOF
 ```
 Description supports markdown (16KB max).
 
-## ⚠️ DESTRUCTIVE COMMANDS - READ CAREFULLY
-
-The following commands **PERMANENTLY DELETE HZL DATA** and cannot be undone:
-
-| Command | Effect |
-|---------|--------|
-| `hzl init --force` | **DELETES ALL DATA.** Prompts for confirmation. |
-| `hzl init --force --yes` | **DELETES ALL DATA WITHOUT CONFIRMATION.** Extremely dangerous. |
-| `hzl task prune ... --yes` | **PERMANENTLY DELETES** old done/archived tasks and their event history. |
-
-**AI agents: NEVER run these commands unless the user EXPLICITLY asks you to delete data.**
-
-- `hzl init --force` deletes the entire event database: all projects, tasks, checkpoints, and history
-- `hzl task prune` deletes only tasks in terminal states (done/archived) older than the specified age
-- There is NO undo. There is NO recovery without a backup.
-
 ## Core Workflows
 
 **Setup:**
@@ -201,7 +200,7 @@ hzl task complete <parent-id>            # If all done, complete parent
 
 ---
 
-## Extended Reference
+## Extended Reference (look up as needed — skip on first read)
 
 ```bash
 # Setup
@@ -269,28 +268,69 @@ hzl task claim 1 --assignee "Claude Code" --agent-id "session-abc123"
 
 ### Start a multi-step project
 
-1) Create (or reuse) a stable project name.  
-2) Decompose into tasks.  
-3) Use dependencies to encode sequencing, not just priority.  
+1) Use the single `openclaw` project (create only if it doesn't exist).
+2) Create a parent task for the initiative.
+3) Decompose into subtasks with dependencies.
 4) Validate.
 
 ```bash
-hzl project create myapp-auth
+# Check if project exists first
+hzl project list
+# Create only if needed
+hzl project create openclaw
 
-hzl task add "Clarify requirements + acceptance criteria" -P myapp-auth --priority 5
-hzl task add "Design API + data model" -P myapp-auth --priority 4 --depends-on <reqs-id>
-hzl task add "Implement endpoints" -P myapp-auth --priority 3 --depends-on <design-id>
-hzl task add "Write tests" -P myapp-auth --priority 2 --depends-on <impl-id>
-hzl task add "Docs + rollout plan" -P myapp-auth --priority 1 --depends-on <tests-id>
+# Parent task for the initiative
+hzl task add "Implement auth system" -P openclaw --priority 3
+# → abc123
+
+# Subtasks with sequencing
+hzl task add "Clarify requirements + acceptance criteria" --parent abc123 --priority 5
+hzl task add "Design API + data model" --parent abc123 --priority 4 --depends-on <reqs-id>
+hzl task add "Implement endpoints" --parent abc123 --priority 3 --depends-on <design-id>
+hzl task add "Write tests" --parent abc123 --priority 2 --depends-on <impl-id>
+hzl task add "Docs + rollout plan" --parent abc123 --priority 1 --depends-on <tests-id>
 
 hzl validate
 ```
+
+### Resume from a previous session
+
+This is THE core use case for OpenClaw agents — you wake up fresh and need to pick up where the last session left off.
+
+```bash
+# 1. Check what's in progress or stuck
+hzl task list -P openclaw --available     # What's ready to work?
+hzl task stuck                            # Any expired leases from crashed sessions?
+
+# 2. If there are stuck tasks, review their checkpoints before stealing
+hzl task show <stuck-id> --json           # Read last checkpoint to understand state
+
+# 3. Steal the expired task and continue
+hzl task steal <stuck-id> --if-expired --author orchestrator
+
+# 4. Read the last checkpoint to know exactly where to resume
+hzl task show <stuck-id> --json | jq '.checkpoints[-1]'
+
+# 5. Continue working, checkpoint your progress
+hzl task checkpoint <stuck-id> "Resumed from previous session. Continuing from: <last checkpoint>"
+```
+
+**If no stuck tasks:** just use `hzl task next -P openclaw --claim` to grab the next available work.
 
 ### Work a task with checkpoints
 
 Checkpoint at notable milestones or before pausing work. A checkpoint should be short and operational:
 - what you accomplished
 - what's next (if continuing)
+
+**When to checkpoint (for AI agents):**
+- Before any tool call that might fail (API calls, deploys, installs)
+- Before spawning a sub-agent (in case it crashes)
+- Before a session might compact (long-running work)
+- After completing a meaningful unit of work
+- Before pausing or handing off to another agent
+
+**Rule of thumb:** If the session died right now, could another agent resume from your last checkpoint? If not, checkpoint now.
 
 ```bash
 hzl task claim <id> --assignee orchestrator
@@ -378,7 +418,6 @@ hzl task complete <subtask-id>
 
 # Check parent status
 hzl task show abc123 --json         # Any subtasks left?
-hzl task show abc123 --deep --json  # Full subtask details + blocked_by
 hzl task complete abc123            # If all done, complete parent
 ```
 
@@ -391,6 +430,9 @@ HZL includes a built-in Kanban dashboard for monitoring task state. The dashboar
 For always-on access on your OpenClaw box, set up as a systemd service (Linux only):
 
 ```bash
+# Check if service already exists before overwriting
+systemctl --user status hzl-web 2>/dev/null && echo "Service already exists — skip setup" && exit 0
+
 # Create the systemd user directory if needed
 mkdir -p ~/.config/systemd/user
 
