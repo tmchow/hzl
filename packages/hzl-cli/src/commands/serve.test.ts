@@ -57,6 +57,12 @@ describe('hzl serve command', () => {
       const systemdOpt = cmd.options.find((o) => o.long === '--print-systemd');
       expect(systemdOpt).toBeDefined();
     });
+
+    it('has allow-framing option', () => {
+      const cmd = createServeCommand();
+      const framingOpt = cmd.options.find((o) => o.long === '--allow-framing');
+      expect(framingOpt).toBeDefined();
+    });
   });
 
   describe('systemd unit generation', () => {
