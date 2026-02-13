@@ -1,3 +1,10 @@
+# [1.31.0](https://github.com/tmchow/hzl/compare/v1.30.0...v1.31.0) (2026-02-13)
+
+
+### Features
+
+* add --allow-framing flag to serve command ([#112](https://github.com/tmchow/hzl/issues/112)) ([a27d8bc](https://github.com/tmchow/hzl/commit/a27d8bc5e2ea2b3cd4652b8cd39389c8301d51e1))
+
 # [1.30.0](https://github.com/tmchow/hzl/compare/v1.29.0...v1.30.0) (2026-02-11)
 
 
