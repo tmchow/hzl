@@ -1,3 +1,10 @@
+# [1.32.0](https://github.com/tmchow/hzl/compare/v1.31.0...v1.32.0) (2026-02-14)
+
+
+### Features
+
+* standardize -P flag, add --claim to task next, improve guide examples ([#116](https://github.com/tmchow/hzl/issues/116)) ([240b614](https://github.com/tmchow/hzl/commit/240b6140d04bdcdb4ee887b792b4df2cbb8ffe19))
+
 # [1.31.0](https://github.com/tmchow/hzl/compare/v1.30.0...v1.31.0) (2026-02-13)
 
 
