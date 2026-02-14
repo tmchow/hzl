@@ -97,7 +97,7 @@ export function createSearchCommand(): Command {
   return new Command('search')
     .description('Search for tasks')
     .argument('<query>', 'Search query')
-    .option('-p, --project <project>', 'Filter by project')
+    .option('-P, --project <project>', 'Filter by project')
     .option('-s, --status <status>', 'Filter by status')
     .option('-l, --limit <n>', 'Max results', '20')
     .action(function (this: Command, query: string, opts: SearchCommandOptions) {

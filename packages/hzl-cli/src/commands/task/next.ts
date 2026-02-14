@@ -13,6 +13,9 @@ export interface NextResult {
   status: string;
   priority: number;
   parent_id: string | null;
+  claimed?: boolean;
+  assignee?: string | null;
+  lease_until?: string | null;
 }
 
 export interface NextOptions {
@@ -20,6 +23,10 @@ export interface NextOptions {
   project?: string;
   tags?: string[];
   parent?: string;
+  claim?: boolean;
+  assignee?: string;
+  agentId?: string;
+  leaseMinutes?: number;
   json: boolean;
 }
 
@@ -27,10 +34,14 @@ interface NextCommandOptions {
   project?: string;
   tags?: string;
   parent?: string;
+  claim?: boolean;
+  assignee?: string;
+  agentId?: string;
+  lease?: string;
 }
 
 export function runNext(options: NextOptions): NextResult | null {
-  const { services, project, tags, parent, json } = options;
+  const { services, project, tags, parent, claim, assignee, agentId, leaseMinutes, json } = options;
 
   // Validate parent exists if specified
   if (parent) {
@@ -55,6 +66,42 @@ export function runNext(options: NextOptions): NextResult | null {
     }
     return null;
   }
+
+  // If --claim, claim the task immediately
+  if (claim) {
+    const leaseUntil = leaseMinutes ? new Date(Date.now() + leaseMinutes * 60000).toISOString() : undefined;
+
+    const claimed = services.taskService.claimTask(task.task_id, {
+      author: assignee,
+      agent_id: agentId,
+      lease_until: leaseUntil,
+    });
+
+    const result: NextResult = {
+      task_id: claimed.task_id,
+      title: claimed.title,
+      project: claimed.project,
+      status: claimed.status,
+      priority: task.priority,
+      parent_id: claimed.parent_id ?? null,
+      claimed: true,
+      assignee: claimed.assignee,
+      lease_until: claimed.lease_until,
+    };
+
+    if (json) {
+      console.log(JSON.stringify(result));
+    } else {
+      const shortId = createShortId([claimed.task_id]);
+      console.log(`✓ Claimed task [${shortId(claimed.task_id)}] ${claimed.title} (${claimed.project})`);
+      if (claimed.lease_until) {
+        console.log(`  Lease until: ${claimed.lease_until}`);
+      }
+    }
+
+    return result;
+  }
+
   const result: NextResult = {
     task_id: task.task_id,
     title: task.title,
@@ -77,9 +124,13 @@ export function runNext(options: NextOptions): NextResult | null {
 export function createNextCommand(): Command {
   return new Command('next')
     .description('Get the next available task')
-    .option('-p, --project <project>', 'Filter by project')
+    .option('-P, --project <project>', 'Filter by project')
     .option('-t, --tags <tags>', 'Required tags (comma-separated)')
     .option('--parent <taskId>', 'Get next subtask of specific parent')
+    .option('--claim', 'Claim the found task immediately')
+    .option('--assignee <name>', 'Who to assign the task to (requires --claim)')
+    .option('--agent-id <id>', 'Agent ID (requires --claim)')
+    .option('-l, --lease <minutes>', 'Lease duration in minutes (requires --claim)')
     .action(function (this: Command, opts: NextCommandOptions) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
@@ -90,6 +141,10 @@ export function createNextCommand(): Command {
           project: opts.project,
           tags: opts.tags?.split(','),
           parent: opts.parent,
+          claim: opts.claim,
+          assignee: opts.assignee,
+          agentId: opts.agentId,
+          leaseMinutes: opts.lease ? parseInt(opts.lease, 10) : undefined,
           json: globalOpts.json ?? false,
         });
       } catch (e) {

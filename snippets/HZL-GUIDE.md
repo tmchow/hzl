@@ -39,8 +39,9 @@ hzl project create <repo-name>      # Only if needed
 
 **Adding work:**
 ```bash
-hzl task add "Feature X" -P myrepo -s ready           # Ready to claim
-hzl task add "Subtask A" --parent <id>                # Subtask
+hzl task add "Feature X" -P myrepo -s ready \
+  -d "Context, approach, and acceptance criteria"       # Ready to claim
+hzl task add "Subtask A" --parent <id>                  # Subtask
 hzl task add "Subtask B" --parent <id> --depends-on <subtask-a-id>  # With dependency
 ```
 

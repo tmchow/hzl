@@ -126,7 +126,7 @@ export function runList(options: ListOptions): ListResult {
 export function createListCommand(): Command {
   return new Command('list')
     .description('List tasks')
-    .option('-p, --project <project>', 'Filter by project')
+    .option('-P, --project <project>', 'Filter by project')
     .option('-s, --status <status>', 'Filter by status')
     .option('-a, --available', 'Show only available (ready, no blocking deps)', false)
     .option('--parent <taskId>', 'Filter by parent task')
