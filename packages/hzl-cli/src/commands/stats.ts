@@ -87,7 +87,7 @@ export function runStats(options: {
 export function createStatsCommand(): Command {
   return new Command('stats')
     .description('Show database statistics')
-    .option('-p, --project <project>', 'Filter by project')
+    .option('-P, --project <project>', 'Filter by project')
     .action(function (this: Command, opts: StatsCommandOptions) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);

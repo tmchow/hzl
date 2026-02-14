@@ -131,4 +131,47 @@ describe('runNext', () => {
       json: false,
     })).toThrow(/parent.*not found/i);
   });
+
+  describe('--claim', () => {
+    it('claims the found task', () => {
+      const task = services.taskService.createTask({ title: 'Claimable', project: 'inbox' });
+      services.taskService.setStatus(task.task_id, TaskStatus.Ready);
+
+      const result = runNext({ services, claim: true, json: false });
+      expect(result).not.toBeNull();
+      expect(result!.task_id).toBe(task.task_id);
+      expect(result!.status).toBe('in_progress');
+      expect(result!.claimed).toBe(true);
+
+      // Verify task is actually claimed in the database
+      const updated = services.taskService.getTaskById(task.task_id);
+      expect(updated!.status).toBe('in_progress');
+    });
+
+    it('sets assignee when provided', () => {
+      const task = services.taskService.createTask({ title: 'Assignable', project: 'inbox' });
+      services.taskService.setStatus(task.task_id, TaskStatus.Ready);
+
+      const result = runNext({ services, claim: true, assignee: 'agent-42', json: false });
+      expect(result).not.toBeNull();
+      expect(result!.assignee).toBe('agent-42');
+    });
+
+    it('returns null when no tasks available', () => {
+      const result = runNext({ services, claim: true, json: false });
+      expect(result).toBeNull();
+    });
+
+    it('includes claim fields in JSON output', () => {
+      const task = services.taskService.createTask({ title: 'JSON claim', project: 'inbox' });
+      services.taskService.setStatus(task.task_id, TaskStatus.Ready);
+
+      const result = runNext({ services, claim: true, json: true });
+      expect(result).not.toBeNull();
+      expect(result!.claimed).toBe(true);
+      expect(result!.status).toBe('in_progress');
+      expect(result).toHaveProperty('assignee');
+      expect(result).toHaveProperty('lease_until');
+    });
+  });
 });

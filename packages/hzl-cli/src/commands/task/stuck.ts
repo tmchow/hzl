@@ -110,7 +110,7 @@ export function runStuck(options: {
 export function createStuckCommand(): Command {
   return new Command('stuck')
     .description('List tasks with expired leases')
-    .option('-p, --project <project>', 'Filter by project')
+    .option('-P, --project <project>', 'Filter by project')
     .option('--older-than <minutes>', 'Only show tasks expired for more than N minutes', '0')
     .action(function (this: Command, opts: StuckCommandOptions) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
