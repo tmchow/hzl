@@ -78,7 +78,7 @@ export class TasksCurrentProjector implements Projector {
     const isTerminal = toStatus === TaskStatus.Done || toStatus === TaskStatus.Archived;
 
     if (toStatus === TaskStatus.InProgress) {
-      const newAssignee = event.author || event.agent_id || null;
+      const newAssignee = data.assignee ?? event.author ?? event.agent_id ?? null;
 
       // Steal case: in_progress → in_progress - always overwrite assignee and claimed_at
       if (data.from === TaskStatus.InProgress) {

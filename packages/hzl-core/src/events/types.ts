@@ -140,6 +140,7 @@ const StatusChangedSchema = z.object({
   // New code emits CommentAdded events instead of embedding reason here.
   reason: reasonString.optional(),
   lease_until: isoDateTime.optional(),
+  assignee: z.string().max(FIELD_LIMITS.IDENTIFIER).optional(),
 });
 
 const TaskMovedSchema = z.object({

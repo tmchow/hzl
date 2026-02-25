@@ -536,6 +536,41 @@ describe('hzl-web server', () => {
     });
   });
 
+  describe('GET /api/tasks/:id/events', () => {
+    it('returns events for a specific task', async () => {
+      const task = taskService.createTask({
+        title: 'Delegated Task',
+        project: 'test-project',
+        assignee: 'kenji',
+      }, {
+        author: 'clara',
+      });
+      taskService.setStatus(task.task_id, TaskStatus.Ready, { author: 'clara' });
+
+      createServer(4553);
+      const { status, data } = await fetchJson(`/api/tasks/${task.task_id}/events`);
+
+      expect(status).toBe(200);
+      const events = (data as {
+        events: Array<{ type: string; author: string | null; data: Record<string, unknown> }>;
+      }).events;
+      expect(events.length).toBeGreaterThanOrEqual(2);
+      expect(events[0].type).toBe('task_created');
+      expect(events[0].author).toBe('clara');
+      expect(events[0].data.assignee).toBe('kenji');
+    });
+
+    it('respects limit parameter', async () => {
+      const task = taskService.createTask({ title: 'Task', project: 'test-project' });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+      taskService.claimTask(task.task_id, { author: 'worker-1' });
+
+      createServer(4554);
+      const { data } = await fetchJson(`/api/tasks/${task.task_id}/events?limit=1`);
+      expect((data as { events: unknown[] }).events).toHaveLength(1);
+    });
+  });
+
   describe('GET / (dashboard HTML)', () => {
     it('serves HTML at root', async () => {
       server = createServer(4560);

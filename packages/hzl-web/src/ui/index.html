@@ -1362,9 +1362,11 @@
     let selectedTask = null;
     let showAllComments = false;
     let showAllCheckpoints = false;
+    let showAllTaskActivity = false;
     let activeModalTab = 'comments';
     const COMMENT_DISPLAY_LIMIT = 15;
     const CHECKPOINT_DISPLAY_LIMIT = 15;
+    const TASK_ACTIVITY_DISPLAY_LIMIT = 20;
     let activeTab = 'ready';
     let activeView = 'kanban';
     let graphInstance = null;
@@ -1813,22 +1815,28 @@
     }
 
     async function fetchTaskDetail(taskId) {
-      const [taskRes, commentsRes, checkpointsRes] = await Promise.all([
+      const [taskRes, commentsRes, checkpointsRes, eventsRes] = await Promise.all([
         fetch(`/api/tasks/${taskId}`),
         fetch(`/api/tasks/${taskId}/comments`),
         fetch(`/api/tasks/${taskId}/checkpoints`),
+        fetch(`/api/tasks/${taskId}/events`),
       ]);
 
       if (!taskRes.ok) throw new Error('Task not found');
+      if (!commentsRes.ok || !checkpointsRes.ok || !eventsRes.ok) {
+        throw new Error('Failed to load task activity');
+      }
 
       const taskData = await taskRes.json();
       const commentsData = await commentsRes.json();
       const checkpointsData = await checkpointsRes.json();
+      const eventsData = await eventsRes.json();
 
       return {
         task: taskData.task,
         comments: commentsData.comments,
         checkpoints: checkpointsData.checkpoints,
+        taskEvents: eventsData.events,
       };
     }
 
@@ -2206,13 +2214,9 @@
       }
 
       activityList.innerHTML = events.map(event => {
-        let detail = '';
-        if (event.type === 'status_changed' && event.data) {
-          detail = `${event.data.from} → ${event.data.to}`;
-        }
-        if (event.agent_id) {
-          detail = detail ? `${detail} by ${event.agent_id.slice(0, 8)}` : `by ${event.agent_id.slice(0, 8)}`;
-        }
+        const actor = getEventActor(event);
+        const actionDetail = formatEventDetail(event);
+        const detail = actionDetail ? `${actionDetail} by ${actor}` : `by ${actor}`;
 
         return `
           <div class="activity-item">
@@ -2235,6 +2239,7 @@
       if (!preserveShowAll) {
         showAllComments = false;
         showAllCheckpoints = false;
+        showAllTaskActivity = false;
         activeModalTab = 'comments';
       }
 
@@ -2321,11 +2326,15 @@
           `;
         }
 
-        // Tabbed interface for comments and checkpoints
-        if (data.comments.length > 0 || data.checkpoints.length > 0) {
-          // Default to checkpoints tab if no comments
-          if (data.comments.length === 0 && activeModalTab === 'comments') {
-            activeModalTab = 'checkpoints';
+        // Tabbed interface for comments, checkpoints, and per-task activity
+        if (data.comments.length > 0 || data.checkpoints.length > 0 || data.taskEvents.length > 0) {
+          const tabAvailability = {
+            comments: data.comments.length > 0,
+            checkpoints: data.checkpoints.length > 0,
+            activity: data.taskEvents.length > 0,
+          };
+          if (!tabAvailability[activeModalTab]) {
+            activeModalTab = ['comments', 'checkpoints', 'activity'].find(t => tabAvailability[t]) || 'activity';
           }
 
           const hasMoreComments = data.comments.length > COMMENT_DISPLAY_LIMIT && !showAllComments;
@@ -2340,6 +2349,13 @@
             : data.checkpoints;
           const hiddenCheckpointCount = Math.max(0, data.checkpoints.length - CHECKPOINT_DISPLAY_LIMIT);
 
+          const hasMoreTaskActivity = data.taskEvents.length > TASK_ACTIVITY_DISPLAY_LIMIT && !showAllTaskActivity;
+          const visibleTaskActivity = hasMoreTaskActivity
+            ? data.taskEvents.slice(-TASK_ACTIVITY_DISPLAY_LIMIT)
+            : data.taskEvents;
+          const displayTaskActivity = [...visibleTaskActivity].reverse();
+          const hiddenTaskActivityCount = Math.max(0, data.taskEvents.length - TASK_ACTIVITY_DISPLAY_LIMIT);
+
           html += `
             <div class="modal-section">
               <div class="modal-tabs">
@@ -2348,6 +2364,9 @@
                 </button>
                 <button class="modal-tab ${activeModalTab === 'checkpoints' ? 'active' : ''}" data-tab="checkpoints" ${data.checkpoints.length === 0 ? 'disabled' : ''}>
                   Checkpoints<span class="modal-tab-count">${data.checkpoints.length}</span>
+                </button>
+                <button class="modal-tab ${activeModalTab === 'activity' ? 'active' : ''}" data-tab="activity" ${data.taskEvents.length === 0 ? 'disabled' : ''}>
+                  Activity<span class="modal-tab-count">${data.taskEvents.length}</span>
                 </button>
               </div>
 
@@ -2395,6 +2414,33 @@
                   </div>
                 `}
               </div>
+
+              <div class="modal-tab-content ${activeModalTab === 'activity' ? 'active' : ''}" data-tab-content="activity">
+                ${data.taskEvents.length === 0 ? '<div class="empty-column">No activity</div>' : `
+                  <div class="modal-comments">
+                    ${hasMoreTaskActivity ? `
+                      <button class="show-more-btn" id="showMoreTaskActivity">
+                        Show ${hiddenTaskActivityCount} earlier event${hiddenTaskActivityCount === 1 ? '' : 's'}
+                      </button>
+                    ` : ''}
+                    ${displayTaskActivity.map(event => {
+                      const actor = getEventActor(event);
+                      const detail = formatEventDetail(event);
+                      return `
+                        <div class="comment">
+                          <div class="comment-header">
+                            <span class="comment-author">${escapeHtml(actor)}</span>
+                            <span>${formatTime(event.timestamp)}</span>
+                          </div>
+                          <div class="comment-text">
+                            <strong>${escapeHtml(formatEventType(event.type))}</strong>${detail ? `: ${escapeHtml(detail)}` : ''}
+                          </div>
+                        </div>
+                      `;
+                    }).join('')}
+                  </div>
+                `}
+              </div>
             </div>
           `;
         }
@@ -2435,6 +2481,14 @@
         if (showMoreCheckpointsBtn) {
           showMoreCheckpointsBtn.addEventListener('click', () => {
             showAllCheckpoints = true;
+            openTaskModal(taskId, true);
+          });
+        }
+
+        const showMoreTaskActivityBtn = document.getElementById('showMoreTaskActivity');
+        if (showMoreTaskActivityBtn) {
+          showMoreTaskActivityBtn.addEventListener('click', () => {
+            showAllTaskActivity = true;
             openTaskModal(taskId, true);
           });
         }
@@ -2576,6 +2630,53 @@
 
     function formatEventType(type) {
       return type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    }
+
+    function getEventActor(event) {
+      return event.author || event.agent_id || 'system';
+    }
+
+    function truncateText(text, max = 160) {
+      if (!text || text.length <= max) return text;
+      return `${text.slice(0, max - 3)}...`;
+    }
+
+    function formatEventDetail(event) {
+      if (!event || !event.data) return '';
+
+      if (event.type === 'task_created') {
+        const assignee = typeof event.data.assignee === 'string' ? event.data.assignee : null;
+        const project = typeof event.data.project === 'string' ? event.data.project : null;
+        if (assignee && project) return `Assigned to ${assignee} in ${project}`;
+        if (assignee) return `Assigned to ${assignee}`;
+        if (project) return `Created in ${project}`;
+        return '';
+      }
+
+      if (event.type === 'status_changed') {
+        const from = typeof event.data.from === 'string' ? event.data.from : null;
+        const to = typeof event.data.to === 'string' ? event.data.to : null;
+        if (!from || !to) return '';
+        return `${from} → ${to}`;
+      }
+
+      if (event.type === 'task_updated') {
+        const field = typeof event.data.field === 'string' ? event.data.field : null;
+        if (!field) return 'Task updated';
+        return `${field} updated`;
+      }
+
+      if (event.type === 'comment_added') {
+        const text = typeof event.data.text === 'string' ? event.data.text : '';
+        return truncateText(text);
+      }
+
+      if (event.type === 'checkpoint_recorded') {
+        const name = typeof event.data.name === 'string' ? event.data.name : null;
+        return name ? `Checkpoint: ${name}` : 'Checkpoint recorded';
+      }
+
+      return '';
     }
 
     // Event listeners

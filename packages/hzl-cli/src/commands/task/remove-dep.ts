@@ -17,9 +17,10 @@ export function runRemoveDep(options: {
   services: Services;
   taskId: string;
   dependsOnId: string;
+  author?: string;
   json: boolean;
 }): RemoveDepResult {
-  const { services, taskId, dependsOnId, json } = options;
+  const { services, taskId, dependsOnId, author, json } = options;
   const { eventStore, projectionEngine } = services;
 
   // Check task exists
@@ -33,6 +34,7 @@ export function runRemoveDep(options: {
     task_id: taskId,
     type: EventType.DependencyRemoved,
     data: { depends_on_id: dependsOnId },
+    author,
   });
   projectionEngine.applyEvent(event);
 
@@ -56,14 +58,15 @@ export function createRemoveDepCommand(): Command {
     .description('Remove a dependency between tasks')
     .argument('<taskId>', 'Task ID that has the dependency')
     .argument('<dependsOnId>', 'Task ID to remove as dependency')
-    .action(function (this: Command, rawTaskId: string, rawDependsOnId: string) {
+    .option('--author <name>', 'Author name')
+    .action(function (this: Command, rawTaskId: string, rawDependsOnId: string, opts: { author?: string }) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
       const services = initializeDb({ eventsDbPath, cacheDbPath });
       try {
         const taskId = resolveId(services, rawTaskId);
         const dependsOnId = resolveId(services, rawDependsOnId);
-        runRemoveDep({ services, taskId, dependsOnId, json: globalOpts.json ?? false });
+        runRemoveDep({ services, taskId, dependsOnId, author: opts.author, json: globalOpts.json ?? false });
       } catch (e) {
         handleError(e, globalOpts.json);
       } finally {

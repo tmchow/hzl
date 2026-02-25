@@ -17,9 +17,10 @@ export function runMove(options: {
   services: Services;
   taskId: string;
   toProject: string;
+  author?: string;
   json: boolean;
 }): MoveResult {
-  const { services, taskId, toProject, json } = options;
+  const { services, taskId, toProject, author, json } = options;
 
   try {
     // Get original project before move
@@ -30,7 +31,7 @@ export function runMove(options: {
     const fromProject = originalTask.project;
 
     // Use service method which handles subtask cascade atomically
-    const { task, subtaskCount } = services.taskService.moveWithSubtasks(taskId, toProject);
+    const { task, subtaskCount } = services.taskService.moveWithSubtasks(taskId, toProject, { author });
 
     const result: MoveResult = {
       task_id: taskId,
@@ -73,13 +74,14 @@ export function createMoveCommand(): Command {
     .description('Move a task to a different project')
     .argument('<taskId>', 'Task ID')
     .argument('<project>', 'Target project name')
-    .action(function (this: Command, rawTaskId: string, project: string) {
+    .option('--author <name>', 'Author name')
+    .action(function (this: Command, rawTaskId: string, project: string, opts: { author?: string }) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
       const services = initializeDb({ eventsDbPath, cacheDbPath });
       try {
         const taskId = resolveId(services, rawTaskId);
-        runMove({ services, taskId, toProject: project, json: globalOpts.json ?? false });
+        runMove({ services, taskId, toProject: project, author: opts.author, json: globalOpts.json ?? false });
       } catch (e) {
         handleError(e, globalOpts.json);
       } finally {

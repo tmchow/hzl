@@ -81,6 +81,12 @@ hzl project list --json           # JSON output
 
 ## Task Commands
 
+### Authorship and Ownership
+
+- `--assignee` sets who owns a task.
+- `--author` (where supported) records who performed a mutation.
+- `hzl task claim` does not take `--author`; the claim `--assignee` is recorded as the event author.
+
 ### Creating Tasks
 
 #### hzl task add
@@ -100,11 +106,12 @@ hzl task add "<title>" --project <project>
 | `-d, --description <text>` | Detailed description |
 | `-l, --links <urls>` | Comma-separated URLs or file paths |
 | `-t, --tags <tags>` | Comma-separated tags |
-| `-p, --priority <0-5>` | Priority (higher = more important) |
-| `-s, --status <status>` | Initial status (backlog, ready) |
+| `-p, --priority <0-3>` | Priority (higher = more important) |
+| `-s, --status <status>` | Initial status (backlog, ready, in_progress, blocked, done) |
 | `--depends-on <ids>` | Comma-separated task IDs this depends on |
 | `--parent <id>` | Parent task ID (creates subtask) |
-| `--assignee <name>` | Initial assignee |
+| `--assignee <name>` | Initial assignee (free-form string) |
+| `--author <name>` | Actor creating/assigning the task (event attribution) |
 
 **Examples:**
 
@@ -125,6 +132,23 @@ hzl task add "Add unit tests" --parent 1
 
 # With dependency
 hzl task add "Deploy" -P myapp --depends-on 1,2,3
+
+# Assign to another agent at creation
+hzl task add "Implement cache layer" -P myapp -s ready --assignee kenji
+
+# Attribution: Clara assigns to Kenji
+hzl task add "Investigate flaky auth test" -P myapp -s ready --assignee kenji --author clara
+
+# Multiline markdown description
+hzl task add "Write rollout plan" -P myapp \
+  -d "$(cat <<'EOF'
+## Goal
+- Roll out behind a feature flag
+
+## Acceptance Criteria
+- [ ] Canary metrics stay stable
+EOF
+)"
 ```
 
 ### Listing Tasks
@@ -136,6 +160,8 @@ List tasks with filtering.
 ```bash
 hzl task list
 hzl task list -P <project>
+hzl task list --assignee <name>
+hzl task list -P <project> --assignee <name>
 ```
 
 **Options:**
@@ -268,18 +294,47 @@ Modify task properties.
 
 ```bash
 hzl task update <id> --title "New title"
-hzl task update <id> --description "Updated description"
+hzl task update <id> --desc "Updated description"
 hzl task update <id> --links doc1.md,doc2.md
 hzl task update <id> --tags bug,urgent
 hzl task update <id> --priority 2
+hzl task update <id> --title "Reword title" --author clara
 ```
 
 To clear a field, pass empty string:
 
 ```bash
+hzl task update <id> --desc ""
 hzl task update <id> --links ""
 hzl task update <id> --tags ""
 ```
+
+**Options:**
+
+| Flag | Description |
+|------|-------------|
+| `--title <title>` | Update title |
+| `--desc <text>` | Update description |
+| `-l, --links <links>` | Replace links with comma-separated list |
+| `-t, --tags <tags>` | Replace tags with comma-separated list |
+| `-p, --priority <0-3>` | Update priority |
+| `--parent <id>` | Set parent task (`""` to remove parent) |
+| `--author <name>` | Optional actor attribution for this update |
+
+#### hzl task move
+
+Move a task (and its subtasks) to another project.
+
+```bash
+hzl task move <task-id> <project>
+hzl task move <task-id> <project> --author clara
+```
+
+**Options:**
+
+| Flag | Description |
+|------|-------------|
+| `--author <name>` | Optional actor attribution for this move |
 
 #### hzl task add-dep
 
@@ -287,7 +342,29 @@ Add a dependency after task creation.
 
 ```bash
 hzl task add-dep <task-id> <depends-on-id>
+hzl task add-dep <task-id> <depends-on-id> --author clara
 ```
+
+**Options:**
+
+| Flag | Description |
+|------|-------------|
+| `--author <name>` | Optional actor attribution for this dependency change |
+
+#### hzl task remove-dep
+
+Remove a dependency after task creation.
+
+```bash
+hzl task remove-dep <task-id> <depends-on-id>
+hzl task remove-dep <task-id> <depends-on-id> --author clara
+```
+
+**Options:**
+
+| Flag | Description |
+|------|-------------|
+| `--author <name>` | Optional actor attribution for this dependency change |
 
 ### Coordination
 
@@ -306,7 +383,20 @@ Take over an abandoned task.
 
 ```bash
 hzl task steal <id> --if-expired --assignee <name>
+hzl task steal <id> --if-expired --assignee kenji --author clara
 ```
+
+Use `--assignee` for the new assignee. Use `--author` only when the actor is different from the assignee.
+
+**Options:**
+
+| Flag | Description |
+|------|-------------|
+| `--assignee <name>` | New assignee after steal |
+| `--owner <name>` | Deprecated alias for `--assignee` |
+| `--author <name>` | Optional actor attribution for the steal event |
+| `--force` | Steal even if lease is still active |
+| `--if-expired` | Steal only when lease is expired |
 
 ### Subtasks
 

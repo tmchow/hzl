@@ -140,6 +140,40 @@ describe('CLI Integration Tests', { timeout: 30000 }, () => {
       const next2 = hzlJson<{ task_id: string }>(ctx, 'task next --project inbox');
       expect(next2.task_id).toBe(main.task_id);
     });
+
+    it('filters task list by assignee', () => {
+      const taskA = addTask('inbox', 'Owned by Kenji');
+      const taskB = addTask('inbox', 'Owned by Clara');
+      hzlJson(ctx, `task set-status ${taskA.task_id} ready`);
+      hzlJson(ctx, `task set-status ${taskB.task_id} ready`);
+      hzlJson(ctx, `task claim ${taskA.task_id} --assignee kenji`);
+      hzlJson(ctx, `task claim ${taskB.task_id} --assignee clara`);
+
+      const list = hzlJson<{ tasks: Array<{ task_id: string; title: string }> }>(
+        ctx,
+        'task list --assignee kenji'
+      );
+
+      expect(list.tasks).toHaveLength(1);
+      expect(list.tasks[0].task_id).toBe(taskA.task_id);
+      expect(list.tasks[0].title).toBe('Owned by Kenji');
+    });
+
+    it('combines --project and --assignee filters', () => {
+      const inboxTask = addTask('inbox', 'Inbox by Kenji');
+      const projTask = addTask('project-a', 'Project by Kenji');
+      hzlJson(ctx, `task set-status ${inboxTask.task_id} ready`);
+      hzlJson(ctx, `task set-status ${projTask.task_id} ready`);
+      hzlJson(ctx, `task claim ${inboxTask.task_id} --assignee kenji`);
+      hzlJson(ctx, `task claim ${projTask.task_id} --assignee kenji`);
+
+      const list = hzlJson<{ tasks: Array<{ task_id: string }> }>(
+        ctx,
+        'task list --project project-a --assignee kenji'
+      );
+      expect(list.tasks).toHaveLength(1);
+      expect(list.tasks[0].task_id).toBe(projTask.task_id);
+    });
   });
 
   describe('dependency management round-trip', () => {
@@ -394,9 +428,33 @@ describe('CLI Integration Tests', { timeout: 30000 }, () => {
 
       const stolen = hzlJson<{ assignee: string | null }>(
         ctx,
+        `task steal ${task.task_id} --force --assignee agent-2`
+      );
+      expect(stolen.assignee).toBe('agent-2');
+    });
+
+    it('accepts deprecated --owner alias for backward compatibility', () => {
+      const task = addTask('inbox', 'Task to steal (legacy flag)');
+      hzlJson(ctx, `task set-status ${task.task_id} ready`);
+      hzlJson(ctx, `task claim ${task.task_id} --assignee agent-1 --lease 60`);
+
+      const stolen = hzlJson<{ assignee: string | null }>(
+        ctx,
         `task steal ${task.task_id} --force --owner agent-2`
       );
       expect(stolen.assignee).toBe('agent-2');
+    });
+
+    it('rejects conflicting --assignee and --owner values', () => {
+      const task = addTask('inbox', 'Task to steal (conflicting flags)');
+      hzlJson(ctx, `task set-status ${task.task_id} ready`);
+      hzlJson(ctx, `task claim ${task.task_id} --assignee agent-1 --lease 60`);
+
+      const result = hzlMayFail(
+        ctx,
+        `task steal ${task.task_id} --force --assignee agent-2 --owner agent-3`
+      );
+      expect(result.success).toBe(false);
     });
 
     it('lists stuck tasks with expired leases', () => {

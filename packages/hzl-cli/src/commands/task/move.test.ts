@@ -113,4 +113,22 @@ describe('runMove', () => {
     const moved = services.taskService.getTaskById(task.task_id);
     expect(moved?.project).toBe('new-project');
   });
+
+  it('records author on move events', () => {
+    services.projectService.createProject('old-project');
+    services.projectService.createProject('new-project');
+    const task = services.taskService.createTask({ title: 'Test', project: 'old-project' });
+
+    runMove({
+      services,
+      taskId: task.task_id,
+      toProject: 'new-project',
+      author: 'clara',
+      json: false,
+    });
+
+    const events = services.eventStore.getByTaskId(task.task_id);
+    const moveEvent = events.find((e) => e.type === 'task_moved');
+    expect(moveEvent?.author).toBe('clara');
+  });
 });

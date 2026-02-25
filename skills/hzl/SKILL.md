@@ -23,6 +23,7 @@ Run `hzl guide` to get the full workflow documentation. This covers:
 hzl guide                            # Full workflow documentation
 hzl project list                     # Check existing projects
 hzl task next -P <project> --claim   # Get and claim next task
+hzl task list -P <project> --assignee <agent-id>  # Find tasks already assigned to you
 hzl task checkpoint <id> "progress"  # Save progress
 hzl task complete <id>               # Mark task done
 ```
@@ -76,14 +77,41 @@ HZL uses atomic claiming. Two agents calling `task next --claim` simultaneously 
 | Concept | What it tracks | Set by |
 |---------|----------------|--------|
 | **Assignee** | Who owns the task | `--assignee` on `claim` or `add` |
-| **Event author** | Who performed an action | `--author` on other commands |
+| **Event author** | Who performed an action | `--author` on mutating commands (except `claim`, which uses `--assignee`) |
+
+`--author` is optional. Skip it for solo tracking or when sub-agents do not have stable identities. Use it when delegation, handoffs, or auditability require "who did what".
+
+Decision policy for agents:
+1. Default: omit `--author`.
+2. Add `--author` when actor != assignee (for example, delegating to another assignee).
+3. `task claim` has no `--author`; `--assignee` is recorded as the event author.
+4. `task steal` should use `--assignee` for new ownership; add `--author` only when actor differs from the assignee. (`--owner` is a deprecated alias.)
+5. For non-ownership mutations (`update`, `move`, `add-dep`, `remove-dep`, `checkpoint`, `comment`), add `--author` only when attribution matters.
 
 ```bash
 # Alice owns the task
 hzl task claim <id> --assignee alice
 
+# Clara assigns ownership to Kenji at creation time
+hzl task add "Implement auth flow" -P myrepo -s ready --assignee kenji --author clara
+
 # Bob adds a checkpoint (doesn't change ownership)
 hzl task checkpoint <id> "Reviewed the code" --author bob
+
+# Clara updates metadata on Kenji's task
+hzl task update <id> --priority 3 --author clara
+
+# Clara moves Kenji's task to another project
+hzl task move <id> myrepo-maintenance --author clara
+
+# Clara adds a dependency to Kenji's task
+hzl task add-dep <id> <depends-on-id> --author clara
+
+# Clara removes a dependency on Kenji's task
+hzl task remove-dep <id> <depends-on-id> --author clara
+
+# Clara steals to Kenji (assignee) but keeps actor attribution
+hzl task steal <id> --if-expired --assignee kenji --author clara
 ```
 
 For AI agents that need session tracking:
@@ -112,7 +140,7 @@ hzl task show <task-id> --json
 hzl task show <task-id> --deep --json    # Full subtask details + blocked_by
 
 # Take over an expired task
-hzl task steal <task-id> --if-expired --author agent-2
+hzl task steal <task-id> --if-expired --assignee agent-2
 ```
 
 ## Advanced: Human Oversight
@@ -124,6 +152,7 @@ Humans can monitor and steer agent work through HZL:
 ```bash
 hzl project list
 hzl task list --project myapp --status in_progress
+hzl task list --project myapp --assignee my-agent
 hzl task show <task-id>
 ```
 
@@ -150,6 +179,7 @@ Review the task history for steering feedback before marking complete.
 
 ```bash
 hzl task add-dep <task-id> <depends-on-id>
+hzl task remove-dep <task-id> <depends-on-id>
 ```
 
 ### Validating the task graph

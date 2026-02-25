@@ -118,7 +118,7 @@ If an agent is stuck or unavailable:
 hzl task show <task-id>
 
 # Take over if needed
-hzl task steal <task-id> --assignee human
+hzl task steal <task-id> --if-expired --assignee human
 ```
 
 ## Audit Trail
