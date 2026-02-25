@@ -160,6 +160,8 @@ List tasks with filtering.
 ```bash
 hzl task list
 hzl task list -P <project>
+hzl task list --assignee <name>
+hzl task list -P <project> --assignee <name>
 ```
 
 **Options:**

@@ -58,6 +58,40 @@ describe('runList', () => {
     expect(result.tasks[0].status).toBe(TaskStatus.Ready);
   });
 
+  it('filters by assignee', () => {
+    const t1 = services.taskService.createTask({ title: 'Task 1', project: 'inbox' });
+    const t2 = services.taskService.createTask({ title: 'Task 2', project: 'inbox' });
+
+    services.taskService.setStatus(t1.task_id, TaskStatus.Ready);
+    services.taskService.setStatus(t2.task_id, TaskStatus.Ready);
+    services.taskService.claimTask(t1.task_id, { author: 'kenji' });
+    services.taskService.claimTask(t2.task_id, { author: 'clara' });
+
+    const result = runList({ services, assignee: 'kenji', json: false });
+    expect(result.tasks).toHaveLength(1);
+    expect(result.tasks[0].title).toBe('Task 1');
+  });
+
+  it('combines project and assignee filters', () => {
+    services.projectService.createProject('project-a');
+    services.projectService.createProject('project-b');
+
+    const a1 = services.taskService.createTask({ title: 'A1', project: 'project-a' });
+    const a2 = services.taskService.createTask({ title: 'A2', project: 'project-a' });
+    const b1 = services.taskService.createTask({ title: 'B1', project: 'project-b' });
+
+    for (const t of [a1, a2, b1]) {
+      services.taskService.setStatus(t.task_id, TaskStatus.Ready);
+    }
+    services.taskService.claimTask(a1.task_id, { author: 'kenji' });
+    services.taskService.claimTask(a2.task_id, { author: 'clara' });
+    services.taskService.claimTask(b1.task_id, { author: 'kenji' });
+
+    const result = runList({ services, project: 'project-a', assignee: 'kenji', json: false });
+    expect(result.tasks).toHaveLength(1);
+    expect(result.tasks[0].title).toBe('A1');
+  });
+
   it('respects limit', () => {
     for (let i = 0; i < 10; i++) {
       services.taskService.createTask({ title: `Task ${i}`, project: 'inbox' });

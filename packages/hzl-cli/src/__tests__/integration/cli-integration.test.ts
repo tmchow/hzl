@@ -140,6 +140,40 @@ describe('CLI Integration Tests', { timeout: 30000 }, () => {
       const next2 = hzlJson<{ task_id: string }>(ctx, 'task next --project inbox');
       expect(next2.task_id).toBe(main.task_id);
     });
+
+    it('filters task list by assignee', () => {
+      const taskA = addTask('inbox', 'Owned by Kenji');
+      const taskB = addTask('inbox', 'Owned by Clara');
+      hzlJson(ctx, `task set-status ${taskA.task_id} ready`);
+      hzlJson(ctx, `task set-status ${taskB.task_id} ready`);
+      hzlJson(ctx, `task claim ${taskA.task_id} --assignee kenji`);
+      hzlJson(ctx, `task claim ${taskB.task_id} --assignee clara`);
+
+      const list = hzlJson<{ tasks: Array<{ task_id: string; title: string }> }>(
+        ctx,
+        'task list --assignee kenji'
+      );
+
+      expect(list.tasks).toHaveLength(1);
+      expect(list.tasks[0].task_id).toBe(taskA.task_id);
+      expect(list.tasks[0].title).toBe('Owned by Kenji');
+    });
+
+    it('combines --project and --assignee filters', () => {
+      const inboxTask = addTask('inbox', 'Inbox by Kenji');
+      const projTask = addTask('project-a', 'Project by Kenji');
+      hzlJson(ctx, `task set-status ${inboxTask.task_id} ready`);
+      hzlJson(ctx, `task set-status ${projTask.task_id} ready`);
+      hzlJson(ctx, `task claim ${inboxTask.task_id} --assignee kenji`);
+      hzlJson(ctx, `task claim ${projTask.task_id} --assignee kenji`);
+
+      const list = hzlJson<{ tasks: Array<{ task_id: string }> }>(
+        ctx,
+        'task list --project project-a --assignee kenji'
+      );
+      expect(list.tasks).toHaveLength(1);
+      expect(list.tasks[0].task_id).toBe(projTask.task_id);
+    });
   });
 
   describe('dependency management round-trip', () => {

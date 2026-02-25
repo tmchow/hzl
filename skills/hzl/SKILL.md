@@ -23,6 +23,7 @@ Run `hzl guide` to get the full workflow documentation. This covers:
 hzl guide                            # Full workflow documentation
 hzl project list                     # Check existing projects
 hzl task next -P <project> --claim   # Get and claim next task
+hzl task list -P <project> --assignee <agent-id>  # Find tasks already assigned to you
 hzl task checkpoint <id> "progress"  # Save progress
 hzl task complete <id>               # Mark task done
 ```
@@ -151,6 +152,7 @@ Humans can monitor and steer agent work through HZL:
 ```bash
 hzl project list
 hzl task list --project myapp --status in_progress
+hzl task list --project myapp --assignee my-agent
 hzl task show <task-id>
 ```
 

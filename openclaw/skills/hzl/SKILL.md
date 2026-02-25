@@ -218,6 +218,7 @@ hzl task add "<title>" -P openclaw -s in_progress --assignee <name>  # Create an
 
 # List and find
 hzl task list -P openclaw --available        # Ready tasks with met dependencies
+hzl task list -P openclaw --assignee <agent-id>  # Tasks currently assigned to a specific agent
 hzl task list --parent <id>                  # Subtasks of a parent
 hzl task list --root                         # Top-level tasks only
 
@@ -322,6 +323,7 @@ This is THE core use case for OpenClaw agents — you wake up fresh and need to 
 ```bash
 # 1. Check what's in progress or stuck
 hzl task list -P openclaw --available     # What's ready to work?
+hzl task list -P openclaw --assignee orchestrator  # What is already assigned to me?
 hzl task stuck                            # Any expired leases from crashed sessions?
 
 # 2. If there are stuck tasks, review their checkpoints before stealing

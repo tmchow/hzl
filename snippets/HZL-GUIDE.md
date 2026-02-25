@@ -59,6 +59,7 @@ hzl task next -P myrepo                  # Next available task
 hzl task next --parent <id>              # Next subtask of parent
 hzl task next -P myrepo --claim          # Find and claim in one step
 hzl task claim <id>                      # Claim specific task
+hzl task list -P myrepo --assignee <agent-id>  # Tasks already assigned to a specific agent
 hzl task checkpoint <id> "milestone X"   # Notable progress or before pausing
 ```
 

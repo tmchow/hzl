@@ -28,6 +28,7 @@ export interface ListOptions {
   services: Services;
   project?: string;
   status?: TaskStatus;
+  assignee?: string;
   availableOnly?: boolean;
   parent?: string;
   rootOnly?: boolean;
@@ -38,6 +39,7 @@ export interface ListOptions {
 interface ListCommandOptions {
   project?: string;
   status?: string;
+  assignee?: string;
   available?: boolean;
   parent?: string;
   root?: boolean;
@@ -45,7 +47,7 @@ interface ListCommandOptions {
 }
 
 export function runList(options: ListOptions): ListResult {
-  const { services, project, status, availableOnly, parent, rootOnly, limit = 50, json } = options;
+  const { services, project, status, assignee, availableOnly, parent, rootOnly, limit = 50, json } = options;
   const db = services.cacheDb;
 
   // Validate parent exists if specified
@@ -72,6 +74,11 @@ export function runList(options: ListOptions): ListResult {
   if (status) {
     query += ' AND status = ?';
     params.push(status);
+  }
+
+  if (assignee) {
+    query += ' AND assignee = ?';
+    params.push(assignee);
   }
 
   if (parent) {
@@ -128,6 +135,7 @@ export function createListCommand(): Command {
     .description('List tasks')
     .option('-P, --project <project>', 'Filter by project')
     .option('-s, --status <status>', 'Filter by status')
+    .option('--assignee <name>', 'Filter by assignee')
     .option('-a, --available', 'Show only available (ready, no blocking deps)', false)
     .option('--parent <taskId>', 'Filter by parent task')
     .option('--root', 'Show only root tasks (no parent)', false)
@@ -144,6 +152,7 @@ export function createListCommand(): Command {
           services,
           project: opts.project,
           status,
+          assignee: opts.assignee,
           availableOnly: opts.available,
           parent: opts.parent,
           rootOnly: opts.root,

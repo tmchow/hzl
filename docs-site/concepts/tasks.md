@@ -158,6 +158,12 @@ hzl task list
 # In a specific project
 hzl task list -P my-project
 
+# Assigned to a specific agent/person
+hzl task list --assignee kenji
+
+# Assigned to a specific agent/person in one project
+hzl task list -P my-project --assignee kenji
+
 # Only available (ready, not blocked)
 hzl task list --available
 
