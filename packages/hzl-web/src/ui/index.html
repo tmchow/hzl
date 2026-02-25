@@ -2676,6 +2676,27 @@
         return name ? `Checkpoint: ${name}` : 'Checkpoint recorded';
       }
 
+      if (event.type === 'task_moved') {
+        const fromProject = typeof event.data.from_project === 'string' ? event.data.from_project : null;
+        const toProject = typeof event.data.to_project === 'string' ? event.data.to_project : null;
+        if (!fromProject || !toProject) return '';
+        return `${fromProject} → ${toProject}`;
+      }
+
+      if (event.type === 'dependency_added') {
+        const depId = typeof event.data.depends_on_id === 'string' ? event.data.depends_on_id : null;
+        return depId ? `Added dependency on ${depId}` : 'Added dependency';
+      }
+
+      if (event.type === 'dependency_removed') {
+        const depId = typeof event.data.depends_on_id === 'string' ? event.data.depends_on_id : null;
+        return depId ? `Removed dependency on ${depId}` : 'Removed dependency';
+      }
+
+      if (event.type === 'task_archived') {
+        return 'Task archived';
+      }
+
       return '';
     }
 
