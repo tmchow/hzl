@@ -100,11 +100,11 @@ hzl task add "<title>" --project <project>
 | `-d, --description <text>` | Detailed description |
 | `-l, --links <urls>` | Comma-separated URLs or file paths |
 | `-t, --tags <tags>` | Comma-separated tags |
-| `-p, --priority <0-5>` | Priority (higher = more important) |
-| `-s, --status <status>` | Initial status (backlog, ready) |
+| `-p, --priority <0-3>` | Priority (higher = more important) |
+| `-s, --status <status>` | Initial status (backlog, ready, in_progress, blocked, done) |
 | `--depends-on <ids>` | Comma-separated task IDs this depends on |
 | `--parent <id>` | Parent task ID (creates subtask) |
-| `--assignee <name>` | Initial assignee |
+| `--assignee <name>` | Initial assignee (free-form string) |
 
 **Examples:**
 
@@ -125,6 +125,20 @@ hzl task add "Add unit tests" --parent 1
 
 # With dependency
 hzl task add "Deploy" -P myapp --depends-on 1,2,3
+
+# Assign to another agent at creation
+hzl task add "Implement cache layer" -P myapp -s ready --assignee kenji
+
+# Multiline markdown description
+hzl task add "Write rollout plan" -P myapp \
+  -d "$(cat <<'EOF'
+## Goal
+- Roll out behind a feature flag
+
+## Acceptance Criteria
+- [ ] Canary metrics stay stable
+EOF
+)"
 ```
 
 ### Listing Tasks

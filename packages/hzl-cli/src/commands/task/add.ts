@@ -105,10 +105,9 @@ export function runAdd(options: AddOptions): AddResult {
     priority,
     depends_on: dependsOn,
     parent_id: parent,
+    assignee,
     initial_status: initialStatus,
     comment,
-  }, {
-    author: assignee,
   });
 
   const result: AddResult = {
@@ -142,7 +141,7 @@ export function createAddCommand(): Command {
     .option('--depends-on <ids>', 'Comma-separated task IDs this depends on')
     .option('--parent <taskId>', 'Parent task ID (creates subtask, inherits project)')
     .option('-s, --status <status>', 'Initial status (backlog, ready, in_progress, blocked, done)')
-    .option('--assignee <name>', 'Who to assign the task to (for -s in_progress)')
+    .option('--assignee <name>', 'Who to assign the task to')
     .option('--comment <comment>', 'Comment explaining the status (recommended for blocked)')
     .action(function (this: Command, title: string, opts: AddCommandOptions) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());

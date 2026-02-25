@@ -212,6 +212,7 @@ hzl doctor                                    # Health check for debugging
 # Create with options
 hzl task add "<title>" -P openclaw --priority 2 --tags backend,auth
 hzl task add "<title>" -P openclaw --depends-on <other-id>
+hzl task add "<title>" -P openclaw -s ready --assignee <name>         # Pre-assign owner
 hzl task add "<title>" -P openclaw -s in_progress --assignee <name>  # Create and claim
 
 # List and find
@@ -247,7 +248,7 @@ HZL tracks authorship at two levels:
 | **Assignee** | Who owns the task | `--assignee` on `claim` or `add` |
 | **Event author** | Who performed an action | `--author` on other commands |
 
-The `--assignee` flag on `claim` and `add` (with `-s in_progress`) sets task ownership. The `--author` flag on other commands (checkpoint, comment, block, etc.) records who performed each action:
+The `--assignee` flag on `claim` and `add` sets task ownership. The `--author` flag on other commands (checkpoint, comment, block, etc.) records who performed each action:
 
 ```bash
 # Alice owns the task

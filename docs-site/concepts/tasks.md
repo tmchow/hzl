@@ -28,6 +28,7 @@ Tasks require a title and project:
 | `-t, --tags` | Comma-separated tags for filtering |
 | `-p, --priority` | Priority level 0-3 (higher = more important) |
 | `-s, --status` | Initial status (backlog, ready, in_progress, blocked, done) |
+| `--assignee` | Initial assignee (free-form string, no identity lookup) |
 | `--depends-on` | Comma-separated task IDs this depends on |
 | `--parent` | Parent task ID (creates a subtask) |
 
@@ -38,6 +39,21 @@ Keep tasks focused on the work itself. Use `--links` to reference supporting doc
 ```bash
 hzl task add "Implement auth flow per design" -P myapp \
   --links docs/designs/auth-flow.md,https://example.com/spec
+```
+
+Descriptions can be multiline Markdown. Use shell quoting or a heredoc:
+
+```bash
+hzl task add "Write rollout plan" -P myapp \
+  -d "$(cat <<'EOF'
+## Goal
+- Roll out behind feature flag
+
+## Acceptance Criteria
+- [ ] Canary metrics stay within baseline
+- [ ] Rollback steps documented
+EOF
+)"
 ```
 
 ## Task Statuses

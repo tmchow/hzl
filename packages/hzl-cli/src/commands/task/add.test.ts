@@ -64,6 +64,20 @@ describe('runAdd', () => {
     expect(task?.links).toEqual(['docs/design.md', 'https://example.com/spec']);
   });
 
+  it('creates a task with assignee in backlog', () => {
+    const result = runAdd({
+      services,
+      project: 'inbox',
+      title: 'Backlog task',
+      assignee: 'kenji',
+      json: false,
+    });
+
+    const task = services.taskService.getTaskById(result.task_id);
+    expect(task?.status).toBe('backlog');
+    expect(task?.assignee).toBe('kenji');
+  });
+
   it('creates a task with dependencies', () => {
     const dep = runAdd({ services, project: 'inbox', title: 'Dependency', json: false });
     const result = runAdd({
@@ -169,6 +183,21 @@ describe('runAdd', () => {
 
       const task = services.taskService.getTaskById(result.task_id);
       expect(task?.status).toBe('ready');
+    });
+
+    it('creates task with -s ready and keeps assignee', () => {
+      const result = runAdd({
+        services,
+        project: 'inbox',
+        title: 'Ready task',
+        status: 'ready',
+        assignee: 'kenji',
+        json: false,
+      });
+
+      const task = services.taskService.getTaskById(result.task_id);
+      expect(task?.status).toBe('ready');
+      expect(task?.assignee).toBe('kenji');
     });
 
     it('creates task with -s in_progress and sets assignee', () => {
