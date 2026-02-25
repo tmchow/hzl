@@ -1,3 +1,10 @@
+## [1.33.1](https://github.com/tmchow/hzl/compare/v1.33.0...v1.33.1) (2026-02-25)
+
+
+### Bug Fixes
+
+* **web:** add missing event detail handlers in activity feed ([#119](https://github.com/tmchow/hzl/issues/119)) ([2803f2a](https://github.com/tmchow/hzl/commit/2803f2a56ac020382fd250dd9ae171665a23f3a3)), closes [#118](https://github.com/tmchow/hzl/issues/118)
+
 # [1.33.0](https://github.com/tmchow/hzl/compare/v1.32.0...v1.33.0) (2026-02-25)
 
 
