@@ -51,4 +51,21 @@ describe('runAddDep', () => {
       json: false,
     })).toThrow(/cycle/i);
   });
+
+  it('records author on dependency_added event', () => {
+    const task1 = services.taskService.createTask({ title: 'Task 1', project: 'inbox' });
+    const task2 = services.taskService.createTask({ title: 'Task 2', project: 'inbox' });
+
+    runAddDep({
+      services,
+      taskId: task1.task_id,
+      dependsOnId: task2.task_id,
+      author: 'clara',
+      json: false,
+    });
+
+    const events = services.eventStore.getByTaskId(task1.task_id);
+    const depEvent = events.find((e) => e.type === 'dependency_added');
+    expect(depEvent?.author).toBe('clara');
+  });
 });

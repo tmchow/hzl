@@ -71,6 +71,17 @@ interface EventResponse {
   task_title: string | null;
 }
 
+interface TaskEventResponse {
+  id: number;
+  event_id: string;
+  task_id: string;
+  type: string;
+  data: Record<string, unknown>;
+  author: string | null;
+  agent_id: string | null;
+  timestamp: string;
+}
+
 interface StatsResponse {
   total: number;
   by_status: Record<string, number>;
@@ -204,6 +215,40 @@ export function createWebServer(options: ServerOptions): ServerHandle {
     json(res, { task: taskDetail });
   }
 
+  function handleTaskEvents(taskId: string, params: URLSearchParams, res: ServerResponse): void {
+    let resolvedId: string;
+    try {
+      const result = taskService.resolveTaskId(taskId);
+      if (!result) {
+        notFound(res, `Task not found: ${taskId}`);
+        return;
+      }
+      resolvedId = result;
+    } catch (e) {
+      if (e instanceof AmbiguousPrefixError) {
+        json(res, { error: e.message }, 400);
+        return;
+      }
+      throw e;
+    }
+
+    const limitRaw = parseInt(params.get('limit') || '200', 10);
+    const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(500, limitRaw)) : 200;
+
+    const events = eventStore.getByTaskId(resolvedId, { limit }).map((e) => ({
+      id: e.rowid,
+      event_id: e.event_id,
+      task_id: e.task_id,
+      type: e.type,
+      data: e.data,
+      author: e.author ?? null,
+      agent_id: e.agent_id ?? null,
+      timestamp: e.timestamp,
+    })) as TaskEventResponse[];
+
+    json(res, { events });
+  }
+
   function handleComments(taskId: string, res: ServerResponse): void {
     const comments = taskService.getComments(taskId);
     // Map to response format (convert undefined to null for JSON)
@@ -322,6 +367,12 @@ export function createWebServer(options: ServerOptions): ServerHandle {
       const checkpointsMatch = pathname.match(/^\/api\/tasks\/([^/]+)\/checkpoints$/);
       if (checkpointsMatch) {
         handleCheckpoints(checkpointsMatch[1], res);
+        return;
+      }
+
+      const taskEventsMatch = pathname.match(/^\/api\/tasks\/([^/]+)\/events$/);
+      if (taskEventsMatch) {
+        handleTaskEvents(taskEventsMatch[1], params, res);
         return;
       }
 

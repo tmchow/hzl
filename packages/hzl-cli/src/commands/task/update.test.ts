@@ -74,6 +74,22 @@ describe('runUpdate', () => {
     expect(result.description).toBe('New description');
   });
 
+  it('records author on task_updated events', () => {
+    const task = services.taskService.createTask({ title: 'Test', project: 'inbox' });
+
+    runUpdate({
+      services,
+      taskId: task.task_id,
+      updates: { title: 'Updated title' },
+      author: 'clara',
+      json: false,
+    });
+
+    const events = services.eventStore.getByTaskId(task.task_id);
+    const updateEvent = events.find((e) => e.type === 'task_updated');
+    expect(updateEvent?.author).toBe('clara');
+  });
+
   it('updates links', () => {
     const task = services.taskService.createTask({
       title: 'Test',

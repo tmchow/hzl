@@ -15,7 +15,9 @@ export interface StealResult {
 }
 
 interface StealCommandOptions {
+  assignee?: string;
   owner?: string;
+  author?: string;
   force?: boolean;
   ifExpired?: boolean;
 }
@@ -23,19 +25,20 @@ interface StealCommandOptions {
 export function runSteal(options: {
   services: Services;
   taskId: string;
-  newOwner?: string;
+  newAssignee?: string;
+  author?: string;
   force?: boolean;
   ifExpired?: boolean;
   json: boolean;
 }): StealResult {
-  const { services, taskId, newOwner, force, ifExpired, json } = options;
+  const { services, taskId, newAssignee, author, force, ifExpired, json } = options;
 
   const task = services.taskService.getTaskById(taskId);
   if (!task) {
     throw new CLIError(`Task not found: ${taskId}`, ExitCode.NotFound);
   }
 
-  const previousOwner = task.assignee;
+  const previousAssignee = task.assignee;
 
   // Check if we're allowed to steal (pre-validation)
   if (!force && !ifExpired) {
@@ -55,10 +58,17 @@ export function runSteal(options: {
     }
   }
 
-  // Steal by using stealTask service method
-  // Pass ifExpired when force is not set, force when force is set
+  const effectiveAssignee = newAssignee ?? author;
+  if (!effectiveAssignee) {
+    throw new CLIError(`Must specify --assignee (or --author for legacy behavior)`, ExitCode.InvalidInput);
+  }
+
+  const effectiveAuthor = author ?? effectiveAssignee;
+
+  // Steal by using stealTask service method.
   const stealResult = services.taskService.stealTask(taskId, { 
-    author: newOwner,
+    assignee: effectiveAssignee,
+    author: effectiveAuthor,
     force: force || false,
     ifExpired: ifExpired && !force,
   });
@@ -75,15 +85,15 @@ export function runSteal(options: {
     title: stolenTask.title,
     status: stolenTask.status,
     assignee: stolenTask.assignee,
-    stolen_from: previousOwner,
+    stolen_from: previousAssignee,
   };
 
   if (json) {
     console.log(JSON.stringify(result));
   } else {
     console.log(`✓ Stole task ${stolenTask.task_id}: ${stolenTask.title}`);
-    if (previousOwner) console.log(`  Previous owner: ${previousOwner}`);
-    if (newOwner) console.log(`  New owner: ${newOwner}`);
+    if (previousAssignee) console.log(`  Previous assignee: ${previousAssignee}`);
+    if (effectiveAssignee) console.log(`  New assignee: ${effectiveAssignee}`);
   }
 
   return result;
@@ -93,7 +103,9 @@ export function createStealCommand(): Command {
   return new Command('steal')
     .description('Steal a claimed task')
     .argument('<taskId>', 'Task ID')
-    .option('--owner <name>', 'New owner name')
+    .option('--assignee <name>', 'New assignee name')
+    .option('--owner <name>', 'Deprecated alias for --assignee')
+    .option('--author <name>', 'Author name')
     .option('--force', 'Force steal even if lease is active')
     .option('--if-expired', 'Only steal if lease has expired')
     .action(function (this: Command, rawTaskId: string, opts: StealCommandOptions) {
@@ -101,11 +113,21 @@ export function createStealCommand(): Command {
       const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
       const services = initializeDb({ eventsDbPath, cacheDbPath });
       try {
+        if (opts.assignee && opts.owner && opts.assignee !== opts.owner) {
+          throw new CLIError(`Cannot use both --assignee and --owner with different values`, ExitCode.InvalidInput);
+        }
+
+        if (opts.owner && !(globalOpts.json ?? false)) {
+          console.error('Warning: --owner is deprecated; use --assignee instead.');
+        }
+
+        const newAssignee = opts.assignee ?? opts.owner;
         const taskId = resolveId(services, rawTaskId);
         runSteal({
           services,
           taskId,
-          newOwner: opts.owner,
+          newAssignee,
+          author: opts.author,
           force: opts.force,
           ifExpired: opts.ifExpired,
           json: globalOpts.json ?? false,

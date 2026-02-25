@@ -43,9 +43,10 @@ export function runAddDep(options: {
   services: Services;
   taskId: string;
   dependsOnId: string;
+  author?: string;
   json: boolean;
 }): AddDepResult {
-  const { services, taskId, dependsOnId, json } = options;
+  const { services, taskId, dependsOnId, author, json } = options;
   const { cacheDb, eventStore, projectionEngine } = services;
 
   // Check both tasks exist
@@ -68,6 +69,7 @@ export function runAddDep(options: {
     task_id: taskId,
     type: EventType.DependencyAdded,
     data: { depends_on_id: dependsOnId },
+    author,
   });
   projectionEngine.applyEvent(event);
 
@@ -91,14 +93,15 @@ export function createAddDepCommand(): Command {
     .description('Add a dependency between tasks')
     .argument('<taskId>', 'Task ID that will depend on the other')
     .argument('<dependsOnId>', 'Task ID that must be completed first')
-    .action(function (this: Command, rawTaskId: string, rawDependsOnId: string) {
+    .option('--author <name>', 'Author name')
+    .action(function (this: Command, rawTaskId: string, rawDependsOnId: string, opts: { author?: string }) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
       const services = initializeDb({ eventsDbPath, cacheDbPath });
       try {
         const taskId = resolveId(services, rawTaskId);
         const dependsOnId = resolveId(services, rawDependsOnId);
-        runAddDep({ services, taskId, dependsOnId, json: globalOpts.json ?? false });
+        runAddDep({ services, taskId, dependsOnId, author: opts.author, json: globalOpts.json ?? false });
       } catch (e) {
         handleError(e, globalOpts.json);
       } finally {

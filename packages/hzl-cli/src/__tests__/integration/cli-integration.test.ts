@@ -394,9 +394,33 @@ describe('CLI Integration Tests', { timeout: 30000 }, () => {
 
       const stolen = hzlJson<{ assignee: string | null }>(
         ctx,
+        `task steal ${task.task_id} --force --assignee agent-2`
+      );
+      expect(stolen.assignee).toBe('agent-2');
+    });
+
+    it('accepts deprecated --owner alias for backward compatibility', () => {
+      const task = addTask('inbox', 'Task to steal (legacy flag)');
+      hzlJson(ctx, `task set-status ${task.task_id} ready`);
+      hzlJson(ctx, `task claim ${task.task_id} --assignee agent-1 --lease 60`);
+
+      const stolen = hzlJson<{ assignee: string | null }>(
+        ctx,
         `task steal ${task.task_id} --force --owner agent-2`
       );
       expect(stolen.assignee).toBe('agent-2');
+    });
+
+    it('rejects conflicting --assignee and --owner values', () => {
+      const task = addTask('inbox', 'Task to steal (conflicting flags)');
+      hzlJson(ctx, `task set-status ${task.task_id} ready`);
+      hzlJson(ctx, `task claim ${task.task_id} --assignee agent-1 --lease 60`);
+
+      const result = hzlMayFail(
+        ctx,
+        `task steal ${task.task_id} --force --assignee agent-2 --owner agent-3`
+      );
+      expect(result.success).toBe(false);
     });
 
     it('lists stuck tasks with expired leases', () => {

@@ -31,7 +31,7 @@ describe('runSteal', () => {
     const result = runSteal({
       services,
       taskId: task.task_id,
-      newOwner: 'new-owner',
+      newAssignee: 'new-owner',
       force: true,
       json: false,
     });
@@ -50,7 +50,7 @@ describe('runSteal', () => {
     const result = runSteal({
       services,
       taskId: task.task_id,
-      newOwner: 'new-owner',
+      newAssignee: 'new-owner',
       ifExpired: true,
       json: false,
     });
@@ -68,9 +68,58 @@ describe('runSteal', () => {
     expect(() => runSteal({
       services,
       taskId: task.task_id,
-      newOwner: 'new-owner',
+      newAssignee: 'new-owner',
       ifExpired: true,
       json: false,
     })).toThrow(/lease has not expired/);
+  });
+
+  it('throws when no assignee or author is provided', () => {
+    const task = services.taskService.createTask({ title: 'Test', project: 'inbox' });
+    services.taskService.setStatus(task.task_id, TaskStatus.Ready);
+    services.taskService.claimTask(task.task_id, { author: 'original-owner' });
+
+    expect(() => runSteal({
+      services,
+      taskId: task.task_id,
+      force: true,
+      json: false,
+    })).toThrow(/Must specify --assignee/);
+  });
+
+  it('supports separate assignee and author', () => {
+    const task = services.taskService.createTask({ title: 'Test', project: 'inbox' });
+    services.taskService.setStatus(task.task_id, TaskStatus.Ready);
+    services.taskService.claimTask(task.task_id, { author: 'original-owner' });
+
+    const result = runSteal({
+      services,
+      taskId: task.task_id,
+      newAssignee: 'kenji',
+      author: 'clara',
+      force: true,
+      json: false,
+    });
+
+    expect(result.assignee).toBe('kenji');
+    const events = services.eventStore.getByTaskId(task.task_id);
+    const stealEvent = events[events.length - 1];
+    expect(stealEvent.author).toBe('clara');
+  });
+
+  it('uses --author as assignee when --assignee is omitted (legacy)', () => {
+    const task = services.taskService.createTask({ title: 'Test', project: 'inbox' });
+    services.taskService.setStatus(task.task_id, TaskStatus.Ready);
+    services.taskService.claimTask(task.task_id, { author: 'original-owner' });
+
+    const result = runSteal({
+      services,
+      taskId: task.task_id,
+      author: 'orchestrator',
+      force: true,
+      json: false,
+    });
+
+    expect(result.assignee).toBe('orchestrator');
   });
 });

@@ -54,6 +54,7 @@ export interface ClaimNextOptions {
 export interface StealOptions {
   ifExpired?: boolean;
   force?: boolean;
+  assignee?: string;
   author?: string;
   agent_id?: string;
   lease_until?: string;
@@ -347,8 +348,12 @@ export class TaskService {
           from: TaskStatus.Backlog,
           to: input.initial_status,
         };
+        if (input.initial_status === TaskStatus.InProgress && input.assignee) {
+          statusData.assignee = input.assignee;
+        }
 
-        // Emit StatusChanged event - author becomes assignee via projection for in_progress
+        // Emit StatusChanged event. For in_progress, projection prefers explicit assignee
+        // from event data and falls back to author/agent_id for ownership.
         const statusEvent = this.eventStore.append({
           task_id: taskId,
           type: EventType.StatusChanged,
@@ -786,10 +791,17 @@ export class TaskService {
         }
       }
 
+      const assignee = opts.assignee ?? opts.author ?? opts.agent_id;
       const event = this.eventStore.append({
         task_id: taskId,
         type: EventType.StatusChanged,
-        data: { from: TaskStatus.InProgress, to: TaskStatus.InProgress, reason: 'stolen', lease_until: opts.lease_until },
+        data: {
+          from: TaskStatus.InProgress,
+          to: TaskStatus.InProgress,
+          reason: 'stolen',
+          lease_until: opts.lease_until,
+          ...(assignee ? { assignee } : {}),
+        },
         author: opts.author,
         agent_id: opts.agent_id,
       });

@@ -29,6 +29,7 @@ export interface AddOptions {
   parent?: string;
   status?: string;
   assignee?: string;
+  author?: string;
   comment?: string;
   json: boolean;
 }
@@ -43,11 +44,12 @@ interface AddCommandOptions {
   parent?: string;
   status?: string;
   assignee?: string;
+  author?: string;
   comment?: string;
 }
 
 export function runAdd(options: AddOptions): AddResult {
-  const { services, title, description, links, tags, priority, dependsOn, parent, status, assignee, comment, json } = options;
+  const { services, title, description, links, tags, priority, dependsOn, parent, status, assignee, author, comment, json } = options;
   let project = options.project;
 
   // Validate status flag
@@ -108,6 +110,8 @@ export function runAdd(options: AddOptions): AddResult {
     assignee,
     initial_status: initialStatus,
     comment,
+  }, {
+    author,
   });
 
   const result: AddResult = {
@@ -142,6 +146,7 @@ export function createAddCommand(): Command {
     .option('--parent <taskId>', 'Parent task ID (creates subtask, inherits project)')
     .option('-s, --status <status>', 'Initial status (backlog, ready, in_progress, blocked, done)')
     .option('--assignee <name>', 'Who to assign the task to')
+    .option('--author <name>', 'Who is performing this create/assignment action')
     .option('--comment <comment>', 'Comment explaining the status (recommended for blocked)')
     .action(function (this: Command, title: string, opts: AddCommandOptions) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
@@ -162,6 +167,7 @@ export function createAddCommand(): Command {
           parent,
           status: opts.status,
           assignee: opts.assignee,
+          author: opts.author,
           comment: opts.comment,
           json: globalOpts.json ?? false,
         });

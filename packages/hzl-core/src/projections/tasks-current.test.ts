@@ -228,6 +228,26 @@ describe('TasksCurrentProjector', () => {
       task = db.prepare('SELECT * FROM tasks_current WHERE task_id = ?').get('TASK1') as any;
       expect(task.assignee).toBe('agent-2'); // Assignee overwritten to new owner
     });
+
+    it('prefers explicit assignee over event author for in_progress transitions', () => {
+      const createEvent = eventStore.append({
+        task_id: 'TASK1',
+        type: EventType.TaskCreated,
+        data: { title: 'Test', project: 'inbox' },
+      });
+      projector.apply(createEvent, db);
+
+      const claimEvent = eventStore.append({
+        task_id: 'TASK1',
+        type: EventType.StatusChanged,
+        data: { from: TaskStatus.Backlog, to: TaskStatus.InProgress, assignee: 'kenji' },
+        author: 'clara',
+      });
+      projector.apply(claimEvent, db);
+
+      const task = db.prepare('SELECT * FROM tasks_current WHERE task_id = ?').get('TASK1') as any;
+      expect(task.assignee).toBe('kenji');
+    });
   });
 
   describe('task_moved', () => {

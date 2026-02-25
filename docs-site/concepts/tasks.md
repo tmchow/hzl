@@ -29,6 +29,7 @@ Tasks require a title and project:
 | `-p, --priority` | Priority level 0-3 (higher = more important) |
 | `-s, --status` | Initial status (backlog, ready, in_progress, blocked, done) |
 | `--assignee` | Initial assignee (free-form string, no identity lookup) |
+| `--author` | Optional actor attribution for task creation events |
 | `--depends-on` | Comma-separated task IDs this depends on |
 | `--parent` | Parent task ID (creates a subtask) |
 
@@ -55,6 +56,27 @@ hzl task add "Write rollout plan" -P myapp \
 EOF
 )"
 ```
+
+To track who delegated work, set both assignee and author:
+
+```bash
+hzl task add "Investigate flaky auth test" -P myapp -s ready \
+  --assignee kenji \
+  --author clara
+```
+
+## Ownership vs Authorship
+
+HZL separates task ownership from action attribution:
+
+- **Assignee (`--assignee`)**: who currently owns the task.
+- **Author (`--author`)**: who performed a specific mutation event.
+
+`--author` is optional. Use it when one actor is operating on behalf of another (delegation, handoffs, audits). Skip it for solo/self-tracking flows.
+
+Important behavior:
+- `hzl task claim` has no `--author` flag; the `--assignee` value is recorded as the event author.
+- `hzl task steal` uses `--assignee` for takeover ownership and optional `--author` for attribution (`--owner` remains as a deprecated alias).
 
 ## Task Statuses
 
@@ -162,11 +184,16 @@ hzl task update <id> --desc "Updated description"
 hzl task update <id> --links doc1.md,doc2.md
 hzl task update <id> --tags bug,urgent
 hzl task update <id> --priority 2
+hzl task update <id> --title "New title" --author clara
+hzl task move <id> my-project --author clara
+hzl task add-dep <id> <depends-on-id> --author clara
+hzl task remove-dep <id> <depends-on-id> --author clara
 ```
 
 To clear a field, pass an empty string:
 
 ```bash
+hzl task update <id> --desc ""     # Clear description
 hzl task update <id> --links ""    # Remove all links
 ```
 
@@ -202,6 +229,7 @@ hzl task prune --project my-project --older-than 90d --yes
 1. **Keep tasks small** - 1-2 hours of focused work
 2. **Use descriptive titles** - Future you will thank you
 3. **Checkpoint frequently** - Preserve context across sessions
-4. **Always identify yourself** - Use `--assignee` to track ownership
-5. **Block when stuck** - Use `hzl task block` instead of leaving tasks in limbo
-6. **Complete or archive** - Don't leave tasks hanging
+4. **Track ownership first** - Use `--assignee` to set who owns active work
+5. **Use `--author` selectively** - Add it when attribution differs from ownership
+6. **Block when stuck** - Use `hzl task block` instead of leaving tasks in limbo
+7. **Complete or archive** - Don't leave tasks hanging

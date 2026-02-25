@@ -213,6 +213,7 @@ hzl doctor                                    # Health check for debugging
 hzl task add "<title>" -P openclaw --priority 2 --tags backend,auth
 hzl task add "<title>" -P openclaw --depends-on <other-id>
 hzl task add "<title>" -P openclaw -s ready --assignee <name>         # Pre-assign owner
+hzl task add "<title>" -P openclaw -s ready --assignee <name> --author <name>  # Optional delegation attribution
 hzl task add "<title>" -P openclaw -s in_progress --assignee <name>  # Create and claim
 
 # List and find
@@ -222,6 +223,11 @@ hzl task list --root                         # Top-level tasks only
 
 # Dependencies
 hzl task add-dep <task-id> <depends-on-id>
+hzl task remove-dep <task-id> <depends-on-id>
+
+# Metadata and project changes
+hzl task update <task-id> --priority 3 --author <name>   # Optional attribution
+hzl task move <task-id> openclaw --author <name>         # Optional attribution (for project consolidation)
 hzl validate                                 # Check for circular dependencies
 
 # Web Dashboard
@@ -234,7 +240,7 @@ hzl serve --stop             # Stop background server
 # Multi-agent recovery
 hzl task claim <id> --assignee <agent-id> --lease 30
 hzl task stuck
-hzl task steal <id> --if-expired --author <agent-id>
+hzl task steal <id> --if-expired --assignee <agent-id>
 ```
 
 Tip: When a tool needs to parse output, prefer `--json`.
@@ -246,18 +252,33 @@ HZL tracks authorship at two levels:
 | Concept | What it tracks | Set by |
 |---------|----------------|--------|
 | **Assignee** | Who owns the task | `--assignee` on `claim` or `add` |
-| **Event author** | Who performed an action | `--author` on other commands |
+| **Event author** | Who performed an action | `--author` on mutating commands (except `claim`, which uses `--assignee`) |
 
-The `--assignee` flag on `claim` and `add` sets task ownership. The `--author` flag on other commands (checkpoint, comment, block, etc.) records who performed each action:
+`--author` is optional. Skip it when one orchestrator is tracking its own work or sub-agents do not expose stable identities. Use it when handoffs or accountability need explicit actor attribution.
+
+The `--assignee` flag on `claim` and `add` sets task ownership. The `--author` flag records who performed each action:
+
+Decision policy for OpenClaw agents:
+1. Default: omit `--author`.
+2. Add `--author` when actor != assignee (delegation/handoff/audit trail).
+3. `task claim` has no `--author`; `--assignee` is recorded as event author.
+4. `task steal` should use `--assignee` for new ownership; add `--author` only when actor differs from the assignee. (`--owner` is a deprecated alias.)
+5. For `update`, `move`, `add-dep`, `remove-dep`, `checkpoint`, and `comment`, add `--author` only when attribution matters.
 
 ```bash
 # Alice owns the task
 hzl task claim 1 --assignee alice
 
+# Clara assigns ownership to Kenji at creation time
+hzl task add "Implement auth flow" -P openclaw -s ready --assignee kenji --author clara
+
 # Bob adds a checkpoint (doesn't change ownership)
 hzl task checkpoint 1 "Reviewed the code" --author bob
 
 # Task is still assigned to Alice, but checkpoint was recorded by Bob
+
+# Clara moves ownership to Kenji while keeping attribution
+hzl task steal 1 --if-expired --assignee kenji --author clara
 ```
 
 For AI agents that need session tracking, use `--agent-id` on claim:
@@ -307,7 +328,7 @@ hzl task stuck                            # Any expired leases from crashed sess
 hzl task show <stuck-id> --json           # Read last checkpoint to understand state
 
 # 3. Steal the expired task and continue
-hzl task steal <stuck-id> --if-expired --author orchestrator
+hzl task steal <stuck-id> --if-expired --assignee orchestrator
 
 # 4. Read the last checkpoint to know exactly where to resume
 hzl task show <stuck-id> --json | jq '.checkpoints[-1]'
@@ -379,7 +400,7 @@ hzl task claim <id> --assignee subagent-claude-code --lease 30
 ```
 
 Delegate with explicit instructions:
-- claim the task (with their author id)
+- claim the task (with their assignee id)
 - checkpoint progress as they go
 - complete when done
 
@@ -387,7 +408,7 @@ Monitor:
 ```bash
 hzl task show <id> --json
 hzl task stuck
-hzl task steal <id> --if-expired --author orchestrator
+hzl task steal <id> --if-expired --assignee orchestrator
 ```
 
 ### Break down work with subtasks
@@ -425,6 +446,7 @@ hzl task complete abc123            # If all done, complete parent
 ## Web Dashboard
 
 HZL includes a built-in Kanban dashboard for monitoring task state. The dashboard shows tasks in columns (Backlog → Blocked → Ready → In Progress → Done), with filtering by date and project.
+Click any task card to open details with comments, checkpoints, and a per-task Activity tab (event history with actor attribution).
 
 ### Setting up the dashboard (recommended for OpenClaw)
 

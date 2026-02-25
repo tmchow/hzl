@@ -52,4 +52,21 @@ describe('runRemoveDep', () => {
 
     expect(result.removed).toBe(true);
   });
+
+  it('records author on dependency_removed event', () => {
+    const task1 = services.taskService.createTask({ title: 'Task 1', project: 'inbox' });
+    const task2 = services.taskService.createTask({ title: 'Task 2', project: 'inbox', depends_on: [task1.task_id] });
+
+    runRemoveDep({
+      services,
+      taskId: task2.task_id,
+      dependsOnId: task1.task_id,
+      author: 'clara',
+      json: false,
+    });
+
+    const events = services.eventStore.getByTaskId(task2.task_id);
+    const depEvent = events.find((e) => e.type === 'dependency_removed');
+    expect(depEvent?.author).toBe('clara');
+  });
 });

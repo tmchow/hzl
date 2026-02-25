@@ -179,6 +179,28 @@ describe('TaskService', () => {
       expect(task.claimed_at).toBeDefined();
     });
 
+    it('creates task with explicit assignee and separate author for initial in_progress', () => {
+      const task = taskService.createTask(
+        {
+          title: 'Delegated task',
+          project: 'inbox',
+          initial_status: TaskStatus.InProgress,
+          assignee: 'kenji',
+        },
+        { author: 'clara' }
+      );
+
+      expect(task.status).toBe(TaskStatus.InProgress);
+      expect(task.assignee).toBe('kenji');
+
+      const events = eventStore.getByTaskId(task.task_id);
+      expect(events[0].type).toBe(EventType.TaskCreated);
+      expect(events[0].author).toBe('clara');
+      expect((events[0].data as { assignee?: string }).assignee).toBe('kenji');
+      expect(events[1].type).toBe(EventType.StatusChanged);
+      expect(events[1].author).toBe('clara');
+    });
+
     it('creates task with initial_status blocked without comment', () => {
       const task = taskService.createTask({
         title: 'Blocked task',
@@ -587,6 +609,27 @@ describe('TaskService', () => {
 
       const result = taskService.stealTask(task.task_id, { ifExpired: true, author: 'agent-2' });
       expect(result.success).toBe(false);
+    });
+
+    it('supports separate assignee and author for steal', () => {
+      const task = taskService.createTask({ title: 'Test', project: 'inbox' });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+      taskService.claimTask(task.task_id, { author: 'agent-1' });
+
+      const result = taskService.stealTask(task.task_id, {
+        force: true,
+        assignee: 'agent-2',
+        author: 'coordinator',
+      });
+
+      expect(result.success).toBe(true);
+      const stolen = taskService.getTaskById(task.task_id);
+      expect(stolen!.assignee).toBe('agent-2');
+
+      const events = eventStore.getByTaskId(task.task_id);
+      const stealEvent = events[events.length - 1];
+      expect(stealEvent.author).toBe('coordinator');
+      expect((stealEvent.data as { assignee?: string }).assignee).toBe('agent-2');
     });
   });
 

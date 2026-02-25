@@ -32,15 +32,17 @@ interface UpdateCommandOptions {
   priority?: string;
   tags?: string;
   parent?: string;
+  author?: string;
 }
 
 export function runUpdate(options: {
   services: Services;
   taskId: string;
   updates: TaskUpdates;
+  author?: string;
   json: boolean;
 }): UpdateResult {
-  const { services, taskId, updates, json } = options;
+  const { services, taskId, updates, author, json } = options;
   const { eventStore, projectionEngine } = services;
 
   const task = services.taskService.getTaskById(taskId);
@@ -51,7 +53,7 @@ export function runUpdate(options: {
   // Handle parent_id update via service layer
   if (updates.parent_id !== undefined) {
     try {
-      services.taskService.setParent(taskId, updates.parent_id);
+      services.taskService.setParent(taskId, updates.parent_id, { author });
     } catch (error) {
       if (error instanceof Error) {
         // Map service layer errors to appropriate exit codes
@@ -71,6 +73,7 @@ export function runUpdate(options: {
       task_id: taskId,
       type: EventType.TaskUpdated,
       data: { field: 'title', old_value: task.title, new_value: updates.title },
+      author,
     });
     projectionEngine.applyEvent(event);
   }
@@ -80,6 +83,7 @@ export function runUpdate(options: {
       task_id: taskId,
       type: EventType.TaskUpdated,
       data: { field: 'description', old_value: task.description, new_value: updates.description },
+      author,
     });
     projectionEngine.applyEvent(event);
   }
@@ -89,6 +93,7 @@ export function runUpdate(options: {
       task_id: taskId,
       type: EventType.TaskUpdated,
       data: { field: 'priority', old_value: task.priority, new_value: updates.priority },
+      author,
     });
     projectionEngine.applyEvent(event);
   }
@@ -98,6 +103,7 @@ export function runUpdate(options: {
       task_id: taskId,
       type: EventType.TaskUpdated,
       data: { field: 'tags', old_value: task.tags, new_value: updates.tags },
+      author,
     });
     projectionEngine.applyEvent(event);
   }
@@ -107,6 +113,7 @@ export function runUpdate(options: {
       task_id: taskId,
       type: EventType.TaskUpdated,
       data: { field: 'links', old_value: task.links, new_value: updates.links },
+      author,
     });
     projectionEngine.applyEvent(event);
   }
@@ -147,6 +154,7 @@ export function createUpdateCommand(): Command {
     .option('-p, --priority <n>', 'New priority (0-3)')
     .option('-t, --tags <tags>', 'New tags (comma-separated)')
     .option('--parent <taskId>', 'Set parent task (use "" to remove)')
+    .option('--author <name>', 'Author name')
     .action(function (this: Command, rawTaskId: string, opts: UpdateCommandOptions) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
@@ -169,7 +177,7 @@ export function createUpdateCommand(): Command {
           updates.parent_id = opts.parent === '' ? null : resolveId(services, opts.parent);
         }
 
-        runUpdate({ services, taskId, updates, json: globalOpts.json ?? false });
+        runUpdate({ services, taskId, updates, author: opts.author, json: globalOpts.json ?? false });
       } catch (e) {
         handleError(e, globalOpts.json);
       } finally {
