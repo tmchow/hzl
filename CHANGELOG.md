@@ -1,3 +1,10 @@
+# [1.33.0](https://github.com/tmchow/hzl/compare/v1.32.0...v1.33.0) (2026-02-25)
+
+
+### Features
+
+* **task:** add assignment attribution, activity history, and assignee filters ([#118](https://github.com/tmchow/hzl/issues/118)) ([9c94c4e](https://github.com/tmchow/hzl/commit/9c94c4e57d040a5751215ac87ad43c7986b2a308))
+
 # [1.32.0](https://github.com/tmchow/hzl/compare/v1.31.0...v1.32.0) (2026-02-14)
 
 

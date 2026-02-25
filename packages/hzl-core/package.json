@@ -1,6 +1,6 @@
 {
   "name": "hzl-core",
-  "version": "1.32.0",
+  "version": "1.33.0",
   "description": "Core library for HZL - External task ledger for coding agents and OpenClaw.",
   "type": "module",
   "main": "dist/index.js",
