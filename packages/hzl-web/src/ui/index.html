@@ -431,6 +431,11 @@
     }
 
     .card-project {
+      display: inline-block;
+      max-width: 140px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
       background: var(--bg-primary);
       padding: 2px 6px;
       border-radius: 3px;
@@ -2169,8 +2174,10 @@
       const assignee = getAssigneeValue(task.assignee);
       const hasAssignee = assignee.length > 0;
       const assigneeText = hasAssignee ? assignee : 'Unassigned';
+      const assigneeCardText = truncateCardLabel(assigneeText, 10);
       const assigneeClass = hasAssignee ? 'card-assignee assigned' : 'card-assignee unassigned';
-      const assigneeHtml = `<span class="${assigneeClass}" title="${escapeHtml(assigneeText)}">${escapeHtml(assigneeText)}</span>`;
+      const assigneeHtml = `<span class="${assigneeClass}" title="${escapeHtml(assigneeText)}">${escapeHtml(assigneeCardText)}</span>`;
+      const projectHtml = `<span class="card-project" title="${escapeHtml(task.project)}">${escapeHtml(task.project)}</span>`;
 
       let extra = '';
       if (isBlocked) {
@@ -2189,14 +2196,14 @@
               <span class="card-id">${task.task_id.slice(0, 8)}</span>
             </div>
             <div class="card-header-right">
-              ${assigneeHtml}
+              ${projectHtml}
               ${progressHtml}
             </div>
           </div>
           <div class="card-title">${escapeHtml(task.title)}</div>
           ${subtaskHtml}
           <div class="card-meta">
-            <span class="card-project">${escapeHtml(task.project)}</span>
+            ${assigneeHtml}
           </div>
           ${extra}
         </div>
@@ -3314,6 +3321,13 @@
     function getAssigneeValue(value) {
       if (typeof value !== 'string') return '';
       return value.trim().length > 0 ? value : '';
+    }
+
+    function truncateCardLabel(value, maxChars = 10) {
+      if (typeof value !== 'string' || maxChars <= 0) return '';
+      const graphemes = Array.from(value);
+      if (graphemes.length <= maxChars) return value;
+      return `${graphemes.slice(0, maxChars).join('')}...`;
     }
 
     // Render markdown to sanitized HTML

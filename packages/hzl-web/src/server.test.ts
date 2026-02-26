@@ -748,7 +748,7 @@ describe('hzl-web server', () => {
       expect(res.headers.get('referrer-policy')).toBe('no-referrer');
     });
 
-    it('renders a dedicated assignee element in the top-right card header area', async () => {
+    it('renders project metadata in the top-right header and assignee metadata in card footer', async () => {
       server = createServer(4590);
 
       const { body } = await fetchText('/');
@@ -756,13 +756,33 @@ describe('hzl-web server', () => {
 
       expect(renderCardBlock).toBeTruthy();
       expect(renderCardBlock?.[0]).toMatch(
+        /const\s+projectHtml\s*=\s*`[\s\S]*class=["']card-project["'][\s\S]*`;/i,
+      );
+      expect(renderCardBlock?.[0]).toMatch(
         /const\s+assigneeClass\s*=\s*hasAssignee\s*\?\s*['"][^'"]*\bcard-assignee\b[^'"]*['"]\s*:\s*['"][^'"]*\bcard-assignee\b[^'"]*['"]/i,
       );
       expect(renderCardBlock?.[0]).toMatch(
         /const\s+assigneeHtml\s*=\s*`[\s\S]*class=["']\$\{assigneeClass\}["'][\s\S]*`;/i,
       );
       expect(renderCardBlock?.[0]).toMatch(
-        /<div[^>]*class=["']card-header-right["'][^>]*>[\s\S]*\$\{assigneeHtml\}[\s\S]*<\/div>/i,
+        /<div[^>]*class=["']card-header-right["'][^>]*>[\s\S]*\$\{projectHtml\}[\s\S]*<\/div>/i,
+      );
+      expect(renderCardBlock?.[0]).toMatch(
+        /<div[^>]*class=["']card-meta["'][^>]*>[\s\S]*\$\{assigneeHtml\}[\s\S]*<\/div>/i,
+      );
+    });
+
+    it('truncates card assignee labels to 10 characters plus ellipsis', async () => {
+      server = createServer(4598);
+
+      const { body } = await fetchText('/');
+      const renderCardBlock = body.match(/function\s+renderCard\s*\([^)]*\)\s*\{[\s\S]*?return\s*`[\s\S]*?`;\s*}/i);
+
+      expect(renderCardBlock).toBeTruthy();
+      expect(body).toMatch(/function\s+truncateCardLabel\s*\(value,\s*maxChars\s*=\s*10\)\s*\{/i);
+      expect(renderCardBlock?.[0]).toMatch(/const\s+assigneeCardText\s*=\s*truncateCardLabel\(assigneeText,\s*10\)/i);
+      expect(renderCardBlock?.[0]).toMatch(
+        /title="\$\{escapeHtml\(assigneeText\)\}"[^>]*>\$\{escapeHtml\(assigneeCardText\)\}<\/span>/i,
       );
     });
 
