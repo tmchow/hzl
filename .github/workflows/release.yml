@@ -83,6 +83,44 @@ jobs:
             exit 1
           fi
 
+      - name: Ensure CI passed for this commit
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const branch = context.ref.replace("refs/heads/", "");
+            const headSha = context.sha;
+
+            const runs = await github.paginate(
+              github.rest.actions.listWorkflowRunsForWorkflow,
+              {
+                owner,
+                repo,
+                workflow_id: "ci.yml",
+                branch,
+                per_page: 100
+              }
+            );
+
+            const candidates = runs
+              .filter((run) => run.head_sha === headSha && run.event === "push")
+              .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+            if (candidates.length === 0) {
+              core.setFailed(`No CI run found for commit ${headSha} on ${branch}.`);
+              return;
+            }
+
+            const ciRun = candidates[0];
+            core.info(`Using CI run: ${ciRun.html_url} (status=${ciRun.status}, conclusion=${ciRun.conclusion})`);
+
+            if (ciRun.status !== "completed" || ciRun.conclusion !== "success") {
+              core.setFailed(
+                `CI must be completed and successful before publishing. ` +
+                `Current status=${ciRun.status}, conclusion=${ciRun.conclusion}.`
+              );
+            }
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
 
@@ -134,4 +172,4 @@ jobs:
         run: |
           VERSION="${{ needs.publish.outputs.version }}"
           echo "Triggering homebrew update for version $VERSION"
-          gh workflow run update-homebrew.yml -f version="$VERSION"
+          gh workflow run update-homebrew.yml --repo "${{ github.repository }}" -f version="$VERSION"
