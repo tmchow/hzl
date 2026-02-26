@@ -1,4 +1,5 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'http';
+import type { Socket } from 'net';
 import {
   TaskService,
   EventStore,
@@ -140,6 +141,8 @@ function writeSseEvent<T extends object>(res: ServerResponse, event: string, dat
 
 export function createWebServer(options: ServerOptions): ServerHandle {
   const { port, host = '0.0.0.0', allowFraming = false, taskService, eventStore } = options;
+  const sockets = new Set<Socket>();
+  const activeStreamResponses = new Set<ServerResponse>();
 
   // Route handlers
   function handleTasks(params: URLSearchParams, res: ServerResponse): void {
@@ -350,6 +353,7 @@ export function createWebServer(options: ServerOptions): ServerHandle {
   }
 
   function handleStream(req: IncomingMessage, res: ServerResponse): void {
+    activeStreamResponses.add(res);
     res.writeHead(200, {
       'Content-Type': 'text/event-stream; charset=utf-8',
       'Cache-Control': 'no-cache, no-transform',
@@ -394,6 +398,7 @@ export function createWebServer(options: ServerOptions): ServerHandle {
     const cleanup = (): void => {
       if (closed) return;
       closed = true;
+      activeStreamResponses.delete(res);
       clearInterval(pollTimer);
       clearInterval(keepAliveTimer);
       req.off('close', cleanup);
@@ -487,16 +492,40 @@ export function createWebServer(options: ServerOptions): ServerHandle {
   }
 
   const server = createServer(handleRequest);
+  server.on('connection', (socket) => {
+    sockets.add(socket);
+    socket.on('close', () => {
+      sockets.delete(socket);
+    });
+  });
 
   server.listen(port, host);
 
   return {
     close: () =>
       new Promise((resolve, reject) => {
+        for (const streamRes of activeStreamResponses) {
+          if (!streamRes.writableEnded && !streamRes.destroyed) {
+            streamRes.end();
+          }
+        }
+
         server.close((err) => {
           if (err) reject(err);
           else resolve();
         });
+
+        if (typeof server.closeIdleConnections === 'function') {
+          server.closeIdleConnections();
+        }
+
+        if (typeof server.closeAllConnections === 'function') {
+          server.closeAllConnections();
+        } else {
+          for (const socket of sockets) {
+            socket.destroy();
+          }
+        }
       }),
     port,
     host,

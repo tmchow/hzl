@@ -96,6 +96,33 @@ describe('hzl-web server', () => {
       // Prevent afterEach from closing again
       server = undefined as unknown as ServerHandle;
     });
+
+    it('closes promptly even with an active SSE stream', async () => {
+      const s = createServer(4504);
+      const controller = new AbortController();
+      const response = await globalThis.fetch(`${s.url}/api/events/stream`, {
+        headers: { Accept: 'text/event-stream' },
+        signal: controller.signal,
+      });
+      expect(response.status).toBe(200);
+
+      const closePromise = s.close();
+      const closedQuickly = await Promise.race([
+        closePromise.then(() => true),
+        new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 500)),
+      ]);
+
+      if (!closedQuickly) {
+        controller.abort();
+        await closePromise;
+      }
+
+      expect(closedQuickly).toBe(true);
+
+      controller.abort();
+      // Prevent afterEach from closing again
+      server = undefined as unknown as ServerHandle;
+    });
   });
 
   describe('GET /api/tasks', () => {
