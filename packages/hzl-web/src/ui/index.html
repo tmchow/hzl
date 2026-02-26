@@ -322,6 +322,40 @@
       display: flex;
       flex-direction: column;
       gap: 8px;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+
+    .column-cards::-webkit-scrollbar {
+      width: 0;
+      height: 0;
+    }
+
+    .column-cards.is-scrolling,
+    .column-cards:hover,
+    .column-cards:focus-within {
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+    }
+
+    .column-cards.is-scrolling::-webkit-scrollbar,
+    .column-cards:hover::-webkit-scrollbar,
+    .column-cards:focus-within::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    .column-cards.is-scrolling::-webkit-scrollbar-thumb,
+    .column-cards:hover::-webkit-scrollbar-thumb,
+    .column-cards:focus-within::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 999px;
+    }
+
+    .column-cards.is-scrolling::-webkit-scrollbar-track,
+    .column-cards:hover::-webkit-scrollbar-track,
+    .column-cards:focus-within::-webkit-scrollbar-track {
+      background: transparent;
     }
 
     /* Task Cards */
@@ -1641,6 +1675,7 @@
     const graphLoading = document.getElementById('graphLoading');
     let pendingAssigneePreference = null;
     let pendingActivityAssigneePreference = null;
+    const columnScrollTimers = new WeakMap();
 
     // Column visibility
     const COLUMNS = ['backlog', 'ready', 'in_progress', 'blocked', 'done'];
@@ -2573,6 +2608,23 @@
       renderMobileCards(showSubtasks, emojiMap);
 
       // Card click handlers are set up via event delegation in init
+    }
+
+    function bindColumnScrollIndicators() {
+      document.querySelectorAll('.column-cards').forEach((column) => {
+        column.addEventListener('scroll', () => {
+          column.classList.add('is-scrolling');
+          const existingTimer = columnScrollTimers.get(column);
+          if (existingTimer) {
+            clearTimeout(existingTimer);
+          }
+          const timerId = setTimeout(() => {
+            column.classList.remove('is-scrolling');
+            columnScrollTimers.delete(column);
+          }, 700);
+          columnScrollTimers.set(column, timerId);
+        }, { passive: true });
+      });
     }
 
     function renderMobileCards(showSubtasks, emojiMap) {
@@ -3571,6 +3623,7 @@
 
     // Initialize
     loadPreferences();
+    bindColumnScrollIndicators();
     connectEventStream();
     requestPoll();
 

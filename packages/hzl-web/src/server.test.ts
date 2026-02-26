@@ -809,6 +809,16 @@ describe('hzl-web server', () => {
       expect(body).not.toMatch(/Live\s*\$\{ago\}s/);
     });
 
+    it('uses hidden-by-default column scrollbars with scroll/touch reveal behavior', async () => {
+      server = createServer(4599);
+
+      const { body } = await fetchText('/');
+      expect(body).toMatch(/\.column-cards\s*\{[\s\S]*scrollbar-width:\s*none[\s\S]*-ms-overflow-style:\s*none/i);
+      expect(body).toMatch(/\.column-cards\.is-scrolling[\s\S]*::\-webkit-scrollbar/i);
+      expect(body).toMatch(/function\s+bindColumnScrollIndicators\s*\(/i);
+      expect(body).toMatch(/classList\.add\(\s*['"]is-scrolling['"]\s*\)/i);
+    });
+
     it('renders an explicit activity actor/author element in task modal activity entries', async () => {
       server = createServer(4595);
 
