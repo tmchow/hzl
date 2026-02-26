@@ -157,6 +157,27 @@ describe('hzl-web server', () => {
       });
     });
 
+    it('preserves assignee names with spaces and emojis', async () => {
+      taskService.createTask({
+        title: 'Space Name',
+        project: 'test-project',
+        assignee: 'Trevin C',
+      });
+      taskService.createTask({
+        title: 'Emoji Name',
+        project: 'test-project',
+        assignee: 'Clara 📝',
+      });
+
+      createServer(4518);
+      const { data } = await fetchJson('/api/tasks');
+      const tasks = (data as { tasks: Array<{ title: string; assignee: string | null }> }).tasks;
+      const assigneeByTitle = new Map(tasks.map((task) => [task.title, task.assignee]));
+
+      expect(assigneeByTitle.get('Space Name')).toBe('Trevin C');
+      expect(assigneeByTitle.get('Emoji Name')).toBe('Clara 📝');
+    });
+
     it('filters by project', async () => {
       projectService.createProject('other-project');
       taskService.createTask({ title: 'Task 1', project: 'test-project' });
@@ -561,7 +582,7 @@ describe('hzl-web server', () => {
       const task = taskService.createTask({
         title: 'Named Task',
         project: 'test-project',
-        assignee: 'kenji',
+        assignee: 'Clara 📝',
         description: 'Task details for activity filtering',
       });
       taskService.setStatus(task.task_id, TaskStatus.Ready);
@@ -581,7 +602,7 @@ describe('hzl-web server', () => {
       }).events;
       const createEvent = events.find((e) => e.task_id === task.task_id && e.type === 'task_created');
       expect(createEvent?.task_title).toBe('Named Task');
-      expect(createEvent?.task_assignee).toBe('kenji');
+      expect(createEvent?.task_assignee).toBe('Clara 📝');
       expect(createEvent?.task_description).toBe('Task details for activity filtering');
       expect(createEvent?.task_status).toBe(TaskStatus.Ready);
     });
@@ -826,6 +847,24 @@ describe('hzl-web server', () => {
 
       expect(hasAssigneeReference).toBe(true);
       expect(hasAssigneeChangeListener).toBe(true);
+    });
+
+    it('preserves full assignee strings in board and activity filter wiring', async () => {
+      server = createServer(4600);
+
+      const { body } = await fetchText('/');
+      expect(body).toMatch(
+        /function\s+getAssigneeValue\s*\(value\)\s*\{[\s\S]*value\.trim\(\)\.length\s*>\s*0[\s\S]*\?\s*value\s*:\s*['"]{2}/i,
+      );
+      expect(body).toMatch(
+        /filtered\s*=\s*filtered\.filter\(\s*task\s*=>\s*getAssigneeValue\(task\.assignee\)\s*===\s*assigneeFilter\.value\s*\)/i,
+      );
+      expect(body).toMatch(
+        /const\s+assignee\s*=\s*getAssigneeValue\(task\.assignee\);\s*if\s*\(!assignee\)\s*continue;[\s\S]*option\.value\s*=\s*assignee/i,
+      );
+      expect(body).toMatch(
+        /const\s+taskAssignee\s*=\s*getAssigneeValue\(event\.task_assignee\);\s*if\s*\(taskAssignee\)\s*return\s+taskAssignee;[\s\S]*return\s+getAssigneeValue\(event\.data\?\.assignee\)/i,
+      );
     });
 
     it('includes activity assignee and keyword filter controls', async () => {

@@ -2166,8 +2166,9 @@
         progressHtml = `<span class="${progressClass}">${task.progress}%</span>`;
       }
 
-      const hasAssignee = typeof task.assignee === 'string' && task.assignee.trim().length > 0;
-      const assigneeText = hasAssignee ? task.assignee.trim() : 'Unassigned';
+      const assignee = getAssigneeValue(task.assignee);
+      const hasAssignee = assignee.length > 0;
+      const assigneeText = hasAssignee ? assignee : 'Unassigned';
       const assigneeClass = hasAssignee ? 'card-assignee assigned' : 'card-assignee unassigned';
       const assigneeHtml = `<span class="${assigneeClass}" title="${escapeHtml(assigneeText)}">${escapeHtml(assigneeText)}</span>`;
 
@@ -2228,7 +2229,7 @@
       }
 
       if (applyAssigneeFilter && assigneeFilter.value) {
-        filtered = filtered.filter(task => task.assignee === assigneeFilter.value);
+        filtered = filtered.filter(task => getAssigneeValue(task.assignee) === assigneeFilter.value);
       }
 
       return filtered;
@@ -2244,8 +2245,9 @@
 
       const assigneeCounts = new Map();
       for (const task of optionTasks) {
-        if (!task.assignee) continue;
-        assigneeCounts.set(task.assignee, (assigneeCounts.get(task.assignee) ?? 0) + 1);
+        const assignee = getAssigneeValue(task.assignee);
+        if (!assignee) continue;
+        assigneeCounts.set(assignee, (assigneeCounts.get(assignee) ?? 0) + 1);
       }
 
       const sortedAssignees = Array.from(assigneeCounts.entries())
@@ -2286,10 +2288,9 @@
     }
 
     function getEventAssignee(event) {
-      if (typeof event.task_assignee === 'string' && event.task_assignee.length > 0) {
-        return event.task_assignee;
-      }
-      return typeof event.data?.assignee === 'string' ? event.data.assignee : '';
+      const taskAssignee = getAssigneeValue(event.task_assignee);
+      if (taskAssignee) return taskAssignee;
+      return getAssigneeValue(event.data?.assignee);
     }
 
     function getFilteredActivityEvents(options = {}) {
@@ -2705,9 +2706,10 @@
 
         const progressValue = data.task.progress ?? 0;
         const progressClass = progressValue >= 100 ? 'modal-progress complete' : 'modal-progress';
-        const hasAssignee = typeof data.task.assignee === 'string' && data.task.assignee.trim().length > 0;
+        const assignee = getAssigneeValue(data.task.assignee);
+        const hasAssignee = assignee.length > 0;
         const assigneeValue = hasAssignee
-          ? escapeHtml(data.task.assignee.trim())
+          ? escapeHtml(assignee)
           : '<span class="modal-meta-fallback">Unassigned</span>';
 
         let html = `
@@ -3307,6 +3309,11 @@
     function escapeHtml(str) {
       if (!str) return '';
       return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function getAssigneeValue(value) {
+      if (typeof value !== 'string') return '';
+      return value.trim().length > 0 ? value : '';
     }
 
     // Render markdown to sanitized HTML
