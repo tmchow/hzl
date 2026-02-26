@@ -799,6 +799,59 @@ describe('hzl-web server', () => {
         /(?:activityList|getElementById\(\s*["']activityList["']\s*\)|querySelector\(\s*["']#activityList["']\s*\))\s*\.\s*addEventListener\(\s*["']click["']\s*,[\s\S]*?closest\(\s*["']\.activity-item["']\s*\)[\s\S]*?openTaskModal\b/i,
       );
     });
+
+    it('renders an explicit activity actor/author element in task modal activity entries', async () => {
+      server = createServer(4595);
+
+      const { body } = await fetchText('/');
+      const activityMarkupBlock = body.match(/displayTaskActivity\.map\([\s\S]*?\)\.join\(\s*['"]{2}\s*\)/i);
+
+      expect(activityMarkupBlock).toBeTruthy();
+      expect(activityMarkupBlock?.[0]).toMatch(
+        /class=["'][^"']*(?:activity|event)[^"']*(?:actor|author)[^"']*["']/i,
+      );
+      expect(activityMarkupBlock?.[0]).toMatch(/\$\{escapeHtml\(\s*actor\s*\)\}/i);
+    });
+
+    it('uses dedicated modal classes for checkpoint and activity author fields (not just .comment-author)', async () => {
+      server = createServer(4596);
+
+      const { body } = await fetchText('/');
+      const modalMarkupBlock = body.match(
+        /async\s+function\s+openTaskModal\s*\([^)]*\)\s*\{[\s\S]*?modalBody\.innerHTML\s*=\s*html\s*;/i,
+      );
+      const checkpointMarkupBlock = modalMarkupBlock?.[0].match(
+        /visibleCheckpoints\.map\([\s\S]*?\)\.join\(\s*['"]{2}\s*\)/i,
+      );
+      const activityMarkupBlock = modalMarkupBlock?.[0].match(
+        /displayTaskActivity\.map\([\s\S]*?\)\.join\(\s*['"]{2}\s*\)/i,
+      );
+
+      expect(modalMarkupBlock).toBeTruthy();
+      expect(checkpointMarkupBlock).toBeTruthy();
+      expect(activityMarkupBlock).toBeTruthy();
+      expect(checkpointMarkupBlock?.[0]).toMatch(
+        /class=["'][^"']*\b(?:modal-|task-)?(?:checkpoint|cp)-[^"']*["']/i,
+      );
+      expect(activityMarkupBlock?.[0]).toMatch(
+        /class=["'][^"']*\b(?:modal-|task-)?(?:activity|event)-[^"']*["']/i,
+      );
+      expect(checkpointMarkupBlock?.[0]).not.toMatch(/\bcomment-author\b/i);
+      expect(activityMarkupBlock?.[0]).not.toMatch(/\bcomment-author\b/i);
+    });
+
+    it('styles modal checkpoint author/name with dedicated non-accent class rules', async () => {
+      server = createServer(4597);
+
+      const { body } = await fetchText('/');
+      const checkpointStyleRule = body.match(
+        /\.(?:modal-|task-)?(?:checkpoint|cp)-[\w-]*(?:entry|item|author|name|title|meta)?[\w-]*\s*\{[\s\S]*?\}/i,
+      );
+
+      expect(checkpointStyleRule).toBeTruthy();
+      expect(checkpointStyleRule?.[0]).toMatch(/(?:color|border(?:-left|-color)?)\s*:/i);
+      expect(checkpointStyleRule?.[0]).not.toMatch(/--accent|--status-in-progress|orange/i);
+    });
   });
 
   describe('404 handling', () => {

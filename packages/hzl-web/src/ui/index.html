@@ -799,6 +799,74 @@
       white-space: pre-wrap;
     }
 
+    .modal-checkpoint-list,
+    .modal-task-activity-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .modal-checkpoint-entry,
+    .modal-task-activity-entry {
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 12px;
+    }
+
+    .modal-checkpoint-header,
+    .modal-task-activity-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+
+    .modal-checkpoint-name,
+    .modal-task-activity-type {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-primary);
+      line-height: 1.3;
+    }
+
+    .modal-entry-time {
+      color: var(--text-muted);
+      font-size: 11px;
+      white-space: nowrap;
+      line-height: 1.3;
+      margin-top: 1px;
+    }
+
+    .modal-checkpoint-data {
+      margin: 0;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      line-height: 1.45;
+      color: var(--text-secondary);
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 8px;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+    .modal-task-activity-author {
+      color: var(--text-secondary);
+      font-size: 11px;
+      margin-bottom: 4px;
+    }
+
+    .modal-task-activity-detail {
+      color: var(--text-primary);
+      font-size: 12px;
+      line-height: 1.45;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
     .show-more-btn {
       width: 100%;
       padding: 8px;
@@ -2713,7 +2781,7 @@
 
               <div class="modal-tab-content ${activeModalTab === 'checkpoints' ? 'active' : ''}" data-tab-content="checkpoints">
                 ${data.checkpoints.length === 0 ? '<div class="empty-column">No checkpoints</div>' : `
-                  <div class="modal-comments">
+                  <div class="modal-checkpoint-list">
                     ${hasMoreCheckpoints ? `
                       <button class="show-more-btn" id="showMoreCheckpoints">
                         Show ${hiddenCheckpointCount} earlier checkpoint${hiddenCheckpointCount === 1 ? '' : 's'}
@@ -2722,12 +2790,12 @@
                     ${visibleCheckpoints.map(cp => {
                       const hasData = cp.data && Object.keys(cp.data).length > 0;
                       return `
-                        <div class="comment">
-                          <div class="comment-header">
-                            <span class="comment-author">${escapeHtml(cp.name)}</span>
-                            <span>${formatTime(cp.timestamp)}</span>
+                        <div class="modal-checkpoint-entry">
+                          <div class="modal-checkpoint-header">
+                            <span class="modal-checkpoint-name">${escapeHtml(cp.name)}</span>
+                            <span class="modal-entry-time">${formatTime(cp.timestamp)}</span>
                           </div>
-                          ${hasData ? `<div class="comment-text">${escapeHtml(JSON.stringify(cp.data, null, 2))}</div>` : ''}
+                          ${hasData ? `<pre class="modal-checkpoint-data">${escapeHtml(JSON.stringify(cp.data, null, 2))}</pre>` : ''}
                         </div>
                       `;
                     }).join('')}
@@ -2737,7 +2805,7 @@
 
               <div class="modal-tab-content ${activeModalTab === 'activity' ? 'active' : ''}" data-tab-content="activity">
                 ${data.taskEvents.length === 0 ? '<div class="empty-column">No activity</div>' : `
-                  <div class="modal-comments">
+                  <div class="modal-task-activity-list">
                     ${hasMoreTaskActivity ? `
                       <button class="show-more-btn" id="showMoreTaskActivity">
                         Show ${hiddenTaskActivityCount} earlier event${hiddenTaskActivityCount === 1 ? '' : 's'}
@@ -2745,16 +2813,16 @@
                     ` : ''}
                     ${displayTaskActivity.map(event => {
                       const actor = getEventActor(event);
+                      const hasActor = actor !== 'system';
                       const detail = formatEventDetail(event);
                       return `
-                        <div class="comment">
-                          <div class="comment-header">
-                            <span class="comment-author">${escapeHtml(actor)}</span>
-                            <span>${formatTime(event.timestamp)}</span>
+                        <div class="modal-task-activity-entry">
+                          <div class="modal-task-activity-header">
+                            <span class="modal-task-activity-type">${escapeHtml(formatEventType(event.type))}</span>
+                            <span class="modal-entry-time">${formatTime(event.timestamp)}</span>
                           </div>
-                          <div class="comment-text">
-                            <strong>${escapeHtml(formatEventType(event.type))}</strong>${detail ? `: ${escapeHtml(detail)}` : ''}
-                          </div>
+                          ${hasActor ? `<div class="modal-task-activity-author">By ${escapeHtml(actor)}</div>` : ''}
+                          ${detail ? `<div class="modal-task-activity-detail">${escapeHtml(detail)}</div>` : ''}
                         </div>
                       `;
                     }).join('')}
@@ -3229,7 +3297,16 @@
     }
 
     function getEventActor(event) {
-      return event.author || event.agent_id || 'system';
+      const explicitAuthor = typeof event.author === 'string' && event.author.trim() ? event.author : null;
+      if (explicitAuthor) return explicitAuthor;
+
+      const explicitAgent = typeof event.agent_id === 'string' && event.agent_id.trim() ? event.agent_id : null;
+      if (explicitAgent) return explicitAgent;
+
+      const dataAuthor = event.data && typeof event.data.author === 'string' && event.data.author.trim()
+        ? event.data.author
+        : null;
+      return dataAuthor || 'system';
     }
 
     function truncateText(text, max = 160) {
