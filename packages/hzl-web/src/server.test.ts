@@ -55,6 +55,12 @@ describe('hzl-web server', () => {
     return { status: res.status, data };
   }
 
+  async function fetchText(path: string): Promise<{ status: number; body: string }> {
+    const res = await globalThis.fetch(`${server.url}${path}`);
+    const body = await res.text();
+    return { status: res.status, body };
+  }
+
   describe('server configuration', () => {
     it('starts on specified port', async () => {
       const s = createServer(4500);
@@ -90,6 +96,33 @@ describe('hzl-web server', () => {
       // Prevent afterEach from closing again
       server = undefined as unknown as ServerHandle;
     });
+
+    it('closes promptly even with an active SSE stream', async () => {
+      const s = createServer(4504);
+      const controller = new AbortController();
+      const response = await globalThis.fetch(`${s.url}/api/events/stream`, {
+        headers: { Accept: 'text/event-stream' },
+        signal: controller.signal,
+      });
+      expect(response.status).toBe(200);
+
+      const closePromise = s.close();
+      const closedQuickly = await Promise.race([
+        closePromise.then(() => true),
+        new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 500)),
+      ]);
+
+      if (!closedQuickly) {
+        controller.abort();
+        await closePromise;
+      }
+
+      expect(closedQuickly).toBe(true);
+
+      controller.abort();
+      // Prevent afterEach from closing again
+      server = undefined as unknown as ServerHandle;
+    });
   });
 
   describe('GET /api/tasks', () => {
@@ -122,6 +155,27 @@ describe('hzl-web server', () => {
         title: 'Test Task',
         project: 'test-project',
       });
+    });
+
+    it('preserves assignee names with spaces and emojis', async () => {
+      taskService.createTask({
+        title: 'Space Name',
+        project: 'test-project',
+        assignee: 'Trevin C',
+      });
+      taskService.createTask({
+        title: 'Emoji Name',
+        project: 'test-project',
+        assignee: 'Clara 📝',
+      });
+
+      createServer(4518);
+      const { data } = await fetchJson('/api/tasks');
+      const tasks = (data as { tasks: Array<{ title: string; assignee: string | null }> }).tasks;
+      const assigneeByTitle = new Map(tasks.map((task) => [task.title, task.assignee]));
+
+      expect(assigneeByTitle.get('Space Name')).toBe('Trevin C');
+      expect(assigneeByTitle.get('Emoji Name')).toBe('Clara 📝');
     });
 
     it('filters by project', async () => {
@@ -524,15 +578,33 @@ describe('hzl-web server', () => {
       expect((data as { events: unknown[] }).events).toHaveLength(0);
     });
 
-    it('includes task titles in events', async () => {
-      taskService.createTask({ title: 'Named Task', project: 'test-project' });
+    it('includes task metadata fields in events', async () => {
+      const task = taskService.createTask({
+        title: 'Named Task',
+        project: 'test-project',
+        assignee: 'Clara 📝',
+        description: 'Task details for activity filtering',
+      });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
 
       createServer(4552);
       const { data } = await fetchJson('/api/events?since=0');
 
-      const events = (data as { events: Array<{ type: string; task_title: string | null }> }).events;
-      const createEvent = events.find((e) => e.type === 'task_created');
+      const events = (data as {
+        events: Array<{
+          task_id: string;
+          type: string;
+          task_title: string | null;
+          task_assignee: string | null;
+          task_description: string | null;
+          task_status: string | null;
+        }>;
+      }).events;
+      const createEvent = events.find((e) => e.task_id === task.task_id && e.type === 'task_created');
       expect(createEvent?.task_title).toBe('Named Task');
+      expect(createEvent?.task_assignee).toBe('Clara 📝');
+      expect(createEvent?.task_description).toBe('Task details for activity filtering');
+      expect(createEvent?.task_status).toBe(TaskStatus.Ready);
     });
   });
 
@@ -571,6 +643,81 @@ describe('hzl-web server', () => {
     });
   });
 
+  describe('SSE + client wiring contracts', () => {
+    it('exposes an SSE route with event-stream content type', async () => {
+      server = createServer(4555);
+
+      const res = await globalThis.fetch(`${server.url}/api/events/stream`, {
+        headers: { Accept: 'text/event-stream' },
+      });
+
+      expect(res.status).toBe(200);
+      expect(res.headers.get('content-type') ?? '').toMatch(/text\/event-stream/i);
+      await res.body?.cancel();
+    });
+
+    it('includes EventSource usage and wiring in dashboard HTML', async () => {
+      server = createServer(4556);
+
+      const { body } = await fetchText('/');
+      const eventSourceInit = body.match(
+        /(?:const|let|var)\s+([a-zA-Z_$][\w$]*)\s*=\s*new\s+EventSource\s*\([\s\S]*?\)/i,
+      );
+
+      expect(eventSourceInit).toBeTruthy();
+      expect(body).toMatch(/SSE_ENDPOINT\s*=\s*['"]\/api\/events\/stream['"]/i);
+
+      const eventSourceVar = eventSourceInit?.[1];
+      expect(eventSourceVar).toBeTruthy();
+      const eventSourceWiring = new RegExp(
+        `${eventSourceVar}\\s*\\.\\s*(?:onopen|onmessage|onerror|addEventListener\\s*\\()`,
+        'i',
+      );
+      expect(body).toMatch(eventSourceWiring);
+    });
+
+    it('does not rely on setInterval(poll, ...) as the primary update loop', async () => {
+      server = createServer(4557);
+
+      const { body } = await fetchText('/');
+      expect(body).not.toMatch(/setInterval\s*\(\s*poll\s*,/i);
+    });
+
+    it('checks both visibility and focus before opening SSE connections', async () => {
+      server = createServer(4558);
+
+      const { body } = await fetchText('/');
+      const connectSetup = body.match(
+        /function\s+connectEventStream\s*\([^)]*\)\s*\{[\s\S]*?if\s*\(\s*!\s*([a-zA-Z_$][\w$]*)\s*\(\s*\)\s*\)\s*\{[\s\S]{0,260}?pauseLiveUpdates\s*\(\s*\)[\s\S]{0,260}?return[\s\S]*?new\s+EventSource\s*\(/i,
+      );
+
+      expect(connectSetup).toBeTruthy();
+      const liveUpdateGate = connectSetup?.[1];
+      expect(liveUpdateGate).toBeTruthy();
+      const gateFunctionPattern = new RegExp(
+        `function\\s+${liveUpdateGate}\\s*\\([^)]*\\)\\s*\\{[\\s\\S]*?(?:document\\.(?:hidden|visibilityState)[\\s\\S]*?document\\.hasFocus\\s*\\(\\s*\\)|document\\.hasFocus\\s*\\(\\s*\\)[\\s\\S]*?document\\.(?:hidden|visibilityState))`,
+        'i',
+      );
+      expect(body).toMatch(gateFunctionPattern);
+    });
+
+    it('wires blur/focus/visibilitychange handlers to pause and resume live updates', async () => {
+      server = createServer(4559);
+
+      const { body } = await fetchText('/');
+
+      expect(body).toMatch(
+        /(?:window|document)\s*\.\s*addEventListener\s*\(\s*['"]blur['"]\s*,[\s\S]{0,240}?pauseLiveUpdates\s*\(/i,
+      );
+      expect(body).toMatch(
+        /(?:window|document)\s*\.\s*addEventListener\s*\(\s*['"]focus['"]\s*,[\s\S]{0,240}?resumeLiveUpdates\s*\(/i,
+      );
+      expect(body).toMatch(
+        /document\s*\.\s*addEventListener\s*\(\s*['"]visibilitychange['"]\s*,[\s\S]{0,500}?pauseLiveUpdates\s*\([\s\S]{0,500}?resumeLiveUpdates\s*\(/i,
+      );
+    });
+  });
+
   describe('GET / (dashboard HTML)', () => {
     it('serves HTML at root', async () => {
       server = createServer(4560);
@@ -599,6 +746,250 @@ describe('hzl-web server', () => {
       expect(res.headers.get('content-security-policy')).toContain('frame-ancestors *');
       expect(res.headers.get('x-content-type-options')).toBe('nosniff');
       expect(res.headers.get('referrer-policy')).toBe('no-referrer');
+    });
+
+    it('renders project metadata in the top-right header and assignee metadata in card footer', async () => {
+      server = createServer(4590);
+
+      const { body } = await fetchText('/');
+      const renderCardBlock = body.match(/function\s+renderCard\s*\([^)]*\)\s*\{[\s\S]*?return\s*`[\s\S]*?`;\s*}/i);
+
+      expect(renderCardBlock).toBeTruthy();
+      expect(renderCardBlock?.[0]).toMatch(
+        /const\s+projectHtml\s*=\s*`[\s\S]*class=["']card-project["'][\s\S]*`;/i,
+      );
+      expect(renderCardBlock?.[0]).toMatch(
+        /const\s+assigneeClass\s*=\s*hasAssignee\s*\?\s*['"][^'"]*\bcard-assignee\b[^'"]*['"]\s*:\s*['"][^'"]*\bcard-assignee\b[^'"]*['"]/i,
+      );
+      expect(renderCardBlock?.[0]).toMatch(
+        /const\s+assigneeHtml\s*=\s*`[\s\S]*class=["']\$\{assigneeClass\}["'][\s\S]*`;/i,
+      );
+      expect(renderCardBlock?.[0]).toMatch(
+        /<div[^>]*class=["']card-header-right["'][^>]*>[\s\S]*\$\{projectHtml\}[\s\S]*<\/div>/i,
+      );
+      expect(renderCardBlock?.[0]).toMatch(
+        /<div[^>]*class=["']card-meta["'][^>]*>[\s\S]*\$\{assigneeHtml\}[\s\S]*<\/div>/i,
+      );
+    });
+
+    it('truncates card assignee labels to 10 characters plus ellipsis', async () => {
+      server = createServer(4598);
+
+      const { body } = await fetchText('/');
+      const renderCardBlock = body.match(/function\s+renderCard\s*\([^)]*\)\s*\{[\s\S]*?return\s*`[\s\S]*?`;\s*}/i);
+
+      expect(renderCardBlock).toBeTruthy();
+      expect(body).toMatch(/function\s+truncateCardLabel\s*\(value,\s*maxChars\s*=\s*10\)\s*\{/i);
+      expect(renderCardBlock?.[0]).toMatch(/const\s+assigneeCardText\s*=\s*truncateCardLabel\(assigneeText,\s*10\)/i);
+      expect(renderCardBlock?.[0]).toMatch(
+        /title="\$\{escapeHtml\(assigneeText\)\}"[^>]*>\$\{escapeHtml\(assigneeCardText\)\}<\/span>/i,
+      );
+    });
+
+    it('binds modal assignee metadata with an Unassigned fallback value', async () => {
+      server = createServer(4591);
+
+      const { body } = await fetchText('/');
+      const openTaskModalBlock = body.match(/async\s+function\s+openTaskModal\s*\([^)]*\)\s*\{[\s\S]*?let\s+html\s*=\s*`[\s\S]*?`;/i);
+
+      expect(openTaskModalBlock).toBeTruthy();
+      expect(openTaskModalBlock?.[0]).toMatch(
+        /const\s+assigneeValue\s*=\s*hasAssignee[\s\S]*<span[^>]*class=["']modal-meta-fallback["'][^>]*>\s*Unassigned\s*<\/span>/i,
+      );
+      expect(openTaskModalBlock?.[0]).toMatch(
+        /<div[^>]*class=["']modal-meta-label["'][^>]*>\s*Assignee\s*<\/div>[\s\S]*?<div[^>]*class=["']modal-meta-value["'][^>]*>\s*\$\{assigneeValue\}\s*<\/div>/i,
+      );
+    });
+
+    it('binds modal task id display to task.task_id', async () => {
+      server = createServer(4592);
+
+      const { body } = await fetchText('/');
+      const hasTaskIdSourceBinding = /data\.task\.task_id/i.test(body);
+      const hasModalTaskIdDisplayBinding =
+        /modalTaskIdValue\s*\.\s*textContent\s*=\s*(?:data\.task\.task_id|[a-zA-Z0-9_$]*taskId[a-zA-Z0-9_$]*)/i.test(body);
+
+      expect(hasTaskIdSourceBinding).toBe(true);
+      expect(hasModalTaskIdDisplayBinding).toBe(true);
+    });
+
+    it('includes a modal copy control for task id', async () => {
+      server = createServer(4593);
+
+      const { body } = await fetchText('/');
+      expect(body).toMatch(
+        /<div[^>]*class=["']modal-task-id-row["'][^>]*>[\s\S]*id=["']modalTaskIdValue["'][\s\S]*<button[^>]*id=["']modalTaskIdCopy["'][^>]*>[\s\S]*\bcopy\b[\s\S]*<\/button>/i,
+      );
+    });
+
+    it('includes a copy handler that uses clipboard API and/or execCommand fallback', async () => {
+      server = createServer(4594);
+
+      const { body } = await fetchText('/');
+      const hasCopyHandlerFunction =
+        /(?:async\s+)?function\s+[a-zA-Z0-9_$]*copy[a-zA-Z0-9_$]*\s*\(/i.test(body) ||
+        /(?:const|let)\s+[a-zA-Z0-9_$]*copy[a-zA-Z0-9_$]*\s*=\s*(?:async\s*)?\([^)]*\)\s*=>/i.test(body);
+      const hasClipboardOrExecCommand =
+        /navigator\.clipboard\s*\.\s*writeText\s*\(|document\.execCommand\(\s*["']copy["']\s*\)/i.test(body);
+
+      expect(hasCopyHandlerFunction).toBe(true);
+      expect(hasClipboardOrExecCommand).toBe(true);
+    });
+
+    it('includes assignee filter select with id assigneeFilter', async () => {
+      server = createServer(4563);
+
+      const { body } = await fetchText('/');
+      expect(body).toMatch(/<select[^>]*id=["']assigneeFilter["'][^>]*>/i);
+    });
+
+    it('includes a default assignee option containing Any Agent', async () => {
+      server = createServer(4564);
+
+      const { body } = await fetchText('/');
+      const assigneeSelect = body.match(/<select[^>]*id=["']assigneeFilter["'][^>]*>([\s\S]*?)<\/select>/i);
+      expect(assigneeSelect).toBeTruthy();
+      expect(assigneeSelect?.[1]).toMatch(/<option[^>]*>[\s\S]*?Any Agent[\s\S]*?<\/option>/i);
+    });
+
+    it('includes script wiring for assignee filter change handling', async () => {
+      server = createServer(4565);
+
+      const { body } = await fetchText('/');
+      const hasAssigneeReference =
+        /getElementById\(\s*['"]assigneeFilter['"]\s*\)/.test(body) ||
+        /querySelector\(\s*['"]#assigneeFilter['"]\s*\)/.test(body) ||
+        /assigneeFilter/.test(body);
+      const hasAssigneeChangeListener =
+        /assigneeFilter\s*\.\s*addEventListener\(\s*['"]change['"]/.test(body) ||
+        /getElementById\(\s*['"]assigneeFilter['"]\s*\)\s*\.\s*addEventListener\(\s*['"]change['"]/.test(body) ||
+        /querySelector\(\s*['"]#assigneeFilter['"]\s*\)\s*\.\s*addEventListener\(\s*['"]change['"]/.test(body);
+
+      expect(hasAssigneeReference).toBe(true);
+      expect(hasAssigneeChangeListener).toBe(true);
+    });
+
+    it('preserves full assignee strings in board and activity filter wiring', async () => {
+      server = createServer(4600);
+
+      const { body } = await fetchText('/');
+      expect(body).toMatch(
+        /function\s+getAssigneeValue\s*\(value\)\s*\{[\s\S]*value\.trim\(\)\.length\s*>\s*0[\s\S]*\?\s*value\s*:\s*['"]{2}/i,
+      );
+      expect(body).toMatch(
+        /filtered\s*=\s*filtered\.filter\(\s*task\s*=>\s*getAssigneeValue\(task\.assignee\)\s*===\s*assigneeFilter\.value\s*\)/i,
+      );
+      expect(body).toMatch(
+        /const\s+assignee\s*=\s*getAssigneeValue\(task\.assignee\);\s*if\s*\(!assignee\)\s*continue;[\s\S]*option\.value\s*=\s*assignee/i,
+      );
+      expect(body).toMatch(
+        /const\s+taskAssignee\s*=\s*getAssigneeValue\(event\.task_assignee\);\s*if\s*\(taskAssignee\)\s*return\s+taskAssignee;[\s\S]*return\s+getAssigneeValue\(event\.data\?\.assignee\)/i,
+      );
+    });
+
+    it('includes activity assignee and keyword filter controls', async () => {
+      server = createServer(4566);
+
+      const { body } = await fetchText('/');
+      expect(body).toMatch(/<select[^>]*id=["']activityAssigneeFilter["'][^>]*>/i);
+      expect(body).toMatch(/<input[^>]*id=["']activityKeywordFilter["'][^>]*>/i);
+    });
+
+    it('applies activity keyword filtering only at 3+ characters', async () => {
+      server = createServer(4567);
+
+      const { body } = await fetchText('/');
+      expect(body).toMatch(/keyword\.length\s*>=\s*3/);
+    });
+
+    it('includes activity item markup with task id binding attribute', async () => {
+      server = createServer(4568);
+
+      const { body } = await fetchText('/');
+      expect(body).toMatch(
+        /<div(?=[^>]*\bclass=["'][^"']*\bactivity-item\b[^"']*["'])(?=[^>]*\bdata-task-id\s*=\s*["'][^"']*event\.task_id[^"']*["'])[^>]*>/i,
+      );
+    });
+
+    it('includes activity list click delegation wired to openTaskModal', async () => {
+      server = createServer(4569);
+
+      const { body } = await fetchText('/');
+      expect(body).toMatch(
+        /(?:activityList|getElementById\(\s*["']activityList["']\s*\)|querySelector\(\s*["']#activityList["']\s*\))\s*\.\s*addEventListener\(\s*["']click["']\s*,[\s\S]*?closest\(\s*["']\.activity-item["']\s*\)[\s\S]*?openTaskModal\b/i,
+      );
+    });
+
+    it('shows static Live text with green connection-dot live state when stream is healthy', async () => {
+      server = createServer(4598);
+
+      const { body } = await fetchText('/');
+      expect(body).toMatch(/\.connection-dot\.live\s*\{[\s\S]*--status-done/i);
+      expect(body).toMatch(/connectionText\.textContent\s*=\s*['"]Live['"]/);
+      expect(body).not.toMatch(/Live\s*\$\{ago\}s/);
+    });
+
+    it('uses hidden-by-default column scrollbars with scroll/touch reveal behavior', async () => {
+      server = createServer(4599);
+
+      const { body } = await fetchText('/');
+      expect(body).toMatch(/\.column-cards\s*\{[\s\S]*scrollbar-width:\s*none[\s\S]*-ms-overflow-style:\s*none/i);
+      expect(body).toMatch(/\.column-cards\.is-scrolling[\s\S]*::\-webkit-scrollbar/i);
+      expect(body).toMatch(/function\s+bindColumnScrollIndicators\s*\(/i);
+      expect(body).toMatch(/classList\.add\(\s*['"]is-scrolling['"]\s*\)/i);
+    });
+
+    it('renders an explicit activity actor/author element in task modal activity entries', async () => {
+      server = createServer(4595);
+
+      const { body } = await fetchText('/');
+      const activityMarkupBlock = body.match(/displayTaskActivity\.map\([\s\S]*?\)\.join\(\s*['"]{2}\s*\)/i);
+
+      expect(activityMarkupBlock).toBeTruthy();
+      expect(activityMarkupBlock?.[0]).toMatch(
+        /class=["'][^"']*(?:activity|event)[^"']*(?:actor|author)[^"']*["']/i,
+      );
+      expect(activityMarkupBlock?.[0]).toMatch(/\$\{escapeHtml\(\s*actor\s*\)\}/i);
+    });
+
+    it('uses dedicated modal classes for checkpoint and activity author fields (not just .comment-author)', async () => {
+      server = createServer(4596);
+
+      const { body } = await fetchText('/');
+      const modalMarkupBlock = body.match(
+        /async\s+function\s+openTaskModal\s*\([^)]*\)\s*\{[\s\S]*?modalBody\.innerHTML\s*=\s*html\s*;/i,
+      );
+      const checkpointMarkupBlock = modalMarkupBlock?.[0].match(
+        /visibleCheckpoints\.map\([\s\S]*?\)\.join\(\s*['"]{2}\s*\)/i,
+      );
+      const activityMarkupBlock = modalMarkupBlock?.[0].match(
+        /displayTaskActivity\.map\([\s\S]*?\)\.join\(\s*['"]{2}\s*\)/i,
+      );
+
+      expect(modalMarkupBlock).toBeTruthy();
+      expect(checkpointMarkupBlock).toBeTruthy();
+      expect(activityMarkupBlock).toBeTruthy();
+      expect(checkpointMarkupBlock?.[0]).toMatch(
+        /class=["'][^"']*\b(?:modal-|task-)?(?:checkpoint|cp)-[^"']*["']/i,
+      );
+      expect(activityMarkupBlock?.[0]).toMatch(
+        /class=["'][^"']*\b(?:modal-|task-)?(?:activity|event)-[^"']*["']/i,
+      );
+      expect(checkpointMarkupBlock?.[0]).not.toMatch(/\bcomment-author\b/i);
+      expect(activityMarkupBlock?.[0]).not.toMatch(/\bcomment-author\b/i);
+    });
+
+    it('styles modal checkpoint author/name with dedicated non-accent class rules', async () => {
+      server = createServer(4597);
+
+      const { body } = await fetchText('/');
+      const checkpointStyleRule = body.match(
+        /\.(?:modal-|task-)?(?:checkpoint|cp)-[\w-]*(?:entry|item|author|name|title|meta)?[\w-]*\s*\{[\s\S]*?\}/i,
+      );
+
+      expect(checkpointStyleRule).toBeTruthy();
+      expect(checkpointStyleRule?.[0]).toMatch(/(?:color|border(?:-left|-color)?)\s*:/i);
+      expect(checkpointStyleRule?.[0]).not.toMatch(/--accent|--status-in-progress|orange/i);
     });
   });
 

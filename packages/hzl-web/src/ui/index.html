@@ -117,7 +117,11 @@
       width: 8px;
       height: 8px;
       border-radius: 50%;
-      background: var(--accent);
+      background: var(--text-muted);
+    }
+
+    .connection-dot.live {
+      background: var(--status-done);
     }
 
     .connection-dot.error {
@@ -318,6 +322,40 @@
       display: flex;
       flex-direction: column;
       gap: 8px;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+
+    .column-cards::-webkit-scrollbar {
+      width: 0;
+      height: 0;
+    }
+
+    .column-cards.is-scrolling,
+    .column-cards:hover,
+    .column-cards:focus-within {
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+    }
+
+    .column-cards.is-scrolling::-webkit-scrollbar,
+    .column-cards:hover::-webkit-scrollbar,
+    .column-cards:focus-within::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    .column-cards.is-scrolling::-webkit-scrollbar-thumb,
+    .column-cards:hover::-webkit-scrollbar-thumb,
+    .column-cards:focus-within::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 999px;
+    }
+
+    .column-cards.is-scrolling::-webkit-scrollbar-track,
+    .column-cards:hover::-webkit-scrollbar-track,
+    .column-cards:focus-within::-webkit-scrollbar-track {
+      background: transparent;
     }
 
     /* Task Cards */
@@ -346,7 +384,17 @@
       display: flex;
       align-items: center;
       gap: 6px;
+      flex: 1;
       min-width: 0;
+    }
+
+    .card-header-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 4px;
+      min-width: 0;
+      flex-shrink: 0;
     }
 
     .card-emoji {
@@ -376,19 +424,44 @@
     .card-meta {
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      justify-content: flex-start;
+      gap: 8px;
       font-size: 11px;
       color: var(--text-muted);
     }
 
     .card-project {
+      display: inline-block;
+      max-width: 140px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
       background: var(--bg-primary);
       padding: 2px 6px;
       border-radius: 3px;
     }
 
-    .card-agent {
+    .card-assignee {
+      display: inline-block;
+      max-width: 140px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 3px;
+      background: var(--bg-primary);
+      line-height: 1.2;
+    }
+
+    .card-assignee.assigned {
       color: var(--accent);
+    }
+
+    .card-assignee.unassigned {
+      color: var(--text-muted);
+      font-weight: 500;
     }
 
     .card-progress {
@@ -470,9 +543,69 @@
       justify-content: space-between;
     }
 
+    .modal-title-wrap {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
     .modal-title {
       font-size: 16px;
       font-weight: 600;
+    }
+
+    .modal-task-id-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .modal-task-id-value {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 11px;
+      color: var(--text-primary);
+      background: var(--bg-primary);
+      padding: 2px 8px;
+      border-radius: 999px;
+      max-width: 360px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .modal-task-id-copy {
+      border: 1px solid var(--border);
+      background: var(--bg-primary);
+      color: var(--text-muted);
+      border-radius: 4px;
+      font-size: 11px;
+      line-height: 1.3;
+      padding: 2px 8px;
+      cursor: pointer;
+      transition: color 120ms ease, border-color 120ms ease;
+    }
+
+    .modal-task-id-copy:hover:not(:disabled) {
+      color: var(--text-primary);
+    }
+
+    .modal-task-id-copy:disabled {
+      opacity: 0.55;
+      cursor: default;
+    }
+
+    .modal-task-id-copy.copied {
+      color: var(--status-done);
+      border-color: var(--status-done);
+    }
+
+    .modal-task-id-copy.failed {
+      color: var(--status-blocked);
+      border-color: var(--status-blocked);
     }
 
     .modal-close {
@@ -531,6 +664,10 @@
 
     .modal-meta-value {
       font-size: 12px;
+    }
+
+    .modal-meta-fallback {
+      color: var(--text-muted);
     }
 
     .modal-progress {
@@ -705,6 +842,74 @@
       white-space: pre-wrap;
     }
 
+    .modal-checkpoint-list,
+    .modal-task-activity-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .modal-checkpoint-entry,
+    .modal-task-activity-entry {
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 12px;
+    }
+
+    .modal-checkpoint-header,
+    .modal-task-activity-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+
+    .modal-checkpoint-name,
+    .modal-task-activity-type {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-primary);
+      line-height: 1.3;
+    }
+
+    .modal-entry-time {
+      color: var(--text-muted);
+      font-size: 11px;
+      white-space: nowrap;
+      line-height: 1.3;
+      margin-top: 1px;
+    }
+
+    .modal-checkpoint-data {
+      margin: 0;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      line-height: 1.45;
+      color: var(--text-secondary);
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 8px;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+    .modal-task-activity-author {
+      color: var(--text-secondary);
+      font-size: 11px;
+      margin-bottom: 4px;
+    }
+
+    .modal-task-activity-detail {
+      color: var(--text-primary);
+      font-size: 12px;
+      line-height: 1.45;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
     .show-more-btn {
       width: 100%;
       padding: 8px;
@@ -812,6 +1017,35 @@
       cursor: pointer;
     }
 
+    .activity-filters {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .activity-filters select,
+    .activity-filters input {
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .activity-filters input {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+
+    .activity-filters input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
     .activity-list {
       flex: 1;
       overflow-y: auto;
@@ -821,6 +1055,7 @@
     .activity-item {
       padding: 10px;
       border-bottom: 1px solid var(--border);
+      cursor: pointer;
     }
 
     .activity-item:last-child {
@@ -1001,6 +1236,10 @@
 
       .mobile-cards.active {
         display: flex;
+      }
+
+      .card-assignee {
+        max-width: 110px;
       }
 
       .activity-panel {
@@ -1211,6 +1450,11 @@
           <option value="">All projects</option>
         </select>
       </div>
+      <div class="filter-group">
+      <select id="assigneeFilter">
+        <option value="">Any Agent</option>
+      </select>
+      </div>
       <div class="filter-group settings-group">
         <button class="settings-toggle" id="settingsToggle" title="Settings">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
@@ -1332,7 +1576,14 @@
   <div class="modal-overlay" id="modalOverlay">
     <div class="modal">
       <div class="modal-header">
-        <span class="modal-title" id="modalTitle">Task Details</span>
+        <div class="modal-title-wrap">
+          <span class="modal-title" id="modalTitle">Task Details</span>
+          <div class="modal-task-id-row">
+            <span>Task ID</span>
+            <span class="modal-task-id-value" id="modalTaskIdValue">-</span>
+            <button type="button" class="modal-task-id-copy" id="modalTaskIdCopy" disabled>Copy</button>
+          </div>
+        </div>
         <button class="modal-close" id="modalClose">&times;</button>
       </div>
       <div class="modal-body" id="modalBody">
@@ -1347,6 +1598,16 @@
       <span class="activity-title">Activity</span>
       <button class="activity-close" id="activityClose">&times;</button>
     </div>
+    <div class="activity-filters">
+      <select id="activityAssigneeFilter">
+        <option value="">Any Agent</option>
+      </select>
+      <input
+        type="search"
+        id="activityKeywordFilter"
+        placeholder="Search title/description (3+ chars)"
+      >
+    </div>
     <div class="activity-list" id="activityList">
       <!-- Populated by JavaScript -->
     </div>
@@ -1357,8 +1618,19 @@
     let tasks = [];
     let events = [];
     let lastEventId = 0;
-    let pollTimer = null;
+    const SSE_ENDPOINT = '/api/events/stream';
+    const SSE_MIN_RECONNECT_MS = 1000;
+    const SSE_MAX_RECONNECT_MS = 30000;
+    const SSE_HEARTBEAT_MARKERS = new Set(['ping', 'pong', 'heartbeat', 'keepalive', 'keep-alive']);
+    let eventSource = null;
+    let reconnectTimer = null;
+    let reconnectAttempt = 0;
+    let reconnectAt = null;
+    let streamState = 'connecting'; // connecting | live | reconnecting | paused
+    let windowHasFocus = typeof document.hasFocus === 'function' ? document.hasFocus() : true;
+    let pendingPoll = false; // Queue refreshes while a poll() is in flight
     let lastPollTime = null;
+    let lastPollError = false;
     let selectedTask = null;
     let showAllComments = false;
     let showAllCheckpoints = false;
@@ -1374,22 +1646,28 @@
     let nodeStatusMap = new Map();
     let pendingModalRequestId = 0; // Track modal fetch requests to avoid race conditions
     let isPolling = false; // Guard against concurrent poll() calls
+    let copyFeedbackTimer = null;
     let calendarYear = new Date().getFullYear();
     let calendarMonth = new Date().getMonth(); // 0-indexed
 
     // DOM Elements
     const dateFilter = document.getElementById('dateFilter');
     const projectFilter = document.getElementById('projectFilter');
+    const assigneeFilter = document.getElementById('assigneeFilter');
     const refreshFilter = document.getElementById('refreshFilter');
     const connectionDot = document.getElementById('connectionDot');
     const connectionText = document.getElementById('connectionText');
     const activityBtn = document.getElementById('activityBtn');
     const activityPanel = document.getElementById('activityPanel');
     const activityClose = document.getElementById('activityClose');
+    const activityAssigneeFilter = document.getElementById('activityAssigneeFilter');
+    const activityKeywordFilter = document.getElementById('activityKeywordFilter');
     const activityList = document.getElementById('activityList');
     const modalOverlay = document.getElementById('modalOverlay');
     const modalClose = document.getElementById('modalClose');
     const modalTitle = document.getElementById('modalTitle');
+    const modalTaskIdValue = document.getElementById('modalTaskIdValue');
+    const modalTaskIdCopy = document.getElementById('modalTaskIdCopy');
     const modalBody = document.getElementById('modalBody');
     const hamburgerBtn = document.getElementById('hamburgerBtn');
     const mobileTabs = document.getElementById('mobileTabs');
@@ -1401,6 +1679,9 @@
     const calendarContainer = document.getElementById('calendarContainer');
     const graphContainer = document.getElementById('graphContainer');
     const graphLoading = document.getElementById('graphLoading');
+    let pendingAssigneePreference = null;
+    let pendingActivityAssigneePreference = null;
+    const columnScrollTimers = new WeakMap();
 
     // Column visibility
     const COLUMNS = ['backlog', 'ready', 'in_progress', 'blocked', 'done'];
@@ -1495,6 +1776,9 @@
           const prefs = JSON.parse(saved);
           if (prefs.dateFilter) dateFilter.value = prefs.dateFilter;
           if (prefs.projectFilter) projectFilter.value = prefs.projectFilter;
+          if (typeof prefs.assigneeFilter === 'string') pendingAssigneePreference = prefs.assigneeFilter;
+          if (typeof prefs.activityAssigneeFilter === 'string') pendingActivityAssigneePreference = prefs.activityAssigneeFilter;
+          if (typeof prefs.activityKeywordFilter === 'string') activityKeywordFilter.value = prefs.activityKeywordFilter;
           if (prefs.refreshFilter) refreshFilter.value = prefs.refreshFilter;
           if (Array.isArray(prefs.columnVisibility)) {
             settingsDropdown.querySelectorAll('.column-checkboxes input[type="checkbox"]').forEach(cb => {
@@ -1517,6 +1801,9 @@
       const prefs = {
         dateFilter: dateFilter.value,
         projectFilter: projectFilter.value,
+        assigneeFilter: assigneeFilter.value,
+        activityAssigneeFilter: activityAssigneeFilter.value,
+        activityKeywordFilter: activityKeywordFilter.value,
         refreshFilter: refreshFilter.value,
         columnVisibility: Array.from(
           settingsDropdown.querySelectorAll('.column-checkboxes input[type="checkbox"]:checked')
@@ -1884,6 +2171,14 @@
         progressHtml = `<span class="${progressClass}">${task.progress}%</span>`;
       }
 
+      const assignee = getAssigneeValue(task.assignee);
+      const hasAssignee = assignee.length > 0;
+      const assigneeText = hasAssignee ? assignee : 'Unassigned';
+      const assigneeCardText = truncateCardLabel(assigneeText, 10);
+      const assigneeClass = hasAssignee ? 'card-assignee assigned' : 'card-assignee unassigned';
+      const assigneeHtml = `<span class="${assigneeClass}" title="${escapeHtml(assigneeText)}">${escapeHtml(assigneeCardText)}</span>`;
+      const projectHtml = `<span class="card-project" title="${escapeHtml(task.project)}">${escapeHtml(task.project)}</span>`;
+
       let extra = '';
       if (isBlocked) {
         extra = `<div class="card-blocked">Blocked by: ${task.blocked_by.map(id => escapeHtml(id.slice(0, 8))).join(', ')}</div>`;
@@ -1900,13 +2195,15 @@
               ${emojiHtml}
               <span class="card-id">${task.task_id.slice(0, 8)}</span>
             </div>
-            ${progressHtml}
+            <div class="card-header-right">
+              ${projectHtml}
+              ${progressHtml}
+            </div>
           </div>
           <div class="card-title">${escapeHtml(task.title)}</div>
           ${subtaskHtml}
           <div class="card-meta">
-            <span class="card-project">${escapeHtml(task.project)}</span>
-            ${task.assignee ? `<span class="card-agent">${escapeHtml(task.assignee.slice(0, 8))}</span>` : ''}
+            ${assigneeHtml}
           </div>
           ${extra}
         </div>
@@ -1914,6 +2211,154 @@
     }
 
     // Group tasks into Kanban columns, treating ready tasks with unmet dependencies as blocked
+    function getBoardStatus(task) {
+      const isBlocked = task.blocked_by && task.blocked_by.length > 0;
+      return isBlocked && task.status === 'ready' ? 'blocked' : task.status;
+    }
+
+    function getVisibleBoardStatuses() {
+      return new Set(
+        Array.from(
+          settingsDropdown.querySelectorAll('.column-checkboxes input[type="checkbox"]:checked')
+        ).map(cb => cb.value)
+      );
+    }
+
+    function getFilteredBoardTasks(taskList = tasks, options = {}) {
+      const { onlyVisibleColumns = false, applyAssigneeFilter = true } = options;
+      const showSubtasks = showSubtasksCheckbox.checked;
+
+      let filtered = showSubtasks ? taskList : taskList.filter(task => !task.parent_id);
+
+      if (onlyVisibleColumns) {
+        const visibleStatuses = getVisibleBoardStatuses();
+        filtered = filtered.filter(task => visibleStatuses.has(getBoardStatus(task)));
+      }
+
+      if (applyAssigneeFilter && assigneeFilter.value) {
+        filtered = filtered.filter(task => getAssigneeValue(task.assignee) === assigneeFilter.value);
+      }
+
+      return filtered;
+    }
+
+    function updateAssigneeOptions(preferredAssignee = null) {
+      const previousSelection = assigneeFilter.value;
+      const targetSelection = preferredAssignee ?? previousSelection;
+      const optionTasks = getFilteredBoardTasks(tasks, {
+        onlyVisibleColumns: true,
+        applyAssigneeFilter: false,
+      });
+
+      const assigneeCounts = new Map();
+      for (const task of optionTasks) {
+        const assignee = getAssigneeValue(task.assignee);
+        if (!assignee) continue;
+        assigneeCounts.set(assignee, (assigneeCounts.get(assignee) ?? 0) + 1);
+      }
+
+      const sortedAssignees = Array.from(assigneeCounts.entries())
+        .sort(([a], [b]) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+
+      assigneeFilter.innerHTML = '';
+      const anyOption = document.createElement('option');
+      anyOption.value = '';
+      anyOption.textContent = 'Any Agent';
+      assigneeFilter.appendChild(anyOption);
+
+      for (const [assignee, count] of sortedAssignees) {
+        const option = document.createElement('option');
+        option.value = assignee;
+        option.textContent = `${assignee} (${count})`;
+        assigneeFilter.appendChild(option);
+      }
+
+      const nextSelection = targetSelection && assigneeCounts.has(targetSelection) ? targetSelection : '';
+      assigneeFilter.value = nextSelection;
+
+      return {
+        changed: previousSelection !== nextSelection,
+        reset: targetSelection !== nextSelection,
+      };
+    }
+
+    function getActivityKeywordFilter() {
+      const keyword = activityKeywordFilter.value.trim().toLowerCase();
+      return keyword.length >= 3 ? keyword : '';
+    }
+
+    function eventMatchesActivityKeyword(event, keyword) {
+      if (!keyword) return true;
+      const title = typeof event.task_title === 'string' ? event.task_title.toLowerCase() : '';
+      const description = typeof event.task_description === 'string' ? event.task_description.toLowerCase() : '';
+      return title.includes(keyword) || description.includes(keyword);
+    }
+
+    function getEventAssignee(event) {
+      const taskAssignee = getAssigneeValue(event.task_assignee);
+      if (taskAssignee) return taskAssignee;
+      return getAssigneeValue(event.data?.assignee);
+    }
+
+    function getFilteredActivityEvents(options = {}) {
+      const { applyAssigneeFilter = true } = options;
+      const assignee = activityAssigneeFilter.value;
+      const keyword = getActivityKeywordFilter();
+      const visibleBoardTaskIds = new Set(
+        getFilteredBoardTasks(tasks, {
+          onlyVisibleColumns: true,
+          applyAssigneeFilter: false,
+        }).map((task) => task.task_id)
+      );
+
+      return events.filter((event) => {
+        if (!visibleBoardTaskIds.has(event.task_id)) return false;
+        if (keyword && !eventMatchesActivityKeyword(event, keyword)) return false;
+        if (applyAssigneeFilter && assignee && getEventAssignee(event) !== assignee) return false;
+        return true;
+      });
+    }
+
+    function updateActivityAssigneeOptions(preferredAssignee = null) {
+      const previousSelection = activityAssigneeFilter.value;
+      const targetSelection = preferredAssignee ?? previousSelection;
+      const optionEvents = getFilteredActivityEvents({ applyAssigneeFilter: false });
+      const assigneeTaskSets = new Map();
+
+      for (const event of optionEvents) {
+        const assignee = getEventAssignee(event);
+        if (!assignee) continue;
+        if (!assigneeTaskSets.has(assignee)) {
+          assigneeTaskSets.set(assignee, new Set());
+        }
+        assigneeTaskSets.get(assignee).add(event.task_id);
+      }
+
+      const sortedAssignees = Array.from(assigneeTaskSets.entries())
+        .sort(([a], [b]) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+
+      activityAssigneeFilter.innerHTML = '';
+      const anyOption = document.createElement('option');
+      anyOption.value = '';
+      anyOption.textContent = 'Any Agent';
+      activityAssigneeFilter.appendChild(anyOption);
+
+      for (const [assignee, taskIds] of sortedAssignees) {
+        const option = document.createElement('option');
+        option.value = assignee;
+        option.textContent = `${assignee} (${taskIds.size})`;
+        activityAssigneeFilter.appendChild(option);
+      }
+
+      const nextSelection = targetSelection && assigneeTaskSets.has(targetSelection) ? targetSelection : '';
+      activityAssigneeFilter.value = nextSelection;
+
+      return {
+        changed: previousSelection !== nextSelection,
+        reset: targetSelection !== nextSelection,
+      };
+    }
+
     function groupTasksByStatus(taskList) {
       const columns = {
         backlog: [],
@@ -1923,8 +2368,7 @@
         done: [],
       };
       for (const task of taskList) {
-        const isBlocked = task.blocked_by && task.blocked_by.length > 0;
-        const status = isBlocked && task.status === 'ready' ? 'blocked' : task.status;
+        const status = getBoardStatus(task);
         if (columns[status]) {
           columns[status].push(task);
         }
@@ -2039,18 +2483,18 @@
     function navPrev() {
       calendarMonth--;
       if (calendarMonth < 0) { calendarMonth = 11; calendarYear--; }
-      poll();
+      requestPoll();
     }
     function navNext() {
       calendarMonth++;
       if (calendarMonth > 11) { calendarMonth = 0; calendarYear++; }
-      poll();
+      requestPoll();
     }
     function navToday() {
       const today = new Date();
       calendarYear = today.getFullYear();
       calendarMonth = today.getMonth();
-      poll();
+      requestPoll();
     }
 
     // Calendar popover for "+N more" links
@@ -2146,12 +2590,7 @@
     function renderBoard() {
       const showSubtasks = showSubtasksCheckbox.checked;
       const emojiMap = buildEmojiMap(tasks);
-
-      // Filter tasks if subtasks are hidden
-      let visibleTasks = tasks;
-      if (!showSubtasks) {
-        visibleTasks = tasks.filter(t => !t.parent_id);
-      }
+      const visibleTasks = getFilteredBoardTasks(tasks);
 
       const columns = groupTasksByStatus(visibleTasks);
 
@@ -2180,15 +2619,28 @@
       // Card click handlers are set up via event delegation in init
     }
 
+    function bindColumnScrollIndicators() {
+      document.querySelectorAll('.column-cards').forEach((column) => {
+        column.addEventListener('scroll', () => {
+          column.classList.add('is-scrolling');
+          const existingTimer = columnScrollTimers.get(column);
+          if (existingTimer) {
+            clearTimeout(existingTimer);
+          }
+          const timerId = setTimeout(() => {
+            column.classList.remove('is-scrolling');
+            columnScrollTimers.delete(column);
+          }, 700);
+          columnScrollTimers.set(column, timerId);
+        }, { passive: true });
+      });
+    }
+
     function renderMobileCards(showSubtasks, emojiMap) {
       const container = document.getElementById('mobileCardsContainer');
       if (!container) return;
 
-      // Use same filtering as desktop
-      let visibleTasks = tasks;
-      if (!showSubtasks) {
-        visibleTasks = tasks.filter(t => !t.parent_id);
-      }
+      const visibleTasks = getFilteredBoardTasks(tasks);
 
       const columns = groupTasksByStatus(visibleTasks);
 
@@ -2208,18 +2660,20 @@
     }
 
     function renderActivity() {
-      if (events.length === 0) {
+      const filteredEvents = getFilteredActivityEvents();
+
+      if (filteredEvents.length === 0) {
         activityList.innerHTML = '<div class="empty-column">No recent activity</div>';
         return;
       }
 
-      activityList.innerHTML = events.map(event => {
+      activityList.innerHTML = filteredEvents.map(event => {
         const actor = getEventActor(event);
         const actionDetail = formatEventDetail(event);
         const detail = actionDetail ? `${actionDetail} by ${actor}` : `by ${actor}`;
 
         return `
-          <div class="activity-item">
+          <div class="activity-item" data-task-id="${escapeHtml(event.task_id || '')}">
             <div class="activity-item-header">
               <span class="activity-type ${event.type}">${formatEventType(event.type)}</span>
               <span class="activity-time">${formatTime(event.timestamp)}</span>
@@ -2251,9 +2705,19 @@
 
         selectedTask = data;
         modalTitle.textContent = data.task.title;
+        const resolvedTaskId = data.task.task_id || taskId;
+        modalTaskIdValue.textContent = resolvedTaskId || '-';
+        modalTaskIdCopy.dataset.taskId = resolvedTaskId || '';
+        modalTaskIdCopy.disabled = !resolvedTaskId;
+        setTaskIdCopyFeedback('idle');
 
         const progressValue = data.task.progress ?? 0;
         const progressClass = progressValue >= 100 ? 'modal-progress complete' : 'modal-progress';
+        const assignee = getAssigneeValue(data.task.assignee);
+        const hasAssignee = assignee.length > 0;
+        const assigneeValue = hasAssignee
+          ? escapeHtml(assignee)
+          : '<span class="modal-meta-fallback">Unassigned</span>';
 
         let html = `
           <div class="modal-section">
@@ -2271,6 +2735,10 @@
                 <div class="modal-meta-value">${escapeHtml(data.task.project)}</div>
               </div>
               <div class="modal-meta-item">
+                <div class="modal-meta-label">Assignee</div>
+                <div class="modal-meta-value">${assigneeValue}</div>
+              </div>
+              <div class="modal-meta-item">
                 <div class="modal-meta-label">Priority</div>
                 <div class="modal-meta-value">${data.task.priority}</div>
               </div>
@@ -2278,6 +2746,12 @@
                 <div class="modal-meta-label">Created</div>
                 <div class="modal-meta-value">${formatTime(data.task.created_at)}</div>
               </div>
+              ${data.task.lease_until ? `
+              <div class="modal-meta-item">
+                <div class="modal-meta-label">Lease Until</div>
+                <div class="modal-meta-value">${formatTime(data.task.lease_until)}</div>
+              </div>
+              ` : ''}
               ${data.task.due_at ? `
               <div class="modal-meta-item">
                 <div class="modal-meta-label">Due Date</div>
@@ -2287,26 +2761,6 @@
             </div>
           </div>
         `;
-
-        if (data.task.assignee) {
-          html += `
-            <div class="modal-section">
-              <div class="modal-section-title">Claimed By</div>
-              <div class="modal-meta">
-                <div class="modal-meta-item">
-                  <div class="modal-meta-label">Agent</div>
-                  <div class="modal-meta-value">${escapeHtml(data.task.assignee)}</div>
-                </div>
-                ${data.task.lease_until ? `
-                  <div class="modal-meta-item">
-                    <div class="modal-meta-label">Lease Until</div>
-                    <div class="modal-meta-value">${formatTime(data.task.lease_until)}</div>
-                  </div>
-                ` : ''}
-              </div>
-            </div>
-          `;
-        }
 
         if (data.task.blocked_by && data.task.blocked_by.length > 0) {
           html += `
@@ -2393,7 +2847,7 @@
 
               <div class="modal-tab-content ${activeModalTab === 'checkpoints' ? 'active' : ''}" data-tab-content="checkpoints">
                 ${data.checkpoints.length === 0 ? '<div class="empty-column">No checkpoints</div>' : `
-                  <div class="modal-comments">
+                  <div class="modal-checkpoint-list">
                     ${hasMoreCheckpoints ? `
                       <button class="show-more-btn" id="showMoreCheckpoints">
                         Show ${hiddenCheckpointCount} earlier checkpoint${hiddenCheckpointCount === 1 ? '' : 's'}
@@ -2402,12 +2856,12 @@
                     ${visibleCheckpoints.map(cp => {
                       const hasData = cp.data && Object.keys(cp.data).length > 0;
                       return `
-                        <div class="comment">
-                          <div class="comment-header">
-                            <span class="comment-author">${escapeHtml(cp.name)}</span>
-                            <span>${formatTime(cp.timestamp)}</span>
+                        <div class="modal-checkpoint-entry">
+                          <div class="modal-checkpoint-header">
+                            <span class="modal-checkpoint-name">${escapeHtml(cp.name)}</span>
+                            <span class="modal-entry-time">${formatTime(cp.timestamp)}</span>
                           </div>
-                          ${hasData ? `<div class="comment-text">${escapeHtml(JSON.stringify(cp.data, null, 2))}</div>` : ''}
+                          ${hasData ? `<pre class="modal-checkpoint-data">${escapeHtml(JSON.stringify(cp.data, null, 2))}</pre>` : ''}
                         </div>
                       `;
                     }).join('')}
@@ -2417,7 +2871,7 @@
 
               <div class="modal-tab-content ${activeModalTab === 'activity' ? 'active' : ''}" data-tab-content="activity">
                 ${data.taskEvents.length === 0 ? '<div class="empty-column">No activity</div>' : `
-                  <div class="modal-comments">
+                  <div class="modal-task-activity-list">
                     ${hasMoreTaskActivity ? `
                       <button class="show-more-btn" id="showMoreTaskActivity">
                         Show ${hiddenTaskActivityCount} earlier event${hiddenTaskActivityCount === 1 ? '' : 's'}
@@ -2425,16 +2879,16 @@
                     ` : ''}
                     ${displayTaskActivity.map(event => {
                       const actor = getEventActor(event);
+                      const hasActor = actor !== 'system';
                       const detail = formatEventDetail(event);
                       return `
-                        <div class="comment">
-                          <div class="comment-header">
-                            <span class="comment-author">${escapeHtml(actor)}</span>
-                            <span>${formatTime(event.timestamp)}</span>
+                        <div class="modal-task-activity-entry">
+                          <div class="modal-task-activity-header">
+                            <span class="modal-task-activity-type">${escapeHtml(formatEventType(event.type))}</span>
+                            <span class="modal-entry-time">${formatTime(event.timestamp)}</span>
                           </div>
-                          <div class="comment-text">
-                            <strong>${escapeHtml(formatEventType(event.type))}</strong>${detail ? `: ${escapeHtml(detail)}` : ''}
-                          </div>
+                          ${hasActor ? `<div class="modal-task-activity-author">By ${escapeHtml(actor)}</div>` : ''}
+                          ${detail ? `<div class="modal-task-activity-detail">${escapeHtml(detail)}</div>` : ''}
                         </div>
                       `;
                     }).join('')}
@@ -2501,85 +2955,379 @@
     function closeModal() {
       modalOverlay.classList.remove('open');
       selectedTask = null;
+      modalTaskIdValue.textContent = '-';
+      modalTaskIdCopy.dataset.taskId = '';
+      modalTaskIdCopy.disabled = true;
+      setTaskIdCopyFeedback('idle');
     }
 
-    // Polling
+    // Live updates + refresh
+    function getConfiguredRefreshMs() {
+      const interval = parseInt(refreshFilter.value, 10);
+      return Number.isFinite(interval) ? Math.max(SSE_MIN_RECONNECT_MS, interval) : 5000;
+    }
+
+    function shouldRunLiveUpdates() {
+      return !document.hidden && windowHasFocus;
+    }
+
+    function requestPoll() {
+      if (isPolling) {
+        pendingPoll = true;
+        return;
+      }
+      void poll();
+    }
+
     async function poll() {
-      // Guard against concurrent poll calls (e.g., rapid tab switching)
-      if (isPolling) return;
+      if (isPolling) {
+        pendingPoll = true;
+        return;
+      }
       isPolling = true;
 
+      do {
+        pendingPoll = false;
+        try {
+          const [newTasks, newEvents, stats] = await Promise.all([
+            fetchTasks(),
+            fetchEvents(),
+            fetchStats(),
+          ]);
+
+          tasks = newTasks;
+          const selectionUpdate = updateAssigneeOptions(pendingAssigneePreference);
+          pendingAssigneePreference = null;
+          const activitySelectionUpdate = updateActivityAssigneeOptions(pendingActivityAssigneePreference);
+          pendingActivityAssigneePreference = null;
+          if (selectionUpdate.reset || activitySelectionUpdate.reset) {
+            savePreferences();
+          }
+
+          if (newEvents.length > 0) {
+            events = [...newEvents, ...events].slice(0, 50);
+            lastEventId = newEvents[0].id;
+          }
+
+          // Update project filter
+          const currentProject = projectFilter.value;
+          projectFilter.innerHTML = '<option value="">All projects</option>' +
+            stats.projects.map(p => `<option value="${escapeHtml(p)}" ${p === currentProject ? 'selected' : ''}>${escapeHtml(p)}</option>`).join('');
+
+          if (activeView === 'calendar') {
+            renderCalendar();
+          } else {
+            renderBoard();
+            updateGraphData();
+          }
+          renderActivity();
+
+          lastPollTime = Date.now();
+          lastPollError = false;
+        } catch (error) {
+          console.error('Poll failed:', error);
+          lastPollError = true;
+        } finally {
+          updateConnectionStatus();
+        }
+      } while (pendingPoll);
+
+      isPolling = false;
+    }
+
+    function getSseUrl() {
+      if (lastEventId <= 0) return SSE_ENDPOINT;
+      const params = new URLSearchParams({ since: String(lastEventId) });
+      return `${SSE_ENDPOINT}?${params.toString()}`;
+    }
+
+    function clearReconnectTimer() {
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+      }
+      reconnectAt = null;
+    }
+
+    function disconnectEventStream() {
+      if (!eventSource) return;
+      eventSource.onopen = null;
+      eventSource.onmessage = null;
+      eventSource.onerror = null;
+      eventSource.close();
+      eventSource = null;
+    }
+
+    function scheduleReconnect() {
+      if (!shouldRunLiveUpdates()) {
+        pauseLiveUpdates();
+        return;
+      }
+
+      clearReconnectTimer();
+      const base = Math.max(SSE_MIN_RECONNECT_MS, Math.min(getConfiguredRefreshMs(), 10000));
+      const expDelay = Math.min(SSE_MAX_RECONNECT_MS, base * (2 ** reconnectAttempt));
+      const jitter = Math.floor(Math.random() * Math.min(1000, Math.round(expDelay * 0.2)));
+      const delay = Math.min(SSE_MAX_RECONNECT_MS, expDelay + jitter);
+      reconnectAttempt = Math.min(reconnectAttempt + 1, 12);
+      reconnectAt = Date.now() + delay;
+      streamState = 'reconnecting';
+      updateConnectionStatus();
+
+      reconnectTimer = setTimeout(() => {
+        reconnectTimer = null;
+        reconnectAt = null;
+        connectEventStream();
+      }, delay);
+    }
+
+    function parseSsePayload(rawData) {
+      if (typeof rawData !== 'string') return rawData;
+      const trimmed = rawData.trim();
+      if (!trimmed) return null;
+
       try {
-        const [newTasks, newEvents, stats] = await Promise.all([
-          fetchTasks(),
-          fetchEvents(),
-          fetchStats(),
-        ]);
+        return JSON.parse(trimmed);
+      } catch {
+        return trimmed;
+      }
+    }
 
-        tasks = newTasks;
+    function shouldRefreshFromSseEvent(streamEvent) {
+      const type = String(streamEvent?.type || '').toLowerCase();
+      if (type === 'updates_available' || type === 'update' || type === 'updates') {
+        return true;
+      }
+      if (SSE_HEARTBEAT_MARKERS.has(type)) {
+        return false;
+      }
 
-        if (newEvents.length > 0) {
-          events = [...newEvents, ...events].slice(0, 50);
-          lastEventId = newEvents[0].id;
+      const payload = parseSsePayload(streamEvent?.data);
+      if (payload == null) return false;
+
+      if (typeof payload === 'boolean') return payload;
+      if (typeof payload === 'number') return payload > 0;
+
+      if (typeof payload === 'string') {
+        const normalized = payload.toLowerCase();
+        if (SSE_HEARTBEAT_MARKERS.has(normalized)) return false;
+        if (normalized === 'updates_available' || normalized === 'update' || normalized === 'updates') {
+          return true;
         }
+        return true;
+      }
 
-        // Update project filter
-        const currentProject = projectFilter.value;
-        projectFilter.innerHTML = '<option value="">All projects</option>' +
-          stats.projects.map(p => `<option value="${escapeHtml(p)}" ${p === currentProject ? 'selected' : ''}>${escapeHtml(p)}</option>`).join('');
+      if (Array.isArray(payload)) return payload.length > 0;
 
-        if (activeView === 'calendar') {
-          renderCalendar();
-        } else {
-          renderBoard();
-          updateGraphData();
+      if (typeof payload === 'object') {
+        const kind = typeof payload.type === 'string' ? payload.type.toLowerCase() : '';
+        if (kind && SSE_HEARTBEAT_MARKERS.has(kind)) return false;
+        if (kind === 'updates_available' || kind === 'update' || kind === 'updates') return true;
+        if (Object.keys(payload).length === 0) return false;
+        if (
+          payload.updates_available === true ||
+          payload.updatesAvailable === true ||
+          payload.has_updates === true ||
+          payload.hasUpdates === true ||
+          payload.changed === true
+        ) {
+          return true;
         }
-        renderActivity();
+        if (Array.isArray(payload.events)) return payload.events.length > 0;
+        if (typeof payload.event_count === 'number') return payload.event_count > 0;
+        if (typeof payload.eventCount === 'number') return payload.eventCount > 0;
+      }
 
-        lastPollTime = Date.now();
-        updateConnectionStatus(true);
+      return true;
+    }
+
+    function handleSseSignal(streamEvent) {
+      const streamEventId = parseInt(streamEvent?.lastEventId || '', 10);
+      if (Number.isFinite(streamEventId) && streamEventId > lastEventId) {
+        lastEventId = streamEventId;
+      }
+
+      if (shouldRefreshFromSseEvent(streamEvent)) {
+        requestPoll();
+      }
+    }
+
+    function connectEventStream() {
+      if (!shouldRunLiveUpdates()) {
+        pauseLiveUpdates();
+        return;
+      }
+
+      if (typeof EventSource === 'undefined') {
+        streamState = 'reconnecting';
+        reconnectAt = Date.now() + getConfiguredRefreshMs();
+        updateConnectionStatus();
+        scheduleReconnect();
+        return;
+      }
+
+      clearReconnectTimer();
+      disconnectEventStream();
+      streamState = 'connecting';
+      updateConnectionStatus();
+
+      const source = new EventSource(getSseUrl());
+      eventSource = source;
+
+      const onSignal = (streamEvent) => {
+        if (eventSource !== source) return;
+        handleSseSignal(streamEvent);
+      };
+
+      source.onopen = () => {
+        if (eventSource !== source) return;
+        reconnectAttempt = 0;
+        reconnectAt = null;
+        streamState = 'live';
+        updateConnectionStatus();
+        requestPoll();
+      };
+
+      source.onmessage = onSignal;
+      source.addEventListener('updates_available', onSignal);
+      source.addEventListener('update', onSignal);
+      source.addEventListener('updates', onSignal);
+
+      source.onerror = () => {
+        if (eventSource !== source) return;
+        disconnectEventStream();
+        scheduleReconnect();
+      };
+    }
+
+    function pauseLiveUpdates() {
+      clearReconnectTimer();
+      disconnectEventStream();
+      reconnectAt = null;
+      streamState = 'paused';
+      updateConnectionStatus();
+    }
+
+    function resumeLiveUpdates() {
+      if (!shouldRunLiveUpdates()) {
+        pauseLiveUpdates();
+        return;
+      }
+      reconnectAttempt = 0;
+      reconnectAt = null;
+      connectEventStream();
+      requestPoll();
+    }
+
+    function setTaskIdCopyFeedback(state) {
+      if (copyFeedbackTimer) {
+        clearTimeout(copyFeedbackTimer);
+        copyFeedbackTimer = null;
+      }
+
+      modalTaskIdCopy.classList.remove('copied', 'failed');
+      modalTaskIdCopy.textContent = 'Copy';
+
+      if (state === 'copied') {
+        modalTaskIdCopy.classList.add('copied');
+        modalTaskIdCopy.textContent = 'Copied';
+      } else if (state === 'failed') {
+        modalTaskIdCopy.classList.add('failed');
+        modalTaskIdCopy.textContent = 'Copy failed';
+      } else {
+        return;
+      }
+
+      copyFeedbackTimer = setTimeout(() => {
+        modalTaskIdCopy.classList.remove('copied', 'failed');
+        modalTaskIdCopy.textContent = 'Copy';
+        copyFeedbackTimer = null;
+      }, 1500);
+    }
+
+    async function copyTextToClipboard(text) {
+      if (!text) return false;
+
+      if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+        try {
+          await navigator.clipboard.writeText(text);
+          return true;
+        } catch (error) {
+          // Fall through to execCommand fallback for local/dev environments.
+        }
+      }
+
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.setAttribute('readonly', '');
+      textarea.style.position = 'fixed';
+      textarea.style.left = '-9999px';
+      textarea.style.top = '-9999px';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      textarea.setSelectionRange(0, textarea.value.length);
+
+      let copied = false;
+      try {
+        copied = document.execCommand('copy');
       } catch (error) {
-        console.error('Poll failed:', error);
-        updateConnectionStatus(false);
-      } finally {
-        isPolling = false;
+        copied = false;
       }
-    }
 
-    function startPolling() {
-      poll();
-      const interval = parseInt(refreshFilter.value, 10);
-      pollTimer = setInterval(poll, interval);
-    }
-
-    function stopPolling() {
-      if (pollTimer) {
-        clearInterval(pollTimer);
-        pollTimer = null;
-      }
-    }
-
-    function restartPolling() {
-      stopPolling();
-      startPolling();
+      document.body.removeChild(textarea);
+      return copied;
     }
 
     // Connection status
-    function updateConnectionStatus(success) {
-      if (success) {
-        connectionDot.classList.remove('error');
-        const ago = lastPollTime ? Math.round((Date.now() - lastPollTime) / 1000) : 0;
-        connectionText.textContent = ago === 0 ? 'Just now' : `${ago}s ago`;
-      } else {
+    function updateConnectionStatus() {
+      connectionDot.classList.remove('live', 'error');
+
+      if (streamState === 'paused') {
         connectionDot.classList.add('error');
-        connectionText.textContent = 'Error';
+        connectionText.textContent = 'Paused';
+        return;
       }
+
+      if (streamState === 'connecting') {
+        connectionText.textContent = 'Connecting...';
+        return;
+      }
+
+      if (streamState === 'reconnecting') {
+        connectionDot.classList.add('error');
+        const msRemaining = reconnectAt ? Math.max(0, reconnectAt - Date.now()) : 0;
+        const seconds = Math.max(1, Math.ceil(msRemaining / 1000));
+        connectionText.textContent = `Reconnecting ${seconds}s`;
+        return;
+      }
+
+      if (lastPollError) {
+        connectionDot.classList.add('error');
+        connectionText.textContent = 'Sync error';
+        return;
+      }
+
+      connectionDot.classList.add('live');
+      connectionText.textContent = 'Live';
     }
 
     // Helpers
     function escapeHtml(str) {
       if (!str) return '';
       return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function getAssigneeValue(value) {
+      if (typeof value !== 'string') return '';
+      return value.trim().length > 0 ? value : '';
+    }
+
+    function truncateCardLabel(value, maxChars = 10) {
+      if (typeof value !== 'string' || maxChars <= 0) return '';
+      const graphemes = Array.from(value);
+      if (graphemes.length <= maxChars) return value;
+      return `${graphemes.slice(0, maxChars).join('')}...`;
     }
 
     // Render markdown to sanitized HTML
@@ -2633,7 +3381,16 @@
     }
 
     function getEventActor(event) {
-      return event.author || event.agent_id || 'system';
+      const explicitAuthor = typeof event.author === 'string' && event.author.trim() ? event.author : null;
+      if (explicitAuthor) return explicitAuthor;
+
+      const explicitAgent = typeof event.agent_id === 'string' && event.agent_id.trim() ? event.agent_id : null;
+      if (explicitAgent) return explicitAgent;
+
+      const dataAuthor = event.data && typeof event.data.author === 'string' && event.data.author.trim()
+        ? event.data.author
+        : null;
+      return dataAuthor || 'system';
     }
 
     function truncateText(text, max = 160) {
@@ -2703,17 +3460,37 @@
     // Event listeners
     dateFilter.addEventListener('change', () => {
       savePreferences();
-      poll();
+      requestPoll();
     });
 
     projectFilter.addEventListener('change', () => {
       savePreferences();
-      poll();
+      requestPoll();
+    });
+
+    assigneeFilter.addEventListener('change', () => {
+      savePreferences();
+      renderBoard();
+    });
+
+    activityAssigneeFilter.addEventListener('change', () => {
+      savePreferences();
+      renderActivity();
+    });
+
+    activityKeywordFilter.addEventListener('input', () => {
+      updateActivityAssigneeOptions();
+      savePreferences();
+      renderActivity();
     });
 
     refreshFilter.addEventListener('change', () => {
       savePreferences();
-      restartPolling();
+      reconnectAttempt = 0;
+      if (shouldRunLiveUpdates() && streamState !== 'live') {
+        connectEventStream();
+      }
+      requestPoll();
     });
 
     activityBtn.addEventListener('click', () => {
@@ -2722,6 +3499,22 @@
 
     activityClose.addEventListener('click', () => {
       activityPanel.classList.remove('open');
+    });
+
+    activityList.addEventListener('click', (e) => {
+      const item = e.target.closest('.activity-item');
+      if (!item || !activityList.contains(item)) return;
+      const { taskId } = item.dataset;
+      if (!taskId) return;
+      openTaskModal(taskId);
+    });
+
+    modalTaskIdCopy.addEventListener('click', async () => {
+      const taskId = modalTaskIdCopy.dataset.taskId || '';
+      if (!taskId) return;
+
+      const copied = await copyTextToClipboard(taskId);
+      setTaskIdCopyFeedback(copied ? 'copied' : 'failed');
     });
 
     modalClose.addEventListener('click', closeModal);
@@ -2737,13 +3530,24 @@
       }
     });
 
-    // Visibility API
+    // Visibility/focus API
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
-        stopPolling();
+        pauseLiveUpdates();
       } else {
-        startPolling();
+        windowHasFocus = typeof document.hasFocus === 'function' ? document.hasFocus() : true;
+        resumeLiveUpdates();
       }
+    });
+
+    window.addEventListener('focus', () => {
+      windowHasFocus = true;
+      resumeLiveUpdates();
+    });
+
+    window.addEventListener('blur', () => {
+      windowHasFocus = false;
+      pauseLiveUpdates();
     });
 
     // Mobile tabs
@@ -2782,14 +3586,21 @@
     settingsDropdown.querySelectorAll('.column-checkboxes input').forEach(cb => {
       cb.addEventListener('change', () => {
         updateColumnVisibility();
+        updateAssigneeOptions();
+        updateActivityAssigneeOptions();
         savePreferences();
+        renderBoard();
+        renderActivity();
       });
     });
 
     // Show subtasks toggle
     showSubtasksCheckbox.addEventListener('change', () => {
+      updateAssigneeOptions();
+      updateActivityAssigneeOptions();
       savePreferences();
       renderBoard();
+      renderActivity();
     });
 
     // View toggle (Kanban/Graph)
@@ -2828,7 +3639,7 @@
       }
 
       savePreferences();
-      poll();
+      requestPoll();
     }
 
     viewToggle.addEventListener('click', (e) => {
@@ -2851,14 +3662,13 @@
 
     // Initialize
     loadPreferences();
-    startPolling();
+    bindColumnScrollIndicators();
+    connectEventStream();
+    requestPoll();
 
-    // Update connection time every second
+    // Update connection indicator every second (age + reconnect countdown)
     setInterval(() => {
-      if (lastPollTime) {
-        const ago = Math.round((Date.now() - lastPollTime) / 1000);
-        connectionText.textContent = ago === 0 ? 'Just now' : `${ago}s ago`;
-      }
+      updateConnectionStatus();
     }, 1000);
   </script>
 

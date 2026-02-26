@@ -1,7 +1,9 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'http';
+import type { Socket } from 'net';
 import {
   TaskService,
   EventStore,
+  EventType,
   AmbiguousPrefixError,
   type TaskListItem as CoreTaskListItem,
 } from 'hzl-core';
@@ -30,6 +32,10 @@ const DATE_PRESETS: Record<string, number> = {
   '14d': 14,
   '30d': 30,
 };
+
+const STREAM_POLL_MS = 2000;
+const STREAM_KEEPALIVE_MS = 15000;
+const STREAM_EVENT_TYPES: EventType[] = Object.values(EventType);
 
 // Response types for the API
 interface TaskListItemResponse extends CoreTaskListItem {
@@ -69,6 +75,9 @@ interface EventResponse {
   agent_id: string | null;
   timestamp: string;
   task_title: string | null;
+  task_assignee: string | null;
+  task_description: string | null;
+  task_status: string | null;
 }
 
 interface TaskEventResponse {
@@ -86,6 +95,15 @@ interface StatsResponse {
   total: number;
   by_status: Record<string, number>;
   projects: string[];
+}
+
+interface StreamReadyResponse {
+  live: true;
+  latest_event_id: number;
+}
+
+interface StreamUpdateResponse {
+  latest_event_id: number;
 }
 
 function parseUrl(url: string): { pathname: string; params: URLSearchParams } {
@@ -116,8 +134,15 @@ function serverError(res: ServerResponse, error: unknown): void {
   json(res, { error: message }, 500);
 }
 
+function writeSseEvent<T extends object>(res: ServerResponse, event: string, data: T): void {
+  res.write(`event: ${event}\n`);
+  res.write(`data: ${JSON.stringify(data)}\n\n`);
+}
+
 export function createWebServer(options: ServerOptions): ServerHandle {
   const { port, host = '0.0.0.0', allowFraming = false, taskService, eventStore } = options;
+  const sockets = new Set<Socket>();
+  const activeStreamResponses = new Set<ServerResponse>();
 
   // Route handlers
   function handleTasks(params: URLSearchParams, res: ServerResponse): void {
@@ -277,6 +302,16 @@ export function createWebServer(options: ServerOptions): ServerHandle {
     // Get task titles for these events (batched query to avoid N+1)
     const taskIds = [...new Set(rawEvents.map((e) => e.task_id).filter(Boolean))];
     const titleMap = taskService.getTaskTitlesByIds(taskIds);
+    const taskMetadataMap = new Map<string, Pick<EventResponse, 'task_assignee' | 'task_description' | 'task_status'>>();
+
+    for (const taskId of taskIds) {
+      const task = taskService.getTaskById(taskId);
+      taskMetadataMap.set(taskId, {
+        task_assignee: task?.assignee ?? null,
+        task_description: task?.description ?? null,
+        task_status: task?.status ?? null,
+      });
+    }
 
     const events: EventResponse[] = rawEvents.map((e) => ({
       id: e.rowid,
@@ -288,6 +323,9 @@ export function createWebServer(options: ServerOptions): ServerHandle {
       agent_id: e.agent_id ?? null,
       timestamp: e.timestamp,
       task_title: titleMap.get(e.task_id) ?? null,
+      task_assignee: taskMetadataMap.get(e.task_id)?.task_assignee ?? null,
+      task_description: taskMetadataMap.get(e.task_id)?.task_description ?? null,
+      task_status: taskMetadataMap.get(e.task_id)?.task_status ?? null,
     }));
 
     json(res, { events });
@@ -303,6 +341,72 @@ export function createWebServer(options: ServerOptions): ServerHandle {
     };
 
     json(res, response);
+  }
+
+  function getLatestEventId(): number {
+    const latest = eventStore.getRecentEvents({
+      sinceId: 0,
+      limit: 1,
+      types: STREAM_EVENT_TYPES,
+    });
+    return latest[0]?.rowid ?? 0;
+  }
+
+  function handleStream(req: IncomingMessage, res: ServerResponse): void {
+    activeStreamResponses.add(res);
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream; charset=utf-8',
+      'Cache-Control': 'no-cache, no-transform',
+      Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no',
+    });
+
+    if (typeof res.flushHeaders === 'function') {
+      res.flushHeaders();
+    }
+
+    res.write('retry: 2000\n\n');
+
+    let lastEventId = getLatestEventId();
+    const readyPayload: StreamReadyResponse = {
+      live: true,
+      latest_event_id: lastEventId,
+    };
+    writeSseEvent(res, 'ready', readyPayload);
+
+    const pollTimer = setInterval(() => {
+      if (req.destroyed || res.destroyed || res.writableEnded) {
+        return;
+      }
+
+      const latestId = getLatestEventId();
+      if (latestId > lastEventId) {
+        lastEventId = latestId;
+        const updatePayload: StreamUpdateResponse = { latest_event_id: latestId };
+        writeSseEvent(res, 'update', updatePayload);
+      }
+    }, STREAM_POLL_MS);
+
+    const keepAliveTimer = setInterval(() => {
+      if (req.destroyed || res.destroyed || res.writableEnded) {
+        return;
+      }
+      res.write(': keep-alive\n\n');
+    }, STREAM_KEEPALIVE_MS);
+
+    let closed = false;
+    const cleanup = (): void => {
+      if (closed) return;
+      closed = true;
+      activeStreamResponses.delete(res);
+      clearInterval(pollTimer);
+      clearInterval(keepAliveTimer);
+      req.off('close', cleanup);
+      res.off('close', cleanup);
+    };
+
+    req.on('close', cleanup);
+    res.on('close', cleanup);
   }
 
   function handleRoot(res: ServerResponse): void {
@@ -351,6 +455,11 @@ export function createWebServer(options: ServerOptions): ServerHandle {
         return;
       }
 
+      if (pathname === '/api/events/stream' || pathname === '/api/stream') {
+        handleStream(req, res);
+        return;
+      }
+
       // /api/tasks/:id routes
       const taskMatch = pathname.match(/^\/api\/tasks\/([^/]+)$/);
       if (taskMatch) {
@@ -383,16 +492,40 @@ export function createWebServer(options: ServerOptions): ServerHandle {
   }
 
   const server = createServer(handleRequest);
+  server.on('connection', (socket) => {
+    sockets.add(socket);
+    socket.on('close', () => {
+      sockets.delete(socket);
+    });
+  });
 
   server.listen(port, host);
 
   return {
     close: () =>
       new Promise((resolve, reject) => {
+        for (const streamRes of activeStreamResponses) {
+          if (!streamRes.writableEnded && !streamRes.destroyed) {
+            streamRes.end();
+          }
+        }
+
         server.close((err) => {
           if (err) reject(err);
           else resolve();
         });
+
+        if (typeof server.closeIdleConnections === 'function') {
+          server.closeIdleConnections();
+        }
+
+        if (typeof server.closeAllConnections === 'function') {
+          server.closeAllConnections();
+        } else {
+          for (const socket of sockets) {
+            socket.destroy();
+          }
+        }
       }),
     port,
     host,

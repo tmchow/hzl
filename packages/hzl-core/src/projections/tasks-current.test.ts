@@ -248,6 +248,33 @@ describe('TasksCurrentProjector', () => {
       const task = db.prepare('SELECT * FROM tasks_current WHERE task_id = ?').get('TASK1') as any;
       expect(task.assignee).toBe('kenji');
     });
+
+    it('sets progress to 100 when transitioning to done', () => {
+      const createEvent = eventStore.append({
+        task_id: 'TASK1',
+        type: EventType.TaskCreated,
+        data: { title: 'Test', project: 'inbox' },
+      });
+      projector.apply(createEvent, db);
+
+      const checkpointEvent = eventStore.append({
+        task_id: 'TASK1',
+        type: EventType.CheckpointRecorded,
+        data: { name: 'Started', progress: 40 },
+      });
+      projector.apply(checkpointEvent, db);
+
+      const doneEvent = eventStore.append({
+        task_id: 'TASK1',
+        type: EventType.StatusChanged,
+        data: { from: TaskStatus.InProgress, to: TaskStatus.Done },
+      });
+      projector.apply(doneEvent, db);
+
+      const task = db.prepare('SELECT * FROM tasks_current WHERE task_id = ?').get('TASK1') as any;
+      expect(task.status).toBe('done');
+      expect(task.progress).toBe(100);
+    });
   });
 
   describe('task_moved', () => {
