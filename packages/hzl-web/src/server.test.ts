@@ -658,6 +658,41 @@ describe('hzl-web server', () => {
       );
     });
 
+    it('binds modal task id display to task.task_id', async () => {
+      server = createServer(4592);
+
+      const { body } = await fetchText('/');
+      const hasTaskIdSourceBinding = /data\.task\.task_id/i.test(body);
+      const hasModalTaskIdDisplayBinding =
+        /modalTaskIdValue\s*\.\s*textContent\s*=\s*(?:data\.task\.task_id|[a-zA-Z0-9_$]*taskId[a-zA-Z0-9_$]*)/i.test(body);
+
+      expect(hasTaskIdSourceBinding).toBe(true);
+      expect(hasModalTaskIdDisplayBinding).toBe(true);
+    });
+
+    it('includes a modal copy control for task id', async () => {
+      server = createServer(4593);
+
+      const { body } = await fetchText('/');
+      expect(body).toMatch(
+        /<div[^>]*class=["']modal-task-id-row["'][^>]*>[\s\S]*id=["']modalTaskIdValue["'][\s\S]*<button[^>]*id=["']modalTaskIdCopy["'][^>]*>[\s\S]*\bcopy\b[\s\S]*<\/button>/i,
+      );
+    });
+
+    it('includes a copy handler that uses clipboard API and/or execCommand fallback', async () => {
+      server = createServer(4594);
+
+      const { body } = await fetchText('/');
+      const hasCopyHandlerFunction =
+        /(?:async\s+)?function\s+[a-zA-Z0-9_$]*copy[a-zA-Z0-9_$]*\s*\(/i.test(body) ||
+        /(?:const|let)\s+[a-zA-Z0-9_$]*copy[a-zA-Z0-9_$]*\s*=\s*(?:async\s*)?\([^)]*\)\s*=>/i.test(body);
+      const hasClipboardOrExecCommand =
+        /navigator\.clipboard\s*\.\s*writeText\s*\(|document\.execCommand\(\s*["']copy["']\s*\)/i.test(body);
+
+      expect(hasCopyHandlerFunction).toBe(true);
+      expect(hasClipboardOrExecCommand).toBe(true);
+    });
+
     it('includes assignee filter select with id assigneeFilter', async () => {
       server = createServer(4563);
 

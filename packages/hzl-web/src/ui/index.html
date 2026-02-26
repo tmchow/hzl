@@ -500,9 +500,69 @@
       justify-content: space-between;
     }
 
+    .modal-title-wrap {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
     .modal-title {
       font-size: 16px;
       font-weight: 600;
+    }
+
+    .modal-task-id-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .modal-task-id-value {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 11px;
+      color: var(--text-primary);
+      background: var(--bg-primary);
+      padding: 2px 8px;
+      border-radius: 999px;
+      max-width: 360px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .modal-task-id-copy {
+      border: 1px solid var(--border);
+      background: var(--bg-primary);
+      color: var(--text-muted);
+      border-radius: 4px;
+      font-size: 11px;
+      line-height: 1.3;
+      padding: 2px 8px;
+      cursor: pointer;
+      transition: color 120ms ease, border-color 120ms ease;
+    }
+
+    .modal-task-id-copy:hover:not(:disabled) {
+      color: var(--text-primary);
+    }
+
+    .modal-task-id-copy:disabled {
+      opacity: 0.55;
+      cursor: default;
+    }
+
+    .modal-task-id-copy.copied {
+      color: var(--status-done);
+      border-color: var(--status-done);
+    }
+
+    .modal-task-id-copy.failed {
+      color: var(--status-blocked);
+      border-color: var(--status-blocked);
     }
 
     .modal-close {
@@ -1405,7 +1465,14 @@
   <div class="modal-overlay" id="modalOverlay">
     <div class="modal">
       <div class="modal-header">
-        <span class="modal-title" id="modalTitle">Task Details</span>
+        <div class="modal-title-wrap">
+          <span class="modal-title" id="modalTitle">Task Details</span>
+          <div class="modal-task-id-row">
+            <span>Task ID</span>
+            <span class="modal-task-id-value" id="modalTaskIdValue">-</span>
+            <button type="button" class="modal-task-id-copy" id="modalTaskIdCopy" disabled>Copy</button>
+          </div>
+        </div>
         <button class="modal-close" id="modalClose">&times;</button>
       </div>
       <div class="modal-body" id="modalBody">
@@ -1457,6 +1524,7 @@
     let nodeStatusMap = new Map();
     let pendingModalRequestId = 0; // Track modal fetch requests to avoid race conditions
     let isPolling = false; // Guard against concurrent poll() calls
+    let copyFeedbackTimer = null;
     let calendarYear = new Date().getFullYear();
     let calendarMonth = new Date().getMonth(); // 0-indexed
 
@@ -1476,6 +1544,8 @@
     const modalOverlay = document.getElementById('modalOverlay');
     const modalClose = document.getElementById('modalClose');
     const modalTitle = document.getElementById('modalTitle');
+    const modalTaskIdValue = document.getElementById('modalTaskIdValue');
+    const modalTaskIdCopy = document.getElementById('modalTaskIdCopy');
     const modalBody = document.getElementById('modalBody');
     const hamburgerBtn = document.getElementById('hamburgerBtn');
     const mobileTabs = document.getElementById('mobileTabs');
@@ -2492,6 +2562,11 @@
 
         selectedTask = data;
         modalTitle.textContent = data.task.title;
+        const resolvedTaskId = data.task.task_id || taskId;
+        modalTaskIdValue.textContent = resolvedTaskId || '-';
+        modalTaskIdCopy.dataset.taskId = resolvedTaskId || '';
+        modalTaskIdCopy.disabled = !resolvedTaskId;
+        setTaskIdCopyFeedback('idle');
 
         const progressValue = data.task.progress ?? 0;
         const progressClass = progressValue >= 100 ? 'modal-progress complete' : 'modal-progress';
@@ -2736,6 +2811,10 @@
     function closeModal() {
       modalOverlay.classList.remove('open');
       selectedTask = null;
+      modalTaskIdValue.textContent = '-';
+      modalTaskIdCopy.dataset.taskId = '';
+      modalTaskIdCopy.disabled = true;
+      setTaskIdCopyFeedback('idle');
     }
 
     // Polling
@@ -2804,6 +2883,66 @@
     function restartPolling() {
       stopPolling();
       startPolling();
+    }
+
+    function setTaskIdCopyFeedback(state) {
+      if (copyFeedbackTimer) {
+        clearTimeout(copyFeedbackTimer);
+        copyFeedbackTimer = null;
+      }
+
+      modalTaskIdCopy.classList.remove('copied', 'failed');
+      modalTaskIdCopy.textContent = 'Copy';
+
+      if (state === 'copied') {
+        modalTaskIdCopy.classList.add('copied');
+        modalTaskIdCopy.textContent = 'Copied';
+      } else if (state === 'failed') {
+        modalTaskIdCopy.classList.add('failed');
+        modalTaskIdCopy.textContent = 'Copy failed';
+      } else {
+        return;
+      }
+
+      copyFeedbackTimer = setTimeout(() => {
+        modalTaskIdCopy.classList.remove('copied', 'failed');
+        modalTaskIdCopy.textContent = 'Copy';
+        copyFeedbackTimer = null;
+      }, 1500);
+    }
+
+    async function copyTextToClipboard(text) {
+      if (!text) return false;
+
+      if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+        try {
+          await navigator.clipboard.writeText(text);
+          return true;
+        } catch (error) {
+          // Fall through to execCommand fallback for local/dev environments.
+        }
+      }
+
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.setAttribute('readonly', '');
+      textarea.style.position = 'fixed';
+      textarea.style.left = '-9999px';
+      textarea.style.top = '-9999px';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      textarea.setSelectionRange(0, textarea.value.length);
+
+      let copied = false;
+      try {
+        copied = document.execCommand('copy');
+      } catch (error) {
+        copied = false;
+      }
+
+      document.body.removeChild(textarea);
+      return copied;
     }
 
     // Connection status
@@ -2988,6 +3127,14 @@
       const { taskId } = item.dataset;
       if (!taskId) return;
       openTaskModal(taskId);
+    });
+
+    modalTaskIdCopy.addEventListener('click', async () => {
+      const taskId = modalTaskIdCopy.dataset.taskId || '';
+      if (!taskId) return;
+
+      const copied = await copyTextToClipboard(taskId);
+      setTaskIdCopyFeedback(copied ? 'copied' : 'failed');
     });
 
     modalClose.addEventListener('click', closeModal);
