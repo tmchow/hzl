@@ -76,6 +76,7 @@ export class TasksCurrentProjector implements Projector {
     const data = event.data as StatusChangedData;
     const toStatus = data.to;
     const isTerminal = toStatus === TaskStatus.Done || toStatus === TaskStatus.Archived;
+    const isDone = toStatus === TaskStatus.Done;
 
     if (toStatus === TaskStatus.InProgress) {
       const newAssignee = data.assignee ?? event.author ?? event.agent_id ?? null;
@@ -163,22 +164,40 @@ export class TasksCurrentProjector implements Projector {
           status = ?,
           claimed_at = NULL,
           lease_until = NULL,
+          progress = CASE WHEN ? THEN 100 ELSE progress END,
           terminal_at = CASE WHEN ? THEN ? ELSE terminal_at END,
           updated_at = ?,
           last_event_id = ?
         WHERE task_id = ?
-      `).run(toStatus, isTerminal ? 1 : 0, isTerminal ? event.timestamp : null, event.timestamp, event.rowid, event.task_id);
+      `).run(
+        toStatus,
+        isDone ? 1 : 0,
+        isTerminal ? 1 : 0,
+        isTerminal ? event.timestamp : null,
+        event.timestamp,
+        event.rowid,
+        event.task_id
+      );
     } else {
       // Generic status change (including ready → done, backlog → archived, etc.)
       // If transitioning to terminal state, set terminal_at
       db.prepare(`
         UPDATE tasks_current SET
           status = ?,
+          progress = CASE WHEN ? THEN 100 ELSE progress END,
           terminal_at = CASE WHEN ? THEN ? ELSE terminal_at END,
           updated_at = ?,
           last_event_id = ?
         WHERE task_id = ?
-      `).run(toStatus, isTerminal ? 1 : 0, isTerminal ? event.timestamp : null, event.timestamp, event.rowid, event.task_id);
+      `).run(
+        toStatus,
+        isDone ? 1 : 0,
+        isTerminal ? 1 : 0,
+        isTerminal ? event.timestamp : null,
+        event.timestamp,
+        event.rowid,
+        event.task_id
+      );
     }
   }
 

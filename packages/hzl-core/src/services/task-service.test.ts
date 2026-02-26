@@ -1647,6 +1647,30 @@ describe('TaskService', () => {
     });
   });
 
+  describe('auto progress on done transitions', () => {
+    it('sets progress to 100 when completeTask transitions in_progress to done', () => {
+      const task = taskService.createTask({ title: 'Test', project: 'inbox' });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+      taskService.claimTask(task.task_id, { author: 'agent-1' });
+      taskService.setProgress(task.task_id, 35);
+
+      const completed = taskService.completeTask(task.task_id);
+
+      expect(completed.status).toBe(TaskStatus.Done);
+      expect(completed.progress).toBe(100);
+    });
+
+    it('sets progress to 100 when setStatus transitions task to done', () => {
+      const task = taskService.createTask({ title: 'Test', project: 'inbox' });
+      taskService.setProgress(task.task_id, 20);
+
+      const completed = taskService.setStatus(task.task_id, TaskStatus.Done);
+
+      expect(completed.status).toBe(TaskStatus.Done);
+      expect(completed.progress).toBe(100);
+    });
+  });
+
   describe('pruning', () => {
     it('finds no eligible tasks when all tasks are active', () => {
       const task1 = taskService.createTask({ title: 'Active 1', project: 'inbox' });
