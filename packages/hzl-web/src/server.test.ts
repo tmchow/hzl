@@ -741,13 +741,13 @@ describe('hzl-web server', () => {
       expect(body).toMatch(/<select[^>]*id=["']assigneeFilter["'][^>]*>/i);
     });
 
-    it('includes a default assignee option containing Any', async () => {
+    it('includes a default assignee option containing Any Agent', async () => {
       server = createServer(4564);
 
       const { body } = await fetchText('/');
       const assigneeSelect = body.match(/<select[^>]*id=["']assigneeFilter["'][^>]*>([\s\S]*?)<\/select>/i);
       expect(assigneeSelect).toBeTruthy();
-      expect(assigneeSelect?.[1]).toMatch(/<option[^>]*>[\s\S]*?Any[\s\S]*?<\/option>/i);
+      expect(assigneeSelect?.[1]).toMatch(/<option[^>]*>[\s\S]*?Any Agent[\s\S]*?<\/option>/i);
     });
 
     it('includes script wiring for assignee filter change handling', async () => {

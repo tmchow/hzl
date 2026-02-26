@@ -1412,9 +1412,9 @@
         </select>
       </div>
       <div class="filter-group">
-        <select id="assigneeFilter">
-          <option value="">Any</option>
-        </select>
+      <select id="assigneeFilter">
+        <option value="">Any Agent</option>
+      </select>
       </div>
       <div class="filter-group settings-group">
         <button class="settings-toggle" id="settingsToggle" title="Settings">
@@ -1561,7 +1561,7 @@
     </div>
     <div class="activity-filters">
       <select id="activityAssigneeFilter">
-        <option value="">Any</option>
+        <option value="">Any Agent</option>
       </select>
       <input
         type="search"
@@ -2218,7 +2218,7 @@
       assigneeFilter.innerHTML = '';
       const anyOption = document.createElement('option');
       anyOption.value = '';
-      anyOption.textContent = 'Any';
+      anyOption.textContent = 'Any Agent';
       assigneeFilter.appendChild(anyOption);
 
       for (const [assignee, count] of sortedAssignees) {
@@ -2296,7 +2296,7 @@
       activityAssigneeFilter.innerHTML = '';
       const anyOption = document.createElement('option');
       anyOption.value = '';
-      anyOption.textContent = 'Any';
+      anyOption.textContent = 'Any Agent';
       activityAssigneeFilter.appendChild(anyOption);
 
       for (const [assignee, taskIds] of sortedAssignees) {
