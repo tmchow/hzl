@@ -1,3 +1,10 @@
+# [1.34.0](https://github.com/tmchow/hzl/compare/v1.33.1...v1.34.0) (2026-02-26)
+
+
+### Features
+
+* **web:** deliver live assignee-centric dashboard workflow ([#120](https://github.com/tmchow/hzl/issues/120)) ([5f3b491](https://github.com/tmchow/hzl/commit/5f3b491008c99811436a04e7bd727b55d1b610ac))
+
 ## [1.33.1](https://github.com/tmchow/hzl/compare/v1.33.0...v1.33.1) (2026-02-25)
 
 
