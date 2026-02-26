@@ -55,7 +55,8 @@ hzl/
 ## CI & Release Expectations
 
 - The `CI` workflow must pass before merging to `main`.
-- The `Release` workflow runs only after `CI` completes successfully on `main`.
+- Merges to `main` do **not** auto-release.
+- Maintainers trigger `Release` manually from `main` (`mode=dry-run` first, then `mode=publish`).
 - Keep branch protection on `main` requiring the `CI` status check.
 
 ## Commit Messages

@@ -98,6 +98,10 @@ hzl init --sync-url libsql://<db>.turso.io --auth-token <token>
 | [Web Dashboard](https://www.hzl-tasks.com/dashboard) | Kanban board setup and usage |
 | [Troubleshooting](https://www.hzl-tasks.com/troubleshooting) | Common issues and fixes |
 
+### Maintainers
+
+- [Manual Release Process](docs/release-process.md) (runbook for `dry-run` and `publish`)
+
 ---
 
 ## Agent Setup

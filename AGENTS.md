@@ -211,13 +211,27 @@ test: add concurrency stress tests
 
 **Types:** `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `chore`, `ci`, `build`
 
-**Version bumps** (automated via semantic-release on merge to main):
+**Release trigger:** Releases are **manual**. Merges to `main` do not publish automatically.
+
+Run the release workflow from `main`:
+```bash
+# Preview next version and notes (no publish)
+gh workflow run release.yml --ref main -f mode=dry-run
+
+# Publish when ready
+gh workflow run release.yml --ref main -f mode=publish
+```
+
+**Version bumps** (semantic-release, on `mode=publish`):
 - `fix:` → patch (0.1.0 → 0.1.1)
+- `perf:` → patch (0.1.0 → 0.1.1)
 - `feat:` → minor (0.1.0 → 0.2.0)
 - `feat!:` or `BREAKING CHANGE:` in body → major (0.1.0 → 1.0.0)
-- `docs:`, `chore:`, `test:`, `style:`, `refactor:`, `ci:`, `build:` → patch
+- `docs:`, `chore:`, `test:`, `style:`, `refactor:`, `ci:`, `build:` → no release
 
-Both packages are versioned together (linked versions).
+**During publish:** semantic-release updates `CHANGELOG.md` from Conventional Commit messages since the last tag, creates the release commit/tag/GitHub release, publishes npm packages, and then triggers Homebrew formula update.
+
+All published packages are versioned together (linked versions).
 
 ## Documentation
 

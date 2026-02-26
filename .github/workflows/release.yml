@@ -1,9 +1,16 @@
 name: Release
 
 on:
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Release mode'
+        required: true
+        type: choice
+        default: dry-run
+        options:
+          - dry-run
+          - publish
 
 permissions:
   contents: write
@@ -14,19 +21,67 @@ permissions:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false  # Don't cancel in-progress releases
+  cancel-in-progress: false
 
 jobs:
-  release:
+  dry-run:
+    if: ${{ inputs.mode == 'dry-run' }}
     runs-on: ubuntu-latest
-    environment: release
-    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: main
+          ref: ${{ github.ref_name }}
           fetch-depth: 0
           persist-credentials: false
+
+      - name: Validate release branch
+        run: |
+          if [ "${GITHUB_REF}" != "refs/heads/main" ]; then
+            echo "::error::Release workflow must be run from main (got ${GITHUB_REF})."
+            exit 1
+          fi
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22.14.0'
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+
+      # OIDC Trusted Publishing requires npm 11.5.1+
+      - name: Upgrade npm for OIDC
+        run: npm install -g npm@latest
+
+      - name: Release dry-run
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx semantic-release --dry-run
+
+  publish:
+    if: ${{ inputs.mode == 'publish' }}
+    runs-on: ubuntu-latest
+    environment: release
+    outputs:
+      new_release: ${{ steps.release.outputs.new_release }}
+      version: ${{ steps.release.outputs.version }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate release branch
+        run: |
+          if [ "${GITHUB_REF}" != "refs/heads/main" ]; then
+            echo "::error::Release workflow must be run from main (got ${GITHUB_REF})."
+            exit 1
+          fi
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -66,14 +121,17 @@ jobs:
             echo "No new release published"
           fi
 
-      # Trigger homebrew update after successful release
+  trigger-homebrew:
+    if: ${{ inputs.mode == 'publish' && needs.publish.outputs.new_release == 'true' }}
+    needs: publish
+    runs-on: ubuntu-latest
+    steps:
       # Note: release events from GITHUB_TOKEN don't trigger other workflows,
-      # so we must explicitly call the homebrew workflow here
-      - name: Trigger Homebrew Update
-        if: steps.release.outputs.new_release == 'true'
+      # so we must explicitly call the homebrew workflow.
+      - name: Trigger Homebrew update workflow
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION="${{ steps.release.outputs.version }}"
+          VERSION="${{ needs.publish.outputs.version }}"
           echo "Triggering homebrew update for version $VERSION"
           gh workflow run update-homebrew.yml -f version="$VERSION"
