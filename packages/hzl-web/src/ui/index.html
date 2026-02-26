@@ -346,7 +346,17 @@
       display: flex;
       align-items: center;
       gap: 6px;
+      flex: 1;
       min-width: 0;
+    }
+
+    .card-header-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 4px;
+      min-width: 0;
+      flex-shrink: 0;
     }
 
     .card-emoji {
@@ -376,7 +386,8 @@
     .card-meta {
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      justify-content: flex-start;
+      gap: 8px;
       font-size: 11px;
       color: var(--text-muted);
     }
@@ -387,8 +398,27 @@
       border-radius: 3px;
     }
 
-    .card-agent {
+    .card-assignee {
+      display: inline-block;
+      max-width: 140px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 3px;
+      background: var(--bg-primary);
+      line-height: 1.2;
+    }
+
+    .card-assignee.assigned {
       color: var(--accent);
+    }
+
+    .card-assignee.unassigned {
+      color: var(--text-muted);
+      font-weight: 500;
     }
 
     .card-progress {
@@ -531,6 +561,10 @@
 
     .modal-meta-value {
       font-size: 12px;
+    }
+
+    .modal-meta-fallback {
+      color: var(--text-muted);
     }
 
     .modal-progress {
@@ -1031,6 +1065,10 @@
 
       .mobile-cards.active {
         display: flex;
+      }
+
+      .card-assignee {
+        max-width: 110px;
       }
 
       .activity-panel {
@@ -1940,6 +1978,11 @@
         progressHtml = `<span class="${progressClass}">${task.progress}%</span>`;
       }
 
+      const hasAssignee = typeof task.assignee === 'string' && task.assignee.trim().length > 0;
+      const assigneeText = hasAssignee ? task.assignee.trim() : 'Unassigned';
+      const assigneeClass = hasAssignee ? 'card-assignee assigned' : 'card-assignee unassigned';
+      const assigneeHtml = `<span class="${assigneeClass}" title="${escapeHtml(assigneeText)}">${escapeHtml(assigneeText)}</span>`;
+
       let extra = '';
       if (isBlocked) {
         extra = `<div class="card-blocked">Blocked by: ${task.blocked_by.map(id => escapeHtml(id.slice(0, 8))).join(', ')}</div>`;
@@ -1956,13 +1999,15 @@
               ${emojiHtml}
               <span class="card-id">${task.task_id.slice(0, 8)}</span>
             </div>
-            ${progressHtml}
+            <div class="card-header-right">
+              ${assigneeHtml}
+              ${progressHtml}
+            </div>
           </div>
           <div class="card-title">${escapeHtml(task.title)}</div>
           ${subtaskHtml}
           <div class="card-meta">
             <span class="card-project">${escapeHtml(task.project)}</span>
-            ${task.assignee ? `<span class="card-agent">${escapeHtml(task.assignee.slice(0, 8))}</span>` : ''}
           </div>
           ${extra}
         </div>
@@ -2450,6 +2495,10 @@
 
         const progressValue = data.task.progress ?? 0;
         const progressClass = progressValue >= 100 ? 'modal-progress complete' : 'modal-progress';
+        const hasAssignee = typeof data.task.assignee === 'string' && data.task.assignee.trim().length > 0;
+        const assigneeValue = hasAssignee
+          ? escapeHtml(data.task.assignee.trim())
+          : '<span class="modal-meta-fallback">Unassigned</span>';
 
         let html = `
           <div class="modal-section">
@@ -2467,6 +2516,10 @@
                 <div class="modal-meta-value">${escapeHtml(data.task.project)}</div>
               </div>
               <div class="modal-meta-item">
+                <div class="modal-meta-label">Assignee</div>
+                <div class="modal-meta-value">${assigneeValue}</div>
+              </div>
+              <div class="modal-meta-item">
                 <div class="modal-meta-label">Priority</div>
                 <div class="modal-meta-value">${data.task.priority}</div>
               </div>
@@ -2474,6 +2527,12 @@
                 <div class="modal-meta-label">Created</div>
                 <div class="modal-meta-value">${formatTime(data.task.created_at)}</div>
               </div>
+              ${data.task.lease_until ? `
+              <div class="modal-meta-item">
+                <div class="modal-meta-label">Lease Until</div>
+                <div class="modal-meta-value">${formatTime(data.task.lease_until)}</div>
+              </div>
+              ` : ''}
               ${data.task.due_at ? `
               <div class="modal-meta-item">
                 <div class="modal-meta-label">Due Date</div>
@@ -2483,26 +2542,6 @@
             </div>
           </div>
         `;
-
-        if (data.task.assignee) {
-          html += `
-            <div class="modal-section">
-              <div class="modal-section-title">Claimed By</div>
-              <div class="modal-meta">
-                <div class="modal-meta-item">
-                  <div class="modal-meta-label">Agent</div>
-                  <div class="modal-meta-value">${escapeHtml(data.task.assignee)}</div>
-                </div>
-                ${data.task.lease_until ? `
-                  <div class="modal-meta-item">
-                    <div class="modal-meta-label">Lease Until</div>
-                    <div class="modal-meta-value">${formatTime(data.task.lease_until)}</div>
-                  </div>
-                ` : ''}
-              </div>
-            </div>
-          `;
-        }
 
         if (data.task.blocked_by && data.task.blocked_by.length > 0) {
           html += `

@@ -625,6 +625,39 @@ describe('hzl-web server', () => {
       expect(res.headers.get('referrer-policy')).toBe('no-referrer');
     });
 
+    it('renders a dedicated assignee element in the top-right card header area', async () => {
+      server = createServer(4590);
+
+      const { body } = await fetchText('/');
+      const renderCardBlock = body.match(/function\s+renderCard\s*\([^)]*\)\s*\{[\s\S]*?return\s*`[\s\S]*?`;\s*}/i);
+
+      expect(renderCardBlock).toBeTruthy();
+      expect(renderCardBlock?.[0]).toMatch(
+        /const\s+assigneeClass\s*=\s*hasAssignee\s*\?\s*['"][^'"]*\bcard-assignee\b[^'"]*['"]\s*:\s*['"][^'"]*\bcard-assignee\b[^'"]*['"]/i,
+      );
+      expect(renderCardBlock?.[0]).toMatch(
+        /const\s+assigneeHtml\s*=\s*`[\s\S]*class=["']\$\{assigneeClass\}["'][\s\S]*`;/i,
+      );
+      expect(renderCardBlock?.[0]).toMatch(
+        /<div[^>]*class=["']card-header-right["'][^>]*>[\s\S]*\$\{assigneeHtml\}[\s\S]*<\/div>/i,
+      );
+    });
+
+    it('binds modal assignee metadata with an Unassigned fallback value', async () => {
+      server = createServer(4591);
+
+      const { body } = await fetchText('/');
+      const openTaskModalBlock = body.match(/async\s+function\s+openTaskModal\s*\([^)]*\)\s*\{[\s\S]*?let\s+html\s*=\s*`[\s\S]*?`;/i);
+
+      expect(openTaskModalBlock).toBeTruthy();
+      expect(openTaskModalBlock?.[0]).toMatch(
+        /const\s+assigneeValue\s*=\s*hasAssignee[\s\S]*<span[^>]*class=["']modal-meta-fallback["'][^>]*>\s*Unassigned\s*<\/span>/i,
+      );
+      expect(openTaskModalBlock?.[0]).toMatch(
+        /<div[^>]*class=["']modal-meta-label["'][^>]*>\s*Assignee\s*<\/div>[\s\S]*?<div[^>]*class=["']modal-meta-value["'][^>]*>\s*\$\{assigneeValue\}\s*<\/div>/i,
+      );
+    });
+
     it('includes assignee filter select with id assigneeFilter', async () => {
       server = createServer(4563);
 
