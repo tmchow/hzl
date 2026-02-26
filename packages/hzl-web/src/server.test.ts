@@ -530,15 +530,33 @@ describe('hzl-web server', () => {
       expect((data as { events: unknown[] }).events).toHaveLength(0);
     });
 
-    it('includes task titles in events', async () => {
-      taskService.createTask({ title: 'Named Task', project: 'test-project' });
+    it('includes task metadata fields in events', async () => {
+      const task = taskService.createTask({
+        title: 'Named Task',
+        project: 'test-project',
+        assignee: 'kenji',
+        description: 'Task details for activity filtering',
+      });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
 
       createServer(4552);
       const { data } = await fetchJson('/api/events?since=0');
 
-      const events = (data as { events: Array<{ type: string; task_title: string | null }> }).events;
-      const createEvent = events.find((e) => e.type === 'task_created');
+      const events = (data as {
+        events: Array<{
+          task_id: string;
+          type: string;
+          task_title: string | null;
+          task_assignee: string | null;
+          task_description: string | null;
+          task_status: string | null;
+        }>;
+      }).events;
+      const createEvent = events.find((e) => e.task_id === task.task_id && e.type === 'task_created');
       expect(createEvent?.task_title).toBe('Named Task');
+      expect(createEvent?.task_assignee).toBe('kenji');
+      expect(createEvent?.task_description).toBe('Task details for activity filtering');
+      expect(createEvent?.task_status).toBe(TaskStatus.Ready);
     });
   });
 
@@ -638,6 +656,21 @@ describe('hzl-web server', () => {
 
       expect(hasAssigneeReference).toBe(true);
       expect(hasAssigneeChangeListener).toBe(true);
+    });
+
+    it('includes activity assignee and keyword filter controls', async () => {
+      server = createServer(4566);
+
+      const { body } = await fetchText('/');
+      expect(body).toMatch(/<select[^>]*id=["']activityAssigneeFilter["'][^>]*>/i);
+      expect(body).toMatch(/<input[^>]*id=["']activityKeywordFilter["'][^>]*>/i);
+    });
+
+    it('applies activity keyword filtering only at 3+ characters', async () => {
+      server = createServer(4567);
+
+      const { body } = await fetchText('/');
+      expect(body).toMatch(/keyword\.length\s*>=\s*3/);
     });
   });
 

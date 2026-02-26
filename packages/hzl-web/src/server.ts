@@ -69,6 +69,9 @@ interface EventResponse {
   agent_id: string | null;
   timestamp: string;
   task_title: string | null;
+  task_assignee: string | null;
+  task_description: string | null;
+  task_status: string | null;
 }
 
 interface TaskEventResponse {
@@ -277,6 +280,16 @@ export function createWebServer(options: ServerOptions): ServerHandle {
     // Get task titles for these events (batched query to avoid N+1)
     const taskIds = [...new Set(rawEvents.map((e) => e.task_id).filter(Boolean))];
     const titleMap = taskService.getTaskTitlesByIds(taskIds);
+    const taskMetadataMap = new Map<string, Pick<EventResponse, 'task_assignee' | 'task_description' | 'task_status'>>();
+
+    for (const taskId of taskIds) {
+      const task = taskService.getTaskById(taskId);
+      taskMetadataMap.set(taskId, {
+        task_assignee: task?.assignee ?? null,
+        task_description: task?.description ?? null,
+        task_status: task?.status ?? null,
+      });
+    }
 
     const events: EventResponse[] = rawEvents.map((e) => ({
       id: e.rowid,
@@ -288,6 +301,9 @@ export function createWebServer(options: ServerOptions): ServerHandle {
       agent_id: e.agent_id ?? null,
       timestamp: e.timestamp,
       task_title: titleMap.get(e.task_id) ?? null,
+      task_assignee: taskMetadataMap.get(e.task_id)?.task_assignee ?? null,
+      task_description: taskMetadataMap.get(e.task_id)?.task_description ?? null,
+      task_status: taskMetadataMap.get(e.task_id)?.task_status ?? null,
     }));
 
     json(res, { events });

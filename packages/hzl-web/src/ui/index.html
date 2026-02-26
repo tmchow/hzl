@@ -812,6 +812,35 @@
       cursor: pointer;
     }
 
+    .activity-filters {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .activity-filters select,
+    .activity-filters input {
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .activity-filters input {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+
+    .activity-filters input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
     .activity-list {
       flex: 1;
       overflow-y: auto;
@@ -1352,6 +1381,16 @@
       <span class="activity-title">Activity</span>
       <button class="activity-close" id="activityClose">&times;</button>
     </div>
+    <div class="activity-filters">
+      <select id="activityAssigneeFilter">
+        <option value="">Any</option>
+      </select>
+      <input
+        type="search"
+        id="activityKeywordFilter"
+        placeholder="Search title/description (3+ chars)"
+      >
+    </div>
     <div class="activity-list" id="activityList">
       <!-- Populated by JavaScript -->
     </div>
@@ -1392,6 +1431,8 @@
     const activityBtn = document.getElementById('activityBtn');
     const activityPanel = document.getElementById('activityPanel');
     const activityClose = document.getElementById('activityClose');
+    const activityAssigneeFilter = document.getElementById('activityAssigneeFilter');
+    const activityKeywordFilter = document.getElementById('activityKeywordFilter');
     const activityList = document.getElementById('activityList');
     const modalOverlay = document.getElementById('modalOverlay');
     const modalClose = document.getElementById('modalClose');
@@ -1408,6 +1449,7 @@
     const graphContainer = document.getElementById('graphContainer');
     const graphLoading = document.getElementById('graphLoading');
     let pendingAssigneePreference = null;
+    let pendingActivityAssigneePreference = null;
 
     // Column visibility
     const COLUMNS = ['backlog', 'ready', 'in_progress', 'blocked', 'done'];
@@ -1503,6 +1545,8 @@
           if (prefs.dateFilter) dateFilter.value = prefs.dateFilter;
           if (prefs.projectFilter) projectFilter.value = prefs.projectFilter;
           if (typeof prefs.assigneeFilter === 'string') pendingAssigneePreference = prefs.assigneeFilter;
+          if (typeof prefs.activityAssigneeFilter === 'string') pendingActivityAssigneePreference = prefs.activityAssigneeFilter;
+          if (typeof prefs.activityKeywordFilter === 'string') activityKeywordFilter.value = prefs.activityKeywordFilter;
           if (prefs.refreshFilter) refreshFilter.value = prefs.refreshFilter;
           if (Array.isArray(prefs.columnVisibility)) {
             settingsDropdown.querySelectorAll('.column-checkboxes input[type="checkbox"]').forEach(cb => {
@@ -1526,6 +1570,8 @@
         dateFilter: dateFilter.value,
         projectFilter: projectFilter.value,
         assigneeFilter: assigneeFilter.value,
+        activityAssigneeFilter: activityAssigneeFilter.value,
+        activityKeywordFilter: activityKeywordFilter.value,
         refreshFilter: refreshFilter.value,
         columnVisibility: Array.from(
           settingsDropdown.querySelectorAll('.column-checkboxes input[type="checkbox"]:checked')
@@ -1993,6 +2039,84 @@
       };
     }
 
+    function getActivityKeywordFilter() {
+      const keyword = activityKeywordFilter.value.trim().toLowerCase();
+      return keyword.length >= 3 ? keyword : '';
+    }
+
+    function eventMatchesActivityKeyword(event, keyword) {
+      if (!keyword) return true;
+      const title = typeof event.task_title === 'string' ? event.task_title.toLowerCase() : '';
+      const description = typeof event.task_description === 'string' ? event.task_description.toLowerCase() : '';
+      return title.includes(keyword) || description.includes(keyword);
+    }
+
+    function getEventAssignee(event) {
+      if (typeof event.task_assignee === 'string' && event.task_assignee.length > 0) {
+        return event.task_assignee;
+      }
+      return typeof event.data?.assignee === 'string' ? event.data.assignee : '';
+    }
+
+    function getFilteredActivityEvents(options = {}) {
+      const { applyAssigneeFilter = true } = options;
+      const assignee = activityAssigneeFilter.value;
+      const keyword = getActivityKeywordFilter();
+      const visibleBoardTaskIds = new Set(
+        getFilteredBoardTasks(tasks, {
+          onlyVisibleColumns: true,
+          applyAssigneeFilter: false,
+        }).map((task) => task.task_id)
+      );
+
+      return events.filter((event) => {
+        if (!visibleBoardTaskIds.has(event.task_id)) return false;
+        if (keyword && !eventMatchesActivityKeyword(event, keyword)) return false;
+        if (applyAssigneeFilter && assignee && getEventAssignee(event) !== assignee) return false;
+        return true;
+      });
+    }
+
+    function updateActivityAssigneeOptions(preferredAssignee = null) {
+      const previousSelection = activityAssigneeFilter.value;
+      const targetSelection = preferredAssignee ?? previousSelection;
+      const optionEvents = getFilteredActivityEvents({ applyAssigneeFilter: false });
+      const assigneeTaskSets = new Map();
+
+      for (const event of optionEvents) {
+        const assignee = getEventAssignee(event);
+        if (!assignee) continue;
+        if (!assigneeTaskSets.has(assignee)) {
+          assigneeTaskSets.set(assignee, new Set());
+        }
+        assigneeTaskSets.get(assignee).add(event.task_id);
+      }
+
+      const sortedAssignees = Array.from(assigneeTaskSets.entries())
+        .sort(([a], [b]) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+
+      activityAssigneeFilter.innerHTML = '';
+      const anyOption = document.createElement('option');
+      anyOption.value = '';
+      anyOption.textContent = 'Any';
+      activityAssigneeFilter.appendChild(anyOption);
+
+      for (const [assignee, taskIds] of sortedAssignees) {
+        const option = document.createElement('option');
+        option.value = assignee;
+        option.textContent = `${assignee} (${taskIds.size})`;
+        activityAssigneeFilter.appendChild(option);
+      }
+
+      const nextSelection = targetSelection && assigneeTaskSets.has(targetSelection) ? targetSelection : '';
+      activityAssigneeFilter.value = nextSelection;
+
+      return {
+        changed: previousSelection !== nextSelection,
+        reset: targetSelection !== nextSelection,
+      };
+    }
+
     function groupTasksByStatus(taskList) {
       const columns = {
         backlog: [],
@@ -2277,12 +2401,14 @@
     }
 
     function renderActivity() {
-      if (events.length === 0) {
+      const filteredEvents = getFilteredActivityEvents();
+
+      if (filteredEvents.length === 0) {
         activityList.innerHTML = '<div class="empty-column">No recent activity</div>';
         return;
       }
 
-      activityList.innerHTML = events.map(event => {
+      activityList.innerHTML = filteredEvents.map(event => {
         const actor = getEventActor(event);
         const actionDetail = formatEventDetail(event);
         const detail = actionDetail ? `${actionDetail} by ${actor}` : `by ${actor}`;
@@ -2588,7 +2714,9 @@
         tasks = newTasks;
         const selectionUpdate = updateAssigneeOptions(pendingAssigneePreference);
         pendingAssigneePreference = null;
-        if (selectionUpdate.reset) {
+        const activitySelectionUpdate = updateActivityAssigneeOptions(pendingActivityAssigneePreference);
+        pendingActivityAssigneePreference = null;
+        if (selectionUpdate.reset || activitySelectionUpdate.reset) {
           savePreferences();
         }
 
@@ -2790,6 +2918,17 @@
       renderBoard();
     });
 
+    activityAssigneeFilter.addEventListener('change', () => {
+      savePreferences();
+      renderActivity();
+    });
+
+    activityKeywordFilter.addEventListener('input', () => {
+      updateActivityAssigneeOptions();
+      savePreferences();
+      renderActivity();
+    });
+
     refreshFilter.addEventListener('change', () => {
       savePreferences();
       restartPolling();
@@ -2862,16 +3001,20 @@
       cb.addEventListener('change', () => {
         updateColumnVisibility();
         updateAssigneeOptions();
+        updateActivityAssigneeOptions();
         savePreferences();
         renderBoard();
+        renderActivity();
       });
     });
 
     // Show subtasks toggle
     showSubtasksCheckbox.addEventListener('change', () => {
       updateAssigneeOptions();
+      updateActivityAssigneeOptions();
       savePreferences();
       renderBoard();
+      renderActivity();
     });
 
     // View toggle (Kanban/Graph)
