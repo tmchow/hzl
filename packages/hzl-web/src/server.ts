@@ -2,6 +2,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'http';
 import {
   TaskService,
   EventStore,
+  EventType,
   AmbiguousPrefixError,
   type TaskListItem as CoreTaskListItem,
 } from 'hzl-core';
@@ -30,6 +31,10 @@ const DATE_PRESETS: Record<string, number> = {
   '14d': 14,
   '30d': 30,
 };
+
+const STREAM_POLL_MS = 2000;
+const STREAM_KEEPALIVE_MS = 15000;
+const STREAM_EVENT_TYPES: EventType[] = Object.values(EventType);
 
 // Response types for the API
 interface TaskListItemResponse extends CoreTaskListItem {
@@ -91,6 +96,15 @@ interface StatsResponse {
   projects: string[];
 }
 
+interface StreamReadyResponse {
+  live: true;
+  latest_event_id: number;
+}
+
+interface StreamUpdateResponse {
+  latest_event_id: number;
+}
+
 function parseUrl(url: string): { pathname: string; params: URLSearchParams } {
   const idx = url.indexOf('?');
   if (idx === -1) {
@@ -117,6 +131,11 @@ function notFound(res: ServerResponse, message = 'Not Found'): void {
 function serverError(res: ServerResponse, error: unknown): void {
   const message = error instanceof Error ? error.message : 'Internal Server Error';
   json(res, { error: message }, 500);
+}
+
+function writeSseEvent<T extends object>(res: ServerResponse, event: string, data: T): void {
+  res.write(`event: ${event}\n`);
+  res.write(`data: ${JSON.stringify(data)}\n\n`);
 }
 
 export function createWebServer(options: ServerOptions): ServerHandle {
@@ -321,6 +340,70 @@ export function createWebServer(options: ServerOptions): ServerHandle {
     json(res, response);
   }
 
+  function getLatestEventId(): number {
+    const latest = eventStore.getRecentEvents({
+      sinceId: 0,
+      limit: 1,
+      types: STREAM_EVENT_TYPES,
+    });
+    return latest[0]?.rowid ?? 0;
+  }
+
+  function handleStream(req: IncomingMessage, res: ServerResponse): void {
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream; charset=utf-8',
+      'Cache-Control': 'no-cache, no-transform',
+      Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no',
+    });
+
+    if (typeof res.flushHeaders === 'function') {
+      res.flushHeaders();
+    }
+
+    res.write('retry: 2000\n\n');
+
+    let lastEventId = getLatestEventId();
+    const readyPayload: StreamReadyResponse = {
+      live: true,
+      latest_event_id: lastEventId,
+    };
+    writeSseEvent(res, 'ready', readyPayload);
+
+    const pollTimer = setInterval(() => {
+      if (req.destroyed || res.destroyed || res.writableEnded) {
+        return;
+      }
+
+      const latestId = getLatestEventId();
+      if (latestId > lastEventId) {
+        lastEventId = latestId;
+        const updatePayload: StreamUpdateResponse = { latest_event_id: latestId };
+        writeSseEvent(res, 'update', updatePayload);
+      }
+    }, STREAM_POLL_MS);
+
+    const keepAliveTimer = setInterval(() => {
+      if (req.destroyed || res.destroyed || res.writableEnded) {
+        return;
+      }
+      res.write(': keep-alive\n\n');
+    }, STREAM_KEEPALIVE_MS);
+
+    let closed = false;
+    const cleanup = (): void => {
+      if (closed) return;
+      closed = true;
+      clearInterval(pollTimer);
+      clearInterval(keepAliveTimer);
+      req.off('close', cleanup);
+      res.off('close', cleanup);
+    };
+
+    req.on('close', cleanup);
+    res.on('close', cleanup);
+  }
+
   function handleRoot(res: ServerResponse): void {
     const csp = allowFraming
       ? "default-src 'self'; script-src 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'unsafe-inline'; frame-ancestors *"
@@ -364,6 +447,11 @@ export function createWebServer(options: ServerOptions): ServerHandle {
 
       if (pathname === '/api/stats') {
         handleStats(res);
+        return;
+      }
+
+      if (pathname === '/api/events/stream' || pathname === '/api/stream') {
+        handleStream(req, res);
         return;
       }
 

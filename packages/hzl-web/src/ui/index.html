@@ -1507,8 +1507,18 @@
     let tasks = [];
     let events = [];
     let lastEventId = 0;
-    let pollTimer = null;
+    const SSE_ENDPOINT = '/api/events/stream';
+    const SSE_MIN_RECONNECT_MS = 1000;
+    const SSE_MAX_RECONNECT_MS = 30000;
+    const SSE_HEARTBEAT_MARKERS = new Set(['ping', 'pong', 'heartbeat', 'keepalive', 'keep-alive']);
+    let eventSource = null;
+    let reconnectTimer = null;
+    let reconnectAttempt = 0;
+    let reconnectAt = null;
+    let streamState = 'connecting'; // connecting | live | reconnecting | paused
+    let pendingPoll = false; // Queue refreshes while a poll() is in flight
     let lastPollTime = null;
+    let lastPollError = false;
     let selectedTask = null;
     let showAllComments = false;
     let showAllCheckpoints = false;
@@ -2357,18 +2367,18 @@
     function navPrev() {
       calendarMonth--;
       if (calendarMonth < 0) { calendarMonth = 11; calendarYear--; }
-      poll();
+      requestPoll();
     }
     function navNext() {
       calendarMonth++;
       if (calendarMonth > 11) { calendarMonth = 0; calendarYear++; }
-      poll();
+      requestPoll();
     }
     function navToday() {
       const today = new Date();
       calendarYear = today.getFullYear();
       calendarMonth = today.getMonth();
-      poll();
+      requestPoll();
     }
 
     // Calendar popover for "+N more" links
@@ -2817,72 +2827,256 @@
       setTaskIdCopyFeedback('idle');
     }
 
-    // Polling
+    // Live updates + refresh
+    function getConfiguredRefreshMs() {
+      const interval = parseInt(refreshFilter.value, 10);
+      return Number.isFinite(interval) ? Math.max(SSE_MIN_RECONNECT_MS, interval) : 5000;
+    }
+
+    function requestPoll() {
+      if (isPolling) {
+        pendingPoll = true;
+        return;
+      }
+      void poll();
+    }
+
     async function poll() {
-      // Guard against concurrent poll calls (e.g., rapid tab switching)
-      if (isPolling) return;
+      if (isPolling) {
+        pendingPoll = true;
+        return;
+      }
       isPolling = true;
 
+      do {
+        pendingPoll = false;
+        try {
+          const [newTasks, newEvents, stats] = await Promise.all([
+            fetchTasks(),
+            fetchEvents(),
+            fetchStats(),
+          ]);
+
+          tasks = newTasks;
+          const selectionUpdate = updateAssigneeOptions(pendingAssigneePreference);
+          pendingAssigneePreference = null;
+          const activitySelectionUpdate = updateActivityAssigneeOptions(pendingActivityAssigneePreference);
+          pendingActivityAssigneePreference = null;
+          if (selectionUpdate.reset || activitySelectionUpdate.reset) {
+            savePreferences();
+          }
+
+          if (newEvents.length > 0) {
+            events = [...newEvents, ...events].slice(0, 50);
+            lastEventId = newEvents[0].id;
+          }
+
+          // Update project filter
+          const currentProject = projectFilter.value;
+          projectFilter.innerHTML = '<option value="">All projects</option>' +
+            stats.projects.map(p => `<option value="${escapeHtml(p)}" ${p === currentProject ? 'selected' : ''}>${escapeHtml(p)}</option>`).join('');
+
+          if (activeView === 'calendar') {
+            renderCalendar();
+          } else {
+            renderBoard();
+            updateGraphData();
+          }
+          renderActivity();
+
+          lastPollTime = Date.now();
+          lastPollError = false;
+        } catch (error) {
+          console.error('Poll failed:', error);
+          lastPollError = true;
+        } finally {
+          updateConnectionStatus();
+        }
+      } while (pendingPoll);
+
+      isPolling = false;
+    }
+
+    function getSseUrl() {
+      if (lastEventId <= 0) return SSE_ENDPOINT;
+      const params = new URLSearchParams({ since: String(lastEventId) });
+      return `${SSE_ENDPOINT}?${params.toString()}`;
+    }
+
+    function clearReconnectTimer() {
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+      }
+      reconnectAt = null;
+    }
+
+    function disconnectEventStream() {
+      if (!eventSource) return;
+      eventSource.onopen = null;
+      eventSource.onmessage = null;
+      eventSource.onerror = null;
+      eventSource.close();
+      eventSource = null;
+    }
+
+    function scheduleReconnect() {
+      if (document.hidden) {
+        streamState = 'paused';
+        updateConnectionStatus();
+        return;
+      }
+
+      clearReconnectTimer();
+      const base = Math.max(SSE_MIN_RECONNECT_MS, Math.min(getConfiguredRefreshMs(), 10000));
+      const expDelay = Math.min(SSE_MAX_RECONNECT_MS, base * (2 ** reconnectAttempt));
+      const jitter = Math.floor(Math.random() * Math.min(1000, Math.round(expDelay * 0.2)));
+      const delay = Math.min(SSE_MAX_RECONNECT_MS, expDelay + jitter);
+      reconnectAttempt = Math.min(reconnectAttempt + 1, 12);
+      reconnectAt = Date.now() + delay;
+      streamState = 'reconnecting';
+      updateConnectionStatus();
+
+      reconnectTimer = setTimeout(() => {
+        reconnectTimer = null;
+        reconnectAt = null;
+        connectEventStream();
+      }, delay);
+    }
+
+    function parseSsePayload(rawData) {
+      if (typeof rawData !== 'string') return rawData;
+      const trimmed = rawData.trim();
+      if (!trimmed) return null;
+
       try {
-        const [newTasks, newEvents, stats] = await Promise.all([
-          fetchTasks(),
-          fetchEvents(),
-          fetchStats(),
-        ]);
-
-        tasks = newTasks;
-        const selectionUpdate = updateAssigneeOptions(pendingAssigneePreference);
-        pendingAssigneePreference = null;
-        const activitySelectionUpdate = updateActivityAssigneeOptions(pendingActivityAssigneePreference);
-        pendingActivityAssigneePreference = null;
-        if (selectionUpdate.reset || activitySelectionUpdate.reset) {
-          savePreferences();
-        }
-
-        if (newEvents.length > 0) {
-          events = [...newEvents, ...events].slice(0, 50);
-          lastEventId = newEvents[0].id;
-        }
-
-        // Update project filter
-        const currentProject = projectFilter.value;
-        projectFilter.innerHTML = '<option value="">All projects</option>' +
-          stats.projects.map(p => `<option value="${escapeHtml(p)}" ${p === currentProject ? 'selected' : ''}>${escapeHtml(p)}</option>`).join('');
-
-        if (activeView === 'calendar') {
-          renderCalendar();
-        } else {
-          renderBoard();
-          updateGraphData();
-        }
-        renderActivity();
-
-        lastPollTime = Date.now();
-        updateConnectionStatus(true);
-      } catch (error) {
-        console.error('Poll failed:', error);
-        updateConnectionStatus(false);
-      } finally {
-        isPolling = false;
+        return JSON.parse(trimmed);
+      } catch {
+        return trimmed;
       }
     }
 
-    function startPolling() {
-      poll();
-      const interval = parseInt(refreshFilter.value, 10);
-      pollTimer = setInterval(poll, interval);
+    function shouldRefreshFromSseEvent(streamEvent) {
+      const type = String(streamEvent?.type || '').toLowerCase();
+      if (type === 'updates_available' || type === 'update' || type === 'updates') {
+        return true;
+      }
+      if (SSE_HEARTBEAT_MARKERS.has(type)) {
+        return false;
+      }
+
+      const payload = parseSsePayload(streamEvent?.data);
+      if (payload == null) return false;
+
+      if (typeof payload === 'boolean') return payload;
+      if (typeof payload === 'number') return payload > 0;
+
+      if (typeof payload === 'string') {
+        const normalized = payload.toLowerCase();
+        if (SSE_HEARTBEAT_MARKERS.has(normalized)) return false;
+        if (normalized === 'updates_available' || normalized === 'update' || normalized === 'updates') {
+          return true;
+        }
+        return true;
+      }
+
+      if (Array.isArray(payload)) return payload.length > 0;
+
+      if (typeof payload === 'object') {
+        const kind = typeof payload.type === 'string' ? payload.type.toLowerCase() : '';
+        if (kind && SSE_HEARTBEAT_MARKERS.has(kind)) return false;
+        if (kind === 'updates_available' || kind === 'update' || kind === 'updates') return true;
+        if (Object.keys(payload).length === 0) return false;
+        if (
+          payload.updates_available === true ||
+          payload.updatesAvailable === true ||
+          payload.has_updates === true ||
+          payload.hasUpdates === true ||
+          payload.changed === true
+        ) {
+          return true;
+        }
+        if (Array.isArray(payload.events)) return payload.events.length > 0;
+        if (typeof payload.event_count === 'number') return payload.event_count > 0;
+        if (typeof payload.eventCount === 'number') return payload.eventCount > 0;
+      }
+
+      return true;
     }
 
-    function stopPolling() {
-      if (pollTimer) {
-        clearInterval(pollTimer);
-        pollTimer = null;
+    function handleSseSignal(streamEvent) {
+      const streamEventId = parseInt(streamEvent?.lastEventId || '', 10);
+      if (Number.isFinite(streamEventId) && streamEventId > lastEventId) {
+        lastEventId = streamEventId;
+      }
+
+      if (shouldRefreshFromSseEvent(streamEvent)) {
+        requestPoll();
       }
     }
 
-    function restartPolling() {
-      stopPolling();
-      startPolling();
+    function connectEventStream() {
+      if (document.hidden) {
+        streamState = 'paused';
+        updateConnectionStatus();
+        return;
+      }
+
+      if (typeof EventSource === 'undefined') {
+        streamState = 'reconnecting';
+        reconnectAt = Date.now() + getConfiguredRefreshMs();
+        updateConnectionStatus();
+        scheduleReconnect();
+        return;
+      }
+
+      clearReconnectTimer();
+      disconnectEventStream();
+      streamState = 'connecting';
+      updateConnectionStatus();
+
+      const source = new EventSource(getSseUrl());
+      eventSource = source;
+
+      const onSignal = (streamEvent) => {
+        if (eventSource !== source) return;
+        handleSseSignal(streamEvent);
+      };
+
+      source.onopen = () => {
+        if (eventSource !== source) return;
+        reconnectAttempt = 0;
+        reconnectAt = null;
+        streamState = 'live';
+        updateConnectionStatus();
+        requestPoll();
+      };
+
+      source.onmessage = onSignal;
+      source.addEventListener('updates_available', onSignal);
+      source.addEventListener('update', onSignal);
+      source.addEventListener('updates', onSignal);
+
+      source.onerror = () => {
+        if (eventSource !== source) return;
+        disconnectEventStream();
+        scheduleReconnect();
+      };
+    }
+
+    function pauseLiveUpdates() {
+      clearReconnectTimer();
+      disconnectEventStream();
+      reconnectAt = null;
+      streamState = 'paused';
+      updateConnectionStatus();
+    }
+
+    function resumeLiveUpdates() {
+      reconnectAttempt = 0;
+      reconnectAt = null;
+      connectEventStream();
+      requestPoll();
     }
 
     function setTaskIdCopyFeedback(state) {
@@ -2946,15 +3140,36 @@
     }
 
     // Connection status
-    function updateConnectionStatus(success) {
-      if (success) {
-        connectionDot.classList.remove('error');
-        const ago = lastPollTime ? Math.round((Date.now() - lastPollTime) / 1000) : 0;
-        connectionText.textContent = ago === 0 ? 'Just now' : `${ago}s ago`;
-      } else {
+    function updateConnectionStatus() {
+      if (streamState === 'paused') {
         connectionDot.classList.add('error');
-        connectionText.textContent = 'Error';
+        connectionText.textContent = 'Paused';
+        return;
       }
+
+      if (streamState === 'connecting') {
+        connectionDot.classList.remove('error');
+        connectionText.textContent = 'Connecting...';
+        return;
+      }
+
+      if (streamState === 'reconnecting') {
+        connectionDot.classList.add('error');
+        const msRemaining = reconnectAt ? Math.max(0, reconnectAt - Date.now()) : 0;
+        const seconds = Math.max(1, Math.ceil(msRemaining / 1000));
+        connectionText.textContent = `Reconnecting ${seconds}s`;
+        return;
+      }
+
+      if (lastPollError) {
+        connectionDot.classList.add('error');
+        connectionText.textContent = 'Sync error';
+        return;
+      }
+
+      connectionDot.classList.remove('error');
+      const ago = lastPollTime ? Math.round((Date.now() - lastPollTime) / 1000) : 0;
+      connectionText.textContent = ago === 0 ? 'Live' : `Live ${ago}s`;
     }
 
     // Helpers
@@ -3084,12 +3299,12 @@
     // Event listeners
     dateFilter.addEventListener('change', () => {
       savePreferences();
-      poll();
+      requestPoll();
     });
 
     projectFilter.addEventListener('change', () => {
       savePreferences();
-      poll();
+      requestPoll();
     });
 
     assigneeFilter.addEventListener('change', () => {
@@ -3110,7 +3325,11 @@
 
     refreshFilter.addEventListener('change', () => {
       savePreferences();
-      restartPolling();
+      reconnectAttempt = 0;
+      if (!document.hidden && streamState !== 'live') {
+        connectEventStream();
+      }
+      requestPoll();
     });
 
     activityBtn.addEventListener('click', () => {
@@ -3153,9 +3372,9 @@
     // Visibility API
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
-        stopPolling();
+        pauseLiveUpdates();
       } else {
-        startPolling();
+        resumeLiveUpdates();
       }
     });
 
@@ -3248,7 +3467,7 @@
       }
 
       savePreferences();
-      poll();
+      requestPoll();
     }
 
     viewToggle.addEventListener('click', (e) => {
@@ -3271,14 +3490,12 @@
 
     // Initialize
     loadPreferences();
-    startPolling();
+    connectEventStream();
+    requestPoll();
 
-    // Update connection time every second
+    // Update connection indicator every second (age + reconnect countdown)
     setInterval(() => {
-      if (lastPollTime) {
-        const ago = Math.round((Date.now() - lastPollTime) / 1000);
-        connectionText.textContent = ago === 0 ? 'Just now' : `${ago}s ago`;
-      }
+      updateConnectionStatus();
     }, 1000);
   </script>
 

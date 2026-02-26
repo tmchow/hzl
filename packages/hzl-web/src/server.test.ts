@@ -595,6 +595,47 @@ describe('hzl-web server', () => {
     });
   });
 
+  describe('SSE + client wiring contracts', () => {
+    it('exposes an SSE route with event-stream content type', async () => {
+      server = createServer(4555);
+
+      const res = await globalThis.fetch(`${server.url}/api/events/stream`, {
+        headers: { Accept: 'text/event-stream' },
+      });
+
+      expect(res.status).toBe(200);
+      expect(res.headers.get('content-type') ?? '').toMatch(/text\/event-stream/i);
+      await res.body?.cancel();
+    });
+
+    it('includes EventSource usage and wiring in dashboard HTML', async () => {
+      server = createServer(4556);
+
+      const { body } = await fetchText('/');
+      const eventSourceInit = body.match(
+        /(?:const|let|var)\s+([a-zA-Z_$][\w$]*)\s*=\s*new\s+EventSource\s*\([\s\S]*?\)/i,
+      );
+
+      expect(eventSourceInit).toBeTruthy();
+      expect(body).toMatch(/SSE_ENDPOINT\s*=\s*['"]\/api\/events\/stream['"]/i);
+
+      const eventSourceVar = eventSourceInit?.[1];
+      expect(eventSourceVar).toBeTruthy();
+      const eventSourceWiring = new RegExp(
+        `${eventSourceVar}\\s*\\.\\s*(?:onopen|onmessage|onerror|addEventListener\\s*\\()`,
+        'i',
+      );
+      expect(body).toMatch(eventSourceWiring);
+    });
+
+    it('does not rely on setInterval(poll, ...) as the primary update loop', async () => {
+      server = createServer(4557);
+
+      const { body } = await fetchText('/');
+      expect(body).not.toMatch(/setInterval\s*\(\s*poll\s*,/i);
+    });
+  });
+
   describe('GET / (dashboard HTML)', () => {
     it('serves HTML at root', async () => {
       server = createServer(4560);
