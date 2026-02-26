@@ -1622,6 +1622,7 @@
     let reconnectAttempt = 0;
     let reconnectAt = null;
     let streamState = 'connecting'; // connecting | live | reconnecting | paused
+    let windowHasFocus = typeof document.hasFocus === 'function' ? document.hasFocus() : true;
     let pendingPoll = false; // Queue refreshes while a poll() is in flight
     let lastPollTime = null;
     let lastPollError = false;
@@ -2957,6 +2958,10 @@
       return Number.isFinite(interval) ? Math.max(SSE_MIN_RECONNECT_MS, interval) : 5000;
     }
 
+    function shouldRunLiveUpdates() {
+      return !document.hidden && windowHasFocus;
+    }
+
     function requestPoll() {
       if (isPolling) {
         pendingPoll = true;
@@ -3045,9 +3050,8 @@
     }
 
     function scheduleReconnect() {
-      if (document.hidden) {
-        streamState = 'paused';
-        updateConnectionStatus();
+      if (!shouldRunLiveUpdates()) {
+        pauseLiveUpdates();
         return;
       }
 
@@ -3140,9 +3144,8 @@
     }
 
     function connectEventStream() {
-      if (document.hidden) {
-        streamState = 'paused';
-        updateConnectionStatus();
+      if (!shouldRunLiveUpdates()) {
+        pauseLiveUpdates();
         return;
       }
 
@@ -3197,6 +3200,10 @@
     }
 
     function resumeLiveUpdates() {
+      if (!shouldRunLiveUpdates()) {
+        pauseLiveUpdates();
+        return;
+      }
       reconnectAttempt = 0;
       reconnectAt = null;
       connectEventStream();
@@ -3459,7 +3466,7 @@
     refreshFilter.addEventListener('change', () => {
       savePreferences();
       reconnectAttempt = 0;
-      if (!document.hidden && streamState !== 'live') {
+      if (shouldRunLiveUpdates() && streamState !== 'live') {
         connectEventStream();
       }
       requestPoll();
@@ -3502,13 +3509,24 @@
       }
     });
 
-    // Visibility API
+    // Visibility/focus API
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
         pauseLiveUpdates();
       } else {
+        windowHasFocus = typeof document.hasFocus === 'function' ? document.hasFocus() : true;
         resumeLiveUpdates();
       }
+    });
+
+    window.addEventListener('focus', () => {
+      windowHasFocus = true;
+      resumeLiveUpdates();
+    });
+
+    window.addEventListener('blur', () => {
+      windowHasFocus = false;
+      pauseLiveUpdates();
     });
 
     // Mobile tabs

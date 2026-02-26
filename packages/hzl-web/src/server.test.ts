@@ -661,6 +661,40 @@ describe('hzl-web server', () => {
       const { body } = await fetchText('/');
       expect(body).not.toMatch(/setInterval\s*\(\s*poll\s*,/i);
     });
+
+    it('checks both visibility and focus before opening SSE connections', async () => {
+      server = createServer(4558);
+
+      const { body } = await fetchText('/');
+      const connectSetup = body.match(
+        /function\s+connectEventStream\s*\([^)]*\)\s*\{[\s\S]*?if\s*\(\s*!\s*([a-zA-Z_$][\w$]*)\s*\(\s*\)\s*\)\s*\{[\s\S]{0,260}?pauseLiveUpdates\s*\(\s*\)[\s\S]{0,260}?return[\s\S]*?new\s+EventSource\s*\(/i,
+      );
+
+      expect(connectSetup).toBeTruthy();
+      const liveUpdateGate = connectSetup?.[1];
+      expect(liveUpdateGate).toBeTruthy();
+      const gateFunctionPattern = new RegExp(
+        `function\\s+${liveUpdateGate}\\s*\\([^)]*\\)\\s*\\{[\\s\\S]*?(?:document\\.(?:hidden|visibilityState)[\\s\\S]*?document\\.hasFocus\\s*\\(\\s*\\)|document\\.hasFocus\\s*\\(\\s*\\)[\\s\\S]*?document\\.(?:hidden|visibilityState))`,
+        'i',
+      );
+      expect(body).toMatch(gateFunctionPattern);
+    });
+
+    it('wires blur/focus/visibilitychange handlers to pause and resume live updates', async () => {
+      server = createServer(4559);
+
+      const { body } = await fetchText('/');
+
+      expect(body).toMatch(
+        /(?:window|document)\s*\.\s*addEventListener\s*\(\s*['"]blur['"]\s*,[\s\S]{0,240}?pauseLiveUpdates\s*\(/i,
+      );
+      expect(body).toMatch(
+        /(?:window|document)\s*\.\s*addEventListener\s*\(\s*['"]focus['"]\s*,[\s\S]{0,240}?resumeLiveUpdates\s*\(/i,
+      );
+      expect(body).toMatch(
+        /document\s*\.\s*addEventListener\s*\(\s*['"]visibilitychange['"]\s*,[\s\S]{0,500}?pauseLiveUpdates\s*\([\s\S]{0,500}?resumeLiveUpdates\s*\(/i,
+      );
+    });
   });
 
   describe('GET / (dashboard HTML)', () => {
