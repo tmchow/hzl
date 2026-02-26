@@ -117,7 +117,11 @@
       width: 8px;
       height: 8px;
       border-radius: 50%;
-      background: var(--accent);
+      background: var(--text-muted);
+    }
+
+    .connection-dot.live {
+      background: var(--status-done);
     }
 
     .connection-dot.error {
@@ -3209,6 +3213,8 @@
 
     // Connection status
     function updateConnectionStatus() {
+      connectionDot.classList.remove('live', 'error');
+
       if (streamState === 'paused') {
         connectionDot.classList.add('error');
         connectionText.textContent = 'Paused';
@@ -3216,7 +3222,6 @@
       }
 
       if (streamState === 'connecting') {
-        connectionDot.classList.remove('error');
         connectionText.textContent = 'Connecting...';
         return;
       }
@@ -3235,9 +3240,8 @@
         return;
       }
 
-      connectionDot.classList.remove('error');
-      const ago = lastPollTime ? Math.round((Date.now() - lastPollTime) / 1000) : 0;
-      connectionText.textContent = ago === 0 ? 'Live' : `Live ${ago}s`;
+      connectionDot.classList.add('live');
+      connectionText.textContent = 'Live';
     }
 
     // Helpers

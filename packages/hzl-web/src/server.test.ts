@@ -800,6 +800,15 @@ describe('hzl-web server', () => {
       );
     });
 
+    it('shows static Live text with green connection-dot live state when stream is healthy', async () => {
+      server = createServer(4598);
+
+      const { body } = await fetchText('/');
+      expect(body).toMatch(/\.connection-dot\.live\s*\{[\s\S]*--status-done/i);
+      expect(body).toMatch(/connectionText\.textContent\s*=\s*['"]Live['"]/);
+      expect(body).not.toMatch(/Live\s*\$\{ago\}s/);
+    });
+
     it('renders an explicit activity actor/author element in task modal activity entries', async () => {
       server = createServer(4595);
 
