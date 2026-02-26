@@ -850,6 +850,7 @@
     .activity-item {
       padding: 10px;
       border-bottom: 1px solid var(--border);
+      cursor: pointer;
     }
 
     .activity-item:last-child {
@@ -2414,7 +2415,7 @@
         const detail = actionDetail ? `${actionDetail} by ${actor}` : `by ${actor}`;
 
         return `
-          <div class="activity-item">
+          <div class="activity-item" data-task-id="${escapeHtml(event.task_id || '')}">
             <div class="activity-item-header">
               <span class="activity-type ${event.type}">${formatEventType(event.type)}</span>
               <span class="activity-time">${formatTime(event.timestamp)}</span>
@@ -2940,6 +2941,14 @@
 
     activityClose.addEventListener('click', () => {
       activityPanel.classList.remove('open');
+    });
+
+    activityList.addEventListener('click', (e) => {
+      const item = e.target.closest('.activity-item');
+      if (!item || !activityList.contains(item)) return;
+      const { taskId } = item.dataset;
+      if (!taskId) return;
+      openTaskModal(taskId);
     });
 
     modalClose.addEventListener('click', closeModal);

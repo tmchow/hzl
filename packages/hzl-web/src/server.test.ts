@@ -672,6 +672,24 @@ describe('hzl-web server', () => {
       const { body } = await fetchText('/');
       expect(body).toMatch(/keyword\.length\s*>=\s*3/);
     });
+
+    it('includes activity item markup with task id binding attribute', async () => {
+      server = createServer(4568);
+
+      const { body } = await fetchText('/');
+      expect(body).toMatch(
+        /<div(?=[^>]*\bclass=["'][^"']*\bactivity-item\b[^"']*["'])(?=[^>]*\bdata-task-id\s*=\s*["'][^"']*event\.task_id[^"']*["'])[^>]*>/i,
+      );
+    });
+
+    it('includes activity list click delegation wired to openTaskModal', async () => {
+      server = createServer(4569);
+
+      const { body } = await fetchText('/');
+      expect(body).toMatch(
+        /(?:activityList|getElementById\(\s*["']activityList["']\s*\)|querySelector\(\s*["']#activityList["']\s*\))\s*\.\s*addEventListener\(\s*["']click["']\s*,[\s\S]*?closest\(\s*["']\.activity-item["']\s*\)[\s\S]*?openTaskModal\b/i,
+      );
+    });
   });
 
   describe('404 handling', () => {
