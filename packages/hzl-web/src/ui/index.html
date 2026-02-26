@@ -1211,6 +1211,11 @@
           <option value="">All projects</option>
         </select>
       </div>
+      <div class="filter-group">
+        <select id="assigneeFilter">
+          <option value="">Any</option>
+        </select>
+      </div>
       <div class="filter-group settings-group">
         <button class="settings-toggle" id="settingsToggle" title="Settings">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
@@ -1380,6 +1385,7 @@
     // DOM Elements
     const dateFilter = document.getElementById('dateFilter');
     const projectFilter = document.getElementById('projectFilter');
+    const assigneeFilter = document.getElementById('assigneeFilter');
     const refreshFilter = document.getElementById('refreshFilter');
     const connectionDot = document.getElementById('connectionDot');
     const connectionText = document.getElementById('connectionText');
@@ -1401,6 +1407,7 @@
     const calendarContainer = document.getElementById('calendarContainer');
     const graphContainer = document.getElementById('graphContainer');
     const graphLoading = document.getElementById('graphLoading');
+    let pendingAssigneePreference = null;
 
     // Column visibility
     const COLUMNS = ['backlog', 'ready', 'in_progress', 'blocked', 'done'];
@@ -1495,6 +1502,7 @@
           const prefs = JSON.parse(saved);
           if (prefs.dateFilter) dateFilter.value = prefs.dateFilter;
           if (prefs.projectFilter) projectFilter.value = prefs.projectFilter;
+          if (typeof prefs.assigneeFilter === 'string') pendingAssigneePreference = prefs.assigneeFilter;
           if (prefs.refreshFilter) refreshFilter.value = prefs.refreshFilter;
           if (Array.isArray(prefs.columnVisibility)) {
             settingsDropdown.querySelectorAll('.column-checkboxes input[type="checkbox"]').forEach(cb => {
@@ -1517,6 +1525,7 @@
       const prefs = {
         dateFilter: dateFilter.value,
         projectFilter: projectFilter.value,
+        assigneeFilter: assigneeFilter.value,
         refreshFilter: refreshFilter.value,
         columnVisibility: Array.from(
           settingsDropdown.querySelectorAll('.column-checkboxes input[type="checkbox"]:checked')
@@ -1914,6 +1923,76 @@
     }
 
     // Group tasks into Kanban columns, treating ready tasks with unmet dependencies as blocked
+    function getBoardStatus(task) {
+      const isBlocked = task.blocked_by && task.blocked_by.length > 0;
+      return isBlocked && task.status === 'ready' ? 'blocked' : task.status;
+    }
+
+    function getVisibleBoardStatuses() {
+      return new Set(
+        Array.from(
+          settingsDropdown.querySelectorAll('.column-checkboxes input[type="checkbox"]:checked')
+        ).map(cb => cb.value)
+      );
+    }
+
+    function getFilteredBoardTasks(taskList = tasks, options = {}) {
+      const { onlyVisibleColumns = false, applyAssigneeFilter = true } = options;
+      const showSubtasks = showSubtasksCheckbox.checked;
+
+      let filtered = showSubtasks ? taskList : taskList.filter(task => !task.parent_id);
+
+      if (onlyVisibleColumns) {
+        const visibleStatuses = getVisibleBoardStatuses();
+        filtered = filtered.filter(task => visibleStatuses.has(getBoardStatus(task)));
+      }
+
+      if (applyAssigneeFilter && assigneeFilter.value) {
+        filtered = filtered.filter(task => task.assignee === assigneeFilter.value);
+      }
+
+      return filtered;
+    }
+
+    function updateAssigneeOptions(preferredAssignee = null) {
+      const previousSelection = assigneeFilter.value;
+      const targetSelection = preferredAssignee ?? previousSelection;
+      const optionTasks = getFilteredBoardTasks(tasks, {
+        onlyVisibleColumns: true,
+        applyAssigneeFilter: false,
+      });
+
+      const assigneeCounts = new Map();
+      for (const task of optionTasks) {
+        if (!task.assignee) continue;
+        assigneeCounts.set(task.assignee, (assigneeCounts.get(task.assignee) ?? 0) + 1);
+      }
+
+      const sortedAssignees = Array.from(assigneeCounts.entries())
+        .sort(([a], [b]) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+
+      assigneeFilter.innerHTML = '';
+      const anyOption = document.createElement('option');
+      anyOption.value = '';
+      anyOption.textContent = 'Any';
+      assigneeFilter.appendChild(anyOption);
+
+      for (const [assignee, count] of sortedAssignees) {
+        const option = document.createElement('option');
+        option.value = assignee;
+        option.textContent = `${assignee} (${count})`;
+        assigneeFilter.appendChild(option);
+      }
+
+      const nextSelection = targetSelection && assigneeCounts.has(targetSelection) ? targetSelection : '';
+      assigneeFilter.value = nextSelection;
+
+      return {
+        changed: previousSelection !== nextSelection,
+        reset: targetSelection !== nextSelection,
+      };
+    }
+
     function groupTasksByStatus(taskList) {
       const columns = {
         backlog: [],
@@ -1923,8 +2002,7 @@
         done: [],
       };
       for (const task of taskList) {
-        const isBlocked = task.blocked_by && task.blocked_by.length > 0;
-        const status = isBlocked && task.status === 'ready' ? 'blocked' : task.status;
+        const status = getBoardStatus(task);
         if (columns[status]) {
           columns[status].push(task);
         }
@@ -2146,12 +2224,7 @@
     function renderBoard() {
       const showSubtasks = showSubtasksCheckbox.checked;
       const emojiMap = buildEmojiMap(tasks);
-
-      // Filter tasks if subtasks are hidden
-      let visibleTasks = tasks;
-      if (!showSubtasks) {
-        visibleTasks = tasks.filter(t => !t.parent_id);
-      }
+      const visibleTasks = getFilteredBoardTasks(tasks);
 
       const columns = groupTasksByStatus(visibleTasks);
 
@@ -2184,11 +2257,7 @@
       const container = document.getElementById('mobileCardsContainer');
       if (!container) return;
 
-      // Use same filtering as desktop
-      let visibleTasks = tasks;
-      if (!showSubtasks) {
-        visibleTasks = tasks.filter(t => !t.parent_id);
-      }
+      const visibleTasks = getFilteredBoardTasks(tasks);
 
       const columns = groupTasksByStatus(visibleTasks);
 
@@ -2517,6 +2586,11 @@
         ]);
 
         tasks = newTasks;
+        const selectionUpdate = updateAssigneeOptions(pendingAssigneePreference);
+        pendingAssigneePreference = null;
+        if (selectionUpdate.reset) {
+          savePreferences();
+        }
 
         if (newEvents.length > 0) {
           events = [...newEvents, ...events].slice(0, 50);
@@ -2711,6 +2785,11 @@
       poll();
     });
 
+    assigneeFilter.addEventListener('change', () => {
+      savePreferences();
+      renderBoard();
+    });
+
     refreshFilter.addEventListener('change', () => {
       savePreferences();
       restartPolling();
@@ -2782,12 +2861,15 @@
     settingsDropdown.querySelectorAll('.column-checkboxes input').forEach(cb => {
       cb.addEventListener('change', () => {
         updateColumnVisibility();
+        updateAssigneeOptions();
         savePreferences();
+        renderBoard();
       });
     });
 
     // Show subtasks toggle
     showSubtasksCheckbox.addEventListener('change', () => {
+      updateAssigneeOptions();
       savePreferences();
       renderBoard();
     });

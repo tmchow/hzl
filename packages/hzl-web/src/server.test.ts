@@ -55,6 +55,12 @@ describe('hzl-web server', () => {
     return { status: res.status, data };
   }
 
+  async function fetchText(path: string): Promise<{ status: number; body: string }> {
+    const res = await globalThis.fetch(`${server.url}${path}`);
+    const body = await res.text();
+    return { status: res.status, body };
+  }
+
   describe('server configuration', () => {
     it('starts on specified port', async () => {
       const s = createServer(4500);
@@ -599,6 +605,39 @@ describe('hzl-web server', () => {
       expect(res.headers.get('content-security-policy')).toContain('frame-ancestors *');
       expect(res.headers.get('x-content-type-options')).toBe('nosniff');
       expect(res.headers.get('referrer-policy')).toBe('no-referrer');
+    });
+
+    it('includes assignee filter select with id assigneeFilter', async () => {
+      server = createServer(4563);
+
+      const { body } = await fetchText('/');
+      expect(body).toMatch(/<select[^>]*id=["']assigneeFilter["'][^>]*>/i);
+    });
+
+    it('includes a default assignee option containing Any', async () => {
+      server = createServer(4564);
+
+      const { body } = await fetchText('/');
+      const assigneeSelect = body.match(/<select[^>]*id=["']assigneeFilter["'][^>]*>([\s\S]*?)<\/select>/i);
+      expect(assigneeSelect).toBeTruthy();
+      expect(assigneeSelect?.[1]).toMatch(/<option[^>]*>[\s\S]*?Any[\s\S]*?<\/option>/i);
+    });
+
+    it('includes script wiring for assignee filter change handling', async () => {
+      server = createServer(4565);
+
+      const { body } = await fetchText('/');
+      const hasAssigneeReference =
+        /getElementById\(\s*['"]assigneeFilter['"]\s*\)/.test(body) ||
+        /querySelector\(\s*['"]#assigneeFilter['"]\s*\)/.test(body) ||
+        /assigneeFilter/.test(body);
+      const hasAssigneeChangeListener =
+        /assigneeFilter\s*\.\s*addEventListener\(\s*['"]change['"]/.test(body) ||
+        /getElementById\(\s*['"]assigneeFilter['"]\s*\)\s*\.\s*addEventListener\(\s*['"]change['"]/.test(body) ||
+        /querySelector\(\s*['"]#assigneeFilter['"]\s*\)\s*\.\s*addEventListener\(\s*['"]change['"]/.test(body);
+
+      expect(hasAssigneeReference).toBe(true);
+      expect(hasAssigneeChangeListener).toBe(true);
     });
   });
 
