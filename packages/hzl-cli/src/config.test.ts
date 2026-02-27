@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { resolveDbPaths } from './config.js';
+import { readConfig, resolveDbPaths } from './config.js';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -48,5 +48,15 @@ describe('nested db config', () => {
 
     const paths = resolveDbPaths('/cli/override.db', configPath);
     expect(paths.eventsDbPath).toBe('/cli/override.db');
+  });
+
+  it('reads claimStaggerMs from config', () => {
+    const configPath = path.join(testDir, 'config.json');
+    fs.writeFileSync(configPath, JSON.stringify({
+      claimStaggerMs: 750
+    }));
+
+    const config = readConfig(configPath);
+    expect(config.claimStaggerMs).toBe(750);
   });
 });

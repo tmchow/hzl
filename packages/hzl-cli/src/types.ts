@@ -42,6 +42,7 @@ export interface Config {
   defaultProject?: string;
   defaultAuthor?: string;
   leaseMinutes?: number;
+  claimStaggerMs?: number;
   syncUrl?: string;
   authToken?: string;
   encryptionKey?: string;

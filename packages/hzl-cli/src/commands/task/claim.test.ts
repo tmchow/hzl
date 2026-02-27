@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { runClaim, runClaimNext } from './claim.js';
+import { calculateClaimStaggerOffsetMs, runClaim, runClaimNext } from './claim.js';
 import { initializeDbFromPath, closeDb, type Services } from '../../db.js';
 import { TaskStatus } from 'hzl-core/events/types.js';
 
@@ -91,5 +91,21 @@ describe('runClaim', () => {
     });
 
     expect(result).toBeNull();
+  });
+
+  it('computes deterministic anti-herd offsets in range', () => {
+    const offset = calculateClaimStaggerOffsetMs('agent-1', 1000, 1_700_000_000_000);
+    expect(offset).toBeGreaterThanOrEqual(0);
+    expect(offset).toBeLessThan(1000);
+
+    const sameOffset = calculateClaimStaggerOffsetMs('agent-1', 1000, 1_700_000_000_000);
+    expect(sameOffset).toBe(offset);
+  });
+
+  it('changes offset across time buckets', () => {
+    const offsets = Array.from({ length: 6 }, (_, index) =>
+      calculateClaimStaggerOffsetMs('agent-1', 1000, 1_700_000_000_000 + index * 1000)
+    );
+    expect(new Set(offsets).size).toBeGreaterThan(1);
   });
 });

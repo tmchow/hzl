@@ -1,6 +1,7 @@
 // packages/hzl-cli/src/commands/claim.ts
 import { Command } from 'commander';
-import { resolveDbPaths } from '../../config.js';
+import { createHash } from 'crypto';
+import { readConfig, resolveDbPaths } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { CLIError, ExitCode, handleError } from '../../errors.js';
 import { GlobalOptionsSchema } from '../../types.js';
@@ -23,7 +24,10 @@ interface ClaimCommandOptions {
   agent?: string;
   agentId?: string;
   lease?: string;
+  stagger?: boolean;
 }
+
+export const DEFAULT_CLAIM_STAGGER_MS = 1000;
 
 export function runClaim(options: {
   services: Services;
@@ -133,6 +137,29 @@ export function runClaimNext(options: {
   return result;
 }
 
+export function calculateClaimStaggerOffsetMs(agent: string, windowMs: number, nowMs: number): number {
+  if (windowMs <= 0) return 0;
+  const bucket = Math.floor(nowMs / windowMs);
+  const seed = `${agent}:${bucket}`;
+  const hash = createHash('sha256').update(seed).digest();
+  const value = hash.readUInt32BE(0);
+  return value % windowMs;
+}
+
+async function applyClaimStagger(options: {
+  enabled: boolean;
+  agent?: string;
+  windowMs: number;
+  nowMs?: number;
+}): Promise<void> {
+  const { enabled, agent, windowMs, nowMs = Date.now() } = options;
+  if (!enabled || !agent || windowMs <= 0) return;
+
+  const delayMs = calculateClaimStaggerOffsetMs(agent, windowMs, nowMs);
+  if (delayMs <= 0) return;
+  await new Promise((resolve) => setTimeout(resolve, delayMs));
+}
+
 export function createClaimCommand(): Command {
   return new Command('claim')
     .description('Claim a task')
@@ -144,7 +171,8 @@ export function createClaimCommand(): Command {
     .option('--agent <name>', 'Agent identity for task ownership')
     .option('--agent-id <id>', 'Agent ID (machine/AI identifier)')
     .option('-l, --lease <minutes>', 'Lease duration in minutes')
-    .action(function (this: Command, rawTaskId: string | undefined, opts: ClaimCommandOptions) {
+    .option('--no-stagger', 'Disable deterministic anti-herd delay for --next claims')
+    .action(async function (this: Command, rawTaskId: string | undefined, opts: ClaimCommandOptions) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
       const services = initializeDb({ eventsDbPath, cacheDbPath });
@@ -154,6 +182,13 @@ export function createClaimCommand(): Command {
             throw new CLIError('Cannot use <taskId> with --next', ExitCode.InvalidUsage);
           }
           const parent = opts.parent ? resolveId(services, opts.parent) : undefined;
+          const config = readConfig();
+          const staggerWindowMs = config.claimStaggerMs ?? DEFAULT_CLAIM_STAGGER_MS;
+          await applyClaimStagger({
+            enabled: opts.stagger !== false,
+            agent: opts.agent,
+            windowMs: staggerWindowMs,
+          });
           runClaimNext({
             services,
             project: opts.project,
