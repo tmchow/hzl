@@ -49,12 +49,14 @@ hzl task add "Draft release notes" -P writing -s ready --agent writer-1 --author
 
 **Claim work:**
 ```bash
+# Replace <agent-name> with this agent's identity (for example: lobster, clara, researcher-1)
+
 # Let HZL pick next eligible task
-hzl task claim --next --agent worker-1
-hzl task claim --next -P research --agent researcher-1
+hzl task claim --next --agent <agent-name>
+hzl task claim --next -P research --agent <agent-name>
 
 # Claim specific task by ID (after reasoning over candidates)
-hzl task claim <id> --agent worker-1
+hzl task claim <id> --agent <agent-name>
 ```
 
 **Inspect candidate work:**
