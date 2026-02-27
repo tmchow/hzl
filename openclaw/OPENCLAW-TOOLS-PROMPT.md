@@ -27,6 +27,14 @@ hzl workflow run delegate --from <id> --title "<delegated task>" --project <proj
 - Omit `--agent` when creating pool-routed tasks.
 - Claim with `task claim --next -P <project> --agent <id>`.
 
+## Agent roster changes (standing instruction)
+
+When a new agent is added:
+- add the marker-wrapped HZL Task Poll block to that agent's HEARTBEAT,
+- decide which HZL project pool(s) that agent monitors,
+- add/update that agent's HZL section in `TOOLS.md` (identity, projects, relevant commands),
+- update the main agent's HZL system map in `TOOLS.md` to include the new agent and project ownership.
+
 ## Reliability
 
 - Completion hooks are outbox-based.

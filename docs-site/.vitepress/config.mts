@@ -2,7 +2,7 @@ import { defineConfig } from 'vitepress'
 
 export default defineConfig({
   title: 'HZL Documentation',
-  description: 'Continuity layer for stateless agent systems',
+  description: 'Shared task ledger for OpenClaw and multi-agent systems',
   cleanUrls: true,
   lastUpdated: true,
   appearance: 'dark',
@@ -14,8 +14,7 @@ export default defineConfig({
         collapsed: false,
         items: [
           { text: 'Overview', link: '/getting-started/' },
-          { text: 'Installation', link: '/getting-started/installation' },
-          { text: 'OpenClaw Setup', link: '/getting-started/openclaw' },
+          { text: 'Installation & OpenClaw Setup', link: '/getting-started/installation' },
           { text: 'Quickstart', link: '/getting-started/quickstart' },
           { text: 'Dashboard', link: '/dashboard' },
         ],
@@ -69,7 +68,7 @@ export default defineConfig({
     ],
     socialLinks: [{ icon: 'github', link: 'https://github.com/tmchow/hzl' }],
     footer: {
-      message: 'HZL - Continuity layer for stateless agents',
+      message: 'HZL - Shared task ledger for OpenClaw and multi-agent systems',
     },
   },
 })

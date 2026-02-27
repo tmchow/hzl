@@ -2,9 +2,9 @@
 
 <img src="./assets/hzl.png" alt="HZL mascot" width="320" />
 
-## Continuity Layer for Stateless Agents
+## Shared Task Ledger for OpenClaw
 
-HZL is the shared task state layer for stateless agent systems.
+HZL is a durable shared task ledger for OpenClaw and other multi-agent systems.
 
 Each agent wake is a fresh session. HZL preserves continuity across those wakes so agents can:
 - resume in-progress work safely,
@@ -52,7 +52,7 @@ hzl hook drain
 
 - [Get Started](https://www.hzl-tasks.com/getting-started/)
 - [Workflows](https://www.hzl-tasks.com/workflows/)
-- [OpenClaw Setup](https://www.hzl-tasks.com/getting-started/openclaw/)
+- [Installation & OpenClaw Setup](https://www.hzl-tasks.com/getting-started/installation/)
 - [CLI Reference](https://www.hzl-tasks.com/reference/cli/)
 - [Concepts](https://www.hzl-tasks.com/concepts/)
 

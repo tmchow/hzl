@@ -7,33 +7,13 @@ has_children: true
 
 # Getting Started
 
-HZL is installed once per machine and shared by one or many agents.
+If you are using OpenClaw, treat setup as one end-to-end flow: install HZL, wire it into your runtime loop, then verify.
 
-Setup has two parts:
+## Recommended path (OpenClaw)
 
-1. Install and initialize HZL.
-2. Integrate your runtime loop (OpenClaw, custom scheduler, or both).
+- [Installation & OpenClaw Setup](./installation)
 
-## Step 1
-
-- [Installation](./installation)
-
-## Step 2
-
-- [OpenClaw Setup](./openclaw)
-
-## First Stateless Loop
-
-Run this once setup is complete:
-
-```bash
-hzl task add "Setup verification" -P openclaw -s ready
-hzl workflow run start --agent main --project openclaw
-hzl task complete <task-id>
-hzl hook drain
-```
-
-## Learn the model
+## Then learn the operating model
 
 - [Quickstart](./quickstart)
 - [Workflows](../workflows/)
@@ -43,3 +23,14 @@ hzl hook drain
 ## Looking for non-primary integrations?
 
 See [Experimental integrations](../experimental-integrations).
+
+## First stateless loop
+
+Run this once setup is complete:
+
+```bash
+hzl task add "Setup verification" -P openclaw -s ready
+hzl workflow run start --agent main --project openclaw
+hzl task complete <task-id>
+hzl hook drain
+```

@@ -3,8 +3,8 @@ layout: home
 
 hero:
   name: HZL
-  text: Continuity Layer for Stateless Agents
-  tagline: Durable task state for fresh-session agent loops. Resume, hand off, and coordinate reliably.
+  text: The Missing Task Layer for OpenClaw and Multi-Agent Teams
+  tagline: Coordinate many agents through shared, durable task state with built-in human visibility.
   image:
     src: /hzl.png
     alt: HZL mascot
@@ -19,52 +19,69 @@ hero:
       link: /workflows/
 
 features:
-  - title: Session Continuity
-    details: Resume in-progress work after session gaps with a single workflow start command.
-  - title: Reliable Handoffs
-    details: Workflow handoff carries context and completion hooks enable system-level notifications.
-  - title: Scalable Pool Routing
-    details: Route by project pools so teams can add agents without changing assignment prompts.
+  - title: Shared Task State
+    details: One durable ledger for many agents to read, claim, and update.
+  - title: Stateless Session Continuity
+    details: Resume in-progress work and hand off safely across fresh-session agent wakes.
+  - title: Human Visibility
+    details: Operators can inspect state and activity through CLI and dashboard.
 ---
 
-## Stateless Agent Reality
+## The Problem in OpenClaw
 
-Most OpenClaw-style systems run agents as ephemeral sessions. There is no always-on per-agent process with in-memory continuity.
+OpenClaw-style deployments always start with one main agent, then expand into specialist agents (writer, researcher, engineer, marketer).
 
-That means every wake must reconstruct state from durable storage.
+As soon as those agents collaborate, coordination pain appears:
 
-HZL provides that storage and coordination contract.
+- session memory resets break continuity,
+- handoffs become prompt-dependent,
+- parallel workers can collide on the same work,
+- progress tracking fragments across chat threads and notes.
 
-## Core Loop
+## Why Existing Approaches Fail
 
-1. `workflow run start` resumes existing in-progress work for an agent (or claims next eligible task).
-2. Agents checkpoint progress and comments while working.
-3. `workflow run handoff` and `workflow run delegate` encode common multi-step transitions.
-4. Status transitions to `done` enqueue hook callbacks for host-process delivery (`hzl hook drain`).
+Common fallbacks create new problems:
 
-## Why Not Just Chat Messages
+- Chat-based coordination is fast but brittle and hard to audit.
+- Human PM tools are usually too heavyweight for agent execution loops.
+- Bespoke scripts and trackers become long-term maintenance burden.
+- Memory or markdown task files can work for small/single-session setups, but they usually break down once work spans sessions or agents:
+  - no atomic claiming (two agents can take the same task),
+  - stale copies and merge conflicts in task files,
+  - no lease/stuck-task recovery model,
+  - handoffs depend on prompt discipline instead of enforced state transitions,
+  - weak auditability when debugging "what happened?"
 
-Chat-only coordination is fast but fragile:
-- missed handoff messages,
-- no single source of task truth,
-- poor replay/debuggability across sessions.
+You track your work. HZL lets your agents track and coordinate theirs when state must be durable, shared, and safe under parallel execution.
 
-HZL keeps durable state in one place with explicit task and event history.
+## How HZL Works in Stateless Systems
+
+Every OpenClaw agent run is a fresh session. Any agent can wake first, check its own work, create/assign tasks, and hand off to others.
+
+Lifecycle (for any agent):
+
+1. Session starts and reads shared task state (`in_progress`, `ready`, `blocked`).
+2. Agent resumes owned work or claims next eligible task.
+3. Agent updates progress, creates follow-on work, or delegates to another agent/project queue.
+4. Task completion is written durably, and completion signals are queued for delivery.
+
+Next session starts from that same durable state instead of memory.
 
 ## Scope Boundary
 
 HZL is intentionally narrow:
-- task ledger and coordination primitives,
-- not an orchestrator,
-- not a planner,
-- not a replacement for harness-native short-lived todo tools.
 
-Use HZL where durable multi-session state matters.
+- It is a shared task ledger and coordination primitive layer.
+- It does not orchestrate runtime behavior: OpenClaw and your agents already handle session wakeups, scheduling, triggers, and coordination logic. HZL stays focused on durable state instead of duplicating a control plane.
+- It does not plan or decompose work: agents are responsible for strategy, prioritization, and task breakdown. HZL records and enforces task state transitions.
+- It does not replace built-in coding-tool todo lists for quick local loops: those are optimized for single-session execution. HZL is for work that must survive session resets and coordinate across multiple agents.
+
+Use each system where it is strongest: orchestrator for runtime control, agents for planning, and HZL for durable shared task state across sessions.
 
 ## Start Here
 
-- [Installation](/getting-started/installation)
-- [OpenClaw Setup](/getting-started/openclaw)
+- [Installation & OpenClaw Setup](/getting-started/installation)
 - [Workflows](/workflows/)
 - [Concepts](/concepts/)
 - [CLI Reference](/reference/cli)
+- [Experimental integrations](/experimental-integrations)

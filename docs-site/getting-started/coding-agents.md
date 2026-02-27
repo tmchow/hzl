@@ -15,4 +15,4 @@ Use this path only when you have a specific cross-runtime need that native task 
 
 For primary guidance, use:
 
-- [OpenClaw Setup](./openclaw)
+- [Installation & OpenClaw Setup](./installation)
