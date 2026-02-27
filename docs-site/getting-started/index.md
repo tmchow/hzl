@@ -7,12 +7,12 @@ has_children: true
 
 # Getting Started
 
-HZL is installed once per machine and used by many agents through one shared task ledger.
+HZL is installed once per machine and shared by one or many agents.
 
 Setup has two parts:
 
-1. Install the HZL CLI and initialize storage
-2. Configure OpenClaw to use HZL (**TBD**)
+1. Install and initialize HZL.
+2. Integrate your runtime loop (OpenClaw, custom scheduler, or both).
 
 ## Step 1
 
@@ -20,11 +20,23 @@ Setup has two parts:
 
 ## Step 2
 
-- [OpenClaw Setup (TBD)](./openclaw)
+- [OpenClaw Setup](./openclaw)
 
-## Learn the workflow
+## First Stateless Loop
+
+Run this once setup is complete:
+
+```bash
+hzl task add "Setup verification" -P openclaw -s ready
+hzl workflow run start --agent main --project openclaw
+hzl task complete <task-id>
+hzl hook drain
+```
+
+## Learn the model
 
 - [Quickstart](./quickstart)
+- [Workflows](../workflows/)
 - [Tasks](../concepts/tasks)
 - [Claiming & Leases](../concepts/claiming-leases)
 

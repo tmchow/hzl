@@ -2,7 +2,7 @@ import { defineConfig } from 'vitepress'
 
 export default defineConfig({
   title: 'HZL Documentation',
-  description: 'The missing task layer for OpenClaw',
+  description: 'Continuity layer for stateless agent systems',
   cleanUrls: true,
   lastUpdated: true,
   appearance: 'dark',
@@ -21,6 +21,20 @@ export default defineConfig({
         ],
       },
       {
+        text: 'Workflows',
+        collapsed: false,
+        items: [
+          { text: 'Overview', link: '/workflows/' },
+          { text: 'Single Agent', link: '/workflows/single-agent' },
+          { text: 'Multi-Agent', link: '/workflows/multi-agent' },
+          { text: 'Session Handoffs', link: '/workflows/session-handoffs' },
+          { text: 'Breaking Down Work', link: '/workflows/breaking-down-work' },
+          { text: 'Blocking & Unblocking', link: '/workflows/blocking-unblocking' },
+          { text: 'Human Oversight', link: '/workflows/human-oversight' },
+          { text: 'Project Organization', link: '/workflows/project-organization' },
+        ],
+      },
+      {
         text: 'Concepts',
         collapsed: false,
         items: [
@@ -33,20 +47,6 @@ export default defineConfig({
           { text: 'Checkpoints', link: '/concepts/checkpoints' },
           { text: 'Claiming & Leases', link: '/concepts/claiming-leases' },
           { text: 'Cloud Sync', link: '/concepts/cloud-sync' },
-        ],
-      },
-      {
-        text: 'Workflows',
-        collapsed: false,
-        items: [
-          { text: 'Overview', link: '/workflows/' },
-          { text: 'Single Agent', link: '/workflows/single-agent' },
-          { text: 'Multi-Agent', link: '/workflows/multi-agent' },
-          { text: 'Session Handoffs', link: '/workflows/session-handoffs' },
-          { text: 'Breaking Down Work', link: '/workflows/breaking-down-work' },
-          { text: 'Blocking & Unblocking', link: '/workflows/blocking-unblocking' },
-          { text: 'Human Oversight', link: '/workflows/human-oversight' },
-          { text: 'Project Organization', link: '/workflows/project-organization' },
         ],
       },
       {
@@ -69,7 +69,7 @@ export default defineConfig({
     ],
     socialLinks: [{ icon: 'github', link: 'https://github.com/tmchow/hzl' }],
     footer: {
-      message: 'HZL - The missing task layer for OpenClaw',
+      message: 'HZL - Continuity layer for stateless agents',
     },
   },
 })

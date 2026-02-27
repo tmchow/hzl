@@ -28,9 +28,7 @@ hzl init
 
 ```bash
 hzl --version
-hzl project create install-check
-hzl task add "Install check" -P install-check
-hzl task list -P install-check
+hzl task list
 ```
 
 ## Optional: Cloud Sync with Turso
@@ -38,24 +36,29 @@ hzl task list -P install-check
 By default, HZL runs local-first with SQLite on your machine. If you want optional cloud backup/multi-machine sync, configure Turso:
 
 ```bash
-# Initialize (or update) HZL with Turso sync
 hzl init --sync-url libsql://<db>.turso.io --auth-token <token>
-
-# Verify sync config
 hzl status
-
-# Trigger manual sync
 hzl sync
 ```
 
 For full setup details, see [Cloud Sync](/concepts/cloud-sync).
 
-## Notes
+## Uninstall HZL
 
-- HZL stores durable task data in SQLite.
-- One installation supports multiple projects and agents.
+HZL uninstall is intentionally narrow:
+
+1. Remove the binary using your package manager.
+2. Optionally remove HZL data/config directories.
+
+Typical default locations:
+- Data: `$XDG_DATA_HOME/hzl` (or `~/.local/share/hzl`)
+- Config: `$XDG_CONFIG_HOME/hzl` (or `~/.config/hzl`)
+
+In repository dev mode, HZL uses local `.local/hzl` and `.config/hzl` paths.
+
+OpenClaw integration artifacts (cron entries, HEARTBEAT edits, gateway config) are not removed by uninstalling HZL; follow the teardown checklist in [OpenClaw Setup](./openclaw).
 
 ## Next
 
-- [OpenClaw Setup (TBD)](./openclaw)
+- [OpenClaw Setup](./openclaw)
 - [Quickstart](./quickstart)

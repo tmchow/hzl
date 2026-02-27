@@ -9,7 +9,7 @@ nav_order: 1
 
 Current command reference for `hzl`.
 
-## Global Options
+## Global options
 
 ```bash
 hzl --help
@@ -19,7 +19,7 @@ hzl --format md
 hzl --db <path>
 ```
 
-## Setup and Health
+## Setup and health
 
 ```bash
 hzl init
@@ -43,15 +43,13 @@ hzl project create <name>
 hzl project list
 ```
 
-## Agent Queries
+## Agent queries
 
 ```bash
 hzl agent stats
 hzl agent stats -P <project>
 hzl agent stats -P <project> -s <status>
 ```
-
-`agent stats` returns counts-only workload summaries by agent.
 
 ## Tasks
 
@@ -63,18 +61,18 @@ hzl task add "<title>" -P <project>
 hzl task add "<title>" --parent <taskId>
 ```
 
-Important options:
+Common options:
 - `-d, --description`
 - `-l, --links`
 - `-t, --tags`
-- `-p, --priority` (0-3)
+- `-p, --priority` (`0-3`)
 - `-s, --status` (`backlog|ready|in_progress|blocked|done`)
 - `--depends-on <ids>`
 - `--agent <name>`
 - `--author <name>`
-- `--comment <comment>` (recommended with blocked)
+- `--comment <comment>`
 
-### List and Show
+### List and show
 
 ```bash
 hzl task list
@@ -93,7 +91,7 @@ hzl task show <taskId> --no-subtasks
 - `-P, --project`
 - `-s, --status`
 - `--agent`
-- `--agent-pattern <glob>` (case-insensitive `*` wildcard)
+- `--agent-pattern`
 - `--available`
 - `--parent`
 - `--root`
@@ -102,37 +100,22 @@ hzl task show <taskId> --no-subtasks
 - `--group-by-agent`
 - `--view summary|standard|full`
 
-### Claim and Complete
+### Claim/complete/recovery
 
 ```bash
-# Explicit claim
 hzl task claim <taskId> --agent <name>
-
-# Automatic next eligible claim
 hzl task claim --next --agent <name>
 hzl task claim --next -P <project> --agent <name>
-```
 
-`task claim` options:
-- `--next`
-- `-P, --project` (with `--next`)
-- `-t, --tags` (with `--next`)
-- `--parent` (with `--next`)
-- `--agent`
-- `--agent-id`
-- `-l, --lease <minutes>`
-- `--view summary|standard|full`
-- `--no-stagger` (disable deterministic anti-herd delay for `--next`)
-
-Complete/release/reopen:
-
-```bash
 hzl task complete <taskId>
 hzl task release <taskId>
 hzl task reopen <taskId>
+
+hzl task stuck
+hzl task steal <taskId> --if-expired --agent <name>
 ```
 
-### Progress, Notes, History
+### Notes/progress/history
 
 ```bash
 hzl task checkpoint <taskId> "<note>"
@@ -141,29 +124,20 @@ hzl task progress <taskId> <0-100>
 hzl task history <taskId>
 ```
 
-### Status and Recovery
+### Structure and status
 
 ```bash
 hzl task set-status <taskId> <status>
 hzl task block <taskId> --comment "<reason>"
 hzl task unblock <taskId>
 
-hzl task stuck
-hzl task steal <taskId> --if-expired --agent <name>
-```
-
-`set-status` supports: `backlog`, `ready`, `in_progress`, `blocked`, `done`, `archived`.
-
-### Update and Structure
-
-```bash
 hzl task update <taskId> --title "<title>"
 hzl task move <taskId> <project>
 hzl task add-dep <taskId> <dependsOnId>
 hzl task remove-dep <taskId> <dependsOnId>
 ```
 
-### Archive and Prune
+### Archive/prune
 
 ```bash
 hzl task archive <taskId>
@@ -175,45 +149,98 @@ hzl task prune -P <project> --older-than 30d --yes
 hzl task prune --all --older-than 30d --yes
 ```
 
-`task prune` options:
-- `-P, --project`
-- `-A, --all`
-- `--older-than <duration>`
-- `--as-of <timestamp>`
-- `-y, --yes`
-- `--dry-run`
+## Dependencies
 
-## Web Dashboard
+```bash
+hzl dep list
+hzl dep list -P <project>
+hzl dep list --from-project <project>
+hzl dep list --to-project <project>
+hzl dep list --agent <agent>
+hzl dep list --from-agent <agent>
+hzl dep list --to-agent <agent>
+hzl dep list --blocking-only
+hzl dep list --cross-project-only
+```
+
+## Hooks
+
+```bash
+hzl hook drain
+hzl hook drain --limit 100
+```
+
+Host-process model: run `hook drain` on a scheduler (no required daemon).
+
+## Workflows
+
+### Discover
+
+```bash
+hzl workflow list
+hzl workflow show start
+hzl workflow show handoff
+hzl workflow show delegate
+```
+
+### Run
+
+```bash
+hzl workflow run start --agent <name>
+hzl workflow run handoff --from <taskId> --title "<title>" -P <project>
+hzl workflow run delegate --from <taskId> --title "<title>" -P <project>
+```
+
+`workflow run start` options:
+- `--agent <name>` (required)
+- `-P, --project <project>`
+- `--tags <csv>`
+- `-l, --lease <minutes>`
+- `--resume-policy first|latest|priority`
+- `--include-others|--no-include-others`
+- `--others-limit <n|all>`
+- `--op-id <key>`
+
+Important: `--auto-op-id` is intentionally unsupported for `workflow run start` because repeated polling calls may legitimately return different results over time.
+
+`workflow run handoff` options:
+- `--from <taskId>` (required)
+- `--title <title>` (required)
+- `-P, --project <project>`
+- `--agent <agent>`
+- `--carry-checkpoints <n>`
+- `--carry-max-chars <n>`
+- `--author <name>`
+- `--op-id <key>`
+- `--auto-op-id`
+
+`workflow run delegate` options:
+- `--from <taskId>` (required)
+- `--title <title>` (required)
+- `-P, --project <project>`
+- `--agent <agent>`
+- `--no-depends`
+- `--checkpoint <text>`
+- `--pause-parent`
+- `--author <name>`
+- `--op-id <key>`
+- `--auto-op-id`
+
+## Dashboard and other utilities
 
 ```bash
 hzl serve
-hzl serve --port 3456
-hzl serve --host 127.0.0.1
-hzl serve --background
-hzl serve --status
-hzl serve --stop
-hzl serve --print-systemd
-hzl serve --allow-framing
-```
-
-## Other Utilities
-
-```bash
 hzl export-events [output.jsonl]
 hzl sample-project
 hzl lock --help
 hzl guide
 ```
 
-## Environment Variables
+## Environment variables
 
 | Variable | Description |
 |----------|-------------|
 | `HZL_DB` | Database directory path |
 | `HZL_DEV_MODE` | Set to `0` to disable dev mode |
 
-## Notes
-
-- JSON is the default output format.
-- Use `--format md` for human-friendly terminal output.
-- For exact option details, prefer command help (`hzl task claim --help`).
+For exact option details, prefer command help (`hzl <command> --help`).

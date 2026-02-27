@@ -23,11 +23,8 @@ Use this when you do not need project scoping.
 hzl task add "Triage new bugs"
 hzl task add "Write daily status summary" --priority 1
 
-# See claimable work
-hzl task list --available
-
-# Claim next eligible task
-hzl task claim --next --agent agent-1
+# Start a stateless session loop (resume or claim)
+hzl workflow run start --agent agent-1
 
 # Record progress and finish
 hzl task checkpoint <task-id> "Triage pass complete; 3 bugs prioritized"
@@ -46,9 +43,8 @@ hzl project create research
 hzl task add "Compare retrieval strategies" -P research
 hzl task add "Summarize RAG benchmark paper" -P research --priority 2
 
-# Pull from that scope
-hzl task list -P research --available
-hzl task claim --next -P research --agent research-agent-1
+# Resume-or-claim inside that scope
+hzl workflow run start --agent research-agent-1 --project research
 
 # Work and complete
 hzl task checkpoint <task-id> "Draft findings prepared"
