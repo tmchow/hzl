@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { runRemoveDep } from './remove-dep.js';
+import { EventType } from 'hzl-core/events/types.js';
 import { initializeDbFromPath, closeDb, type Services } from '../../db.js';
 
 describe('runRemoveDep', () => {
@@ -66,7 +67,7 @@ describe('runRemoveDep', () => {
     });
 
     const events = services.eventStore.getByTaskId(task2.task_id);
-    const depEvent = events.find((e) => e.type === 'dependency_removed');
+    const depEvent = events.find((e) => e.type === EventType.DependencyRemoved);
     expect(depEvent?.author).toBe('clara');
   });
 });

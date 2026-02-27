@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { runMove } from './move.js';
+import { EventType } from 'hzl-core/events/types.js';
 import { initializeDbFromPath, closeDb, type Services } from '../../db.js';
 
 describe('runMove', () => {
@@ -128,7 +129,7 @@ describe('runMove', () => {
     });
 
     const events = services.eventStore.getByTaskId(task.task_id);
-    const moveEvent = events.find((e) => e.type === 'task_moved');
+    const moveEvent = events.find((e) => e.type === EventType.TaskMoved);
     expect(moveEvent?.author).toBe('clara');
   });
 });

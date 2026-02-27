@@ -51,7 +51,7 @@ function runWorker(dbPath: string, command: WorkerCommand): Promise<WorkerResult
     worker.on('error', (error) => {
       if (settled) return;
       settled = true;
-      reject(error);
+      reject(error instanceof Error ? error : new Error(String(error)));
     });
     worker.on('exit', (code) => {
       if (settled || code === 0) return;

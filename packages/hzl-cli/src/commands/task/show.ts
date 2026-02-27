@@ -9,7 +9,7 @@ import { createShortId } from '../../short-id.js';
 import { TaskStatus } from 'hzl-core/events/types.js';
 import type { Task, Comment, Checkpoint } from 'hzl-core/services/task-service.js';
 
-export type SubtaskSummary = { task_id: string; title: string; status: string };
+export type SubtaskSummary = { task_id: string; title: string; status: TaskStatus };
 export type DeepSubtask = Task & { blocked_by: string[] };
 
 export interface ShowResult {
@@ -108,15 +108,14 @@ export function runShow(options: {
         const icon = st.status === TaskStatus.Done ? '✓' : st.status === TaskStatus.InProgress ? '→' : '○';
         console.log(`  ${icon} [${shortId(st.task_id)}] ${st.title} (${st.status})`);
         if (deep && 'blocked_by' in st) {
-          const ds = st as DeepSubtask;
           const details: string[] = [];
-          if (ds.priority !== 0) details.push(`Priority: ${ds.priority}`);
-          if (ds.agent) details.push(`Agent: ${ds.agent}`);
-          if (ds.progress !== null) details.push(`Progress: ${ds.progress}%`);
+          if (st.priority !== 0) details.push(`Priority: ${st.priority}`);
+          if (st.agent) details.push(`Agent: ${st.agent}`);
+          if (st.progress !== null) details.push(`Progress: ${st.progress}%`);
           if (details.length > 0) console.log(`    ${details.join(' | ')}`);
-          if (ds.description) console.log(`    Description: ${ds.description}`);
-          if (ds.blocked_by.length > 0) console.log(`    Blocked by: ${ds.blocked_by.map(id => shortId(id)).join(', ')}`);
-          if (ds.tags.length > 0) console.log(`    Tags: ${ds.tags.join(', ')}`);
+          if (st.description) console.log(`    Description: ${st.description}`);
+          if (st.blocked_by.length > 0) console.log(`    Blocked by: ${st.blocked_by.map(id => shortId(id)).join(', ')}`);
+          if (st.tags.length > 0) console.log(`    Tags: ${st.tags.join(', ')}`);
         }
       }
     }
