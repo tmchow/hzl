@@ -48,6 +48,7 @@ Make HZL v2 the default task ledger interface for AI agents by reducing command 
 | R9 | Must | v2 must publish a breaking-change migration guide that maps removed/renamed v1 commands and flags to v2 equivalents. |
 | R10 | Must | v2 must provide per-agent workload summaries in two surfaces: a dedicated `agent` namespace summary interface (for example `agent stats`) and a task-query grouping mode (for example `task list --group-by-agent`). |
 | R13 | Must | v2 JSON responses must use a stable, versioned machine contract with documented success/error envelopes and backward-compatibility guarantees within major version v2. |
+| R14 | Core | v2 claim operations must return a stable, versioned machine-readable `decision_trace` in both success and failure paths, including eligibility checks, ranking version, selection/rejection reason, and concise alternative-candidate rationale. |
 | R11 | Out | v2 does not introduce daemon-based push/watch delivery semantics; these are deferred to a future iteration. |
 | R12 | Out | v2 does not introduce an agent registration/permission model; enforcement without authentication is explicitly out of scope. |
 
@@ -73,6 +74,7 @@ Use a CLI-first hard reset for v2 with protocol-quality JSON contracts: one clai
 - **Anti-herd default behavior**: staggering is automatic for `claim --next` agent worker selection, with 1000ms default window and explicit opt-out.
 - **Agent summary location**: per-agent workload summaries are available both in a dedicated `agent` namespace and as grouped task-list output (`--group-by-agent`).
 - **Versioned JSON envelope**: machine outputs are contract-stable and versioned across v2 minors/patches.
+- **Decision trace as first-class machine output**: claim-selection outcomes include a structured `decision_trace` so agents can reason about why a task was selected or rejected and adapt without extra probing calls.
 
 ## Next Steps
 
