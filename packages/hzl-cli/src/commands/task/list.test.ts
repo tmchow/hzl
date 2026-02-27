@@ -185,4 +185,55 @@ describe('runList', () => {
     expect(unassigned).toBeDefined();
     expect(unassigned?.total).toBe(1);
   });
+
+  it('supports agent glob filtering', () => {
+    const t1 = services.taskService.createTask({ title: 'Task 1', project: 'inbox' });
+    const t2 = services.taskService.createTask({ title: 'Task 2', project: 'inbox' });
+    services.taskService.setStatus(t1.task_id, TaskStatus.Ready);
+    services.taskService.setStatus(t2.task_id, TaskStatus.Ready);
+    services.taskService.claimTask(t1.task_id, { author: 'clara1' });
+    services.taskService.claimTask(t2.task_id, { author: 'zoe' });
+
+    const result = runList({ services, agentPattern: 'clara*', json: false });
+    expect(result.tasks).toHaveLength(1);
+    expect(result.tasks[0].title).toBe('Task 1');
+  });
+
+  it('rejects using --agent and --agent-pattern together', () => {
+    expect(() =>
+      runList({ services, agent: 'clara1', agentPattern: 'clara*', json: false })
+    ).toThrow(/Cannot use --agent and --agent-pattern together/);
+  });
+
+  it('applies offset pagination metadata', () => {
+    for (let i = 0; i < 6; i++) {
+      services.taskService.createTask({ title: `Task ${i}`, project: 'inbox' });
+    }
+
+    const page1 = runList({ services, page: 1, limit: 3, json: false });
+    const page2 = runList({ services, page: 2, limit: 3, json: false });
+    expect(page1.tasks.map((t) => t.task_id)).not.toEqual(page2.tasks.map((t) => t.task_id));
+    expect(page1.page).toBe(1);
+    expect(page1.limit).toBe(3);
+    expect(page1.total).toBe(6);
+    expect(page1.has_more).toBe(true);
+    expect(page2.has_more).toBe(false);
+  });
+
+  it('returns full view with large fields', () => {
+    services.taskService.createTask({
+      title: 'Task 1',
+      project: 'inbox',
+      description: 'Long markdown description',
+      links: ['docs/spec.md'],
+      metadata: { owner: 'agent-a' },
+      tags: ['urgent'],
+    });
+
+    const result = runList({ services, view: 'full', json: false });
+    expect(result.tasks[0].description).toBe('Long markdown description');
+    expect(result.tasks[0].links).toEqual(['docs/spec.md']);
+    expect(result.tasks[0].metadata).toEqual({ owner: 'agent-a' });
+    expect(result.tasks[0].tags).toEqual(['urgent']);
+  });
 });
