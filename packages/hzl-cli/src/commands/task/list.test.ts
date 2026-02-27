@@ -163,4 +163,26 @@ describe('runList', () => {
     expect(result.tasks).toHaveLength(2);
     expect(result.tasks.map(t => t.title).sort()).toEqual(['Child', 'Standalone']);
   });
+
+  it('groups task details by agent', () => {
+    const t1 = services.taskService.createTask({ title: 'Task 1', project: 'inbox' });
+    const t2 = services.taskService.createTask({ title: 'Task 2', project: 'inbox' });
+    services.taskService.setStatus(t1.task_id, TaskStatus.Ready);
+    services.taskService.setStatus(t2.task_id, TaskStatus.Ready);
+    services.taskService.claimTask(t1.task_id, { author: 'clara1' });
+    services.taskService.claimTask(t2.task_id, { author: 'clara2' });
+
+    const result = runList({ services, groupByAgent: true, json: false });
+    expect(result.groups).toHaveLength(2);
+    const clara1 = result.groups?.find((g) => g.agent === 'clara1');
+    expect(clara1?.tasks[0]?.title).toBe('Task 1');
+  });
+
+  it('groups unassigned tasks under null agent bucket', () => {
+    services.taskService.createTask({ title: 'Task 1', project: 'inbox' });
+    const result = runList({ services, groupByAgent: true, json: false });
+    const unassigned = result.groups?.find((g) => g.agent === null);
+    expect(unassigned).toBeDefined();
+    expect(unassigned?.total).toBe(1);
+  });
 });

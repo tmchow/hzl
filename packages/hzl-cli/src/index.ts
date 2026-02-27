@@ -8,6 +8,7 @@ import { createWhichDbCommand } from './commands/which-db.js';
 import { createConfigCommand } from './commands/config.js';
 // project commands live under ./commands/project
 import { createProjectCommand } from './commands/project/index.js';
+import { createAgentCommand } from './commands/agent/index.js';
 import { createTaskCommand } from './commands/task/index.js';
 import { createValidateCommand } from './commands/validate.js';
 import { createStatsCommand } from './commands/stats.js';
@@ -37,6 +38,7 @@ export function createProgram(): Command {
   program.addCommand(createWhichDbCommand());
   program.addCommand(createConfigCommand());
   program.addCommand(createProjectCommand());
+  program.addCommand(createAgentCommand());
   program.addCommand(createTaskCommand());
   program.addCommand(createValidateCommand());
   program.addCommand(createStatsCommand());
