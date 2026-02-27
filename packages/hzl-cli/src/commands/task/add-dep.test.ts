@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { runAddDep } from './add-dep.js';
+import { EventType } from 'hzl-core/events/types.js';
 import { initializeDbFromPath, closeDb, type Services } from '../../db.js';
 
 describe('runAddDep', () => {
@@ -65,7 +66,7 @@ describe('runAddDep', () => {
     });
 
     const events = services.eventStore.getByTaskId(task1.task_id);
-    const depEvent = events.find((e) => e.type === 'dependency_added');
+    const depEvent = events.find((e) => e.type === EventType.DependencyAdded);
     expect(depEvent?.author).toBe('clara');
   });
 });

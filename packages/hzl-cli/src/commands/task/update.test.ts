@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { runUpdate } from './update.js';
+import { EventType } from 'hzl-core/events/types.js';
 import { initializeDbFromPath, closeDb, type Services } from '../../db.js';
 
 describe('runUpdate', () => {
@@ -86,7 +87,7 @@ describe('runUpdate', () => {
     });
 
     const events = services.eventStore.getByTaskId(task.task_id);
-    const updateEvent = events.find((e) => e.type === 'task_updated');
+    const updateEvent = events.find((e) => e.type === EventType.TaskUpdated);
     expect(updateEvent?.author).toBe('clara');
   });
 
