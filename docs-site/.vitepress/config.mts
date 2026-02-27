@@ -15,9 +15,9 @@ export default defineConfig({
         items: [
           { text: 'Overview', link: '/getting-started/' },
           { text: 'Installation', link: '/getting-started/installation' },
+          { text: 'OpenClaw Setup', link: '/getting-started/openclaw' },
           { text: 'Quickstart', link: '/getting-started/quickstart' },
           { text: 'Dashboard', link: '/dashboard' },
-          { text: 'OpenClaw Setup', link: '/getting-started/openclaw' },
         ],
       },
       {
