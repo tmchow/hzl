@@ -58,6 +58,7 @@ Key implementation decisions:
 - Use a concrete `decision_trace` contract with bounded alternatives (max 3) and fixed reason codes.
 - Distinguish grouped list vs stats surfaces: `task list --group-by-agent` returns task details grouped by agent; `agent stats` returns counts only.
 - Anti-herd formula is deterministic-only (no runtime randomness): `offset_ms = hash(agent + ':' + floor(now_ms / window_ms)) % window_ms`.
+- Defer `hzl intent *` namespace in v2.0, but enforce intent-readiness on primitives so high-frequency agent loops stay low-chatter without helper commands.
 
 ## Delivery Plan
 
@@ -68,6 +69,20 @@ One PR with 6 atomic parent tasks, each broken into commit-sized subtasks:
 4. Query enhancements (`--agent-pattern`, pagination/views, grouped output)
 5. New `agent stats` namespace and aggregation
 6. Removal/migration/documentation/integration hardening
+
+## Intent Readiness (Deferred Helpers, v2.0 Primitive Gate)
+
+Intent helper commands (`hzl intent ...`) are deferred from v2.0, but primitives must satisfy these high-frequency workflows with bounded call counts and stable machine outputs:
+
+| Intent | Primitive flow (v2) | Target calls | Contract requirement |
+|-------|----------------------|--------------|----------------------|
+| Pull-and-start | `task claim --next --agent <id>` | 1 | Returns selected task + `decision_trace` in one response |
+| Reason-and-pick | `task list --agent <id> --view standard/full --page ...` -> `task claim <id>` | <=2 in common path | List payload has enough context to pick without mandatory N+1 `show` calls |
+| Finish-with-note | `task complete <id> --comment "..."` | 1 | Completion + final note recorded atomically |
+| Requeue/handoff | `task release <id> --comment "..."` or `task block <id> ...` | 1 | Status transition + rationale retained |
+| Coordinator audit | `agent stats` and `task list --group-by-agent` | 1 | Counts-only vs grouped-details semantics remain distinct |
+
+Gate: if any intent cannot meet the target call count with current primitives, add/adjust primitives in this plan instead of introducing intent wrappers first.
 
 ---
 
@@ -301,6 +316,26 @@ Keep behavior scoped to `claim --next` to avoid global CLI sluggishness.
 
 **Verify:** `pnpm --filter hzl-cli test src/commands/task/claim.test.ts src/config.test.ts`
 
+### 3.4 Add claim payload view controls to avoid immediate `show` follow-up
+
+**Depends on:** 3.2, 1.2
+**Files:** `packages/hzl-cli/src/commands/task/claim.ts`, `packages/hzl-cli/src/commands/task/claim.test.ts`, `packages/hzl-core/src/services/task-service.ts`
+
+Add `--view summary|standard|full` support to `task claim` (including `--next`) so the claim response can carry enough task context for immediate execution without mandatory extra `task show` call.
+
+Minimum behavior:
+- `summary`: compact fields for tight polling loops
+- `standard` (default): enough context for common execution path (title/project/status/priority/tags/due/parent)
+- `full`: includes larger markdown fields (`description`, `links`, `metadata`) and decision trace
+
+**Test scenarios:** (`packages/hzl-cli/src/commands/task/claim.test.ts`)
+- `claim --next` default response contains standard execution context + decision trace
+- `claim --next --view full` includes markdown fields and metadata
+- `claim <id> --view summary` omits large optional fields
+- view behavior is consistent across explicit claim and next-claim modes
+
+**Verify:** `pnpm --filter hzl-cli test src/commands/task/claim.test.ts`
+
 ---
 
 ## 4. Agent-Centric Query Surface
@@ -458,12 +493,28 @@ Guardrails:
 
 **Verify:** `pnpm test` and guard script checks
 
+### 6.5 Add one-call completion with rationale (`task complete --comment`)
+
+**Depends on:** 1.2, 3.1
+**Files:** `packages/hzl-cli/src/commands/task/complete.ts`, `packages/hzl-cli/src/commands/task/complete.test.ts`, `packages/hzl-core/src/services/task-service.ts`, `packages/hzl-core/src/services/task-service.test.ts`
+
+Extend completion path to accept optional `--comment` so agents can close work and record final rationale in one call. Ensure this is implemented atomically in service layer (single write transaction for comment + status transition).
+
+**Test scenarios:** (`packages/hzl-core/src/services/task-service.test.ts`, `packages/hzl-cli/src/commands/task/complete.test.ts`)
+- `complete --comment` appends comment event and marks task done in one transaction
+- if completion fails validation, no comment is persisted (atomicity)
+- existing `complete` behavior without comment remains unchanged
+- JSON envelope includes completion result while comment is queryable via `task show`
+
+**Verify:** `pnpm --filter hzl-core test src/services/task-service.test.ts && pnpm --filter hzl-cli test src/commands/task/complete.test.ts`
+
 ## Testing Strategy
 
 - New coverage:
   - contract-level JSON envelope stability and version field behavior
   - decision trace success/failure payloads
   - concurrent `claim --next --agent` correctness (no duplicate claims)
+  - intent-readiness for low-chatter primitive flows (pull/pick/finish)
   - anti-herd scoped behavior and configuration
   - anti-herd deterministic bucket rollover invariants
   - `assignee` historical replay compatibility into `agent`
