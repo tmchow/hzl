@@ -43,10 +43,10 @@ Make HZL v2 the default task ledger interface for AI agents by reducing command 
 | R4 | Must | v2 must support agent-driven selection by listing assigned tasks with pagination and view-level controls to manage payload size. |
 | R5 | Must | v2 assigned-task queries must support exact agent matching and case-insensitive `--agent-pattern` matching. |
 | R6 | Must | v2 must preserve full task retrieval by task ID with complete task context for agent reasoning. |
-| R7 | Must | v2 must support CLI-only cron polling workflows with documented anti-herd behavior patterns suitable for multi-agent Linux environments. |
+| R7 | Must | v2 must support CLI-only cron polling workflows with built-in anti-herd behavior enabled by default for agent-scoped worker calls, using a default 2000ms stagger window, configurable globally, with per-call opt-out. |
 | R8 | Must | v2 must use `agent` terminology in command interfaces for AI-agent-first clarity. |
 | R9 | Must | v2 must publish a breaking-change migration guide that maps removed/renamed v1 commands and flags to v2 equivalents. |
-| R10 | Nice | v2 should provide a concise per-agent workload summary interface (agents with assigned counts by status) for orchestration and observability. |
+| R10 | Must | v2 must provide per-agent workload summaries in two surfaces: a dedicated `agent` namespace summary interface (for example `agent stats`) and a task-query grouping mode (for example `task list --group-by-agent`). |
 | R11 | Out | v2 does not introduce daemon-based push/watch delivery semantics; these are deferred to a future iteration. |
 | R12 | Out | v2 does not introduce an agent registration/permission model; enforcement without authentication is explicitly out of scope. |
 
@@ -64,17 +64,13 @@ Use a CLI-first hard reset for v2 with protocol-quality JSON contracts: one clai
 
 - **Immediate major cutover**: v2 can remove/rename legacy interfaces directly rather than carrying compatibility shims.
 - **Unified claim UX**: automatic and explicit claiming are one concept, not separate command families.
-- **JSON-first contract**: human-readable output is explicit (`--format`), not default.
+- **JSON-first contract**: human-readable output is explicit (`--format md`), not default.
 - **Agent autonomy preserved**: HZL supports auto-selection and query tools, but does not force one prioritization policy for all agents.
 - **Assignment as metadata, not gate**: claim lock semantics remain authoritative; assignment primarily supports coordination and observability.
 - **Wildcard behavior via pattern flag**: `--agent-pattern` is case-insensitive and user-facing (not SQL-specific syntax in the contract).
-
-## Open Questions
-
-- **[Affects R2]** Should the only human-readable format be markdown (`--format md`), or should v2 also support a plain-text format?
-- **[Affects R3]** What exact deterministic ranking sequence should be canonical in v2 beyond priority (for example due date, age, dependency depth)?
-- **[Affects R7]** Should anti-herd timing be purely documented behavior for agent runtimes, or exposed directly via command response hints (for example recommended next poll delay)?
-- **[Affects R10]** Should per-agent workload summaries live under `task` queries only, or also have a dedicated `agent` summary command namespace?
+- **Deterministic next-task ordering**: automatic selection uses `priority desc -> due_at asc (null last) -> created_at asc -> task_id asc`.
+- **Anti-herd default behavior**: staggering is automatic for agent-scoped worker calls and can be disabled with an explicit opt-out flag.
+- **Agent summary location**: per-agent workload summaries are available both in a dedicated `agent` namespace and as grouped task-list output (`--group-by-agent`).
 
 ## Next Steps
 
