@@ -1,97 +1,97 @@
-### HZL task ledger (external task tracking)
+### HZL task ledger (agent instructions)
 
-This project uses HZL for task tracking. Use it when tracking helps clarity, handoff, or auditability.
+Use this guide to operate HZL as the shared task ledger for agents on one machine/OpenClaw instance.
 
 **Use HZL when:**
 - Work has multiple steps or may not finish this session
-- You want durable record of progress or ownership
-- Handoff or review expected
-- Task is non-trivial (~30+ min or risky changes)
+- You need durable ownership, progress, or handoff state
+- One agent needs help from another agent
+- You need visibility/auditability for ongoing agent work
 
 **Skip HZL when:**
-- Small, clearly scoped work completed immediately
-- Quick one-off answer or tiny change
+- The work is tiny and can be completed immediately
+- A one-off answer does not need durable tracking
 
-**Rule of thumb:** If you're tempted to make a multi-step plan, use HZL.
+**Rule of thumb:** If work could span sessions or involve multiple agents, use HZL.
+
+---
+
+**Primary orientation:**
+- HZL is agent-first: agents create, claim, hand off, and complete tasks.
+- Humans typically steer and observe; they can also create/update tasks when needed.
+- Projects are optional scopes. Use `inbox` when you do not need scoping.
 
 **Structure:**
-- **Project** = repo name. One per repo. Always `hzl project list` first.
-- **Task** = feature or work item.
-- **Subtask** = breakdown (`--parent <id>`). Max 1 level.
+- **Project (optional)** = shared scope/domain (e.g., `research`, `writing`, `api-service`).
+- **Task** = unit of work.
+- **Subtask** = breakdown (`--parent <id>`), max depth 1.
+- **Agent** = ownership identity (`--agent`).
 
-**Anti-pattern: project sprawl**
+---
+
+**Setup / scope selection:**
 ```bash
-hzl project create "query-perf"  # Wrong: feature is not a project
+hzl project list                  # Check existing scopes
+hzl project create research       # Optional: create scope only if useful
 ```
-Features are parent tasks:
+
+**Create work:**
 ```bash
-hzl task add "Query perf" -P myrepo           # Parent task
-hzl task add "Fix N+1" --parent <parent-id>   # Subtask
+# Unscoped/global queue (inbox)
+hzl task add "Triage failing tests" -s ready
+
+# Scoped queue
+hzl task add "Summarize benchmark paper" -P research -s ready
+
+# Delegate directly to another agent
+hzl task add "Draft release notes" -P writing -s ready --agent writer-1 --author main-agent
+```
+
+**Claim work:**
+```bash
+# Let HZL pick next eligible task
+hzl task claim --next --agent worker-1
+hzl task claim --next -P research --agent researcher-1
+
+# Claim specific task by ID (after reasoning over candidates)
+hzl task claim <id> --agent worker-1
+```
+
+**Inspect candidate work:**
+```bash
+hzl task list --available --view summary
+hzl task list -P research --available --view summary
+hzl task list --agent-pattern 'writer*' --view summary
+```
+
+**Record progress / blockers:**
+```bash
+hzl task checkpoint <id> "completed first pass, next: validate edge cases"
+hzl task progress <id> 60
+hzl task block <id> --comment "Waiting for dependency decision"
+hzl task unblock <id>
+```
+
+**Complete / hand off:**
+```bash
+hzl task comment <id> "handoff: implementation done, needs review"
+hzl task complete <id>
 ```
 
 ---
 
-**Setup:**
+**Recovery for stuck tasks (leases):**
 ```bash
-hzl project list                    # Always check first
-hzl project create <repo-name>      # Only if needed
+hzl task claim --next -P research --agent researcher-1 --lease 60
+hzl task stuck
+hzl task steal <id> --if-expired --agent researcher-2
 ```
 
-**Adding work:**
-```bash
-hzl task add "Feature X" -P myrepo -s ready \
-  -d "Context, approach, and acceptance criteria"       # Ready to claim
-hzl task add "Subtask A" --parent <id>                  # Subtask
-hzl task add "Subtask B" --parent <id> --depends-on <subtask-a-id>  # With dependency
-```
-
-**Task context:** Use `-d` for details, `-l` for reference docs:
-```bash
-hzl task add "Add rate limiting" -P myrepo -s ready \
-  -d "Per linked spec. Use RateLimiter from src/middleware/." \
-  -l docs/rate-limit-spec.md
-```
-If docs exist, reference them (don't duplicate—avoids drift). If no docs, include enough detail to complete the task. Description supports markdown/multiline.
-
-**Working on a task:**
-```bash
-hzl task claim --next -P myrepo                  # Next available task
-hzl task claim --next --parent <id>              # Next subtask of parent
-hzl task claim --next -P myrepo          # Find and claim in one step
-hzl task claim <id>                      # Claim specific task
-hzl task list -P myrepo --agent <agent-id>  # Tasks already assigned to a specific agent
-hzl task checkpoint <id> "milestone X"   # Notable progress or before pausing
-```
-
-**Changing status:**
-```bash
-hzl task set-status <id> ready           # Make claimable (from backlog)
-hzl task set-status <id> backlog         # Move back to planning
-```
-Statuses: `backlog` → `ready` → `in_progress` → `done` (or `blocked`)
-
-**When blocked:**
-```bash
-hzl task block <id> --comment "Waiting for API keys from DevOps"
-hzl task unblock <id>                    # When resolved
-```
-
-**Finishing work:**
-```bash
-hzl task comment <id> "Implemented X, tested Y"  # Optional: final notes
-hzl task complete <id>
-
-# After completing a subtask, check parent:
-hzl task show <parent-id>         # Any subtasks left?
-hzl task show <parent-id> --deep  # Full subtask details + blocked_by
-hzl task complete <parent-id>            # If all done, complete parent
-```
-
-**Troubleshooting:**
+**Troubleshooting quick hits:**
 | Error | Fix |
 |-------|-----|
 | "not claimable (status: backlog)" | `hzl task set-status <id> ready` |
-| "Cannot complete: status is X" | Claim first: `hzl task claim <id>` |
+| "Cannot complete: status is X" | Claim first: `hzl task claim <id> --agent <name>` |
 
 ---
 
