@@ -39,7 +39,7 @@ The second task won't be available until task 1 is marked `done`.
 
 - Tasks with unmet dependencies stay blocked
 - When a dependency completes, dependent tasks become `ready`
-- `hzl task next` never returns blocked tasks
+- `hzl task claim --next` never returns blocked tasks
 - Multiple dependencies are supported: `--depends-on 1,2,3`
 
 ## Basic Sequencing

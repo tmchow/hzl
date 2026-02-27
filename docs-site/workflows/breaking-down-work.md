@@ -105,7 +105,7 @@ hzl task add "Implement models" --parent 1 --depends-on 3
 
 ```bash
 # Get next subtask of a parent
-hzl task next --parent 1
+hzl task claim --next --parent 1
 
 # View parent with all subtasks
 hzl task show 1
@@ -130,7 +130,7 @@ hzl task add "Build checkout UI" --parent 1 --depends-on 3
 hzl task add "Integration tests" --parent 1 --depends-on 4,5
 
 # 3. Work through subtasks
-hzl task next --parent 1 --claim --assignee my-agent
+hzl task claim --next --parent 1 --agent my-agent
 # ... complete each subtask ...
 
 # 4. Complete parent when done

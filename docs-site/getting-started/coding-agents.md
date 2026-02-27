@@ -136,14 +136,14 @@ Add the HZL snippet to your system prompt or project context. Gemini Code Assist
 
 ## Multi-Agent Coordination
 
-When multiple agents work on the same project, use distinct `--assignee` values:
+When multiple agents work on the same project, use distinct `--agent` values:
 
 ```bash
 # Claude Code claims a task
-hzl task claim 1 --assignee "claude-code"
+hzl task claim 1 --agent "claude-code"
 
 # Codex claims a different task
-hzl task claim 2 --assignee "codex"
+hzl task claim 2 --agent "codex"
 
 # Check who's working on what
 hzl task list -P my-project

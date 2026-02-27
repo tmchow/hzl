@@ -99,7 +99,7 @@ Units of work with statuses, ownership, and progress tracking.
 
 ```bash
 hzl task add "Implement login" -P auth-feature
-hzl task claim 1 --assignee claude-code
+hzl task claim 1 --agent claude-code
 ```
 
 ### [Subtasks](./subtasks)
@@ -131,7 +131,7 @@ hzl task checkpoint 1 "Schema designed, moving to implementation"
 Ownership and time-limited claims for coordination.
 
 ```bash
-hzl task claim 1 --assignee claude-code --lease 30
+hzl task claim 1 --agent claude-code --lease 30
 ```
 
 ### [Cloud Sync](./cloud-sync)

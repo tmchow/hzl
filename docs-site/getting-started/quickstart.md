@@ -53,10 +53,10 @@ Before working on a task, claim it:
 
 ```bash
 # Get the next available task
-hzl task next -P my-feature
+hzl task claim --next -P my-feature
 
 # Claim it
-hzl task claim 1 --assignee claude-code
+hzl task claim 1 --agent claude-code
 ```
 
 ## 5. Record Progress
@@ -100,13 +100,13 @@ hzl task add "Add session management" -P auth-system --depends-on 2,3
 hzl task add "Write integration tests" -P auth-system --depends-on 4
 
 # Work through them
-hzl task next -P auth-system --claim --assignee my-agent
+hzl task claim --next -P auth-system --agent my-agent
 # ... do the work ...
 hzl task checkpoint 1 "Auth flow designed: OAuth2 with JWT tokens"
 hzl task complete 1
 
 # Continue with the next available task
-hzl task next -P auth-system --claim --assignee my-agent
+hzl task claim --next -P auth-system --agent my-agent
 ```
 
 ## Next Steps

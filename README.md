@@ -71,7 +71,7 @@ hzl task add "Design the API" -P my-feature
 hzl task add "Implement endpoints" -P my-feature --depends-on 1
 
 # Claim and work
-hzl task claim 1 --assignee claude-code
+hzl task claim 1 --agent claude-code
 hzl task checkpoint 1 "API design complete"
 hzl task complete 1
 

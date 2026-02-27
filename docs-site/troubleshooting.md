@@ -29,7 +29,7 @@ Common issues and how to fix them.
 **Fix:**
 ```bash
 hzl task set-status <id> ready
-hzl task claim <id> --assignee <name>
+hzl task claim <id> --agent <name>
 ```
 
 ### Task Won't Complete
@@ -40,7 +40,7 @@ hzl task claim <id> --assignee <name>
 
 **Fix:**
 ```bash
-hzl task claim <id> --assignee <name>
+hzl task claim <id> --agent <name>
 hzl task complete <id>
 ```
 
@@ -67,7 +67,7 @@ hzl task show <id>
 **Options:**
 1. Wait for them to complete
 2. If stuck, check lease: `hzl task stuck`
-3. If expired, steal: `hzl task steal <id> --if-expired --assignee <name>`
+3. If expired, steal: `hzl task steal <id> --if-expired --agent <name>`
 
 ### Circular Dependency
 

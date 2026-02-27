@@ -69,7 +69,7 @@ hzl task add "Add query caching" --parent <parent-id>
 hzl project list
 
 # JSON output for scripting
-hzl project list --json
+hzl project list
 ```
 
 ## Project Lifecycle
@@ -98,7 +98,7 @@ hzl task add "Another task" --project my-feature
 hzl task list -P my-feature
 
 # Get next available task in project
-hzl task next -P my-feature
+hzl task claim --next -P my-feature
 ```
 
 ## Best Practices

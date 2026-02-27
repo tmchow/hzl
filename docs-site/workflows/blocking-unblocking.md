@@ -39,7 +39,7 @@ Good blocking comments:
 
 - Task status changes to `blocked`
 - Task stays visible in dashboard (Blocked column)
-- Task keeps its assignee
+- Task keeps its agent
 - Task won't appear in `--available` lists
 - Blocking comment is recorded in task history
 
@@ -93,7 +93,7 @@ Blocked tasks appear in their own column for visibility.
 
 ```bash
 # Working on a task
-hzl task claim 5 --assignee claude-code
+hzl task claim 5 --agent claude-code
 hzl task checkpoint 5 "Started auth implementation"
 
 # Hit a blocker

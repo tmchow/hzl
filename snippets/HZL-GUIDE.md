@@ -55,11 +55,11 @@ If docs exist, reference them (don't duplicate—avoids drift). If no docs, incl
 
 **Working on a task:**
 ```bash
-hzl task next -P myrepo                  # Next available task
-hzl task next --parent <id>              # Next subtask of parent
-hzl task next -P myrepo --claim          # Find and claim in one step
+hzl task claim --next -P myrepo                  # Next available task
+hzl task claim --next --parent <id>              # Next subtask of parent
+hzl task claim --next -P myrepo          # Find and claim in one step
 hzl task claim <id>                      # Claim specific task
-hzl task list -P myrepo --assignee <agent-id>  # Tasks already assigned to a specific agent
+hzl task list -P myrepo --agent <agent-id>  # Tasks already assigned to a specific agent
 hzl task checkpoint <id> "milestone X"   # Notable progress or before pausing
 ```
 
@@ -82,8 +82,8 @@ hzl task comment <id> "Implemented X, tested Y"  # Optional: final notes
 hzl task complete <id>
 
 # After completing a subtask, check parent:
-hzl task show <parent-id> --json         # Any subtasks left?
-hzl task show <parent-id> --deep --json  # Full subtask details + blocked_by
+hzl task show <parent-id>         # Any subtasks left?
+hzl task show <parent-id> --deep  # Full subtask details + blocked_by
 hzl task complete <parent-id>            # If all done, complete parent
 ```
 

@@ -122,7 +122,7 @@ Agent 2: ROLLBACK                   → Try again
 Agent 2: SELECT task WHERE ready    → Task #2
 ```
 
-Two agents calling `task next --claim` simultaneously will get different tasks.
+Two agents calling `task claim --next` simultaneously will get different tasks.
 
 ## Database Location
 
@@ -190,7 +190,7 @@ A task is "available" (claimable) when:
 2. All dependencies have status `done`
 3. Not currently claimed by another agent
 
-The `--available` flag and `task next` command filter to available tasks.
+The `--available` flag and `task claim --next` command filter to available tasks.
 
 ## Where HZL Fits
 
@@ -255,7 +255,7 @@ const task = await taskService.createTask({
 });
 
 // Claim task
-await taskService.claimTask(task.id, { assignee: 'my-agent' });
+await taskService.claimTask(task.id, { agent: 'my-agent' });
 
 // Add checkpoint
 await taskService.addCheckpoint(task.id, 'Progress made');

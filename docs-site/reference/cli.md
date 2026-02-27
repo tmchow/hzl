@@ -74,7 +74,7 @@ List all projects.
 
 ```bash
 hzl project list
-hzl project list --json           # JSON output
+hzl project list           # JSON output
 ```
 
 ---
@@ -83,9 +83,9 @@ hzl project list --json           # JSON output
 
 ### Authorship and Ownership
 
-- `--assignee` sets who owns a task.
+- `--agent` sets who owns a task.
 - `--author` (where supported) records who performed a mutation.
-- `hzl task claim` does not take `--author`; the claim `--assignee` is recorded as the event author.
+- `hzl task claim` does not take `--author`; the claim `--agent` is recorded as the event author.
 
 ### Creating Tasks
 
@@ -110,7 +110,7 @@ hzl task add "<title>" --project <project>
 | `-s, --status <status>` | Initial status (backlog, ready, in_progress, blocked, done) |
 | `--depends-on <ids>` | Comma-separated task IDs this depends on |
 | `--parent <id>` | Parent task ID (creates subtask) |
-| `--assignee <name>` | Initial assignee (free-form string) |
+| `--agent <name>` | Initial agent (free-form string) |
 | `--author <name>` | Actor creating/assigning the task (event attribution) |
 
 **Examples:**
@@ -134,10 +134,10 @@ hzl task add "Add unit tests" --parent 1
 hzl task add "Deploy" -P myapp --depends-on 1,2,3
 
 # Assign to another agent at creation
-hzl task add "Implement cache layer" -P myapp -s ready --assignee kenji
+hzl task add "Implement cache layer" -P myapp -s ready --agent kenji
 
 # Attribution: Clara assigns to Kenji
-hzl task add "Investigate flaky auth test" -P myapp -s ready --assignee kenji --author clara
+hzl task add "Investigate flaky auth test" -P myapp -s ready --agent kenji --author clara
 
 # Multiline markdown description
 hzl task add "Write rollout plan" -P myapp \
@@ -160,8 +160,8 @@ List tasks with filtering.
 ```bash
 hzl task list
 hzl task list -P <project>
-hzl task list --assignee <name>
-hzl task list -P <project> --assignee <name>
+hzl task list --agent <name>
+hzl task list -P <project> --agent <name>
 ```
 
 **Options:**
@@ -173,18 +173,17 @@ hzl task list -P <project> --assignee <name>
 | `--available` | Only claimable tasks (ready, deps met) |
 | `--parent <id>` | Only subtasks of this parent |
 | `--root` | Only top-level tasks (no parent) |
-| `--assignee <name>` | Filter by assignee |
-| `--json` | JSON output |
+| `--agent <name>` | Filter by agent |
 
-#### hzl task next
+#### hzl task claim --next
 
 Get the next available task (highest priority, ready, deps met).
 
 ```bash
-hzl task next -P <project>
-hzl task next --parent <id>       # Next subtask of parent
-hzl task next -P <project> --claim --assignee <name>  # Claim immediately
-hzl task next --json
+hzl task claim --next -P <project>
+hzl task claim --next --parent <id>       # Next subtask of parent
+hzl task claim --next -P <project> --agent <name>  # Claim immediately
+hzl task claim --next
 ```
 
 #### hzl task show
@@ -193,14 +192,13 @@ Show task details.
 
 ```bash
 hzl task show <id>
-hzl task show <id> --json
-hzl task show <id> --deep --json   # Full subtask fields + blocked_by
+hzl task show <id> --deep   # Full subtask fields + blocked_by
 hzl task show <id> --no-subtasks   # Hide subtasks from output
 ```
 
 | Flag | Description |
 |------|-------------|
-| `--deep` | Expand subtasks to full Task fields plus computed `blocked_by` array (best with `--json`) |
+| `--deep` | Expand subtasks to full Task fields plus computed `blocked_by` array |
 | `--no-subtasks` | Hide subtasks from output. Takes precedence over `--deep` |
 
 ### Working on Tasks
@@ -211,16 +209,16 @@ Claim a task (start working on it). Alias: `hzl task start`
 
 ```bash
 hzl task claim <id>
-hzl task claim <id> --assignee <name>
-hzl task claim <id> --assignee <name> --agent-id <session-id>
-hzl task claim <id> --assignee <name> --lease <minutes>
+hzl task claim <id> --agent <name>
+hzl task claim <id> --agent <name> --agent-id <session-id>
+hzl task claim <id> --agent <name> --lease <minutes>
 ```
 
 **Options:**
 
 | Flag | Description |
 |------|-------------|
-| `--assignee <name>` | Who is claiming the task |
+| `--agent <name>` | Who is claiming the task |
 | `--agent-id <id>` | Session/agent identifier |
 | `--lease <minutes>` | Lease duration before considered stuck |
 
@@ -374,7 +372,7 @@ Find tasks with expired leases.
 
 ```bash
 hzl task stuck
-hzl task stuck --json
+hzl task stuck
 ```
 
 #### hzl task steal
@@ -382,18 +380,18 @@ hzl task stuck --json
 Take over an abandoned task.
 
 ```bash
-hzl task steal <id> --if-expired --assignee <name>
-hzl task steal <id> --if-expired --assignee kenji --author clara
+hzl task steal <id> --if-expired --agent <name>
+hzl task steal <id> --if-expired --agent kenji --author clara
 ```
 
-Use `--assignee` for the new assignee. Use `--author` only when the actor is different from the assignee.
+Use `--agent` for the new agent. Use `--author` only when the actor is different from the agent.
 
 **Options:**
 
 | Flag | Description |
 |------|-------------|
-| `--assignee <name>` | New assignee after steal |
-| `--owner <name>` | Deprecated alias for `--assignee` |
+| `--agent <name>` | New agent after steal |
+| `--owner <name>` | Deprecated alias for `--agent` |
 | `--author <name>` | Optional actor attribution for the steal event |
 | `--force` | Steal even if lease is still active |
 | `--if-expired` | Steal only when lease is expired |
@@ -411,7 +409,7 @@ hzl task list --parent <id>
 hzl task list --root
 
 # Get next subtask
-hzl task next --parent <id>
+hzl task claim --next --parent <id>
 
 # Archive with subtasks
 hzl task archive <id> --cascade
@@ -480,16 +478,14 @@ hzl serve --print-systemd         # Generate systemd unit file
 
 ---
 
-## JSON Output
+## Output Format
 
-Most commands support `--json` for scripting:
+JSON is the default output format for all commands. Use `--format md` for human-friendly output:
 
 ```bash
-hzl project list --json
-hzl task list --json
-hzl task show <id> --json
-hzl task next --json
-hzl task stuck --json
+hzl project list --format md
+hzl task list --format md
+hzl task show <id> --format md
 ```
 
 ---

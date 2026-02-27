@@ -27,7 +27,7 @@ Use checkpoints to save your state:
 
 ```bash
 # Claim task
-hzl task claim 1 --assignee claude-code
+hzl task claim 1 --agent claude-code
 
 # Work and checkpoint as you go
 hzl task checkpoint 1 "Designed schema with users, sessions, tokens tables"
@@ -44,7 +44,7 @@ New session picks up where you left off:
 hzl task list --status in_progress
 
 # Or find tasks you were working on
-hzl task list --assignee claude-code
+hzl task list --agent claude-code
 
 # View the full context
 hzl task show 1
@@ -55,7 +55,7 @@ Output shows all checkpoints:
 ```
 Task #1: Implement user authentication
 Status: in_progress
-Assignee: claude-code
+Agent: claude-code
 
 Checkpoints:
   [2024-01-15 10:30] Designed schema with users, sessions, tokens tables
@@ -100,7 +100,7 @@ hzl task checkpoint 1 "Working on it"
 ### Session 1 (Morning)
 
 ```bash
-hzl task claim 5 --assignee claude-code
+hzl task claim 5 --agent claude-code
 hzl task checkpoint 5 "Started API design. Decided on REST over GraphQL for simplicity."
 hzl task checkpoint 5 "Defined endpoints: GET/POST /users, GET/PUT/DELETE /users/:id"
 # Session ends

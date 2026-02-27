@@ -53,16 +53,16 @@ If docs exist, reference them (don't duplicate—avoids drift). If no docs, incl
 
 ```bash
 # Get next available task
-hzl task next -P myrepo
+hzl task claim --next -P myrepo
 
 # Claim it (or combine with --claim)
-hzl task claim <id> --assignee my-agent
+hzl task claim <id> --agent my-agent
 
 # One-liner: find and claim
-hzl task next -P myrepo --claim --assignee my-agent
+hzl task claim --next -P myrepo --agent my-agent
 
 # For subtasks of a specific parent
-hzl task next --parent <id> --claim
+hzl task claim --next --parent <id>
 ```
 
 ## Recording Progress
@@ -106,7 +106,7 @@ hzl task complete <id>
 
 ```bash
 # After completing a subtask, check parent
-hzl task show <parent-id> --json   # Any subtasks left?
+hzl task show <parent-id>   # Any subtasks left?
 
 # When all subtasks done, complete parent
 hzl task complete <parent-id>
@@ -129,7 +129,7 @@ hzl task add "Design auth flow" -P auth-feature
 hzl task add "Implement login" -P auth-feature --depends-on 1
 hzl task add "Add tests" -P auth-feature --depends-on 2
 
-hzl task claim 1 --assignee claude-code
+hzl task claim 1 --agent claude-code
 hzl task checkpoint 1 "Decided on JWT tokens with refresh"
 # Session ends
 
@@ -137,12 +137,12 @@ hzl task checkpoint 1 "Decided on JWT tokens with refresh"
 hzl task show 1                    # Review context
 hzl task complete 1                # Finish design
 
-hzl task next -P auth-feature --claim --assignee claude-code
+hzl task claim --next -P auth-feature --agent claude-code
 hzl task checkpoint 2 "Login endpoint complete"
 hzl task complete 2
 
 # Session 3: Finish up
-hzl task next -P auth-feature --claim --assignee claude-code
+hzl task claim --next -P auth-feature --agent claude-code
 hzl task checkpoint 3 "Tests passing"
 hzl task complete 3
 ```

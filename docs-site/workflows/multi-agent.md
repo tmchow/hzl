@@ -37,10 +37,10 @@ Each agent follows the same pattern:
 
 ```bash
 # 1. Get next available task
-hzl task next -P api-v2
+hzl task claim --next -P api-v2
 
 # 2. Claim it with your identifier
-hzl task claim <id> --assignee claude-code
+hzl task claim <id> --agent claude-code
 
 # 3. Work on the task
 # ... do the work ...
@@ -54,15 +54,15 @@ hzl task complete <id>
 
 ## Atomic Claiming
 
-When two agents call `hzl task next` simultaneously:
+When two agents call `hzl task claim --next` simultaneously:
 
 ```bash
 # Agent 1                    # Agent 2
-hzl task next -P api-v2     hzl task next -P api-v2
+hzl task claim --next -P api-v2     hzl task claim --next -P api-v2
 # Returns task 1             # Returns task 1
 
-hzl task claim 1 --assignee claude-code
-# Success!                   hzl task claim 1 --assignee codex
+hzl task claim 1 --agent claude-code
+# Success!                   hzl task claim 1 --agent codex
                             # Error: Already claimed
 ```
 
@@ -72,12 +72,12 @@ HZL uses database transactions to ensure only one agent wins.
 
 | Concept | What it tracks | Set by |
 |---------|----------------|--------|
-| **Assignee** | Who owns the task | `--assignee` on `claim` or `add` |
+| **Agent** | Who owns the task | `--agent` on `claim` or `add` |
 | **Event author** | Who performed an action | `--author` on other commands |
 
 ```bash
 # Alice owns the task
-hzl task claim <id> --assignee alice
+hzl task claim <id> --agent alice
 
 # Bob adds a checkpoint (doesn't change ownership)
 hzl task checkpoint <id> "Reviewed the code" --author bob
@@ -86,26 +86,26 @@ hzl task checkpoint <id> "Reviewed the code" --author bob
 For AI agents that need session tracking:
 
 ```bash
-hzl task claim <id> --assignee "Claude Code" --agent-id "session-abc123"
+hzl task claim <id> --agent "Claude Code" --agent-id "session-abc123"
 ```
 
 ## Agent Identifiers
 
-Use consistent assignee names:
+Use consistent agent names:
 
-| Agent | Assignee Flag |
+| Agent | Agent Flag |
 |-------|---------------|
-| Claude Code | `--assignee claude-code` |
-| OpenAI Codex | `--assignee codex` |
-| Google Gemini | `--assignee gemini` |
-| Human developer | `--assignee human` or your name |
+| Claude Code | `--agent claude-code` |
+| OpenAI Codex | `--agent codex` |
+| Google Gemini | `--agent gemini` |
+| Human developer | `--agent human` or your name |
 
 ## Leases for Long-Running Work
 
 Use leases to indicate how long before a task is considered stuck:
 
 ```bash
-hzl task claim <id> --assignee <name> --lease 30  # 30 minutes
+hzl task claim <id> --agent <name> --lease 30  # 30 minutes
 ```
 
 If the lease expires without completion or renewal, the task can be recovered.
@@ -116,13 +116,13 @@ If an agent dies or becomes unresponsive:
 
 ```bash
 # Find tasks with expired leases
-hzl task stuck --json
+hzl task stuck
 
 # Review checkpoints before taking over
-hzl task show <task-id> --json
+hzl task show <task-id>
 
 # Take over an expired task
-hzl task steal <task-id> --if-expired --assignee agent-2
+hzl task steal <task-id> --if-expired --agent agent-2
 ```
 
 ## Monitoring Progress
@@ -153,28 +153,28 @@ hzl task add "User profiles" -P backend
 hzl task add "Notifications" -P backend
 
 # Claude Code session
-hzl task next -P backend          # Gets task 1
-hzl task claim 1 --assignee claude-code
+hzl task claim --next -P backend          # Gets task 1
+hzl task claim 1 --agent claude-code
 # ... works on auth ...
 hzl task complete 1
 
 # Codex session (parallel)
-hzl task next -P backend          # Gets task 2 (1 is claimed)
-hzl task claim 2 --assignee codex
+hzl task claim --next -P backend          # Gets task 2 (1 is claimed)
+hzl task claim 2 --agent codex
 # ... works on profiles ...
 hzl task complete 2
 
 # Gemini session (parallel)
-hzl task next -P backend          # Gets task 3
-hzl task claim 3 --assignee gemini
+hzl task claim --next -P backend          # Gets task 3
+hzl task claim 3 --agent gemini
 # ... works on notifications ...
 hzl task complete 3
 ```
 
 ## Best Practices
 
-1. **Always use `--assignee`** - Track who did what
-2. **Use `task next`** - Don't hardcode task IDs
+1. **Always use `--agent`** - Track who did what
+2. **Use `task claim --next`** - Don't hardcode task IDs
 3. **Checkpoint frequently** - Other agents can see progress
 4. **Complete promptly** - Don't leave tasks claimed but idle
 5. **Use leases** - Enable stuck task detection for long work

@@ -26,7 +26,7 @@ hzl task add "Build logout endpoint" -P my-project --parent 1
 - Subtasks belong to a parent task
 - Maximum **one level** of nesting (tasks → subtasks, no deeper)
 - Parent tasks are not claimable (claim subtasks instead)
-- `hzl task next` returns subtasks, not parent tasks
+- `hzl task claim --next` returns subtasks, not parent tasks
 
 ## When to Use Subtasks
 
@@ -67,7 +67,7 @@ hzl task add "Write tests" -P proj --depends-on 2
 
 1. **Parent tasks can't be claimed** - Claim the subtasks instead
 2. **Parent tasks can't be completed directly** - Complete all subtasks first
-3. **`hzl task next` skips parents** - Returns available subtasks
+3. **`hzl task claim --next` skips parents** - Returns available subtasks
 
 ## Viewing Subtasks
 
@@ -91,11 +91,11 @@ hzl task add "Add avatar upload" -P frontend --parent 1
 hzl task add "Build settings form" -P frontend --parent 1
 
 # Work on subtasks
-hzl task claim 2 --assignee claude-code  # Profile component
+hzl task claim 2 --agent claude-code  # Profile component
 # ... work ...
 hzl task complete 2
 
-hzl task claim 3 --assignee claude-code  # Avatar upload
+hzl task claim 3 --agent claude-code  # Avatar upload
 # ... work ...
 hzl task complete 3
 

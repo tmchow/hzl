@@ -58,7 +58,7 @@ Output:
 ```
 Task #1: Implement user authentication
 Status: in_progress
-Assignee: claude-code
+Agent: claude-code
 
 Checkpoints:
   [2024-01-15 10:30] Designed schema with users, sessions, tokens tables
