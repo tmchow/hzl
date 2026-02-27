@@ -69,4 +69,32 @@ describe('runAddDep', () => {
     const depEvent = events.find((e) => e.type === EventType.DependencyAdded);
     expect(depEvent?.author).toBe('clara');
   });
+
+  it('throws when dependency task is missing', () => {
+    const task1 = services.taskService.createTask({ title: 'Task 1', project: 'inbox' });
+
+    expect(() => runAddDep({
+      services,
+      taskId: task1.task_id,
+      dependsOnId: 'missing-dependency-id',
+      json: false,
+    })).toThrow(/Dependency task not found/i);
+  });
+
+  it('allows cross-project dependency by default', () => {
+    services.projectService.createProject('project-a');
+    services.projectService.createProject('project-b');
+
+    const task1 = services.taskService.createTask({ title: 'Task 1', project: 'project-a' });
+    const task2 = services.taskService.createTask({ title: 'Task 2', project: 'project-b' });
+
+    const result = runAddDep({
+      services,
+      taskId: task1.task_id,
+      dependsOnId: task2.task_id,
+      json: false,
+    });
+
+    expect(result.added).toBe(true);
+  });
 });

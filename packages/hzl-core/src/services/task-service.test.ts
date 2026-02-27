@@ -1,7 +1,7 @@
 // packages/hzl-core/src/services/task-service.test.ts
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import Database from 'libsql';
-import { TaskService, CrossProjectDependencyError, AmbiguousPrefixError } from './task-service.js';
+import { TaskService, AmbiguousPrefixError } from './task-service.js';
 import { ProjectService, ProjectNotFoundError } from './project-service.js';
 import { createTestDb } from '../db/test-utils.js';
 import { EventStore } from '../events/store.js';
@@ -1910,21 +1910,36 @@ describe('TaskService', () => {
       // Both should potentially be eligible since both are terminal
       expect(eligible.length).toBeGreaterThanOrEqual(0); // May be 0 if not old enough
     });
+
+    it('blocks pruning when dependent is active in another project', () => {
+      projectService.createProject('prune-cross-a');
+      projectService.createProject('prune-cross-b');
+
+      const dependency = taskService.createTask({ title: 'Dependency', project: 'prune-cross-a' });
+      const dependent = taskService.createTask({
+        title: 'Dependent',
+        project: 'prune-cross-b',
+        depends_on: [dependency.task_id],
+      });
+
+      taskService.setStatus(dependency.task_id, TaskStatus.Ready);
+      taskService.claimTask(dependency.task_id);
+      taskService.completeTask(dependency.task_id);
+      taskService.setStatus(dependent.task_id, TaskStatus.Ready);
+
+      const future = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString();
+      const eligible = taskService.previewPrunableTasks({
+        project: 'prune-cross-a',
+        olderThanDays: 1,
+        asOf: future,
+      });
+
+      const depFound = eligible.find(t => t.task_id === dependency.task_id);
+      expect(depFound).toBeUndefined();
+    });
   });
 
-  describe('cross-project dependency validation', () => {
-    it('rejects dependency on task in different project', () => {
-      const taskInProjectA = taskService.createTask({ title: 'Task A', project: 'project-a' });
-
-      expect(() =>
-        taskService.createTask({
-          title: 'Task B',
-          project: 'project-b',
-          depends_on: [taskInProjectA.task_id],
-        })
-      ).toThrow(CrossProjectDependencyError);
-    });
-
+  describe('cross-project dependency behavior', () => {
     it('allows dependency on task in same project', () => {
       const dependency = taskService.createTask({ title: 'Dep', project: 'project-a' });
       const dependent = taskService.createTask({
@@ -1945,6 +1960,18 @@ describe('TaskService', () => {
       });
 
       expect(task.task_id).toBeDefined();
+    });
+
+    it('allows cross-project dependency by default', () => {
+      const taskInProjectA = taskService.createTask({ title: 'Task A', project: 'project-a' });
+
+      const taskInProjectB = taskService.createTask({
+        title: 'Task B',
+        project: 'project-b',
+        depends_on: [taskInProjectA.task_id],
+      });
+
+      expect(taskInProjectB.task_id).toBeDefined();
     });
   });
 
@@ -2453,6 +2480,65 @@ describe('TaskService', () => {
     it('returns null when no tasks exist', () => {
       const resolved = taskService.resolveTaskId('01ABCDEF');
       expect(resolved).toBeNull();
+    });
+  });
+
+  describe('on_done hooks', () => {
+    it('enqueues outbox item when task is created directly as done', () => {
+      const hookTaskService = new TaskService(db, eventStore, projectionEngine, projectService, undefined, {
+        onDone: { url: 'http://127.0.0.1:18789/events/inject' },
+      });
+
+      const task = hookTaskService.createTask({
+        title: 'Done on create',
+        project: 'inbox',
+        initial_status: TaskStatus.Done,
+      });
+
+      const row = db
+        .prepare('SELECT hook_name, status, url FROM hook_outbox WHERE payload LIKE ?')
+        .get(`%"task_id":"${task.task_id}"%`) as
+        | { hook_name: string; status: string; url: string }
+        | undefined;
+
+      expect(row).toBeDefined();
+      expect(row?.hook_name).toBe('on_done');
+      expect(row?.status).toBe('queued');
+      expect(row?.url).toBe('http://127.0.0.1:18789/events/inject');
+    });
+
+    it('enqueues outbox item when setStatus transitions to done', () => {
+      const hookTaskService = new TaskService(db, eventStore, projectionEngine, projectService, undefined, {
+        onDone: { url: 'http://127.0.0.1:18789/events/inject' },
+      });
+
+      const task = hookTaskService.createTask({ title: 'Set status done', project: 'inbox' });
+      hookTaskService.setStatus(task.task_id, TaskStatus.Done);
+
+      const count = (
+        db.prepare('SELECT COUNT(*) as count FROM hook_outbox WHERE payload LIKE ?')
+          .get(`%"task_id":"${task.task_id}"%`) as { count: number }
+      ).count;
+
+      expect(count).toBe(1);
+    });
+
+    it('enqueues outbox item when completeTask transitions to done', () => {
+      const hookTaskService = new TaskService(db, eventStore, projectionEngine, projectService, undefined, {
+        onDone: { url: 'http://127.0.0.1:18789/events/inject' },
+      });
+
+      const task = hookTaskService.createTask({ title: 'Complete me', project: 'inbox' });
+      hookTaskService.setStatus(task.task_id, TaskStatus.Ready);
+      hookTaskService.claimTask(task.task_id, { author: 'agent-1' });
+      hookTaskService.completeTask(task.task_id, { author: 'agent-1' });
+
+      const count = (
+        db.prepare('SELECT COUNT(*) as count FROM hook_outbox WHERE payload LIKE ?')
+          .get(`%"task_id":"${task.task_id}"%`) as { count: number }
+      ).count;
+
+      expect(count).toBe(1);
     });
   });
 });

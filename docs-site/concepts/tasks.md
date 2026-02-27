@@ -27,7 +27,7 @@ Tasks require a title and project:
 | `-l, --links` | Comma-separated URLs or file paths to reference docs |
 | `-t, --tags` | Comma-separated tags for filtering |
 | `-p, --priority` | Priority level 0-3 (higher = more important) |
-| `-s, --status` | Initial status (backlog, ready, in_progress, blocked, done, archived) |
+| `-s, --status` | Initial status (backlog, ready, in_progress, blocked, done) |
 | `--agent` | Initial agent (free-form string, no identity lookup) |
 | `--author` | Optional actor attribution for task creation events |
 | `--depends-on` | Comma-separated task IDs this depends on |

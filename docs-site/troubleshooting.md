@@ -6,186 +6,95 @@ nav_order: 7
 
 # Troubleshooting
 
-Common issues and how to fix them.
+Common issues and fixes.
 
-## Quick Reference
+## Quick reference
 
 | Error | Fix |
-|-------|-----|
+|---|---|
 | "not claimable (status: backlog)" | `hzl task set-status <id> ready` |
-| "Cannot complete: status is X" | Claim first: `hzl task claim <id>` |
-| "Task not found" | Check ID with `hzl task list` |
-| "Already claimed" | Task owned by another agent |
-| "Circular dependency" | Run `hzl validate` to find the cycle |
+| "Cannot complete: status is X" | claim first: `hzl task claim <id> --agent <name>` |
+| "Task not found" | `hzl task list` and confirm ID/prefix |
+| "Circular dependency" | run `hzl validate` and remove one edge |
+| "handoff requires --agent, --project, or both" | add routing args to `workflow run handoff` |
+| "--auto-op-id is not supported for workflow run start" | use explicit `--op-id` only for intentional retries |
 
-## Common Issues
+## Task not showing in available list
 
-### Task Won't Claim
+Cause:
+- unmet dependencies, or
+- task not in `ready`.
 
-**Error:** "Task is not claimable (status: backlog)"
+Check:
 
-**Cause:** Task is in `backlog` status, not `ready`.
-
-**Fix:**
-```bash
-hzl task set-status <id> ready
-hzl task claim <id> --agent <name>
-```
-
-### Task Won't Complete
-
-**Error:** "Cannot complete task: status is ready"
-
-**Cause:** Task must be claimed (in_progress) before completing.
-
-**Fix:**
-```bash
-hzl task claim <id> --agent <name>
-hzl task complete <id>
-```
-
-### Task Not Showing in Available
-
-**Cause:** Task has unmet dependencies or is already claimed.
-
-**Check:**
 ```bash
 hzl task show <id>
-# Look at "Depends on" and "Status"
+hzl dep list --blocking-only
 ```
 
-**Fix:**
-- Complete blocking dependencies first
-- Or remove an incorrect dependency: `hzl task remove-dep <task-id> <depends-on-id>`
+## Already claimed / stalled ownership
 
-### Already Claimed Error
-
-**Error:** "Task already claimed by `<agent>`"
-
-**Cause:** Another agent owns this task.
-
-**Options:**
-1. Wait for them to complete
-2. If stuck, check lease: `hzl task stuck`
-3. If expired, steal: `hzl task steal <id> --if-expired --agent <name>`
-
-### Circular Dependency
-
-**Error:** "Circular dependency detected"
-
-**Cause:** Task A depends on B, B depends on A (directly or transitively).
-
-**Find:**
 ```bash
-hzl validate
+hzl task stuck
+hzl task show <id>
+hzl task steal <id> --if-expired --agent <name>
 ```
 
-**Fix:** Remove one of the dependencies by recreating tasks without the cycle.
+## Workflow handoff fails with routing guardrail
 
-## Diagnostic Commands
+`workflow run handoff` requires explicit routing.
 
-### Check HZL Status
+Use one of:
+
+```bash
+hzl workflow run handoff --from <id> --title "..." --project writing
+hzl workflow run handoff --from <id> --title "..." --project writing --agent clara
+```
+
+## Hook delivery not happening
+
+Most common cause: no scheduler is running `hzl hook drain`.
+
+Run manually to verify:
+
+```bash
+hzl hook drain
+```
+
+If this reports retries/failures:
+1. verify `hooks.on_done.url` and auth header,
+2. verify gateway/network reachability,
+3. keep drain on schedule (1-5 minute cadence).
+
+## Hook rows keep failing
+
+Inspect likely causes:
+- endpoint unavailable,
+- auth token expired/invalid,
+- response timeout.
+
+`hook drain` uses retry/backoff and eventually marks terminal failures.
+
+## Diagnostic commands
 
 ```bash
 hzl status
-```
-
-Shows:
-- Database location
-- Sync configuration
-- Basic health info
-
-### Run Health Checks
-
-```bash
 hzl doctor
-```
-
-Comprehensive health check including:
-- Database integrity
-- Sync status
-- Configuration issues
-
-### Validate Task Graph
-
-```bash
 hzl validate
+hzl stats
+hzl which-db
 ```
 
-Checks for:
-- Circular dependencies
-- Invalid references
-- Other graph issues
-
-## Database Issues
-
-### Reset Configuration
-
-```bash
-hzl init --reset-config
-```
-
-Resets config to defaults without touching data.
-
-### Reinitialize (Destructive)
+## Destructive reset warning
 
 ```bash
 hzl init --force
 ```
 
-**Warning:** This deletes all data. Use only if you need a fresh start.
+This deletes all HZL data. Only run with explicit operator intent.
 
-### Database Location
+## Getting help
 
-Default: `~/.local/share/hzl/`
-
-Contains:
-- `events.db` - Event log (source of truth)
-- `cache.db` - Derived state (can be rebuilt)
-
-## Sync Issues
-
-### Sync Not Working
-
-```bash
-# Check configuration
-hzl status
-
-# Force sync
-hzl sync
-
-# Look for error messages
-```
-
-### Stale Data
-
-```bash
-hzl sync
-hzl task list
-```
-
-### Authentication Failed
-
-- Verify auth token is correct
-- Token may have expired - generate new one
-- Check sync URL format: `libsql://<db>.turso.io`
-
-## Getting Help
-
-### Command Help
-
-```bash
-hzl --help
-hzl task --help
-hzl task add --help
-```
-
-### Report Issues
-
-File bugs at [github.com/tmchow/hzl/issues](https://github.com/tmchow/hzl/issues)
-
-Include:
-- HZL version (`hzl --version`)
-- Error message
-- Steps to reproduce
-- Output of `hzl doctor`
+- `hzl --help`
+- `hzl <command> --help`
+- GitHub issues: [github.com/tmchow/hzl/issues](https://github.com/tmchow/hzl/issues)

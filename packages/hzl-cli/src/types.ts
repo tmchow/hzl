@@ -39,6 +39,12 @@ export interface Config {
       conflictStrategy?: 'merge' | 'discard-local' | 'fail';
     };
   };
+  hooks?: {
+    on_done?: {
+      url?: string;
+      headers?: Record<string, string>;
+    };
+  };
   defaultProject?: string;
   defaultAuthor?: string;
   leaseMinutes?: number;

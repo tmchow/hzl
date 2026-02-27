@@ -2,7 +2,7 @@ import { defineConfig } from 'vitepress'
 
 export default defineConfig({
   title: 'HZL Documentation',
-  description: 'The missing task layer for OpenClaw',
+  description: 'Shared task ledger for OpenClaw and multi-agent systems',
   cleanUrls: true,
   lastUpdated: true,
   appearance: 'dark',
@@ -14,10 +14,23 @@ export default defineConfig({
         collapsed: false,
         items: [
           { text: 'Overview', link: '/getting-started/' },
-          { text: 'Installation', link: '/getting-started/installation' },
-          { text: 'OpenClaw Setup', link: '/getting-started/openclaw' },
+          { text: 'Installation & OpenClaw Setup', link: '/getting-started/installation' },
           { text: 'Quickstart', link: '/getting-started/quickstart' },
           { text: 'Dashboard', link: '/dashboard' },
+        ],
+      },
+      {
+        text: 'Workflows',
+        collapsed: false,
+        items: [
+          { text: 'Overview', link: '/workflows/' },
+          { text: 'Single Agent', link: '/workflows/single-agent' },
+          { text: 'Multi-Agent', link: '/workflows/multi-agent' },
+          { text: 'Session Handoffs', link: '/workflows/session-handoffs' },
+          { text: 'Breaking Down Work', link: '/workflows/breaking-down-work' },
+          { text: 'Blocking & Unblocking', link: '/workflows/blocking-unblocking' },
+          { text: 'Human Oversight', link: '/workflows/human-oversight' },
+          { text: 'Project Organization', link: '/workflows/project-organization' },
         ],
       },
       {
@@ -33,20 +46,6 @@ export default defineConfig({
           { text: 'Checkpoints', link: '/concepts/checkpoints' },
           { text: 'Claiming & Leases', link: '/concepts/claiming-leases' },
           { text: 'Cloud Sync', link: '/concepts/cloud-sync' },
-        ],
-      },
-      {
-        text: 'Workflows',
-        collapsed: false,
-        items: [
-          { text: 'Overview', link: '/workflows/' },
-          { text: 'Single Agent', link: '/workflows/single-agent' },
-          { text: 'Multi-Agent', link: '/workflows/multi-agent' },
-          { text: 'Session Handoffs', link: '/workflows/session-handoffs' },
-          { text: 'Breaking Down Work', link: '/workflows/breaking-down-work' },
-          { text: 'Blocking & Unblocking', link: '/workflows/blocking-unblocking' },
-          { text: 'Human Oversight', link: '/workflows/human-oversight' },
-          { text: 'Project Organization', link: '/workflows/project-organization' },
         ],
       },
       {
@@ -69,7 +68,7 @@ export default defineConfig({
     ],
     socialLinks: [{ icon: 'github', link: 'https://github.com/tmchow/hzl' }],
     footer: {
-      message: 'HZL - The missing task layer for OpenClaw',
+      message: 'HZL - Shared task ledger for OpenClaw and multi-agent systems',
     },
   },
 })

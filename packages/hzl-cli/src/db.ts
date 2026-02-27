@@ -15,6 +15,7 @@ import { TaskService } from 'hzl-core/services/task-service.js';
 import { ProjectService } from 'hzl-core/services/project-service.js';
 import { SearchService } from 'hzl-core/services/search-service.js';
 import { ValidationService } from 'hzl-core/services/validation-service.js';
+import { readConfig } from './config.js';
 
 // Schema version: bump when projection table schemas change
 const CURRENT_SCHEMA_VERSION = 3;
@@ -190,7 +191,15 @@ export function initializeDb(options: InitializeDbOptions): Services {
   checkAndMigrateSchema(cacheDb, eventsDb, projectionEngine);
 
   const projectService = new ProjectService(cacheDb, eventStore, projectionEngine);
-  const taskService = new TaskService(cacheDb, eventStore, projectionEngine, projectService, eventsDb);
+  const config = readConfig();
+  const taskService = new TaskService(
+    cacheDb,
+    eventStore,
+    projectionEngine,
+    projectService,
+    eventsDb,
+    { onDone: config.hooks?.on_done }
+  );
   const searchService = new SearchService(cacheDb);
   const validationService = new ValidationService(cacheDb);
 

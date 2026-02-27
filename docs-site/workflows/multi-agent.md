@@ -7,68 +7,55 @@ nav_order: 2
 
 # Multi-Agent Coordination
 
-Multiple agents can coordinate through shared task state without duplicate work.
+Coordinate multiple agents through shared projects and atomic claiming.
 
-## Coordination Pattern
+## Preferred routing pattern: project pools
 
-1. Shared backlog exists (global `inbox` or project scope).
-2. Agents pull candidate work.
-3. Agents claim work atomically.
-4. Agents checkpoint progress and complete.
-5. Humans monitor and intervene when needed.
-
-## Shared Pool Example (Project Scope)
+Create tasks in the target project and omit `--agent` unless assignment must be explicit.
 
 ```bash
-# Shared domain queue
 hzl project create writing
-hzl task add "Draft product announcement" -P writing
-hzl task add "Edit API release notes" -P writing
+hzl task add "Draft product announcement" -P writing -s ready
+```
 
-# Two agents can independently pull from same scope
+Any writing agent can claim from the pool:
+
+```bash
 hzl task claim --next -P writing --agent writer-1
 hzl task claim --next -P writing --agent writer-2
 ```
 
-Both agents get different tasks because claim-next is atomic.
+`claim --next` is atomic, so both agents get different tasks.
 
-## Explicit vs Automatic Claim
+## Explicit assignment when needed
 
-- **Automatic:** `task claim --next` when agent wants HZL to choose the next eligible task.
-- **Explicit:** `task claim <id>` when agent has already reasoned over candidate tasks.
+Use `--agent` only when one specific identity should own context-heavy work.
 
-Both are valid and can coexist in one system.
+```bash
+hzl task add "Revise legal disclaimer" -P writing -s ready --agent writer-1
+```
 
-## Leases for Recovery
+## Workflow-first session loop
 
-Use leases when work can stall or agents may crash:
+```bash
+# Each wake
+hzl workflow run start --agent writer-1 --project writing
+
+# On completion/handoff
+hzl workflow run handoff --from <task-id> --title "Schedule post" --project marketing
+```
+
+## Leases and recovery
 
 ```bash
 hzl task claim --next -P writing --agent writer-1 --lease 60
-```
-
-Recover expired work:
-
-```bash
 hzl task stuck
-hzl task show <task-id>
 hzl task steal <task-id> --if-expired --agent writer-2
 ```
 
-## Monitoring Shared Work
+## Operational notes
 
-```bash
-# Detailed tasks grouped by agent
-hzl task list -P writing --group-by-agent --view standard
-
-# Counts-only workload summary
-hzl agent stats -P writing
-```
-
-## Best Practices
-
-1. Use consistent `--agent` naming.
-2. Use project scopes when many agents share one domain.
-3. Use `claim --next` for simple pull loops; use explicit claim when agents reason over choices.
-4. Checkpoint before pauses or handoffs.
-5. Use leases on long-running tasks.
+1. Keep agent identity strings stable.
+2. Prefer pool routing for scalable role teams.
+3. Use explicit assignment sparingly.
+4. Schedule `hzl hook drain` in host runtime for reliable done notifications.

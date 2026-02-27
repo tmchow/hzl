@@ -2,9 +2,15 @@
 
 <img src="./assets/hzl.png" alt="HZL mascot" width="320" />
 
-## The Missing Task Layer for OpenClaw
+## Shared Task Ledger for OpenClaw
 
-Coordinate many agents through shared, durable task state with built-in human visibility.
+HZL is a durable shared task ledger for OpenClaw and other multi-agent systems.
+
+Each agent wake is a fresh session. HZL preserves continuity across those wakes so agents can:
+- resume in-progress work safely,
+- hand off with durable context,
+- coordinate through shared project pools,
+- and recover from stalled sessions.
 
 ## Install
 
@@ -23,13 +29,32 @@ brew install hzl
 hzl init
 ```
 
+## Stateless Agent Loop (Quick Example)
+
+```bash
+# 1) Session start: resume existing work or claim next
+hzl workflow run start --agent clara --project writing
+
+# 2) Record durable progress while working
+hzl task checkpoint <task-id> "Draft complete, revising CTA section"
+
+# 3) Handoff to a project pool (unassigned follow-on)
+hzl workflow run handoff \
+  --from <task-id> \
+  --title "Schedule approved copy" \
+  --project marketing
+
+# 4) Host runtime drains completion hooks on a schedule
+hzl hook drain
+```
+
 ## Documentation
 
 - [Get Started](https://www.hzl-tasks.com/getting-started/)
-- [OpenClaw Setup](https://www.hzl-tasks.com/getting-started/openclaw/)
+- [Workflows](https://www.hzl-tasks.com/workflows/)
+- [Installation & OpenClaw Setup](https://www.hzl-tasks.com/getting-started/installation/)
 - [CLI Reference](https://www.hzl-tasks.com/reference/cli/)
 - [Concepts](https://www.hzl-tasks.com/concepts/)
-- [Workflows](https://www.hzl-tasks.com/workflows/)
 
 Local preview:
 

@@ -145,6 +145,40 @@ CREATE TABLE IF NOT EXISTS projects (
 
 CREATE INDEX IF NOT EXISTS idx_projects_protected ON projects(is_protected);
 
+-- Durable hook delivery outbox (not rebuildable)
+CREATE TABLE IF NOT EXISTS hook_outbox (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    hook_name           TEXT NOT NULL,
+    status              TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued','processing','delivered','failed')),
+    url                 TEXT NOT NULL,
+    headers             TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(headers)),
+    payload             TEXT NOT NULL CHECK (json_valid(payload)),
+    attempts            INTEGER NOT NULL DEFAULT 0,
+    next_attempt_at     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+    processing_started_at TEXT,
+    delivered_at        TEXT,
+    failed_at           TEXT,
+    lock_token          TEXT,
+    locked_by           TEXT,
+    lock_expires_at     TEXT,
+    last_error          TEXT,
+    error_payload       TEXT CHECK (error_payload IS NULL OR json_valid(error_payload)),
+    created_at          TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+    updated_at          TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+
+-- Workflow idempotency cache (not rebuildable)
+CREATE TABLE IF NOT EXISTS workflow_ops (
+    op_id               TEXT PRIMARY KEY,
+    workflow_name       TEXT NOT NULL,
+    input_hash          TEXT NOT NULL,
+    state               TEXT NOT NULL CHECK (state IN ('processing','completed','failed')),
+    result_payload      TEXT CHECK (result_payload IS NULL OR json_valid(result_payload)),
+    error_payload       TEXT CHECK (error_payload IS NULL OR json_valid(error_payload)),
+    created_at          TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+    updated_at          TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+
 -- Indexes for tasks_current
 CREATE INDEX IF NOT EXISTS idx_tasks_current_project_status ON tasks_current(project, status);
 CREATE INDEX IF NOT EXISTS idx_tasks_current_status ON tasks_current(status);
@@ -163,6 +197,13 @@ CREATE INDEX IF NOT EXISTS idx_deps_depends_on ON task_dependencies(depends_on_i
 CREATE INDEX IF NOT EXISTS idx_task_tags_tag ON task_tags(tag, task_id);
 CREATE INDEX IF NOT EXISTS idx_task_comments_task ON task_comments(task_id, event_rowid);
 CREATE INDEX IF NOT EXISTS idx_task_checkpoints_task ON task_checkpoints(task_id, event_rowid);
+
+-- Indexes for hook/workflow foundations
+CREATE INDEX IF NOT EXISTS idx_hook_outbox_drain ON hook_outbox(status, next_attempt_at, id);
+CREATE INDEX IF NOT EXISTS idx_hook_outbox_lock ON hook_outbox(status, lock_expires_at);
+CREATE INDEX IF NOT EXISTS idx_hook_outbox_hook_status ON hook_outbox(hook_name, status, id);
+CREATE INDEX IF NOT EXISTS idx_workflow_ops_workflow_state ON workflow_ops(workflow_name, state, updated_at);
+CREATE INDEX IF NOT EXISTS idx_workflow_ops_workflow_input ON workflow_ops(workflow_name, input_hash);
 `;
 
 export const PRAGMAS = `

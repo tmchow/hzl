@@ -7,120 +7,67 @@ nav_order: 3
 
 # Session Handoffs
 
-Continuing work across sessions without losing context.
+Handoffs should be explicit, context-rich, and replayable.
 
-## The Problem
+Use `workflow run handoff` instead of ad hoc "complete + add" sequences.
 
-AI coding sessions have limited context windows. When a session ends:
+## Why workflow handoff
 
-- Work in progress is lost
-- Next session starts from scratch
-- No record of what was tried or decided
+`workflow run handoff` performs a coordinated transition:
+1. Validates source task status.
+2. Creates follow-on task.
+3. Carries recent checkpoint context.
+4. Completes source task.
 
-## The Solution
+Carried context is placed in:
+- follow-on description (pickup context), and
+- an initial follow-on checkpoint (history/debug context).
 
-HZL preserves context through checkpoints and task history.
-
-## Recording Progress
-
-Use checkpoints to save your state:
-
-```bash
-# Claim task
-hzl task claim 1 --agent claude-code
-
-# Work and checkpoint as you go
-hzl task checkpoint 1 "Designed schema with users, sessions, tokens tables"
-hzl task checkpoint 1 "Implemented User model with bcrypt password hashing"
-hzl task checkpoint 1 "Started on Session model, need to add expiry logic"
-```
-
-## Resuming Work
-
-New session picks up where you left off:
+## Basic handoff
 
 ```bash
-# Find your in-progress work
-hzl task list --status in_progress
-
-# Or find tasks you were working on
-hzl task list --agent claude-code
-
-# View the full context
-hzl task show 1
+hzl workflow run handoff \
+  --from <task-id> \
+  --title "Prepare final publish assets" \
+  --project marketing
 ```
 
-Output shows all checkpoints:
+Omitting `--agent` is intentional pool routing when `--project` is provided.
 
-```
-Task #1: Implement user authentication
-Status: in_progress
-Agent: claude-code
-
-Checkpoints:
-  [2024-01-15 10:30] Designed schema with users, sessions, tokens tables
-  [2024-01-15 11:45] Implemented User model with bcrypt password hashing
-  [2024-01-15 14:20] Started on Session model, need to add expiry logic
-```
-
-## Handoff Between Agents
-
-One agent can hand off to another:
+## Targeted handoff to specific agent
 
 ```bash
-# Agent 1: Record where you stopped
-hzl task checkpoint 1 "HANDOFF: Auth logic done. Remaining: tests and docs. See auth_service.rb"
-
-# Agent 2: Pick up the work
-hzl task show 1  # Read the context
-# Continue working...
-hzl task checkpoint 1 "Added unit tests for AuthService"
+hzl workflow run handoff \
+  --from <task-id> \
+  --title "Apply final legal edits" \
+  --project writing \
+  --agent writer-2
 ```
 
-## What to Checkpoint
-
-Good checkpoints include:
-
-- **What's done** - Completed components or steps
-- **What's next** - Immediate next action
-- **Key decisions** - Why you chose an approach
-- **Blockers** - What you're stuck on
-- **File references** - Where to find the code
+## Carry controls
 
 ```bash
-# Good checkpoint
-hzl task checkpoint 1 "Auth middleware complete (auth_middleware.rb). Next: add rate limiting. Using Redis for token storage per prior architecture decision."
-
-# Not helpful
-hzl task checkpoint 1 "Working on it"
+hzl workflow run handoff \
+  --from <task-id> \
+  --title "Follow-up" \
+  --project writing \
+  --carry-checkpoints 5 \
+  --carry-max-chars 4000
 ```
 
-## Example Workflow
+## Guardrail behavior
 
-### Session 1 (Morning)
+Handoff requires routing clarity:
+- provide `--agent`, or
+- provide `--project`, or
+- provide both.
+
+If omitted, command fails with an actionable message.
+
+## Idempotent retries
 
 ```bash
-hzl task claim 5 --agent claude-code
-hzl task checkpoint 5 "Started API design. Decided on REST over GraphQL for simplicity."
-hzl task checkpoint 5 "Defined endpoints: GET/POST /users, GET/PUT/DELETE /users/:id"
-# Session ends
+hzl workflow run handoff --from <id> --title "..." --project writing --op-id handoff-2026-02-27-01
 ```
 
-### Session 2 (Afternoon)
-
-```bash
-hzl task show 5  # Read morning's progress
-
-# Continue from checkpoint
-hzl task checkpoint 5 "Implemented GET /users with pagination"
-hzl task checkpoint 5 "Implemented POST /users with validation"
-hzl task complete 5
-```
-
-## Best Practices
-
-1. **Checkpoint at natural breakpoints** - After completing a component or making a decision
-2. **Include "next step"** - Future you will thank you
-3. **Reference files** - Make it easy to find the code
-4. **Don't over-checkpoint** - Every commit doesn't need a checkpoint
-5. **Use descriptive messages** - Summarize what happened, not just "did work"
+Use `--auto-op-id` when you want deterministic key generation from normalized input.

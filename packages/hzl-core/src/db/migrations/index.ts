@@ -9,6 +9,48 @@ import type Database from 'libsql';
 import { ADD_TERMINAL_AT_COLUMN, CREATE_TERMINAL_AT_INDEX } from './v2.js';
 import { ADD_AGENT_COLUMN, BACKFILL_AGENT_FROM_ASSIGNEE, CREATE_AGENT_INDEX } from './v3.js';
 
+const ENSURE_HOOK_AND_WORKFLOW_TABLES = `
+CREATE TABLE IF NOT EXISTS hook_outbox (
+  id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+  hook_name             TEXT NOT NULL,
+  status                TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued','processing','delivered','failed')),
+  url                   TEXT NOT NULL,
+  headers               TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(headers)),
+  payload               TEXT NOT NULL CHECK (json_valid(payload)),
+  attempts              INTEGER NOT NULL DEFAULT 0,
+  next_attempt_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  processing_started_at TEXT,
+  delivered_at          TEXT,
+  failed_at             TEXT,
+  lock_token            TEXT,
+  locked_by             TEXT,
+  lock_expires_at       TEXT,
+  last_error            TEXT,
+  error_payload         TEXT CHECK (error_payload IS NULL OR json_valid(error_payload)),
+  created_at            TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  updated_at            TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+
+CREATE TABLE IF NOT EXISTS workflow_ops (
+  op_id                 TEXT PRIMARY KEY,
+  workflow_name         TEXT NOT NULL,
+  input_hash            TEXT NOT NULL,
+  state                 TEXT NOT NULL CHECK (state IN ('processing','completed','failed')),
+  result_payload        TEXT CHECK (result_payload IS NULL OR json_valid(result_payload)),
+  error_payload         TEXT CHECK (error_payload IS NULL OR json_valid(error_payload)),
+  created_at            TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  updated_at            TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+`;
+
+const ENSURE_HOOK_AND_WORKFLOW_INDEXES = `
+CREATE INDEX IF NOT EXISTS idx_hook_outbox_drain ON hook_outbox(status, next_attempt_at, id);
+CREATE INDEX IF NOT EXISTS idx_hook_outbox_lock ON hook_outbox(status, lock_expires_at);
+CREATE INDEX IF NOT EXISTS idx_hook_outbox_hook_status ON hook_outbox(hook_name, status, id);
+CREATE INDEX IF NOT EXISTS idx_workflow_ops_workflow_state ON workflow_ops(workflow_name, state, updated_at);
+CREATE INDEX IF NOT EXISTS idx_workflow_ops_workflow_input ON workflow_ops(workflow_name, input_hash);
+`;
+
 /**
  * Check if a table exists in the database.
  */
@@ -68,4 +110,9 @@ export function runCacheMigrations(db: Database.Database): void {
   if (columnExists(db, 'tasks_current', 'agent')) {
     db.exec(CREATE_AGENT_INDEX);
   }
+
+  // Migration V4: durable foundation tables for hooks/workflow idempotency.
+  // These are safe to run on every startup.
+  db.exec(ENSURE_HOOK_AND_WORKFLOW_TABLES);
+  db.exec(ENSURE_HOOK_AND_WORKFLOW_INDEXES);
 }

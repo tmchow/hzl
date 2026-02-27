@@ -5,216 +5,66 @@ description: This skill should be used when working with HZL for task tracking, 
 
 # HZL Task Management
 
-HZL is a lightweight task tracking system for AI agents. It is a dumb ledger—it tracks work state but does not orchestrate, prioritize, or decide what to do next.
+HZL is a durable task ledger. It stores state across session boundaries and agent handoffs.
 
-This skill teaches how to use HZL effectively for tracking work across projects.
+## Core loop (preferred)
 
-## Core Workflow
-
-Run `hzl guide` to get the full workflow documentation. This covers:
-- When to use HZL vs skip it
-- Project structure (projects, tasks, subtasks)
-- Setting up and claiming tasks
-- Checkpoints, comments, dependencies
-- Troubleshooting common errors
-
-**Quick reference:**
 ```bash
-hzl guide                            # Full workflow documentation
-hzl project list                     # Check existing projects
-hzl task claim --next -P <project>   # Get and claim next task
-hzl task list -P <project> --agent <agent-id>  # Find tasks already assigned to you
-hzl task checkpoint <id> "progress"  # Save progress
-hzl task complete <id>               # Mark task done
+# Session start
+hzl workflow run start --agent <agent-id> --project <project>
+
+# Progress
+hzl task checkpoint <id> "progress + next"
+hzl task progress <id> 50
+
+# Completion / transition
+hzl task complete <id>
+# or
+hzl workflow run handoff --from <id> --title "<next>" --project <project>
+# or
+hzl workflow run delegate --from <id> --title "<subwork>" --project <project> --pause-parent
 ```
 
----
+Use primitive commands directly when needed (`task add`, `task claim`, `task add-dep`, `task update`, etc.).
 
-## Advanced: Sizing Parent Tasks
+## Discovery commands
 
-HZL supports one level of nesting (parent → subtasks). Scope parent tasks to completable outcomes.
-
-**The completability test:** "I finished [parent task]" should describe a real outcome.
-- ✓ "Finished the user authentication feature"
-- ✗ "Finished the backend work" (frontend still pending)
-- ✗ "Finished home automation" (open-ended, never done)
-
-**Scope by problem, not technical layer.** A full-stack feature (frontend + backend + tests) is usually one parent if it ships together.
-
-**Split into multiple parents when:**
-- Parts deliver independent value (can ship separately)
-- You're solving distinct problems that happen to be related
-
-**Adding context:** Use `-d` for details, `-l` for reference docs:
 ```bash
-hzl task add "User authentication" -P myrepo \
-  -d "OAuth2 flow per linked spec. Use existing session middleware." \
-  -l docs/auth-spec.md,https://example.com/design-doc
+hzl workflow list
+hzl workflow show start
+hzl workflow show handoff
+hzl workflow show delegate
+hzl dep list --blocking-only
 ```
 
-**Don't duplicate specs into descriptions**—this creates drift. Reference docs instead.
+## Key semantics
 
-**If no docs exist**, include enough detail for another agent to complete the task:
-```bash
-hzl task add "Add rate limiting" -P myrepo -s ready -d "$(cat <<'EOF'
-100 req/min per IP, return 429 with Retry-After header.
-Use RateLimiter from src/middleware/.
-EOF
-)"
-```
-Description supports markdown (16KB max).
+- `done` is a status; `complete` is a command path to `done`.
+- `workflow run start` does not support `--auto-op-id` by design.
+- Cross-project dependencies are supported by default.
+- Delegation adds dependency by default; use `--pause-parent` for explicit parent blocking.
 
-## Advanced: Multi-Agent Coordination
+## Multi-agent guidance
 
-When multiple agents work on the same project:
+- Route by project pool when possible (omit `--agent` on create/handoff).
+- Use explicit `--agent` only for targeted assignment.
+- Keep agent identity strings stable.
 
-### Atomic claiming
+## Reliability guidance
 
-HZL uses atomic claiming. Two agents calling `task claim --next` simultaneously will get different tasks. This prevents duplicate work.
+- Status transitions to `done` enqueue hooks.
+- Host runtime must schedule `hzl hook drain` (1-5 minute cadence).
 
-### Authorship tracking
-
-| Concept | What it tracks | Set by |
-|---------|----------------|--------|
-| **Agent** | Who owns the task | `--agent` on `claim` or `add` |
-| **Event author** | Who performed an action | `--author` on mutating commands (except `claim`, which uses `--agent`) |
-
-`--author` is optional. Skip it for solo tracking or when sub-agents do not have stable identities. Use it when delegation, handoffs, or auditability require "who did what".
-
-Decision policy for agents:
-1. Default: omit `--author`.
-2. Add `--author` when actor != agent (for example, delegating to another agent).
-3. `task claim` has no `--author`; `--agent` is recorded as the event author.
-4. `task steal` should use `--agent` for new ownership; add `--author` only when actor differs from the agent. (`--owner` is a deprecated alias.)
-5. For non-ownership mutations (`update`, `move`, `add-dep`, `remove-dep`, `checkpoint`, `comment`), add `--author` only when attribution matters.
+## Recovery guidance
 
 ```bash
-# Alice owns the task
-hzl task claim <id> --agent alice
-
-# Clara assigns ownership to Kenji at creation time
-hzl task add "Implement auth flow" -P myrepo -s ready --agent kenji --author clara
-
-# Bob adds a checkpoint (doesn't change ownership)
-hzl task checkpoint <id> "Reviewed the code" --author bob
-
-# Clara updates metadata on Kenji's task
-hzl task update <id> --priority 3 --author clara
-
-# Clara moves Kenji's task to another project
-hzl task move <id> myrepo-maintenance --author clara
-
-# Clara adds a dependency to Kenji's task
-hzl task add-dep <id> <depends-on-id> --author clara
-
-# Clara removes a dependency on Kenji's task
-hzl task remove-dep <id> <depends-on-id> --author clara
-
-# Clara steals to Kenji (agent) but keeps actor attribution
-hzl task steal <id> --if-expired --agent kenji --author clara
-```
-
-For AI agents that need session tracking:
-```bash
-hzl task claim <id> --agent "Claude Code" --agent-id "session-abc123"
-```
-
-### Leases for long-running work
-
-Use leases to indicate how long before a task is considered stuck:
-
-```bash
-hzl task claim <id> --agent <name> --lease 30  # 30 minutes
-```
-
-### Recovering stuck tasks
-
-If an agent dies or becomes unresponsive:
-
-```bash
-# Find tasks with expired leases
 hzl task stuck
-
-# Review checkpoints before taking over
-hzl task show <task-id>
-hzl task show <task-id> --deep    # Full subtask details + blocked_by
-
-# Take over an expired task
-hzl task steal <task-id> --if-expired --agent agent-2
+hzl task show <id>
+hzl task steal <id> --if-expired --agent <agent-id>
 ```
 
-## Advanced: Human Oversight
+## Destructive commands
 
-Humans can monitor and steer agent work through HZL:
-
-### Monitoring progress
-
-```bash
-hzl project list
-hzl task list --project myapp --status in_progress
-hzl task list --project myapp --agent my-agent
-hzl task show <task-id>
-```
-
-Or use the web dashboard:
-```bash
-hzl serve  # Opens at http://localhost:3456
-```
-
-### Providing guidance
-
-```bash
-hzl task comment <task-id> "Please also handle the edge case where user is already logged in"
-```
-
-**Agents should check for comments before completing tasks:**
-```bash
-hzl task show <task-id>
-```
-Review the task history for steering feedback before marking complete.
-
-## Advanced: Dependencies and Validation
-
-### Adding dependencies after creation
-
-```bash
-hzl task add-dep <task-id> <depends-on-id>
-hzl task remove-dep <task-id> <depends-on-id>
-```
-
-### Validating the task graph
-
-Check for circular dependencies or other issues:
-```bash
-hzl validate
-```
-
-## Best Practices
-
-1. **JSON is default output**; use `--format md` for human-readable output
-2. **Checkpoint at milestones** or before pausing work
-3. **Check for comments** before completing tasks
-4. **Use stable project names** derived from repo or agent identity
-5. **Use dependencies** to express sequencing, not priority
-6. **Use leases** for long-running work to enable stuck detection
-7. **Review checkpoints** before stealing stuck tasks
-
-## What HZL Does Not Do
-
-HZL is deliberately limited:
-
-- **No orchestration** - Does not spawn agents or assign work
-- **No task decomposition** - Does not break down tasks automatically
-- **No smart scheduling** - Uses simple priority + FIFO ordering
-
-These are features for your orchestration layer, not for the task tracker.
-
-## Additional Features
-
-Not covered in detail here:
-
-- Cloud sync via Turso for backup and multi-device access (`hzl init --sync-url ...`)
-- Web dashboard for human monitoring (`hzl serve`)
-- Priority and tags for categorization
-
-For complete command options, use `hzl <command> --help`.
+Never run these without explicit user request:
+- `hzl task prune`
+- `hzl init --force`

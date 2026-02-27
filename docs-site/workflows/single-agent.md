@@ -37,17 +37,14 @@ hzl task add "Investigate flaky test"
 hzl task add "Implement auth middleware" -P backend -s ready
 ```
 
-## Claim and Work
+## Session Start (resume or claim)
 
 ```bash
-# Global pull
-hzl task claim --next --agent my-agent
+# Global
+hzl workflow run start --agent my-agent
 
-# Scoped pull
-hzl task claim --next -P backend --agent my-agent
-
-# Explicit claim by ID
-hzl task claim <id> --agent my-agent
+# Scoped
+hzl workflow run start --agent my-agent --project backend
 ```
 
 ## Record Progress
@@ -64,7 +61,7 @@ hzl task complete <id>
 hzl task block <id> --comment "Waiting for security review"
 ```
 
-## Resume Later
+## Resume Later (manual inspect path)
 
 ```bash
 hzl task list --status in_progress --agent my-agent
@@ -74,6 +71,6 @@ hzl task show <id>
 ## Best Practices
 
 1. Keep checkpoints specific and resumable.
-2. Prefer `claim --next` for simple loops.
+2. Prefer `workflow run start` at session boundaries.
 3. Use explicit `claim <id>` when you need custom prioritization.
 4. Use scoped projects only when queue boundaries help.
