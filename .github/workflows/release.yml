@@ -97,14 +97,17 @@ jobs:
             let ciRun = null;
 
             for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-              const { data } = await github.rest.actions.listWorkflowRunsForWorkflow({
+              const { data } = await github.request(
+                "GET /repos/{owner}/{repo}/actions/workflows/{workflow_id}/runs",
+                {
                 owner,
                 repo,
                 workflow_id: "ci.yml",
                 branch,
                 event: "push",
                 per_page: 100
-              });
+                }
+              );
 
               const candidates = data.workflow_runs
                 .filter((run) => run.head_sha === headSha)
