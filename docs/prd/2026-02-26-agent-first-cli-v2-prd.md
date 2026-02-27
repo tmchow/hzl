@@ -37,16 +37,17 @@ Make HZL v2 the default task ledger interface for AI agents by reducing command 
 
 | ID | Priority | Requirement |
 |----|----------|-------------|
-| R1 | Core | v2 must provide a single, unambiguous claiming interface where claiming by ID and claiming the next ranked task are both part of the same command family. |
-| R2 | Core | v2 must default to JSON output across the CLI so agents can reliably parse responses without opt-in flags. |
-| R3 | Must | v2 must provide automatic claim selection that is deterministic and documented, led by task priority with explicit tie-break behavior. |
+| R1 | Core | v2 must provide a single, unambiguous claiming interface where claiming by ID and claiming the next ranked task are both part of the same command family, and `task next` is removed. |
+| R2 | Core | v2 must default to JSON output across the CLI so agents can reliably parse responses without opt-in flags, and human-readable output is explicit via `--format md`. |
+| R3 | Must | v2 automatic claim selection must use a documented eligibility gate (claimable status, dependencies satisfied, and parent/child eligibility rules) before deterministic ranking, with ranking order `priority desc -> due_at asc (null last) -> created_at asc -> task_id asc`. |
 | R4 | Must | v2 must support agent-driven selection by listing assigned tasks with pagination and view-level controls to manage payload size. |
-| R5 | Must | v2 assigned-task queries must support exact agent matching and case-insensitive `--agent-pattern` matching. |
+| R5 | Must | v2 assigned-task queries must support exact agent matching and case-insensitive `--agent-pattern` glob matching using `*` wildcard syntax (not SQL `%`), including documented escaping and quoting behavior. |
 | R6 | Must | v2 must preserve full task retrieval by task ID with complete task context for agent reasoning. |
-| R7 | Must | v2 must support CLI-only cron polling workflows with built-in anti-herd behavior enabled by default for agent-scoped worker calls, using a default 2000ms stagger window, configurable globally, with per-call opt-out. |
+| R7 | Must | v2 must support CLI-only cron polling workflows with built-in anti-herd behavior enabled by default for auto-claim worker selection (`task claim --next --agent ...`), using a default 1000ms stagger window, configurable globally, with per-call opt-out. |
 | R8 | Must | v2 must use `agent` terminology in command interfaces for AI-agent-first clarity. |
 | R9 | Must | v2 must publish a breaking-change migration guide that maps removed/renamed v1 commands and flags to v2 equivalents. |
 | R10 | Must | v2 must provide per-agent workload summaries in two surfaces: a dedicated `agent` namespace summary interface (for example `agent stats`) and a task-query grouping mode (for example `task list --group-by-agent`). |
+| R13 | Must | v2 JSON responses must use a stable, versioned machine contract with documented success/error envelopes and backward-compatibility guarantees within major version v2. |
 | R11 | Out | v2 does not introduce daemon-based push/watch delivery semantics; these are deferred to a future iteration. |
 | R12 | Out | v2 does not introduce an agent registration/permission model; enforcement without authentication is explicitly out of scope. |
 
@@ -63,14 +64,15 @@ Use a CLI-first hard reset for v2 with protocol-quality JSON contracts: one clai
 ## Key Decisions
 
 - **Immediate major cutover**: v2 can remove/rename legacy interfaces directly rather than carrying compatibility shims.
-- **Unified claim UX**: automatic and explicit claiming are one concept, not separate command families.
+- **Unified claim UX**: automatic and explicit claiming are one concept, not separate command families, and `task next` is removed.
 - **JSON-first contract**: human-readable output is explicit (`--format md`), not default.
 - **Agent autonomy preserved**: HZL supports auto-selection and query tools, but does not force one prioritization policy for all agents.
 - **Assignment as metadata, not gate**: claim lock semantics remain authoritative; assignment primarily supports coordination and observability.
-- **Wildcard behavior via pattern flag**: `--agent-pattern` is case-insensitive and user-facing (not SQL-specific syntax in the contract).
-- **Deterministic next-task ordering**: automatic selection uses `priority desc -> due_at asc (null last) -> created_at asc -> task_id asc`.
-- **Anti-herd default behavior**: staggering is automatic for agent-scoped worker calls and can be disabled with an explicit opt-out flag.
+- **Wildcard behavior via pattern flag**: `--agent-pattern` is case-insensitive glob matching with `*` syntax in the user contract.
+- **Deterministic next-task ordering**: automatic selection first applies claim-eligibility gates, then uses `priority desc -> due_at asc (null last) -> created_at asc -> task_id asc`.
+- **Anti-herd default behavior**: staggering is automatic for `claim --next` agent worker selection, with 1000ms default window and explicit opt-out.
 - **Agent summary location**: per-agent workload summaries are available both in a dedicated `agent` namespace and as grouped task-list output (`--group-by-agent`).
+- **Versioned JSON envelope**: machine outputs are contract-stable and versioned across v2 minors/patches.
 
 ## Next Steps
 
