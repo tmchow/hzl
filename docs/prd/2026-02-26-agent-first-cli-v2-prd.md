@@ -45,6 +45,7 @@ Make HZL v2 the default task ledger interface for AI agents by reducing command 
 | R6 | Must | v2 must preserve full task retrieval by task ID with complete task context for agent reasoning. |
 | R7 | Must | v2 must support CLI-only cron polling workflows with built-in anti-herd behavior enabled by default for auto-claim worker selection (`task claim --next --agent ...`), using a default 1000ms stagger window, configurable globally, with per-call opt-out. |
 | R8 | Must | v2 must use `agent` terminology in command interfaces for AI-agent-first clarity. |
+| R15 | Must | v2 must rename task ownership/read-model fields from `assignee` to `agent` (including projection schema and JSON outputs) with cache migration support and backward-compatible event replay for historical `assignee` event data. |
 | R9 | Must | v2 must publish a breaking-change migration guide that maps removed/renamed v1 commands and flags to v2 equivalents. |
 | R10 | Must | v2 must provide per-agent workload summaries in two surfaces: a dedicated `agent` namespace summary interface (for example `agent stats`) and a task-query grouping mode (for example `task list --group-by-agent`). |
 | R13 | Must | v2 JSON responses must use a stable, versioned machine contract with documented success/error envelopes and backward-compatibility guarantees within major version v2. |
@@ -69,6 +70,7 @@ Use a CLI-first hard reset for v2 with protocol-quality JSON contracts: one clai
 - **JSON-first contract**: human-readable output is explicit (`--format md`), not default.
 - **Agent autonomy preserved**: HZL supports auto-selection and query tools, but does not force one prioritization policy for all agents.
 - **Assignment as metadata, not gate**: claim lock semantics remain authoritative; assignment primarily supports coordination and observability.
+- **Terminology migration to `agent`**: v2 renames ownership/read-model fields from `assignee` to `agent` with migration and replay compatibility for historical event data.
 - **Wildcard behavior via pattern flag**: `--agent-pattern` is case-insensitive glob matching with `*` syntax in the user contract.
 - **Deterministic next-task ordering**: automatic selection first applies claim-eligibility gates, then uses `priority desc -> due_at asc (null last) -> created_at asc -> task_id asc`.
 - **Anti-herd default behavior**: staggering is automatic for `claim --next` agent worker selection, with 1000ms default window and explicit opt-out.
