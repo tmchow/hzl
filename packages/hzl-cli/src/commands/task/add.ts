@@ -28,7 +28,7 @@ export interface AddOptions {
   dependsOn?: string[];
   parent?: string;
   status?: string;
-  assignee?: string;
+  agent?: string;
   author?: string;
   comment?: string;
   json: boolean;
@@ -43,13 +43,13 @@ interface AddCommandOptions {
   dependsOn?: string;
   parent?: string;
   status?: string;
-  assignee?: string;
+  agent?: string;
   author?: string;
   comment?: string;
 }
 
 export function runAdd(options: AddOptions): AddResult {
-  const { services, title, description, links, tags, priority, dependsOn, parent, status, assignee, author, comment, json } = options;
+  const { services, title, description, links, tags, priority, dependsOn, parent, status, agent, author, comment, json } = options;
   let project = options.project;
 
   // Validate status flag
@@ -107,7 +107,7 @@ export function runAdd(options: AddOptions): AddResult {
     priority,
     depends_on: dependsOn,
     parent_id: parent,
-    assignee,
+    assignee: agent,
     initial_status: initialStatus,
     comment,
   }, {
@@ -145,7 +145,7 @@ export function createAddCommand(): Command {
     .option('--depends-on <ids>', 'Comma-separated task IDs this depends on')
     .option('--parent <taskId>', 'Parent task ID (creates subtask, inherits project)')
     .option('-s, --status <status>', 'Initial status (backlog, ready, in_progress, blocked, done)')
-    .option('--assignee <name>', 'Who to assign the task to')
+    .option('--agent <name>', 'Agent identity for task ownership')
     .option('--author <name>', 'Who is performing this create/assignment action')
     .option('--comment <comment>', 'Comment explaining the status (recommended for blocked)')
     .action(function (this: Command, title: string, opts: AddCommandOptions) {
@@ -166,7 +166,7 @@ export function createAddCommand(): Command {
           dependsOn,
           parent,
           status: opts.status,
-          assignee: opts.assignee,
+          agent: opts.agent,
           author: opts.author,
           comment: opts.comment,
           json: globalOpts.json ?? false,

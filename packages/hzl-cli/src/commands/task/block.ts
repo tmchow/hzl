@@ -32,7 +32,7 @@ export function runBlock(options: {
   const existingTask = services.taskService.getTaskById(taskId);
   if (existingTask && existingTask.status !== TaskStatus.InProgress && existingTask.status !== TaskStatus.Blocked) {
     throw new CLIError(
-      `Cannot block task ${taskId} (status: ${existingTask.status})\nHint: hzl task claim ${taskId} --assignee <name>`,
+      `Cannot block task ${taskId} (status: ${existingTask.status})\nHint: hzl task claim ${taskId} --agent <name>`,
       ExitCode.InvalidInput
     );
   }

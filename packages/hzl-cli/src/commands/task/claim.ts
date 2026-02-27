@@ -11,12 +11,12 @@ export interface ClaimResult {
   task_id: string;
   title: string;
   status: string;
-  assignee: string | null;
+  agent: string | null;
   lease_until: string | null;
 }
 
 interface ClaimCommandOptions {
-  assignee?: string;
+  agent?: string;
   agentId?: string;
   lease?: string;
 }
@@ -24,12 +24,12 @@ interface ClaimCommandOptions {
 export function runClaim(options: {
   services: Services;
   taskId: string;
-  assignee?: string;
+  agent?: string;
   agentId?: string;
   leaseMinutes?: number;
   json: boolean;
 }): ClaimResult {
-  const { services, taskId, assignee, agentId, leaseMinutes, json } = options;
+  const { services, taskId, agent, agentId, leaseMinutes, json } = options;
 
   // Check task status before claiming to provide actionable error
   const existingTask = services.taskService.getTaskById(taskId);
@@ -43,7 +43,7 @@ export function runClaim(options: {
   const leaseUntil = leaseMinutes ? new Date(Date.now() + leaseMinutes * 60000).toISOString() : undefined;
 
   const task = services.taskService.claimTask(taskId, {
-    author: assignee,  // assignee becomes author in the event for projection
+    author: agent,
     agent_id: agentId,
     lease_until: leaseUntil,
   });
@@ -52,7 +52,7 @@ export function runClaim(options: {
     task_id: task.task_id,
     title: task.title,
     status: task.status,
-    assignee: task.assignee,
+    agent: task.assignee,
     lease_until: task.lease_until,
   };
 
@@ -72,7 +72,7 @@ export function createClaimCommand(): Command {
   return new Command('claim')
     .description('Claim a task')
     .argument('<taskId>', 'Task ID')
-    .option('--assignee <name>', 'Who to assign the task to')
+    .option('--agent <name>', 'Agent identity for task ownership')
     .option('--agent-id <id>', 'Agent ID (machine/AI identifier)')
     .option('-l, --lease <minutes>', 'Lease duration in minutes')
     .action(function (this: Command, rawTaskId: string, opts: ClaimCommandOptions) {
@@ -84,7 +84,7 @@ export function createClaimCommand(): Command {
         runClaim({
           services,
           taskId,
-          assignee: opts.assignee,
+          agent: opts.agent,
           agentId: opts.agentId,
           leaseMinutes: opts.lease ? parseInt(opts.lease, 10) : undefined,
           json: globalOpts.json ?? false,

@@ -48,7 +48,7 @@ export function hzl(ctx: TestContext, args: string, options?: ExecSyncOptions): 
 }
 
 export function hzlJson<T>(ctx: TestContext, args: string): T {
-  const output = hzl(ctx, `${args} --json`);
+  const output = hzl(ctx, args);
   return JSON.parse(output) as T;
 }
 

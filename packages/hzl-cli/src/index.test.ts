@@ -32,4 +32,18 @@ describe('hzl-cli public API', () => {
     expect(hzlCli.printError).toBeDefined();
     expect(hzlCli.printTable).toBeDefined();
   });
+
+  it('detects removed task next surface', () => {
+    expect(hzlCli.detectLegacySurface(['task', 'next'])).toBe('task_next');
+  });
+
+  it('detects removed json flag', () => {
+    expect(hzlCli.detectLegacySurface(['task', 'list', '--json'])).toBe('json_flag');
+  });
+
+  it('detects renamed assignee flag', () => {
+    expect(hzlCli.detectLegacySurface(['task', 'claim', 'abc', '--assignee', 'a1'])).toBe(
+      'assignee_flag'
+    );
+  });
 });

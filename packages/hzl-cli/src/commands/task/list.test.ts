@@ -58,7 +58,7 @@ describe('runList', () => {
     expect(result.tasks[0].status).toBe(TaskStatus.Ready);
   });
 
-  it('filters by assignee', () => {
+  it('filters by agent', () => {
     const t1 = services.taskService.createTask({ title: 'Task 1', project: 'inbox' });
     const t2 = services.taskService.createTask({ title: 'Task 2', project: 'inbox' });
 
@@ -67,12 +67,12 @@ describe('runList', () => {
     services.taskService.claimTask(t1.task_id, { author: 'kenji' });
     services.taskService.claimTask(t2.task_id, { author: 'clara' });
 
-    const result = runList({ services, assignee: 'kenji', json: false });
+    const result = runList({ services, agent: 'kenji', json: false });
     expect(result.tasks).toHaveLength(1);
     expect(result.tasks[0].title).toBe('Task 1');
   });
 
-  it('combines project and assignee filters', () => {
+  it('combines project and agent filters', () => {
     services.projectService.createProject('project-a');
     services.projectService.createProject('project-b');
 
@@ -87,7 +87,7 @@ describe('runList', () => {
     services.taskService.claimTask(a2.task_id, { author: 'clara' });
     services.taskService.claimTask(b1.task_id, { author: 'kenji' });
 
-    const result = runList({ services, project: 'project-a', assignee: 'kenji', json: false });
+    const result = runList({ services, project: 'project-a', agent: 'kenji', json: false });
     expect(result.tasks).toHaveLength(1);
     expect(result.tasks[0].title).toBe('A1');
   });

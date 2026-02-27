@@ -4,7 +4,7 @@ import { GlobalOptionsSchema, type GlobalOptions, type Config } from './types.js
 
 describe('GlobalOptions', () => {
   it('validates valid options with db path', () => {
-    const options = { db: '/path/to/db.sqlite', json: false };
+    const options = { db: '/path/to/db.sqlite', format: 'md' };
     const result = GlobalOptionsSchema.safeParse(options);
     expect(result.success).toBe(true);
   });
@@ -12,8 +12,16 @@ describe('GlobalOptions', () => {
   it('sets default values correctly', () => {
     const options = {};
     const result = GlobalOptionsSchema.parse(options);
-    expect(result.json).toBe(false);
+    expect(result.json).toBe(true);
+    expect(result.format).toBe('json');
     expect(result.db).toBeUndefined();
+  });
+
+  it('supports markdown format', () => {
+    const options = { format: 'md' };
+    const result = GlobalOptionsSchema.parse(options);
+    expect(result.format).toBe('md');
+    expect(result.json).toBe(false);
   });
 });
 

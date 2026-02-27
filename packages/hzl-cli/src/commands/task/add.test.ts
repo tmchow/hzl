@@ -64,12 +64,12 @@ describe('runAdd', () => {
     expect(task?.links).toEqual(['docs/design.md', 'https://example.com/spec']);
   });
 
-  it('creates a task with assignee in backlog', () => {
+  it('creates a task with agent in backlog', () => {
     const result = runAdd({
       services,
       project: 'inbox',
       title: 'Backlog task',
-      assignee: 'kenji',
+      agent: 'kenji',
       json: false,
     });
 
@@ -78,12 +78,12 @@ describe('runAdd', () => {
     expect(task?.assignee).toBe('kenji');
   });
 
-  it('records author separately from assignee on create', () => {
+  it('records author separately from agent on create', () => {
     const result = runAdd({
       services,
       project: 'inbox',
       title: 'Delegated task',
-      assignee: 'kenji',
+      agent: 'kenji',
       author: 'clara',
       status: 'ready',
       json: false,
@@ -205,13 +205,13 @@ describe('runAdd', () => {
       expect(task?.status).toBe('ready');
     });
 
-    it('creates task with -s ready and keeps assignee', () => {
+    it('creates task with -s ready and keeps agent', () => {
       const result = runAdd({
         services,
         project: 'inbox',
         title: 'Ready task',
         status: 'ready',
-        assignee: 'kenji',
+        agent: 'kenji',
         json: false,
       });
 
@@ -220,13 +220,13 @@ describe('runAdd', () => {
       expect(task?.assignee).toBe('kenji');
     });
 
-    it('creates task with -s in_progress and sets assignee', () => {
+    it('creates task with -s in_progress and sets agent', () => {
       const result = runAdd({
         services,
         project: 'inbox',
         title: 'In progress task',
         status: 'in_progress',
-        assignee: 'agent-1',
+        agent: 'agent-1',
         json: false,
       });
 
@@ -235,13 +235,13 @@ describe('runAdd', () => {
       expect(task?.assignee).toBe('agent-1');
     });
 
-    it('keeps assignee when -s in_progress has distinct --author', () => {
+    it('keeps agent when -s in_progress has distinct --author', () => {
       const result = runAdd({
         services,
         project: 'inbox',
         title: 'Delegated in progress task',
         status: 'in_progress',
-        assignee: 'kenji',
+        agent: 'kenji',
         author: 'clara',
         json: false,
       });

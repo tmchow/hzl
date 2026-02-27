@@ -8,7 +8,7 @@ import { resolveId } from '../../resolve-id.js';
 import { runClaim } from './claim.js';
 
 interface StartCommandOptions {
-  assignee?: string;
+  agent?: string;
   agentId?: string;
   lease?: string;
 }
@@ -17,7 +17,7 @@ export function createStartCommand(): Command {
   return new Command('start')
     .description('Start working on a task (alias for claim)')
     .argument('<taskId>', 'Task ID')
-    .option('--assignee <name>', 'Who to assign the task to')
+    .option('--agent <name>', 'Agent identity for task ownership')
     .option('--agent-id <id>', 'Agent ID (machine/AI identifier)')
     .option('-l, --lease <minutes>', 'Lease duration in minutes')
     .action(function (this: Command, rawTaskId: string, opts: StartCommandOptions) {
@@ -29,7 +29,7 @@ export function createStartCommand(): Command {
         runClaim({
           services,
           taskId,
-          assignee: opts.assignee,
+          agent: opts.agent,
           agentId: opts.agentId,
           leaseMinutes: opts.lease ? parseInt(opts.lease, 10) : undefined,
           json: globalOpts.json ?? false,

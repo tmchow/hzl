@@ -1,4 +1,22 @@
 // packages/hzl-cli/src/output.ts
+export const SCHEMA_VERSION = 'v2';
+
+export interface SuccessEnvelope<T> {
+  schema_version: typeof SCHEMA_VERSION;
+  ok: true;
+  data: T;
+}
+
+export interface ErrorEnvelope {
+  schema_version: typeof SCHEMA_VERSION;
+  ok: false;
+  error: {
+    code: string;
+    message: string;
+    details?: unknown;
+  };
+}
+
 export interface OutputFormatter {
   table(data: Record<string, unknown>[], columns?: string[]): void;
   json(data: unknown): void;
@@ -7,11 +25,31 @@ export interface OutputFormatter {
   error(message: string): void;
 }
 
+export function createSuccessEnvelope<T>(data: T): SuccessEnvelope<T> {
+  return {
+    schema_version: SCHEMA_VERSION,
+    ok: true,
+    data,
+  };
+}
+
+export function createErrorEnvelope(code: string, message: string, details?: unknown): ErrorEnvelope {
+  return {
+    schema_version: SCHEMA_VERSION,
+    ok: false,
+    error: {
+      code,
+      message,
+      ...(details !== undefined ? { details } : {}),
+    },
+  };
+}
+
 export function createFormatter(jsonMode: boolean): OutputFormatter {
   return {
     table(data: Record<string, unknown>[], columns?: string[]) {
       if (jsonMode) {
-        console.log(JSON.stringify(data));
+        console.log(JSON.stringify(createSuccessEnvelope(data)));
       } else {
         if (data.length === 0) {
           console.log('No results');
@@ -37,21 +75,25 @@ export function createFormatter(jsonMode: boolean): OutputFormatter {
       }
     },
     json(data: unknown) {
-      console.log(JSON.stringify(data, null, jsonMode ? 0 : 2));
+      if (jsonMode) {
+        console.log(JSON.stringify(createSuccessEnvelope(data)));
+      } else {
+        console.log(JSON.stringify(data, null, 2));
+      }
     },
     text(message: string) {
       if (!jsonMode) console.log(message);
     },
     success(message: string) {
       if (jsonMode) {
-        console.log(JSON.stringify({ success: true, message }));
+        console.log(JSON.stringify(createSuccessEnvelope({ message })));
       } else {
         console.log(`✓ ${message}`);
       }
     },
     error(message: string) {
       if (jsonMode) {
-        console.log(JSON.stringify({ success: false, error: message }));
+        console.log(JSON.stringify(createErrorEnvelope('general_error', message)));
       } else {
         console.error(`✗ ${message}`);
       }

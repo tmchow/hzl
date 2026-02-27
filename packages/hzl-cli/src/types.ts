@@ -1,10 +1,20 @@
 // packages/hzl-cli/src/types.ts
 import { z } from 'zod';
 
-export const GlobalOptionsSchema = z.object({
-  db: z.string().optional(),
-  json: z.boolean().default(false),
-});
+export const OutputFormatSchema = z.enum(['json', 'md']);
+
+export const GlobalOptionsSchema = z
+  .object({
+    db: z.string().optional(),
+    format: OutputFormatSchema.default('json'),
+    // Internal compatibility field so existing commands can keep using `globalOpts.json`.
+    json: z.boolean().optional(),
+  })
+  .transform((value) => ({
+    db: value.db,
+    format: value.format,
+    json: value.format === 'json',
+  }));
 
 export type GlobalOptions = z.infer<typeof GlobalOptionsSchema>;
 
@@ -39,5 +49,6 @@ export interface Config {
 
 export interface CommandContext {
   dbPath: string;
+  format: z.infer<typeof OutputFormatSchema>;
   json: boolean;
 }

@@ -30,13 +30,13 @@ describe('runClaim', () => {
     const result = runClaim({
       services,
       taskId: task.task_id,
-      assignee: 'test-agent',
+      agent: 'test-agent',
       json: false,
     });
 
     expect(result.task_id).toBe(task.task_id);
     expect(result.status).toBe(TaskStatus.InProgress);
-    expect(result.assignee).toBe('test-agent');
+    expect(result.agent).toBe('test-agent');
   });
 
   it('sets lease when specified', () => {
@@ -46,7 +46,7 @@ describe('runClaim', () => {
     const result = runClaim({
       services,
       taskId: task.task_id,
-      assignee: 'test-agent',
+      agent: 'test-agent',
       leaseMinutes: 30,
       json: false,
     });
@@ -61,7 +61,7 @@ describe('runClaim', () => {
     expect(() => runClaim({
       services,
       taskId: task.task_id,
-      assignee: 'test-agent',
+      agent: 'test-agent',
       json: false,
     })).toThrow(/Hint:.*set-status/);
   });
