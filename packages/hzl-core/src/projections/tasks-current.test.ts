@@ -86,7 +86,7 @@ describe('TasksCurrentProjector', () => {
       expect(task.status).toBe('ready');
     });
 
-    it('sets assignee when transitioning to in_progress', () => {
+    it('sets agent when transitioning to in_progress', () => {
       const createEvent = eventStore.append({
         task_id: 'TASK1',
         type: EventType.TaskCreated,
@@ -112,11 +112,11 @@ describe('TasksCurrentProjector', () => {
       const task = db.prepare('SELECT * FROM tasks_current WHERE task_id = ?').get('TASK1') as any;
       expect(task.status).toBe('in_progress');
       expect(task.claimed_at).toBeDefined();
-      expect(task.assignee).toBe('agent-1');
+      expect(task.agent).toBe('agent-1');
       expect(task.lease_until).toBe('2026-01-30T12:00:00Z');
     });
 
-    it('preserves assignee when released', () => {
+    it('preserves agent when released', () => {
       const createEvent = eventStore.append({
         task_id: 'TASK1',
         type: EventType.TaskCreated,
@@ -142,7 +142,7 @@ describe('TasksCurrentProjector', () => {
       const task = db.prepare('SELECT * FROM tasks_current WHERE task_id = ?').get('TASK1') as any;
       expect(task.status).toBe('ready');
       expect(task.claimed_at).toBeNull();
-      expect(task.assignee).toBe('agent-1'); // Assignee persists!
+      expect(task.agent).toBe('agent-1'); // Assignee persists!
       expect(task.lease_until).toBeNull();
     });
 
@@ -171,7 +171,7 @@ describe('TasksCurrentProjector', () => {
 
       const task = db.prepare('SELECT * FROM tasks_current WHERE task_id = ?').get('TASK1') as any;
       expect(task.status).toBe('blocked');
-      expect(task.assignee).toBe('agent-1'); // Preserved
+      expect(task.agent).toBe('agent-1'); // Preserved
       expect(task.lease_until).toBeNull(); // Cleared
     });
 
@@ -179,7 +179,7 @@ describe('TasksCurrentProjector', () => {
       const createEvent = eventStore.append({
         task_id: 'TASK1',
         type: EventType.TaskCreated,
-        data: { title: 'Test', project: 'inbox', assignee: 'pre-assigned-agent' },
+        data: { title: 'Test', project: 'inbox', agent: 'pre-assigned-agent' },
       });
       projector.apply(createEvent, db);
 
@@ -193,10 +193,29 @@ describe('TasksCurrentProjector', () => {
       projector.apply(claimEvent, db);
 
       const task = db.prepare('SELECT * FROM tasks_current WHERE task_id = ?').get('TASK1') as any;
-      expect(task.assignee).toBe('pre-assigned-agent'); // Pre-assignment preserved
+      expect(task.agent).toBe('pre-assigned-agent'); // Pre-assignment preserved
     });
 
-    it('overwrites assignee when task is stolen (in_progress → in_progress)', () => {
+    it('supports legacy assignee event fields during replay', () => {
+      const createEvent = eventStore.append({
+        task_id: 'TASK1',
+        type: EventType.TaskCreated,
+        data: { title: 'Test', project: 'inbox', assignee: 'legacy-owner' },
+      });
+      projector.apply(createEvent, db);
+
+      const claimEvent = eventStore.append({
+        task_id: 'TASK1',
+        type: EventType.StatusChanged,
+        data: { from: TaskStatus.Ready, to: TaskStatus.InProgress, assignee: 'legacy-claimant' },
+      });
+      projector.apply(claimEvent, db);
+
+      const task = db.prepare('SELECT * FROM tasks_current WHERE task_id = ?').get('TASK1') as any;
+      expect(task.agent).toBe('legacy-claimant');
+    });
+
+    it('overwrites agent when task is stolen (in_progress → in_progress)', () => {
       const createEvent = eventStore.append({
         task_id: 'TASK1',
         type: EventType.TaskCreated,
@@ -214,7 +233,7 @@ describe('TasksCurrentProjector', () => {
       projector.apply(claimEvent, db);
 
       let task = db.prepare('SELECT * FROM tasks_current WHERE task_id = ?').get('TASK1') as any;
-      expect(task.assignee).toBe('agent-1');
+      expect(task.agent).toBe('agent-1');
 
       // Steal by agent-2
       const stealEvent = eventStore.append({
@@ -226,10 +245,10 @@ describe('TasksCurrentProjector', () => {
       projector.apply(stealEvent, db);
 
       task = db.prepare('SELECT * FROM tasks_current WHERE task_id = ?').get('TASK1') as any;
-      expect(task.assignee).toBe('agent-2'); // Assignee overwritten to new owner
+      expect(task.agent).toBe('agent-2'); // Assignee overwritten to new owner
     });
 
-    it('prefers explicit assignee over event author for in_progress transitions', () => {
+    it('prefers explicit agent over event author for in_progress transitions', () => {
       const createEvent = eventStore.append({
         task_id: 'TASK1',
         type: EventType.TaskCreated,
@@ -240,13 +259,13 @@ describe('TasksCurrentProjector', () => {
       const claimEvent = eventStore.append({
         task_id: 'TASK1',
         type: EventType.StatusChanged,
-        data: { from: TaskStatus.Backlog, to: TaskStatus.InProgress, assignee: 'kenji' },
+        data: { from: TaskStatus.Backlog, to: TaskStatus.InProgress, agent: 'kenji' },
         author: 'clara',
       });
       projector.apply(claimEvent, db);
 
       const task = db.prepare('SELECT * FROM tasks_current WHERE task_id = ?').get('TASK1') as any;
-      expect(task.assignee).toBe('kenji');
+      expect(task.agent).toBe('kenji');
     });
 
     it('sets progress to 100 when transitioning to done', () => {

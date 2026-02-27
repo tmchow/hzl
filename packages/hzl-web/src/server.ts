@@ -229,7 +229,7 @@ export function createWebServer(options: ServerOptions): ServerHandle {
       due_at: task.due_at,
       metadata: task.metadata,
       claimed_at: task.claimed_at,
-      assignee: task.assignee,
+      assignee: task.agent ?? null,
       progress: task.progress,
       lease_until: task.lease_until,
       created_at: task.created_at,
@@ -307,7 +307,7 @@ export function createWebServer(options: ServerOptions): ServerHandle {
     for (const taskId of taskIds) {
       const task = taskService.getTaskById(taskId);
       taskMetadataMap.set(taskId, {
-        task_assignee: task?.assignee ?? null,
+        task_assignee: task?.agent ?? null,
         task_description: task?.description ?? null,
         task_status: task?.status ?? null,
       });

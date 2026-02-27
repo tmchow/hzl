@@ -107,7 +107,7 @@ export function runAdd(options: AddOptions): AddResult {
     priority,
     depends_on: dependsOn,
     parent_id: parent,
-    assignee: agent,
+    agent: agent,
     initial_status: initialStatus,
     comment,
   }, {

@@ -195,12 +195,12 @@ export function runList(options: ListOptions): ListResult {
   }
 
   if (agent) {
-    where.push('assignee = ?');
+    where.push('agent = ?');
     params.push(agent);
   }
 
   if (agentPattern) {
-    where.push("LOWER(COALESCE(assignee, '')) LIKE LOWER(?) ESCAPE '\\'");
+    where.push("LOWER(COALESCE(agent, '')) LIKE LOWER(?) ESCAPE '\\'");
     params.push(globToLikePattern(agentPattern));
   }
 
@@ -233,7 +233,7 @@ export function runList(options: ListOptions): ListResult {
 
   const offset = (page - 1) * limit;
   const query = `
-    SELECT task_id, title, project, status, priority, assignee AS agent, parent_id, created_at,
+    SELECT task_id, title, project, status, priority, agent AS agent, parent_id, created_at,
            due_at, tags, description, links, metadata
     FROM tasks_current
     ${whereClause}

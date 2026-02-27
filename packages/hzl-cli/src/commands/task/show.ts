@@ -82,7 +82,7 @@ export function runShow(options: {
     if (task.parent_id) console.log(`Parent: ${task.parent_id}`);
     if (task.description) console.log(`Description: ${task.description}`);
     if (task.tags.length > 0) console.log(`Tags: ${task.tags.join(', ')}`);
-    if (task.assignee) console.log(`Assignee: ${task.assignee}`);
+    if (task.agent) console.log(`Agent: ${task.agent}`);
     if (task.progress !== null) console.log(`Progress: ${task.progress}%`);
     console.log(`Created: ${task.created_at}`);
     console.log(`Updated: ${task.updated_at}`);
@@ -111,7 +111,7 @@ export function runShow(options: {
           const ds = st as DeepSubtask;
           const details: string[] = [];
           if (ds.priority !== 0) details.push(`Priority: ${ds.priority}`);
-          if (ds.assignee) details.push(`Assignee: ${ds.assignee}`);
+          if (ds.agent) details.push(`Agent: ${ds.agent}`);
           if (ds.progress !== null) details.push(`Progress: ${ds.progress}%`);
           if (details.length > 0) console.log(`    ${details.join(' | ')}`);
           if (ds.description) console.log(`    Description: ${ds.description}`);

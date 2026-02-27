@@ -62,7 +62,7 @@ describe('config integration', () => {
   }
 
   function hzlJsonWithConfigOnly<T>(args: string): T {
-    const output = hzlWithConfigOnly(`${args} --json`);
+    const output = hzlWithConfigOnly(args);
     return JSON.parse(output) as T;
   }
 
@@ -77,7 +77,7 @@ describe('config integration', () => {
   }
 
   function hzlJsonWithDb<T>(args: string): T {
-    const output = hzlWithDb(`${args} --json`);
+    const output = hzlWithDb(args);
     return JSON.parse(output) as T;
   }
 
@@ -109,7 +109,7 @@ describe('config integration', () => {
   it('config shows default when no config file exists', () => {
     // Don't init - just check config with no config file
     // Disable dev mode to test production behavior
-    const cmd = `node "${cliPath}" config --json`;
+    const cmd = `node "${cliPath}" config`;
     const result = execSync(cmd, {
       encoding: 'utf-8',
       env: { ...process.env, HZL_CONFIG: ctx.configPath, HZL_DB: undefined, HZL_DEV_MODE: '0' },

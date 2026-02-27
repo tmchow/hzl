@@ -36,10 +36,10 @@ describe('runBlock', () => {
     });
 
     expect(result.status).toBe('blocked');
-    expect(result.assignee).toBe('agent-1');
+    expect(result.agent).toBe('agent-1');
   });
 
-  it('preserves assignee when blocked', () => {
+  it('preserves agent when blocked', () => {
     const task = services.taskService.createTask({ title: 'Test', project: 'inbox' });
     services.taskService.setStatus(task.task_id, TaskStatus.Ready);
     services.taskService.claimTask(task.task_id, { author: 'agent-1' });
@@ -50,6 +50,6 @@ describe('runBlock', () => {
       json: false,
     });
 
-    expect(result.assignee).toBe('agent-1');
+    expect(result.agent).toBe('agent-1');
   });
 });

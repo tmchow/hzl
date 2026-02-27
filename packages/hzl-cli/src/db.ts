@@ -17,7 +17,7 @@ import { SearchService } from 'hzl-core/services/search-service.js';
 import { ValidationService } from 'hzl-core/services/validation-service.js';
 
 // Schema version: bump when projection table schemas change
-const CURRENT_SCHEMA_VERSION = 2;
+const CURRENT_SCHEMA_VERSION = 3;
 
 /**
  * Check schema version and rebuild projections if needed.
@@ -68,6 +68,7 @@ function checkAndMigrateSchema(
       cacheDb.exec('DROP INDEX IF EXISTS idx_tasks_current_stuck');
       cacheDb.exec('DROP INDEX IF EXISTS idx_tasks_current_parent');
       cacheDb.exec('DROP INDEX IF EXISTS idx_tasks_current_terminal_at');
+      cacheDb.exec('DROP INDEX IF EXISTS idx_tasks_current_agent');
       cacheDb.exec('DROP INDEX IF EXISTS idx_deps_depends_on');
       cacheDb.exec('DROP INDEX IF EXISTS idx_task_tags_tag');
       cacheDb.exec('DROP INDEX IF EXISTS idx_task_comments_task');
@@ -113,6 +114,7 @@ function checkAndMigrateSchema(
     cacheDb.exec('DROP INDEX IF EXISTS idx_tasks_current_stuck');
     cacheDb.exec('DROP INDEX IF EXISTS idx_tasks_current_parent');
     cacheDb.exec('DROP INDEX IF EXISTS idx_tasks_current_terminal_at');
+    cacheDb.exec('DROP INDEX IF EXISTS idx_tasks_current_agent');
     cacheDb.exec('DROP INDEX IF EXISTS idx_deps_depends_on');
     cacheDb.exec('DROP INDEX IF EXISTS idx_task_tags_tag');
     cacheDb.exec('DROP INDEX IF EXISTS idx_task_comments_task');

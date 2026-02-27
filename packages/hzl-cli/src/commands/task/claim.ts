@@ -7,13 +7,71 @@ import { CLIError, ExitCode, handleError } from '../../errors.js';
 import { GlobalOptionsSchema } from '../../types.js';
 import { resolveId } from '../../resolve-id.js';
 import { TaskStatus } from 'hzl-core/events/types.js';
+import {
+  DependenciesNotDoneError,
+  TaskNotClaimableError,
+  type Task,
+} from 'hzl-core/services/task-service.js';
 
-export interface ClaimResult {
+export type ClaimView = 'summary' | 'standard' | 'full';
+
+export interface ClaimTaskView {
   task_id: string;
   title: string;
+  project: string;
   status: string;
+  priority: number;
+  parent_id: string | null;
+  agent: string | null;
+  due_at?: string | null;
+  tags?: string[];
+  lease_until?: string | null;
+  progress?: number | null;
+  claimed_at?: string | null;
+  description?: string | null;
+  links?: string[];
+  metadata?: Record<string, unknown>;
+  created_at?: string;
+  updated_at?: string;
+}
+
+interface DecisionAlternative {
+  task_id: string;
+  reason_code: string;
+  reason: string;
+}
+
+interface DecisionTrace {
+  version: 'v1';
+  mode: 'explicit' | 'next';
+  filters: {
+    project?: string;
+    tags?: string[];
+    parent?: string;
+    task_id?: string;
+  };
+  eligibility: {
+    status_ready_required: boolean;
+    dependencies_done_required: boolean;
+    leaf_only_required: boolean;
+  };
+  outcome: {
+    selected: boolean;
+    reason_code: string;
+    reason: string;
+    task_id?: string;
+  };
+  alternatives: DecisionAlternative[];
+}
+
+export interface ClaimResult {
+  task_id: string | null;
+  title: string | null;
+  status: string | null;
   agent: string | null;
   lease_until: string | null;
+  task: ClaimTaskView | null;
+  decision_trace: DecisionTrace;
 }
 
 interface ClaimCommandOptions {
@@ -25,9 +83,186 @@ interface ClaimCommandOptions {
   agentId?: string;
   lease?: string;
   stagger?: boolean;
+  view?: ClaimView;
+}
+
+interface RankedNextCandidate {
+  task: Task;
+  reason_code: 'eligible' | 'not_ready' | 'dependency_blocked' | 'has_children';
+  reason: string;
 }
 
 export const DEFAULT_CLAIM_STAGGER_MS = 1000;
+
+function shapeTaskForView(task: Task, view: ClaimView): ClaimTaskView {
+  const base: ClaimTaskView = {
+    task_id: task.task_id,
+    title: task.title,
+    project: task.project,
+    status: task.status,
+    priority: task.priority,
+    parent_id: task.parent_id,
+    agent: task.agent,
+  };
+
+  if (view === 'summary') return base;
+
+  const standard: ClaimTaskView = {
+    ...base,
+    due_at: task.due_at,
+    tags: task.tags,
+    lease_until: task.lease_until,
+  };
+
+  if (view === 'standard') return standard;
+
+  return {
+    ...standard,
+    progress: task.progress,
+    claimed_at: task.claimed_at,
+    description: task.description,
+    links: task.links,
+    metadata: task.metadata,
+    created_at: task.created_at,
+    updated_at: task.updated_at,
+  };
+}
+
+function printClaimResult(result: ClaimResult, json: boolean): void {
+  if (json) {
+    console.log(JSON.stringify(result));
+    return;
+  }
+
+  if (!result.task_id) {
+    console.log('No tasks available');
+    return;
+  }
+
+  console.log(`✓ Claimed task ${result.task_id}: ${result.title}`);
+  if (result.lease_until) {
+    console.log(`  Lease until: ${result.lease_until}`);
+  }
+}
+
+function buildTrace(options: {
+  mode: 'explicit' | 'next';
+  filters: DecisionTrace['filters'];
+  outcome: DecisionTrace['outcome'];
+  alternatives?: DecisionAlternative[];
+  leafOnly: boolean;
+}): DecisionTrace {
+  return {
+    version: 'v1',
+    mode: options.mode,
+    filters: options.filters,
+    eligibility: {
+      status_ready_required: true,
+      dependencies_done_required: true,
+      leaf_only_required: options.leafOnly,
+    },
+    outcome: options.outcome,
+    alternatives: options.alternatives ?? [],
+  };
+}
+
+function getRankedNextCandidates(options: {
+  services: Services;
+  project?: string;
+  tags?: string[];
+  parent?: string;
+}): RankedNextCandidate[] {
+  const { services, project, tags, parent } = options;
+  const db = services.cacheDb;
+
+  const where: string[] = ["tc.status != 'archived'"];
+  const params: Array<string | number> = [];
+
+  if (project) {
+    where.push('tc.project = ?');
+    params.push(project);
+  }
+
+  if (parent) {
+    where.push('tc.parent_id = ?');
+    params.push(parent);
+  }
+
+  if (tags && tags.length > 0) {
+    const placeholders = tags.map(() => '?').join(', ');
+    where.push(`(SELECT COUNT(DISTINCT tag) FROM task_tags WHERE task_id = tc.task_id AND tag IN (${placeholders})) = ?`);
+    params.push(...tags, tags.length);
+  }
+
+  const sql = `
+    SELECT
+      tc.task_id,
+      tc.status,
+      EXISTS (
+        SELECT 1
+        FROM task_dependencies td
+        JOIN tasks_current dep ON td.depends_on_id = dep.task_id
+        WHERE td.task_id = tc.task_id AND dep.status != 'done'
+      ) AS dependency_blocked,
+      EXISTS (
+        SELECT 1
+        FROM tasks_current child
+        WHERE child.parent_id = tc.task_id
+      ) AS has_children
+    FROM tasks_current tc
+    WHERE ${where.join(' AND ')}
+    ORDER BY tc.priority DESC, (tc.due_at IS NULL) ASC, tc.due_at ASC, tc.created_at ASC, tc.task_id ASC
+  `;
+
+  const rows = db.prepare(sql).all(...params) as Array<{
+    task_id: string;
+    status: TaskStatus;
+    dependency_blocked: number;
+    has_children: number;
+  }>;
+
+  const ranked: RankedNextCandidate[] = [];
+
+  for (const row of rows) {
+    const task = services.taskService.getTaskById(row.task_id);
+    if (!task) continue;
+
+    if (row.status !== TaskStatus.Ready) {
+      ranked.push({
+        task,
+        reason_code: 'not_ready',
+        reason: `Task status is ${row.status}; requires ready`,
+      });
+      continue;
+    }
+
+    if (row.dependency_blocked) {
+      ranked.push({
+        task,
+        reason_code: 'dependency_blocked',
+        reason: 'Dependencies are not done',
+      });
+      continue;
+    }
+
+    if (row.has_children) {
+      ranked.push({
+        task,
+        reason_code: 'has_children',
+        reason: 'Task has children and is not auto-claim eligible',
+      });
+      continue;
+    }
+
+    ranked.push({
+      task,
+      reason_code: 'eligible',
+      reason: 'Eligible by status/dependencies/leaf filters',
+    });
+  }
+
+  return ranked;
+}
 
 export function runClaim(options: {
   services: Services;
@@ -35,44 +270,124 @@ export function runClaim(options: {
   agent?: string;
   agentId?: string;
   leaseMinutes?: number;
+  view?: ClaimView;
   json: boolean;
 }): ClaimResult {
-  const { services, taskId, agent, agentId, leaseMinutes, json } = options;
+  const { services, taskId, agent, agentId, leaseMinutes, view = 'standard', json } = options;
 
-  // Check task status before claiming to provide actionable error
   const existingTask = services.taskService.getTaskById(taskId);
-  if (existingTask && existingTask.status !== TaskStatus.Ready) {
+  if (!existingTask) {
+    const trace = buildTrace({
+      mode: 'explicit',
+      filters: { task_id: taskId },
+      leafOnly: false,
+      outcome: {
+        selected: false,
+        reason_code: 'not_found',
+        reason: `Task not found: ${taskId}`,
+      },
+    });
+    throw new CLIError(`Task not found: ${taskId}`, ExitCode.NotFound, undefined, { decision_trace: trace });
+  }
+
+  if (existingTask.status !== TaskStatus.Ready) {
+    const trace = buildTrace({
+      mode: 'explicit',
+      filters: { task_id: taskId },
+      leafOnly: false,
+      outcome: {
+        selected: false,
+        reason_code: 'not_ready',
+        reason: `Task status is ${existingTask.status}; requires ready`,
+        task_id: taskId,
+      },
+    });
+
     throw new CLIError(
       `Task ${taskId} is not claimable (status: ${existingTask.status})\nHint: hzl task set-status ${taskId} ready`,
-      ExitCode.InvalidInput
+      ExitCode.InvalidInput,
+      undefined,
+      { decision_trace: trace }
+    );
+  }
+
+  const blockers = services.taskService.getBlockingDependencies(taskId);
+  if (blockers.length > 0) {
+    const trace = buildTrace({
+      mode: 'explicit',
+      filters: { task_id: taskId },
+      leafOnly: false,
+      outcome: {
+        selected: false,
+        reason_code: 'dependency_blocked',
+        reason: `Dependencies are not done: ${blockers.join(', ')}`,
+        task_id: taskId,
+      },
+      alternatives: blockers.slice(0, 3).map((blockingTaskId) => ({
+        task_id: blockingTaskId,
+        reason_code: 'dependency_blocked',
+        reason: 'Blocking dependency is not done',
+      })),
+    });
+
+    throw new CLIError(
+      `Task ${taskId} has dependencies not done: ${blockers.join(', ')}`,
+      ExitCode.InvalidInput,
+      undefined,
+      { decision_trace: trace }
     );
   }
 
   const leaseUntil = leaseMinutes ? new Date(Date.now() + leaseMinutes * 60000).toISOString() : undefined;
 
-  const task = services.taskService.claimTask(taskId, {
-    author: agent,
-    agent_id: agentId,
-    lease_until: leaseUntil,
+  let task: Task;
+  try {
+    task = services.taskService.claimTask(taskId, {
+      author: agent,
+      agent_id: agentId,
+      lease_until: leaseUntil,
+    });
+  } catch (error) {
+    if (error instanceof TaskNotClaimableError || error instanceof DependenciesNotDoneError) {
+      const trace = buildTrace({
+        mode: 'explicit',
+        filters: { task_id: taskId },
+        leafOnly: false,
+        outcome: {
+          selected: false,
+          reason_code: 'claim_failed',
+          reason: error.message,
+          task_id: taskId,
+        },
+      });
+      throw new CLIError(error.message, ExitCode.InvalidInput, undefined, { decision_trace: trace });
+    }
+    throw error;
+  }
+
+  const decisionTrace = buildTrace({
+    mode: 'explicit',
+    filters: { task_id: task.task_id },
+    leafOnly: false,
+    outcome: {
+      selected: true,
+      reason_code: 'claimed',
+      reason: 'Task was claimed successfully',
+      task_id: task.task_id,
+    },
   });
 
   const result: ClaimResult = {
     task_id: task.task_id,
     title: task.title,
     status: task.status,
-    agent: task.assignee,
+    agent: task.agent,
     lease_until: task.lease_until,
+    task: shapeTaskForView(task, view),
+    decision_trace: decisionTrace,
   };
 
-  if (json) {
-    console.log(JSON.stringify(result));
-  } else {
-    console.log(`✓ Claimed task ${task.task_id}: ${task.title}`);
-    if (task.lease_until) {
-      console.log(`  Lease until: ${task.lease_until}`);
-    }
-  }
-
+  printClaimResult(result, json);
   return result;
 }
 
@@ -84,9 +399,10 @@ export function runClaimNext(options: {
   agent?: string;
   agentId?: string;
   leaseMinutes?: number;
+  view?: ClaimView;
   json: boolean;
-}): ClaimResult | null {
-  const { services, project, tags, parent, agent, agentId, leaseMinutes, json } = options;
+}): ClaimResult {
+  const { services, project, tags, parent, agent, agentId, leaseMinutes, view = 'standard', json } = options;
 
   if (parent) {
     const parentTask = services.taskService.getTaskById(parent);
@@ -95,45 +411,116 @@ export function runClaimNext(options: {
     }
   }
 
-  const candidate = services.taskService.getNextLeafTask({
-    project,
-    tagsAll: tags,
-    parent,
-  });
+  const ranked = getRankedNextCandidates({ services, project, tags, parent });
+  const eligible = ranked.filter((candidate) => candidate.reason_code === 'eligible');
 
-  if (!candidate) {
-    if (json) {
-      console.log(JSON.stringify(null));
-    } else {
-      console.log('No tasks available');
-    }
-    return null;
+  if (eligible.length === 0) {
+    const alternatives = ranked
+      .slice(0, 3)
+      .map((candidate) => ({
+        task_id: candidate.task.task_id,
+        reason_code: candidate.reason_code,
+        reason: candidate.reason,
+      }));
+
+    const result: ClaimResult = {
+      task_id: null,
+      title: null,
+      status: null,
+      agent: null,
+      lease_until: null,
+      task: null,
+      decision_trace: buildTrace({
+        mode: 'next',
+        filters: {
+          ...(project ? { project } : {}),
+          ...(tags && tags.length > 0 ? { tags } : {}),
+          ...(parent ? { parent } : {}),
+        },
+        leafOnly: true,
+        outcome: {
+          selected: false,
+          reason_code: 'no_candidates',
+          reason: 'No eligible tasks matched filters',
+        },
+        alternatives,
+      }),
+    };
+
+    printClaimResult(result, json);
+    return result;
   }
 
+  const selected = eligible[0].task;
   const leaseUntil = leaseMinutes ? new Date(Date.now() + leaseMinutes * 60000).toISOString() : undefined;
-  const task = services.taskService.claimTask(candidate.task_id, {
-    author: agent,
-    agent_id: agentId,
-    lease_until: leaseUntil,
-  });
+
+  let task: Task;
+  try {
+    task = services.taskService.claimTask(selected.task_id, {
+      author: agent,
+      agent_id: agentId,
+      lease_until: leaseUntil,
+    });
+  } catch (error) {
+    const trace = buildTrace({
+      mode: 'next',
+      filters: {
+        ...(project ? { project } : {}),
+        ...(tags && tags.length > 0 ? { tags } : {}),
+        ...(parent ? { parent } : {}),
+      },
+      leafOnly: true,
+      outcome: {
+        selected: false,
+        reason_code: 'claim_failed',
+        reason: error instanceof Error ? error.message : String(error),
+        task_id: selected.task_id,
+      },
+      alternatives: eligible.slice(1, 4).map((candidate) => ({
+        task_id: candidate.task.task_id,
+        reason_code: 'eligible',
+        reason: 'Eligible alternative candidate',
+      })),
+    });
+
+    throw new CLIError(
+      `Failed to claim selected task ${selected.task_id}`,
+      ExitCode.InvalidInput,
+      undefined,
+      { decision_trace: trace }
+    );
+  }
 
   const result: ClaimResult = {
     task_id: task.task_id,
     title: task.title,
     status: task.status,
-    agent: task.assignee,
+    agent: task.agent,
     lease_until: task.lease_until,
+    task: shapeTaskForView(task, view),
+    decision_trace: buildTrace({
+      mode: 'next',
+      filters: {
+        ...(project ? { project } : {}),
+        ...(tags && tags.length > 0 ? { tags } : {}),
+        ...(parent ? { parent } : {}),
+      },
+      leafOnly: true,
+      outcome: {
+        selected: true,
+        reason_code: 'claimed',
+        reason: 'Highest-ranked eligible task was claimed',
+        task_id: task.task_id,
+      },
+      alternatives: eligible.slice(1, 4).map((candidate) => ({
+        task_id: candidate.task.task_id,
+        reason_code: 'eligible',
+        reason: 'Eligible alternative candidate',
+      })),
+    }),
   };
 
-  if (json) {
-    console.log(JSON.stringify(result));
-  } else {
-    console.log(`✓ Claimed task ${task.task_id}: ${task.title}`);
-    if (task.lease_until) {
-      console.log(`  Lease until: ${task.lease_until}`);
-    }
-  }
-
+  printClaimResult(result, json);
   return result;
 }
 
@@ -171,6 +558,7 @@ export function createClaimCommand(): Command {
     .option('--agent <name>', 'Agent identity for task ownership')
     .option('--agent-id <id>', 'Agent ID (machine/AI identifier)')
     .option('-l, --lease <minutes>', 'Lease duration in minutes')
+    .option('--view <view>', 'Response view: summary | standard | full', 'standard')
     .option('--no-stagger', 'Disable deterministic anti-herd delay for --next claims')
     .action(async function (this: Command, rawTaskId: string | undefined, opts: ClaimCommandOptions) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
@@ -197,6 +585,7 @@ export function createClaimCommand(): Command {
             agent: opts.agent,
             agentId: opts.agentId,
             leaseMinutes: opts.lease ? parseInt(opts.lease, 10) : undefined,
+            view: opts.view ?? 'standard',
             json: globalOpts.json ?? false,
           });
         } else {
@@ -210,6 +599,7 @@ export function createClaimCommand(): Command {
             agent: opts.agent,
             agentId: opts.agentId,
             leaseMinutes: opts.lease ? parseInt(opts.lease, 10) : undefined,
+            view: opts.view ?? 'standard',
             json: globalOpts.json ?? false,
           });
         }

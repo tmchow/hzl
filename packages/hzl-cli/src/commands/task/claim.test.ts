@@ -37,6 +37,8 @@ describe('runClaim', () => {
     expect(result.task_id).toBe(task.task_id);
     expect(result.status).toBe(TaskStatus.InProgress);
     expect(result.agent).toBe('test-agent');
+    expect(result.decision_trace.mode).toBe('explicit');
+    expect(result.decision_trace.outcome.reason_code).toBe('claimed');
   });
 
   it('sets lease when specified', () => {
@@ -78,19 +80,46 @@ describe('runClaim', () => {
       json: false,
     });
 
-    expect(result).not.toBeNull();
-    expect(result?.task_id).toBe(high.task_id);
-    expect(result?.agent).toBe('agent-1');
+    expect(result.task_id).toBe(high.task_id);
+    expect(result.agent).toBe('agent-1');
+    expect(result.decision_trace.mode).toBe('next');
+    expect(result.decision_trace.outcome.reason_code).toBe('claimed');
   });
 
-  it('returns null when no eligible tasks exist in next mode', () => {
+  it('returns no-candidates decision trace when no eligible tasks exist in next mode', () => {
     const result = runClaimNext({
       services,
       agent: 'agent-1',
       json: false,
     });
 
-    expect(result).toBeNull();
+    expect(result.task_id).toBeNull();
+    expect(result.task).toBeNull();
+    expect(result.decision_trace.outcome.reason_code).toBe('no_candidates');
+  });
+
+  it('supports full view payload for explicit claim', () => {
+    const task = services.taskService.createTask({
+      title: 'Detailed',
+      project: 'inbox',
+      description: 'Long markdown body',
+      tags: ['a', 'b'],
+      links: ['https://example.com'],
+      metadata: { foo: 'bar' },
+    });
+    services.taskService.setStatus(task.task_id, TaskStatus.Ready);
+
+    const result = runClaim({
+      services,
+      taskId: task.task_id,
+      agent: 'test-agent',
+      view: 'full',
+      json: false,
+    });
+
+    expect(result.task?.description).toBe('Long markdown body');
+    expect(result.task?.metadata).toEqual({ foo: 'bar' });
+    expect(result.task?.links).toEqual(['https://example.com']);
   });
 
   it('computes deterministic anti-herd offsets in range', () => {

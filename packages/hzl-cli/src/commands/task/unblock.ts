@@ -10,7 +10,7 @@ export interface UnblockResult {
   task_id: string;
   title: string;
   status: string;
-  assignee: string | null;
+  agent: string | null;
 }
 
 interface UnblockCommandOptions {
@@ -35,7 +35,7 @@ export function runUnblock(options: {
     task_id: task.task_id,
     title: task.title,
     status: task.status,
-    assignee: task.assignee,
+    agent: task.agent,
   };
 
   if (json) {

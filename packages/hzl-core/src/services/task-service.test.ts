@@ -76,24 +76,24 @@ describe('TaskService', () => {
       expect(task.priority).toBe(2);
     });
 
-    it('persists assignee in event data and projection', () => {
+    it('persists agent in event data and projection', () => {
       const task = taskService.createTask({
         title: 'Pre-assigned task',
         project: 'inbox',
-        assignee: 'agent-1',
+        agent: 'agent-1',
       });
 
-      // Verify assignee in projection
+      // Verify agent in projection
       const row = db.prepare(
-        'SELECT assignee FROM tasks_current WHERE task_id = ?'
-      ).get(task.task_id) as { assignee: string | null };
-      expect(row.assignee).toBe('agent-1');
+        'SELECT agent FROM tasks_current WHERE task_id = ?'
+      ).get(task.task_id) as { agent: string | null };
+      expect(row.agent).toBe('agent-1');
 
-      // Verify assignee in event data
+      // Verify agent in event data
       const events = eventStore.getByTaskId(task.task_id);
       expect(events).toHaveLength(1);
-      const eventData = events[0].data as { assignee?: string };
-      expect(eventData.assignee).toBe('agent-1');
+      const eventData = events[0].data as { agent?: string };
+      expect(eventData.agent).toBe('agent-1');
     });
 
     it('persists task to tasks_current projection', () => {
@@ -164,7 +164,7 @@ describe('TaskService', () => {
       expect(events[1].type).toBe(EventType.StatusChanged);
     });
 
-    it('creates task with initial_status in_progress and sets assignee', () => {
+    it('creates task with initial_status in_progress and sets agent', () => {
       const task = taskService.createTask(
         {
           title: 'In progress task',
@@ -175,28 +175,28 @@ describe('TaskService', () => {
       );
 
       expect(task.status).toBe(TaskStatus.InProgress);
-      expect(task.assignee).toBe('agent-1');
+      expect(task.agent).toBe('agent-1');
       expect(task.claimed_at).toBeDefined();
     });
 
-    it('creates task with explicit assignee and separate author for initial in_progress', () => {
+    it('creates task with explicit agent and separate author for initial in_progress', () => {
       const task = taskService.createTask(
         {
           title: 'Delegated task',
           project: 'inbox',
           initial_status: TaskStatus.InProgress,
-          assignee: 'kenji',
+          agent: 'kenji',
         },
         { author: 'clara' }
       );
 
       expect(task.status).toBe(TaskStatus.InProgress);
-      expect(task.assignee).toBe('kenji');
+      expect(task.agent).toBe('kenji');
 
       const events = eventStore.getByTaskId(task.task_id);
       expect(events[0].type).toBe(EventType.TaskCreated);
       expect(events[0].author).toBe('clara');
-      expect((events[0].data as { assignee?: string }).assignee).toBe('kenji');
+      expect((events[0].data as { agent?: string }).agent).toBe('kenji');
       expect(events[1].type).toBe(EventType.StatusChanged);
       expect(events[1].author).toBe('clara');
     });
@@ -347,7 +347,7 @@ describe('TaskService', () => {
       const claimed = taskService.claimTask(task.task_id, { author: 'agent-1' });
 
       expect(claimed.status).toBe(TaskStatus.InProgress);
-      expect(claimed.assignee).toBe('agent-1');
+      expect(claimed.agent).toBe('agent-1');
       expect(claimed.claimed_at).toBeDefined();
     });
 
@@ -464,7 +464,7 @@ describe('TaskService', () => {
         title: 'Assigned to me',
         project: 'inbox',
         priority: 2,
-        assignee: 'agent-1',
+        agent: 'agent-1',
       });
       const unassignedTask = taskService.createTask({
         title: 'Unassigned',
@@ -486,7 +486,7 @@ describe('TaskService', () => {
         title: 'Low priority but assigned',
         project: 'inbox',
         priority: 1,
-        assignee: 'agent-1',
+        agent: 'agent-1',
       });
       const highPriorityUnassigned = taskService.createTask({
         title: 'High priority unassigned',
@@ -584,7 +584,7 @@ describe('TaskService', () => {
 
       expect(result.success).toBe(true);
       const stolen = taskService.getTaskById(task.task_id);
-      expect(stolen!.assignee).toBe('agent-2');
+      expect(stolen!.agent).toBe('agent-2');
     });
 
     it('steals task with ifExpired=true only when lease is expired', () => {
@@ -611,25 +611,25 @@ describe('TaskService', () => {
       expect(result.success).toBe(false);
     });
 
-    it('supports separate assignee and author for steal', () => {
+    it('supports separate agent and author for steal', () => {
       const task = taskService.createTask({ title: 'Test', project: 'inbox' });
       taskService.setStatus(task.task_id, TaskStatus.Ready);
       taskService.claimTask(task.task_id, { author: 'agent-1' });
 
       const result = taskService.stealTask(task.task_id, {
         force: true,
-        assignee: 'agent-2',
+        agent: 'agent-2',
         author: 'coordinator',
       });
 
       expect(result.success).toBe(true);
       const stolen = taskService.getTaskById(task.task_id);
-      expect(stolen!.assignee).toBe('agent-2');
+      expect(stolen!.agent).toBe('agent-2');
 
       const events = eventStore.getByTaskId(task.task_id);
       const stealEvent = events[events.length - 1];
       expect(stealEvent.author).toBe('coordinator');
-      expect((stealEvent.data as { assignee?: string }).assignee).toBe('agent-2');
+      expect((stealEvent.data as { agent?: string }).agent).toBe('agent-2');
     });
   });
 
@@ -1438,7 +1438,7 @@ describe('TaskService', () => {
       const blocked = taskService.blockTask(task.task_id, { comment: 'Waiting for API keys' });
       expect(blocked.status).toBe(TaskStatus.Blocked);
       // Assignee should persist
-      expect(blocked.assignee).toBe('agent-1');
+      expect(blocked.agent).toBe('agent-1');
     });
 
     it('throws when task is not in_progress or blocked', () => {
@@ -1515,7 +1515,7 @@ describe('TaskService', () => {
       const updated = taskService.getTaskById(task.task_id);
 
       expect(updated!.claimed_at).toBe(originalClaimedAt);
-      expect(updated!.assignee).toBe('agent-1');
+      expect(updated!.agent).toBe('agent-1');
     });
 
     it('clears lease_until when blocked', () => {
@@ -1541,7 +1541,7 @@ describe('TaskService', () => {
 
       const unblocked = taskService.unblockTask(task.task_id);
       expect(unblocked.status).toBe(TaskStatus.InProgress);
-      expect(unblocked.assignee).toBe('agent-1');
+      expect(unblocked.agent).toBe('agent-1');
     });
 
     it('unblocks to ready with release option', () => {
@@ -1553,7 +1553,7 @@ describe('TaskService', () => {
       const released = taskService.unblockTask(task.task_id, { release: true });
       expect(released.status).toBe(TaskStatus.Ready);
       // Assignee still persists even when released
-      expect(released.assignee).toBe('agent-1');
+      expect(released.agent).toBe('agent-1');
     });
 
     it('throws when task is not blocked', () => {
@@ -1643,7 +1643,7 @@ describe('TaskService', () => {
 
       const completed = taskService.completeTask(task.task_id);
       expect(completed.status).toBe(TaskStatus.Done);
-      expect(completed.assignee).toBe('agent-1');
+      expect(completed.agent).toBe('agent-1');
     });
 
     it('appends CommentAdded when comment is provided on complete', () => {

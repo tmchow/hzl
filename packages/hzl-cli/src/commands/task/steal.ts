@@ -10,12 +10,12 @@ export interface StealResult {
   task_id: string;
   title: string;
   status: string;
-  assignee: string | null;
+  agent: string | null;
   stolen_from: string | null;
 }
 
 interface StealCommandOptions {
-  assignee?: string;
+  agent?: string;
   owner?: string;
   author?: string;
   force?: boolean;
@@ -38,7 +38,7 @@ export function runSteal(options: {
     throw new CLIError(`Task not found: ${taskId}`, ExitCode.NotFound);
   }
 
-  const previousAssignee = task.assignee;
+  const previousAssignee = task.agent;
 
   // Check if we're allowed to steal (pre-validation)
   if (!force && !ifExpired) {
@@ -52,7 +52,7 @@ export function runSteal(options: {
       if (leaseExpiry > new Date()) {
         throw new CLIError(`Task lease has not expired (expires ${task.lease_until})`, ExitCode.InvalidInput);
       }
-    } else if (task.assignee) {
+    } else if (task.agent) {
       // No lease set, but task is claimed - require force
       throw new CLIError(`Task is claimed but has no lease. Use --force to steal.`, ExitCode.InvalidInput);
     }
@@ -60,14 +60,14 @@ export function runSteal(options: {
 
   const effectiveAssignee = newAssignee ?? author;
   if (!effectiveAssignee) {
-    throw new CLIError(`Must specify --assignee (or --author for legacy behavior)`, ExitCode.InvalidInput);
+    throw new CLIError(`Must specify --agent (or --author for legacy behavior)`, ExitCode.InvalidInput);
   }
 
   const effectiveAuthor = author ?? effectiveAssignee;
 
   // Steal by using stealTask service method.
   const stealResult = services.taskService.stealTask(taskId, { 
-    assignee: effectiveAssignee,
+    agent: effectiveAssignee,
     author: effectiveAuthor,
     force: force || false,
     ifExpired: ifExpired && !force,
@@ -84,7 +84,7 @@ export function runSteal(options: {
     task_id: stolenTask.task_id,
     title: stolenTask.title,
     status: stolenTask.status,
-    assignee: stolenTask.assignee,
+    agent: stolenTask.agent,
     stolen_from: previousAssignee,
   };
 
@@ -92,8 +92,8 @@ export function runSteal(options: {
     console.log(JSON.stringify(result));
   } else {
     console.log(`✓ Stole task ${stolenTask.task_id}: ${stolenTask.title}`);
-    if (previousAssignee) console.log(`  Previous assignee: ${previousAssignee}`);
-    if (effectiveAssignee) console.log(`  New assignee: ${effectiveAssignee}`);
+    if (previousAssignee) console.log(`  Previous agent: ${previousAssignee}`);
+    if (effectiveAssignee) console.log(`  New agent: ${effectiveAssignee}`);
   }
 
   return result;
@@ -103,8 +103,8 @@ export function createStealCommand(): Command {
   return new Command('steal')
     .description('Steal a claimed task')
     .argument('<taskId>', 'Task ID')
-    .option('--assignee <name>', 'New assignee name')
-    .option('--owner <name>', 'Deprecated alias for --assignee')
+    .option('--agent <name>', 'New agent name')
+    .option('--owner <name>', 'Deprecated alias for --agent')
     .option('--author <name>', 'Author name')
     .option('--force', 'Force steal even if lease is active')
     .option('--if-expired', 'Only steal if lease has expired')
@@ -113,15 +113,15 @@ export function createStealCommand(): Command {
       const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
       const services = initializeDb({ eventsDbPath, cacheDbPath });
       try {
-        if (opts.assignee && opts.owner && opts.assignee !== opts.owner) {
-          throw new CLIError(`Cannot use both --assignee and --owner with different values`, ExitCode.InvalidInput);
+        if (opts.agent && opts.owner && opts.agent !== opts.owner) {
+          throw new CLIError(`Cannot use both --agent and --owner with different values`, ExitCode.InvalidInput);
         }
 
         if (opts.owner && !(globalOpts.json ?? false)) {
-          console.error('Warning: --owner is deprecated; use --assignee instead.');
+          console.error('Warning: --owner is deprecated; use --agent instead.');
         }
 
-        const newAssignee = opts.assignee ?? opts.owner;
+        const newAssignee = opts.agent ?? opts.owner;
         const taskId = resolveId(services, rawTaskId);
         runSteal({
           services,

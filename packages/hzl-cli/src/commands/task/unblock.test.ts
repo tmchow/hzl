@@ -36,7 +36,7 @@ describe('runUnblock', () => {
     });
 
     expect(result.status).toBe('in_progress');
-    expect(result.assignee).toBe('agent-1');
+    expect(result.agent).toBe('agent-1');
   });
 
   it('unblocks to ready with release option', () => {
@@ -54,6 +54,6 @@ describe('runUnblock', () => {
 
     expect(result.status).toBe('ready');
     // Assignee should persist even when released
-    expect(result.assignee).toBe('agent-1');
+    expect(result.agent).toBe('agent-1');
   });
 });

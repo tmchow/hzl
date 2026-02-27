@@ -75,7 +75,7 @@ describe('runAdd', () => {
 
     const task = services.taskService.getTaskById(result.task_id);
     expect(task?.status).toBe('backlog');
-    expect(task?.assignee).toBe('kenji');
+    expect(task?.agent).toBe('kenji');
   });
 
   it('records author separately from agent on create', () => {
@@ -90,12 +90,12 @@ describe('runAdd', () => {
     });
 
     const task = services.taskService.getTaskById(result.task_id);
-    expect(task?.assignee).toBe('kenji');
+    expect(task?.agent).toBe('kenji');
 
     const events = services.eventStore.getByTaskId(result.task_id);
     expect(events[0].type).toBe('task_created');
     expect(events[0].author).toBe('clara');
-    expect((events[0].data as { assignee?: string }).assignee).toBe('kenji');
+    expect((events[0].data as { agent?: string }).agent).toBe('kenji');
   });
 
   it('creates a task with dependencies', () => {
@@ -217,7 +217,7 @@ describe('runAdd', () => {
 
       const task = services.taskService.getTaskById(result.task_id);
       expect(task?.status).toBe('ready');
-      expect(task?.assignee).toBe('kenji');
+      expect(task?.agent).toBe('kenji');
     });
 
     it('creates task with -s in_progress and sets agent', () => {
@@ -232,7 +232,7 @@ describe('runAdd', () => {
 
       const task = services.taskService.getTaskById(result.task_id);
       expect(task?.status).toBe('in_progress');
-      expect(task?.assignee).toBe('agent-1');
+      expect(task?.agent).toBe('agent-1');
     });
 
     it('keeps agent when -s in_progress has distinct --author', () => {
@@ -248,7 +248,7 @@ describe('runAdd', () => {
 
       const task = services.taskService.getTaskById(result.task_id);
       expect(task?.status).toBe('in_progress');
-      expect(task?.assignee).toBe('kenji');
+      expect(task?.agent).toBe('kenji');
 
       const events = services.eventStore.getByTaskId(result.task_id);
       expect(events[0].author).toBe('clara');

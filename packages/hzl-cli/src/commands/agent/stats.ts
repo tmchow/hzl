@@ -32,9 +32,9 @@ export function runAgentStats(options: {
   const db = services.cacheDb;
 
   let query = `
-    SELECT assignee AS agent, status, COUNT(*) AS count
+    SELECT agent AS agent, status, COUNT(*) AS count
     FROM tasks_current
-    WHERE assignee IS NOT NULL
+    WHERE agent IS NOT NULL
       AND status != 'archived'
   `;
   const params: Array<string> = [];
@@ -49,7 +49,7 @@ export function runAgentStats(options: {
     params.push(status);
   }
 
-  query += ' GROUP BY assignee, status ORDER BY assignee ASC, status ASC';
+  query += ' GROUP BY agent, status ORDER BY agent ASC, status ASC';
 
   const rows = db.prepare(query).all(...params) as Array<{
     agent: string;

@@ -50,7 +50,7 @@ export class TasksCurrentProjector implements Projector {
       INSERT INTO tasks_current (
         task_id, title, project, status, parent_id, description,
         links, tags, priority, due_at, metadata,
-        assignee,
+        agent,
         created_at, updated_at, last_event_id
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
@@ -65,7 +65,7 @@ export class TasksCurrentProjector implements Projector {
       data.priority ?? 0,
       data.due_at ?? null,
       JSON.stringify(data.metadata ?? {}),
-      data.assignee ?? null,
+      data.agent ?? data.assignee ?? null,
       event.timestamp,
       event.timestamp,
       event.rowid
@@ -79,14 +79,14 @@ export class TasksCurrentProjector implements Projector {
     const isDone = toStatus === TaskStatus.Done;
 
     if (toStatus === TaskStatus.InProgress) {
-      const newAssignee = data.assignee ?? event.author ?? event.agent_id ?? null;
+      const newAssignee = data.agent ?? data.assignee ?? event.author ?? event.agent_id ?? null;
 
-      // Steal case: in_progress → in_progress - always overwrite assignee and claimed_at
+      // Steal case: in_progress → in_progress - always overwrite agent and claimed_at
       if (data.from === TaskStatus.InProgress) {
         db.prepare(`
           UPDATE tasks_current SET
             claimed_at = ?,
-            assignee = ?,
+            agent = ?,
             lease_until = ?,
             updated_at = ?,
             last_event_id = ?
@@ -100,11 +100,11 @@ export class TasksCurrentProjector implements Projector {
           event.task_id
         );
       } else if (data.from === TaskStatus.Blocked) {
-        // Unblock case: blocked → in_progress - preserve claimed_at, update assignee only if provided
+        // Unblock case: blocked → in_progress - preserve claimed_at, update agent only if provided
         db.prepare(`
           UPDATE tasks_current SET
             status = ?,
-            assignee = COALESCE(?, assignee),
+            agent = COALESCE(?, agent),
             lease_until = ?,
             updated_at = ?,
             last_event_id = ?
@@ -118,12 +118,12 @@ export class TasksCurrentProjector implements Projector {
           event.task_id
         );
       } else {
-        // Normal claim (ready → in_progress) - set claimed_at, preserve assignee if no new one
+        // Normal claim (ready → in_progress) - set claimed_at, preserve agent if no new one
         db.prepare(`
           UPDATE tasks_current SET
             status = ?,
             claimed_at = ?,
-            assignee = COALESCE(?, assignee),
+            agent = COALESCE(?, agent),
             lease_until = ?,
             updated_at = ?,
             last_event_id = ?
@@ -139,7 +139,7 @@ export class TasksCurrentProjector implements Projector {
         );
       }
     } else if (data.from === TaskStatus.Blocked && toStatus === TaskStatus.Blocked) {
-      // Updating block reason: preserve assignee, claimed_at - just update timestamp
+      // Updating block reason: preserve agent, claimed_at - just update timestamp
       db.prepare(`
         UPDATE tasks_current SET
           updated_at = ?,
@@ -147,7 +147,7 @@ export class TasksCurrentProjector implements Projector {
         WHERE task_id = ?
       `).run(event.timestamp, event.rowid, event.task_id);
     } else if (toStatus === TaskStatus.Blocked) {
-      // Entering blocked state: preserve assignee and claimed_at, clear lease_until
+      // Entering blocked state: preserve agent and claimed_at, clear lease_until
       db.prepare(`
         UPDATE tasks_current SET
           status = ?,
@@ -157,7 +157,7 @@ export class TasksCurrentProjector implements Projector {
         WHERE task_id = ?
       `).run(toStatus, event.timestamp, event.rowid, event.task_id);
     } else if (data.from === TaskStatus.InProgress || data.from === TaskStatus.Blocked) {
-      // When leaving in_progress/blocked: clear claimed_at and lease, but PRESERVE assignee
+      // When leaving in_progress/blocked: clear claimed_at and lease, but PRESERVE agent
       // If transitioning to terminal state, set terminal_at
       db.prepare(`
         UPDATE tasks_current SET
@@ -214,7 +214,7 @@ export class TasksCurrentProjector implements Projector {
 
   private handleTaskUpdated(event: PersistedEventEnvelope, db: Database.Database): void {
     const data = event.data as TaskUpdatedData;
-    const field = data.field;
+    const field = data.field === 'assignee' ? 'agent' : data.field;
     const newValue = JSON_FIELDS.has(field)
       ? JSON.stringify(data.new_value)
       : data.new_value;

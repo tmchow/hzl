@@ -62,8 +62,8 @@ describe('db.ts schema migration', () => {
       try {
         services = initializeDbFromPath(dbPath);
 
-        // Schema version should be set to current (2)
-        expect(getSchemaVersion(cachePath)).toBe(2);
+        // Schema version should be set to current (3)
+        expect(getSchemaVersion(cachePath)).toBe(3);
 
         // Note: initializeDb creates the inbox project, so 1 event exists after init
         // The point is that BEFORE any events existed (during checkAndMigrateSchema),
@@ -150,7 +150,7 @@ describe('db.ts schema migration', () => {
         services = initializeDbFromPath(dbPath);
 
         // Schema version should now be current
-        expect(getSchemaVersion(cachePath)).toBe(2);
+        expect(getSchemaVersion(cachePath)).toBe(3);
 
         // Cache schema should include terminal_at after rebuild
         const columns = getColumns(cachePath, 'tasks_current');
@@ -288,7 +288,7 @@ describe('db.ts schema migration', () => {
         services = initializeDbFromPath(dbPath);
 
         // Schema version should now be set
-        expect(getSchemaVersion(cachePath)).toBe(2);
+        expect(getSchemaVersion(cachePath)).toBe(3);
 
         // Migration message should have been printed
         const migrationCalls = stderrSpy.mock.calls.filter(
@@ -313,7 +313,7 @@ describe('db.ts schema migration', () => {
       cacheDb.exec(PRAGMAS);
       cacheDb.exec(CACHE_SCHEMA_V1);
 
-      // Set schema version to current (2)
+      // Set schema version to previous schema generation (2)
       cacheDb.prepare(
         "INSERT INTO hzl_local_meta (key, value) VALUES ('schema_version', '2')"
       ).run();
@@ -333,14 +333,14 @@ describe('db.ts schema migration', () => {
       try {
         services = initializeDbFromPath(dbPath);
 
-        // Schema version should still be 2
-        expect(getSchemaVersion(cachePath)).toBe(2);
+        // Schema version should be upgraded to current
+        expect(getSchemaVersion(cachePath)).toBe(3);
 
-        // No migration message should be printed
+        // Migration message should be printed
         const migrationCalls = stderrSpy.mock.calls.filter(
           call => String(call[0]).includes('Upgrading database schema')
         );
-        expect(migrationCalls).toHaveLength(0);
+        expect(migrationCalls.length).toBeGreaterThan(0);
       } finally {
         if (services) closeDb(services);
         stderrSpy.mockRestore();
