@@ -8,7 +8,7 @@
 
 This plan executes the v2 CLI hard reset for agent-first usage: JSON-first contracts, unified claiming (`claim <id>` and `claim --next`), deterministic selection with decision traces, agent-centric querying, and removal of `task next`. The implementation keeps architecture CLI-only (no daemon/watch), while adding low-latency anti-herd behavior for auto-claim worker loops.
 
-A major cross-cutting element is terminology migration from `assignee` to `agent` across read models, service types, CLI flags, and JSON output contracts, while preserving compatibility with immutable historical events that still carry `assignee` in old event payloads.
+A major cross-cutting element is terminology migration from `assignee` to `agent` across read models, service types, CLI flags, JSON output contracts, web API surfaces, and tests. Historical event replay remains backward-compatible (`assignee` read fallback), while runtime interfaces are standardized to `agent`.
 
 ## Architecture
 
@@ -53,6 +53,11 @@ Key implementation decisions:
 - Apply built-in anti-herd only in `claim --next --agent ...` path (default 1000ms, configurable, opt-out), not generic list/show commands.
 - Consolidate next-task behavior into claim command; remove `task next` registration and docs.
 - Use offset pagination (`--page`, `--limit`) for v2 list surfaces to keep the first release simple and predictable.
+- Use a hard-cutover compatibility strategy with explicit DB/CLI major-version gating (v1 binaries must fail fast against v2-migrated stores with migration guidance).
+- Use an explicit eligibility matrix for `claim --next`: ready status, all dependencies done, and leaf-only claimability.
+- Use a concrete `decision_trace` contract with bounded alternatives (max 3) and fixed reason codes.
+- Distinguish grouped list vs stats surfaces: `task list --group-by-agent` returns task details grouped by agent; `agent stats` returns counts only.
+- Anti-herd formula is deterministic-only (no runtime randomness): `offset_ms = hash(agent + ':' + floor(now_ms / window_ms)) % window_ms`.
 
 ## Delivery Plan
 
@@ -105,6 +110,26 @@ Pattern to follow: current centralized `handleError` and `output.ts` formatter u
 
 **Verify:** `pnpm --filter hzl-cli test src/errors.test.ts src/output.test.ts`
 
+### 1.3 Add global argv migration interception for removed command/flag surfaces
+
+**Depends on:** 1.1, 1.2
+**Files:** `packages/hzl-cli/src/index.ts`, `packages/hzl-cli/src/index.test.ts`, `packages/hzl-cli/src/errors.ts`, `packages/hzl-cli/src/__tests__/integration/v2-migration.test.ts` (new)
+
+Add a pre-parse argv compatibility interceptor at CLI entrypoint to catch removed/renamed surfaces before Commander emits default unknown-option/unknown-command errors. This ensures migration hints are consistently returned in the stable error envelope.
+
+Removed/renamed examples to intercept:
+- `hzl task next` -> suggest `hzl task claim --next`
+- `--json` -> explain JSON is default and suggest `--format md` for human output
+- `--assignee` -> suggest `--agent`
+
+**Test scenarios:** (`packages/hzl-cli/src/__tests__/integration/v2-migration.test.ts`)
+- `hzl task next` returns structured migration error/hint envelope
+- `hzl task claim 123 --json` returns structured migration hint
+- `hzl task claim 123 --assignee x` returns structured migration hint
+- Unknown unrelated flags still return standard unknown-option error envelope
+
+**Verify:** `pnpm --filter hzl-cli test src/index.test.ts src/__tests__/integration/v2-migration.test.ts`
+
 ---
 
 ## 2. Core Model + Replay Compatibility (`assignee` -> `agent`)
@@ -133,7 +158,7 @@ Migration strategy should use SQLite-safe pattern compatible with current migrat
 
 Update service/read-model interfaces and projector writes to use `agent` as canonical runtime field while replaying historical events that may still include `assignee` data.
 
-Compatibility rule: projector reads `data.agent` if present, otherwise falls back to `data.assignee` for older events. New v2 emissions should write `agent` in event data.
+Compatibility rule: projector reads `data.agent` if present, otherwise falls back to `data.assignee` for older events. New v2 emissions write `agent` in event data for ownership-bearing events. No dual-write in v2 events.
 
 Also update exported public types to present `agent` field names.
 
@@ -144,6 +169,41 @@ Also update exported public types to present `agent` field names.
 - APIs no longer expose `assignee` in v2-facing task types
 
 **Verify:** `pnpm --filter hzl-core test src/services/task-service.test.ts src/events/types.test.ts`
+
+### 2.3 Execute full surface migration matrix for `assignee` -> `agent`
+
+**Depends on:** 2.2
+**Files:** `packages/hzl-cli/src/commands/**/*.ts`, `packages/hzl-cli/src/commands/**/*.test.ts`, `packages/hzl-web/src/server.ts`, `packages/hzl-web/src/server.test.ts`, `packages/hzl-core/src/services/**/*.ts`, `packages/hzl-core/src/services/**/*.test.ts`, `README.md`, `docs-site/**/*.md`
+
+Create and execute a migration matrix that enumerates every `assignee` touchpoint and maps it to v2 behavior (`migrate to agent` or `legacy compatibility path`). This subtask closes scope gaps across CLI, core, and web API.
+
+Minimum matrix coverage:
+- CLI flags/fields/options
+- TaskService/public types and projections
+- Web server response fields and filters
+- Integration and unit tests
+- User-facing docs and guides
+
+**Test scenarios:** (`packages/hzl-web/src/server.test.ts`)
+- Web task and event responses expose `agent` fields where ownership is represented
+- No required v2-facing API surface still emits `assignee`
+- Legacy event replay still resolves ownership correctly in API responses
+
+**Verify:** `pnpm --filter hzl-core test && pnpm --filter hzl-cli test && pnpm --filter hzl-web test`
+
+### 2.4 Add DB/CLI major-version gate for hard cutover compatibility
+
+**Depends on:** 2.1, 2.2
+**Files:** `packages/hzl-cli/src/db.ts`, `packages/hzl-cli/src/config.ts`, `packages/hzl-cli/src/errors.ts`, `packages/hzl-cli/src/__tests__/integration/v2-migration.test.ts`, `packages/hzl-core/src/db/schema.ts`
+
+Implement explicit major-version gating metadata in local/global DB metadata so older CLIs fail fast on v2-upgraded stores with clear migration guidance. This prevents silent mixed-version corruption when v2 starts emitting `agent`-only ownership payloads.
+
+**Test scenarios:** (`packages/hzl-cli/src/__tests__/integration/v2-migration.test.ts`)
+- v2-initialized DB records major compatibility marker
+- opening v2 DB with simulated pre-v2 compatibility marker mismatch fails with actionable message
+- compatibility errors are emitted in stable error envelope shape
+
+**Verify:** `pnpm --filter hzl-cli test src/__tests__/integration/v2-migration.test.ts`
 
 ---
 
@@ -177,12 +237,22 @@ Pattern to follow: reuse current `runClaim` entrypoint and pull in next-selectio
 **Files:** `packages/hzl-core/src/services/task-service.ts`, `packages/hzl-core/src/services/task-service.test.ts`, `packages/hzl-cli/src/commands/task/claim.ts`, `packages/hzl-cli/src/commands/task/claim.test.ts`
 
 Implement canonical selection pipeline:
-1. eligibility gate (status/deps/leaf or parent rules)
+1. eligibility gate:
+   - status must be `ready`
+   - all dependencies must be `done`
+   - task must be leaf-only (tasks with children are not auto-claim eligible)
+   - optional filters (`project`, `parent`, `tags`) applied before ranking
 2. ranking (`priority desc -> due_at asc null-last -> created_at asc -> task_id asc`)
 
-Return `decision_trace` for success and failure paths in claim responses. Trace must include ranking version id, eligibility checks applied, selected/rejected reason, and concise alternative rationale.
+Return `decision_trace` for success and failure paths in claim responses using fixed schema:
+- `decision_trace.version` (e.g. `v1`)
+- `decision_trace.mode` (`explicit` | `next`)
+- `decision_trace.filters` (effective filters)
+- `decision_trace.eligibility` (applied gate rules)
+- `decision_trace.outcome` (`selected` | `rejected`, `reason_code`, `reason`)
+- `decision_trace.alternatives` (ranked alternatives with reason, max 3 entries)
 
-Ensure trace is bounded (e.g., top-N alternatives) to avoid payload explosion.
+Reason codes are explicit and testable (for example: `not_ready`, `dependency_blocked`, `has_children`, `no_candidates`, `claimed`, `claim_failed`).
 
 **Test scenarios:** (`packages/hzl-core/src/services/task-service.test.ts`)
 - eligible set excludes blocked/dependency-incomplete tasks
@@ -203,7 +273,12 @@ Ensure trace is bounded (e.g., top-N alternatives) to avoid payload explosion.
 
 Add automatic pre-selection staggering on auto-claim worker path when agent is provided. Default window: 1000ms, configurable globally; per-call opt-out via `--no-stagger`.
 
-Implementation should use deterministic offset from agent identity + small random jitter within window. Delay must happen before selection query.
+Implementation uses deterministic-only offset formula:
+- `bucket = floor(now_ms / window_ms)`
+- `offset_ms = hash(agent + ':' + bucket) % window_ms`
+- no non-deterministic randomness
+
+Delay must happen before selection query.
 
 Keep behavior scoped to `claim --next` to avoid global CLI sluggishness.
 
@@ -212,6 +287,7 @@ Keep behavior scoped to `claim --next` to avoid global CLI sluggishness.
 - `--no-stagger` bypasses delay
 - custom configured window overrides default
 - explicit claim (`claim <id>`) does not stagger
+- fixed clock + agent input yields deterministic offset in test
 
 **Verify:** `pnpm --filter hzl-cli test src/commands/task/claim.test.ts src/config.test.ts`
 
@@ -244,7 +320,7 @@ Pattern to follow: existing `resolveTaskId` safe LIKE-escaping approach.
 **Depends on:** 4.1, 1.2
 **Files:** `packages/hzl-cli/src/commands/task/list.ts`, `packages/hzl-cli/src/commands/task/list.test.ts`, `packages/hzl-core/src/services/task-service.ts`, `packages/hzl-core/src/services/task-service.test.ts`
 
-Implement `page`/`cursor` style pagination and `--view summary|standard|full` response shaping for list queries so agents can reason on manageable payloads. Ensure default view remains compact while preserving full-detail retrieval via `task show <id>`.
+Implement offset pagination (`--page`, `--limit`) and `--view summary|standard|full` response shaping for list queries so agents can reason on manageable payloads. Ensure default view remains compact while preserving full-detail retrieval via `task show <id>`.
 
 Decision: use offset-based pagination (`--page`, `--limit`) consistently across v2 list-like command surfaces.
 
@@ -252,7 +328,7 @@ Decision: use offset-based pagination (`--page`, `--limit`) consistently across 
 - page 1/page 2 return disjoint deterministic sets
 - view levels include/exclude large fields as expected
 - full view includes markdown description and metadata fields
-- pagination metadata is present in JSON envelope (`next`, `has_more`, etc.)
+- pagination metadata is present in JSON envelope (`page`, `limit`, `total`, `has_more`)
 
 **Verify:** `pnpm --filter hzl-cli test src/commands/task/list.test.ts`
 
@@ -261,14 +337,14 @@ Decision: use offset-based pagination (`--page`, `--limit`) consistently across 
 **Depends on:** 4.2
 **Files:** `packages/hzl-cli/src/commands/task/list.ts`, `packages/hzl-cli/src/commands/task/list.test.ts`, `packages/hzl-core/src/services/task-service.ts`
 
-Add grouped aggregation mode for task list output to satisfy PRD grouped-summary surface. In JSON mode, return per-agent counts by status and totals. In markdown format, render grouped sections/tables.
+Add grouped mode for task list output to satisfy PRD grouped task-list surface. This mode returns grouped task details (tasks nested under agent buckets) instead of summary counts-only data. In markdown format, render agent sections with task rows.
 
-Keep grouped mode compatible with filters (project/status/agent-pattern where meaningful).
+Keep grouped mode compatible with explicit filters: `--project`, `--status`, `--agent`, `--agent-pattern`.
 
 **Test scenarios:** (`packages/hzl-cli/src/commands/task/list.test.ts`)
-- grouped output aggregates counts correctly by agent
+- grouped output nests full task entries under each agent bucket
 - unassigned tasks are grouped under explicit null/unassigned bucket
-- status-filtered grouped output only counts matching statuses
+- status-filtered grouped output only includes tasks matching statuses
 
 **Verify:** `pnpm --filter hzl-cli test src/commands/task/list.test.ts`
 
@@ -281,13 +357,13 @@ Keep grouped mode compatible with filters (project/status/agent-pattern where me
 **Depends on:** 4.3, 1.2
 **Files:** `packages/hzl-cli/src/index.ts`, `packages/hzl-cli/src/commands/agent/index.ts` (new), `packages/hzl-cli/src/commands/agent/stats.ts` (new), `packages/hzl-cli/src/commands/agent/stats.test.ts` (new), `packages/hzl-core/src/services/task-service.ts`, `packages/hzl-core/src/services/task-service.test.ts`
 
-Introduce top-level `agent` namespace and `agent stats` command using shared aggregation primitives from TaskService. Output should include per-agent total and per-status counts, stable ordering, and envelope compliance.
+Introduce top-level `agent` namespace and `agent stats` command using shared aggregation primitives from TaskService. This surface returns counts only (no per-task detail payload), including per-agent total and per-status counts, stable ordering, and envelope compliance.
 
 Pattern to follow: existing command namespace structure used by `project` and `task` command trees.
 
 **Test scenarios:** (`packages/hzl-cli/src/commands/agent/stats.test.ts`)
 - returns all agents with assigned tasks and correct per-status counts
-- supports project/status filters (if exposed)
+- supports explicit `--project` and `--status` filters with consistent semantics
 - consistent ordering for deterministic snapshots
 - JSON envelope compliance (`schema_version`, `ok`, `data`)
 
@@ -299,10 +375,10 @@ Pattern to follow: existing command namespace structure used by `project` and `t
 
 ### 6.1 Add v1->v2 migration behavior and deprecation failure messaging
 
-**Depends on:** 3.1, 5.1
+**Depends on:** 1.3, 3.1, 5.1
 **Files:** `packages/hzl-cli/src/commands/task/index.ts`, `packages/hzl-cli/src/index.ts`, `packages/hzl-cli/src/__tests__/integration/v2-migration.test.ts` (new), `packages/hzl-cli/src/errors.ts`
 
-Implement explicit failure hints for removed commands/flags (`task next`, `--json`, `--assignee`) with concise migration suggestions. Ensure errors still use versioned envelope.
+Implement explicit failure hints for removed commands/flags (`task next`, `--json`, `--assignee`) with concise migration suggestions via the global argv interception path. Ensure errors still use versioned envelope.
 
 Integration tests should exercise real CLI invocation paths to confirm migration UX and exit-code behavior.
 
@@ -350,6 +426,24 @@ This suite serves as a contract test guardrail for future minor releases.
 
 **Verify:** `pnpm --filter hzl-cli test src/__tests__/integration/agent-workflows-v2.test.ts`
 
+### 6.4 Add repo-wide migration guardrails and cross-package regression matrix
+
+**Depends on:** 2.3, 6.3
+**Files:** `packages/hzl-cli/src/__tests__/integration/`, `packages/hzl-core/src/__tests__/`, `packages/hzl-web/src/server.test.ts`, `package.json`, `README.md`, `docs-site/reference/cli.md`
+
+Add a final migration guard step that validates no unintended v2-facing `assignee`/`--json` remnants remain and that core/web/cli suites pass with the new contract.
+
+Guardrails:
+- targeted grep assertions in test scripts for stale v2-facing terms where prohibited
+- explicit cross-package regression run (`hzl-core`, `hzl-cli`, `hzl-web`)
+- migration test matrix summary in plan implementation notes
+
+**Test scenarios:** (cross-package test execution)
+- CLI, core, and web tests pass together after migration
+- guard checks fail if deprecated v2-facing CLI flags/fields are reintroduced
+
+**Verify:** `pnpm test` and guard script checks
+
 ## Testing Strategy
 
 - New coverage:
@@ -358,12 +452,15 @@ This suite serves as a contract test guardrail for future minor releases.
   - anti-herd scoped behavior and configuration
   - `assignee` historical replay compatibility into `agent`
   - command-surface migrations (`next` removal, renamed flags)
+  - global command-family migration from `--json` to default JSON + `--format md`
+  - web API and cross-package consistency for `agent` field naming
 - Unit tests:
   - `hzl-core` TaskService ranking, filtering, aggregation, migration compatibility
   - `hzl-cli` command option parsing, output envelopes, grouped summaries
 - Integration tests:
   - end-to-end CLI workflow validation in isolated DB contexts
   - migration/error UX checks for removed surfaces
+  - hard-cutover DB/CLI major-version gate behavior
 - Manual verification:
   - run representative v2 commands from built CLI and inspect both JSON envelope and `--format md` output for readability
 
@@ -372,10 +469,12 @@ This suite serves as a contract test guardrail for future minor releases.
 | Risk | Mitigation |
 |------|------------|
 | `assignee` -> `agent` rename breaks replay or old data visibility | Add projector fallback for historical `assignee` event payloads and migration tests that replay mixed old/new events |
+| Partial migration leaves inconsistent naming between CLI/core/web | Run matrix-driven migration subtask across all surfaces and validate with cross-package regression tests |
 | Broad JSON envelope migration causes noisy regressions across many commands | Introduce shared output helper first, migrate command families incrementally, and add contract-focused integration tests |
 | Anti-herd delay harms interactive workflows | Scope built-in stagger only to `claim --next --agent` path; provide explicit `--no-stagger` opt-out |
 | Removing `task next` disrupts existing scripts | Provide clear migration error messages and docs updates; include integration tests for migration hints |
 | Pattern matching introduces SQL escaping bugs | Reuse existing LIKE-escape patterns (`resolveTaskId`) and add explicit escaping/quoting tests for `--agent-pattern` |
+| Mixed v1/v2 clients write incompatible ownership event keys | Enforce hard DB/CLI major-version gate and fail fast with migration guidance |
 
 ## Open Questions
 
