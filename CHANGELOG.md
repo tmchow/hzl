@@ -1,3 +1,15 @@
+# [2.1.0](https://github.com/tmchow/hzl/compare/v2.0.0...v2.1.0) (2026-02-27)
+
+
+### Bug Fixes
+
+* resolve lint enum comparison and rejection issues ([#127](https://github.com/tmchow/hzl/issues/127)) ([af13a03](https://github.com/tmchow/hzl/commit/af13a0390857a025c434a16683e4e1558787562c))
+
+
+### Features
+
+* add workflows, hooks, cross-project deps, and OpenClaw docs overhaul ([#129](https://github.com/tmchow/hzl/issues/129)) ([a571e61](https://github.com/tmchow/hzl/commit/a571e612df3868c68b842b1e730b08a8a69e195a)), closes [Hi#level](https://github.com/Hi/issues/level)
+
 # [2.0.0](https://github.com/tmchow/hzl/compare/v1.34.1...v2.0.0) (2026-02-27)
 
 ## [1.34.1](https://github.com/tmchow/hzl/compare/v1.34.0...v1.34.1) (2026-02-27)
