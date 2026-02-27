@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { runClaim } from './claim.js';
+import { runClaim, runClaimNext } from './claim.js';
 import { initializeDbFromPath, closeDb, type Services } from '../../db.js';
 import { TaskStatus } from 'hzl-core/events/types.js';
 
@@ -64,5 +64,32 @@ describe('runClaim', () => {
       agent: 'test-agent',
       json: false,
     })).toThrow(/Hint:.*set-status/);
+  });
+
+  it('claims next eligible task when using next mode', () => {
+    const low = services.taskService.createTask({ title: 'Low', project: 'inbox', priority: 0 });
+    const high = services.taskService.createTask({ title: 'High', project: 'inbox', priority: 3 });
+    services.taskService.setStatus(low.task_id, TaskStatus.Ready);
+    services.taskService.setStatus(high.task_id, TaskStatus.Ready);
+
+    const result = runClaimNext({
+      services,
+      agent: 'agent-1',
+      json: false,
+    });
+
+    expect(result).not.toBeNull();
+    expect(result?.task_id).toBe(high.task_id);
+    expect(result?.agent).toBe('agent-1');
+  });
+
+  it('returns null when no eligible tasks exist in next mode', () => {
+    const result = runClaimNext({
+      services,
+      agent: 'agent-1',
+      json: false,
+    });
+
+    expect(result).toBeNull();
   });
 });
