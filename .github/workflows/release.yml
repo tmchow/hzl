@@ -91,29 +91,52 @@ jobs:
             const { owner, repo } = context.repo;
             const branch = context.ref.replace("refs/heads/", "");
             const headSha = context.sha;
+            const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+            const maxAttempts = 6;
+            const retryDelayMs = 10000;
+            let ciRun = null;
 
-            const runs = await github.paginate(
-              github.rest.actions.listWorkflowRunsForWorkflow,
-              {
+            for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+              const { data } = await github.rest.actions.listWorkflowRunsForWorkflow({
                 owner,
                 repo,
                 workflow_id: "ci.yml",
                 branch,
+                event: "push",
                 per_page: 100
+              });
+
+              const candidates = data.workflow_runs
+                .filter((run) => run.head_sha === headSha)
+                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+              if (candidates.length > 0) {
+                ciRun = candidates[0];
+                core.info(
+                  `Found CI run: ${ciRun.html_url} ` +
+                  `(status=${ciRun.status}, conclusion=${ciRun.conclusion})`
+                );
+                if (ciRun.status === "completed") {
+                  break;
+                }
               }
-            );
 
-            const candidates = runs
-              .filter((run) => run.head_sha === headSha && run.event === "push")
-              .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-
-            if (candidates.length === 0) {
-              core.setFailed(`No CI run found for commit ${headSha} on ${branch}.`);
-              return;
+              if (attempt < maxAttempts) {
+                core.info(
+                  `CI run for ${headSha} is not ready yet ` +
+                  `(attempt ${attempt}/${maxAttempts}); retrying in ${retryDelayMs / 1000}s...`
+                );
+                await sleep(retryDelayMs);
+              }
             }
 
-            const ciRun = candidates[0];
-            core.info(`Using CI run: ${ciRun.html_url} (status=${ciRun.status}, conclusion=${ciRun.conclusion})`);
+            if (!ciRun) {
+              core.setFailed(
+                `No CI push run found for commit ${headSha} on ${branch} ` +
+                `after ${maxAttempts} attempts.`
+              );
+              return;
+            }
 
             if (ciRun.status !== "completed" || ciRun.conclusion !== "success") {
               core.setFailed(
