@@ -202,6 +202,8 @@ Implement explicit major-version gating metadata in local/global DB metadata so 
 - v2-initialized DB records major compatibility marker
 - opening v2 DB with simulated pre-v2 compatibility marker mismatch fails with actionable message
 - compatibility errors are emitted in stable error envelope shape
+- v2-initialized DB reopens with current v2 binary without compatibility errors
+- pre-v2 DB upgraded by v2 can be reopened repeatedly by v2 without marker drift
 
 **Verify:** `pnpm --filter hzl-cli test src/__tests__/integration/v2-migration.test.ts`
 
@@ -259,12 +261,17 @@ Reason codes are explicit and testable (for example: `not_ready`, `dependency_bl
 - due date null-last tie-break behaves as specified
 - deterministic tie-break on equal priority/due/created using `task_id`
 
+**Test scenarios:** (`packages/hzl-core/src/__tests__/concurrency/claim-next-v2.test.ts`) (new)
+- 3-10 concurrent `claim --next --agent` workers do not claim the same task
+- concurrent claims preserve one-claim-per-task invariants under transaction locking
+- when no tasks are eligible, concurrent workers return consistent no-candidate outcomes
+
 **Test scenarios:** (`packages/hzl-cli/src/commands/task/claim.test.ts`)
 - success response includes `decision_trace` with selected task reason
 - no-eligible-task response includes failure `decision_trace`
 - explicit claim failures include rejection reason in trace envelope
 
-**Verify:** `pnpm --filter hzl-core test src/services/task-service.test.ts && pnpm --filter hzl-cli test src/commands/task/claim.test.ts`
+**Verify:** `pnpm --filter hzl-core test src/services/task-service.test.ts src/__tests__/concurrency/claim-next-v2.test.ts && pnpm --filter hzl-cli test src/commands/task/claim.test.ts`
 
 ### 3.3 Built-in anti-herd for `claim --next --agent` (default 1000ms)
 
@@ -288,6 +295,9 @@ Keep behavior scoped to `claim --next` to avoid global CLI sluggishness.
 - custom configured window overrides default
 - explicit claim (`claim <id>`) does not stagger
 - fixed clock + agent input yields deterministic offset in test
+- same agent in same bucket yields stable offset value
+- same agent across adjacent buckets yields different deterministic offsets
+- different agents in same bucket produce distinct offsets in most cases (distribution sanity)
 
 **Verify:** `pnpm --filter hzl-cli test src/commands/task/claim.test.ts src/config.test.ts`
 
@@ -329,6 +339,8 @@ Decision: use offset-based pagination (`--page`, `--limit`) consistently across 
 - view levels include/exclude large fields as expected
 - full view includes markdown description and metadata fields
 - pagination metadata is present in JSON envelope (`page`, `limit`, `total`, `has_more`)
+- invalid `--page`/`--limit` values fail with stable validation envelope
+- requesting page beyond end returns empty `data` with correct pagination metadata
 
 **Verify:** `pnpm --filter hzl-cli test src/commands/task/list.test.ts`
 
@@ -423,6 +435,8 @@ This suite serves as a contract test guardrail for future minor releases.
 - manual reasoning path: `list --agent-pattern`, choose task, `claim <id>`
 - grouped and dedicated agent summaries produce consistent totals
 - all JSON outputs include schema/versioned envelope
+- 16k markdown description remains intact in `--view full` and is omitted/truncated per compact views as specified
+- `--format md` output remains readable and deterministic for large markdown task bodies
 
 **Verify:** `pnpm --filter hzl-cli test src/__tests__/integration/agent-workflows-v2.test.ts`
 
@@ -449,10 +463,14 @@ Guardrails:
 - New coverage:
   - contract-level JSON envelope stability and version field behavior
   - decision trace success/failure payloads
+  - concurrent `claim --next --agent` correctness (no duplicate claims)
   - anti-herd scoped behavior and configuration
+  - anti-herd deterministic bucket rollover invariants
   - `assignee` historical replay compatibility into `agent`
   - command-surface migrations (`next` removal, renamed flags)
   - global command-family migration from `--json` to default JSON + `--format md`
+  - pagination boundary/validation behavior for list surfaces
+  - large markdown payload behavior across `--view` and `--format md`
   - web API and cross-package consistency for `agent` field naming
 - Unit tests:
   - `hzl-core` TaskService ranking, filtering, aggregation, migration compatibility
