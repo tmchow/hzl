@@ -1645,6 +1645,29 @@ describe('TaskService', () => {
       expect(completed.status).toBe(TaskStatus.Done);
       expect(completed.assignee).toBe('agent-1');
     });
+
+    it('appends CommentAdded when comment is provided on complete', () => {
+      const task = taskService.createTask({ title: 'Test', project: 'inbox' });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+      taskService.claimTask(task.task_id, { author: 'agent-1' });
+
+      taskService.completeTask(task.task_id, { author: 'agent-1', comment: 'Done and validated' });
+
+      const comments = taskService.getComments(task.task_id);
+      expect(comments).toHaveLength(1);
+      expect(comments[0].text).toBe('Done and validated');
+    });
+
+    it('does not append comment when complete validation fails', () => {
+      const task = taskService.createTask({ title: 'Test', project: 'inbox' });
+
+      expect(() =>
+        taskService.completeTask(task.task_id, { author: 'agent-1', comment: 'Should not persist' })
+      ).toThrow(/Cannot complete/);
+
+      const comments = taskService.getComments(task.task_id);
+      expect(comments).toHaveLength(0);
+    });
   });
 
   describe('auto progress on done transitions', () => {

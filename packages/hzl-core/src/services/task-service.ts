@@ -42,6 +42,10 @@ export interface ClaimTaskOptions extends EventContext {
   lease_until?: string;
 }
 
+export interface CompleteTaskOptions extends EventContext {
+  comment?: string;
+}
+
 export interface ClaimNextOptions {
   author?: string;
   agent_id?: string;
@@ -517,7 +521,7 @@ export class TaskService {
     });
   }
 
-  completeTask(taskId: string, ctx?: EventContext): Task {
+  completeTask(taskId: string, ctx?: CompleteTaskOptions): Task {
     return withWriteTransaction(this.db, () => {
       const task = this.getTaskById(taskId);
       if (!task) throw new TaskNotFoundError(taskId);
@@ -535,6 +539,11 @@ export class TaskService {
       });
 
       this.projectionEngine.applyEvent(event);
+
+      if (ctx?.comment) {
+        this.emitComment(taskId, ctx.comment, ctx);
+      }
+
       return this.getTaskById(taskId)!;
     });
   }

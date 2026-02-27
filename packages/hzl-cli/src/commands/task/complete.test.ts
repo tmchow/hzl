@@ -47,4 +47,21 @@ describe('runComplete', () => {
     const updated = services.taskService.getTaskById(task.task_id);
     expect(updated?.status).toBe(TaskStatus.Done);
   });
+
+  it('adds completion comment when provided', () => {
+    const task = services.taskService.createTask({ title: 'Test', project: 'inbox' });
+    services.taskService.setStatus(task.task_id, TaskStatus.Ready);
+    services.taskService.claimTask(task.task_id);
+
+    runComplete({
+      services,
+      taskId: task.task_id,
+      comment: 'Implemented and verified',
+      json: false,
+    });
+
+    const comments = services.taskService.getComments(task.task_id);
+    expect(comments).toHaveLength(1);
+    expect(comments[0].text).toBe('Implemented and verified');
+  });
 });
