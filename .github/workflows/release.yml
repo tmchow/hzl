@@ -27,6 +27,7 @@ jobs:
   dry-run:
     if: ${{ inputs.mode == 'dry-run' }}
     runs-on: ubuntu-latest
+    environment: release
     steps:
       - uses: actions/checkout@v6
         with:
