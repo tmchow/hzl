@@ -1,82 +1,81 @@
 ---
 layout: home
-title: Home
-nav_order: 1
+
+hero:
+  name: HZL
+  text: The Missing Task Layer for OpenClaw
+  tagline: Coordinate many agents through shared, durable task state with built-in human visibility.
+  image:
+    src: /hzl.png
+    alt: HZL mascot
+    width: 340
+    height: 340
+  actions:
+    - theme: brand
+      text: Get Started
+      link: /getting-started/
+    - theme: alt
+      text: View on GitHub
+      link: https://github.com/tmchow/hzl
+
+features:
+  - title: Shared Task State
+    details: One durable ledger for many agents to read, claim, and update.
+  - title: Atomic Claiming
+    details: Prevent duplicate execution when multiple agents pull work at once.
+  - title: Human Visibility
+    details: Operators can inspect state and activity through CLI and dashboard.
 ---
 
-# HZL Documentation
+## The Problem in OpenClaw
 
-HZL is an external task ledger for coding agents. It provides event-sourced task coordination for multi-session, multi-agent workflows.
+OpenClaw runs with one main agent. Most operators then add specialist sub-agents (writer, developer, researcher, etc.), each with role and personality defined in `SOUL.md`.
 
-{: .fs-6 .fw-300 }
+As soon as agents specialize and collaborate, coordination pain appears:
 
-[Get Started](./getting-started/){: .btn .btn-primary .fs-5 .mb-4 .mb-md-0 .mr-2 }
-[View on GitHub](https://github.com/tmchow/hzl){: .btn .fs-5 .mb-4 .mb-md-0 }
+- Single-agent queueing is not enough for long-running backlogs.
+- Agent-to-agent handoffs lose state and continuity.
+- Parallel agents need safe claiming and ownership, not ad hoc coordination.
+- Without durable task state, progress tracking becomes brittle.
 
----
+## Why Existing Approaches Fail
 
-## Getting Started
+Common fallbacks create new problems:
 
-- [**Installation**](./getting-started/installation) - One-time setup
-- [**Quickstart**](./getting-started/quickstart) - 5-minute hands-on tutorial
-- [**Coding Agents**](./getting-started/coding-agents) - Claude Code, Codex, Gemini setup
-- [**OpenClaw**](./getting-started/openclaw) - Setup with ClawHub
+- Chat-based coordination (Discord/Telegram) does not scale: either every agent processes every message, or DM/channel permutations explode and visibility collapses.
+- Human PM tools are usually too heavyweight for agent loops.
+- Bespoke trackers become ongoing maintenance burden.
 
-## Why HZL?
+You track your work. HZL lets your OpenClaw agents track and coordinate theirs.
 
-Most task trackers are built for humans. HZL is built for agents:
+## How HZL Works
 
-- **Backend-first** - Task database with a CLI, not another Trello
-- **Model-agnostic** - Tasks live outside any vendor's memory
-- **Multi-agent safe** - Atomic claiming prevents duplicate work
-- **Resumable** - Checkpoints let work survive session boundaries
+OpenClaw (or another orchestrator) uses HZL as shared task state.
 
-See [Concepts](./concepts/) for the full philosophy and design principles.
+1. Agents create tasks in a shared backlog (global or scoped).
+2. Agents claim work safely (specific task or next eligible task).
+3. Agents checkpoint progress and hand off work when needed.
+4. Agents complete, block, or recover tasks while preserving full history.
 
-## Core Concepts
+This gives you atomic claims, lease-based recovery, and durable handoff context.
 
-- [**Projects**](./concepts/projects) - Containers for related work (one per repo)
-- [**Tasks**](./concepts/tasks) - Units of work with status tracking
-- [**Subtasks**](./concepts/subtasks) - One level of nesting for breakdown
-- [**Dependencies**](./concepts/dependencies) - Sequencing work (project-scoped)
-- [**Checkpoints**](./concepts/checkpoints) - Progress snapshots for handoffs
-- [**Claiming & Leases**](./concepts/claiming-leases) - Ownership and recovery
+## Scope Boundary
 
-## Workflows
+HZL is intentionally narrow.
 
-Real-world patterns for agent coordination:
+- Not an orchestrator
+- Not a planner/decomposer
+- Not a replacement for native task systems in Codex, Claude Code, Gemini, or similar coding harnesses
+- Not a replacement for your human-focused todo app
 
-- [**Single Agent**](./workflows/single-agent) - Basic session workflow
-- [**Multi-Agent**](./workflows/multi-agent) - Parallel work coordination
-- [**Session Handoffs**](./workflows/session-handoffs) - Context preservation
-- [**Breaking Down Work**](./workflows/breaking-down-work) - The completability test
-- [**Human Oversight**](./workflows/human-oversight) - Monitoring and steering
+Use each system where it is strongest: harness-native tasking inside coding harnesses, your todo app for human planning, and HZL for durable agent-first coordination across one or more agents.
 
-## Features
+## Start Here
 
-- [**Web Dashboard**](./dashboard) - Visual Kanban board with `hzl serve`
-- [**CLI Reference**](./reference/cli) - Complete command documentation
-- [**Cloud Sync**](./concepts/cloud-sync) - Multi-device access via Turso
-
-## Quick Example
-
-```bash
-# Install
-npm install -g hzl-cli
-
-# Initialize
-hzl init
-
-# Create a project and tasks
-hzl project create my-feature
-hzl task add "Design the API" -P my-feature
-hzl task add "Implement endpoints" -P my-feature --depends-on 1
-
-# Claim and work
-hzl task claim 1 --agent claude-code
-hzl task checkpoint 1 "API design complete"
-hzl task complete 1
-
-# View progress
-hzl serve  # Opens web dashboard
-```
+- [Installation](/getting-started/installation)
+- [OpenClaw Setup (TBD)](/getting-started/openclaw)
+- [Quickstart](/getting-started/quickstart)
+- [Concepts](/concepts/)
+- [Workflows](/workflows/)
+- [CLI Reference](/reference/cli)
+- [Experimental integrations](/experimental-integrations)

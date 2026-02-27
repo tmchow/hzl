@@ -1,5 +1,5 @@
 ---
-layout: default
+layout: doc
 title: Pruning
 parent: Concepts
 nav_order: 5

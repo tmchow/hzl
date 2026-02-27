@@ -1,5 +1,5 @@
 ---
-layout: default
+layout: doc
 title: Web Dashboard
 nav_order: 3
 ---
@@ -14,7 +14,7 @@ HZL includes a built-in web dashboard for visual task management. Launch it with
 hzl serve
 ```
 
-Opens a Kanban board at [http://localhost:3456](http://localhost:3456).
+Opens a Kanban board at `http://localhost:3456`.
 
 ### Options
 
@@ -60,7 +60,7 @@ Tasks are displayed in columns by status:
 
 ### Real-time Updates
 
-The dashboard auto-refreshes when tasks change. Multiple team members can view the same board.
+The dashboard auto-refreshes when tasks change. You can keep multiple viewers open against the same board.
 
 ## Background Mode
 

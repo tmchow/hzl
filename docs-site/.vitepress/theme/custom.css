@@ -1,0 +1,78 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+:root {
+  --vp-font-family-base: 'IBM Plex Sans', 'Segoe UI', sans-serif;
+  --vp-font-family-mono: 'IBM Plex Mono', 'SFMono-Regular', Menlo, monospace;
+  --vp-c-brand-1: #ff5a2d;
+  --vp-c-brand-2: #ff7a3d;
+  --vp-c-brand-3: #ff965f;
+  --vp-c-brand-soft: rgba(255, 90, 45, 0.22);
+}
+
+.dark {
+  --vp-c-bg: #0b111b;
+  --vp-c-bg-alt: #0f1622;
+  --vp-c-bg-elv: #131c2a;
+  --vp-c-bg-soft: #111a27;
+  --vp-c-border: #29394f;
+  --vp-c-divider: #29394f;
+  --vp-c-text-1: #f3f6fb;
+  --vp-c-text-2: #d4deeb;
+  --vp-c-text-3: #aab7cc;
+}
+
+.VPNavBarTitle .title,
+.VPNavBarMenuLink,
+.VPSidebarItem .text,
+h1,
+h2,
+h3,
+h4 {
+  font-family: 'Space Grotesk', 'Avenir Next', 'Segoe UI', sans-serif;
+  letter-spacing: 0.01em;
+}
+
+.VPNavBar {
+  border-bottom: 1px solid rgba(255, 90, 45, 0.2);
+  background: linear-gradient(
+    90deg,
+    rgba(255, 90, 45, 0.18),
+    rgba(255, 122, 61, 0.08) 70%,
+    rgba(87, 167, 255, 0.06)
+  );
+}
+
+.VPSidebar {
+  border-right: 1px solid rgba(255, 90, 45, 0.16);
+}
+
+.VPSidebarItem.is-active > .item > .link > .text,
+.VPSidebarItem .item .link:hover .text {
+  color: #ffd3bf;
+}
+
+.VPButton.brand {
+  color: #1b0f0a;
+  border-color: rgba(255, 90, 45, 0.55);
+  background: linear-gradient(135deg, #ff8f58, #ff5a2d);
+}
+
+.VPButton.brand:hover {
+  background: linear-gradient(135deg, #ffa16f, #ff6b40);
+}
+
+.vp-doc h2 {
+  border-bottom: 1px solid rgba(255, 90, 45, 0.26);
+  padding-bottom: 0.25rem;
+}
+
+.vp-doc div[class*='language-'] {
+  border: 1px solid rgba(255, 90, 45, 0.22);
+}
+
+.vp-doc blockquote {
+  border-left: 4px solid #ff5a2d;
+  background: rgba(255, 90, 45, 0.09);
+  border-radius: 8px;
+  padding: 0.65rem 0.9rem;
+}

@@ -1,5 +1,5 @@
 ---
-layout: default
+layout: doc
 title: Tasks
 parent: Concepts
 nav_order: 2
@@ -27,7 +27,7 @@ Tasks require a title and project:
 | `-l, --links` | Comma-separated URLs or file paths to reference docs |
 | `-t, --tags` | Comma-separated tags for filtering |
 | `-p, --priority` | Priority level 0-3 (higher = more important) |
-| `-s, --status` | Initial status (backlog, ready, in_progress, blocked, done) |
+| `-s, --status` | Initial status (backlog, ready, in_progress, blocked, done, archived) |
 | `--agent` | Initial agent (free-form string, no identity lookup) |
 | `--author` | Optional actor attribution for task creation events |
 | `--depends-on` | Comma-separated task IDs this depends on |
@@ -84,6 +84,7 @@ Tasks move through these statuses:
 
 | Status | Meaning |
 |--------|---------|
+| `backlog` | Not ready to be claimed yet |
 | `ready` | Available to be claimed |
 | `in_progress` | Someone is working on it |
 | `blocked` | Stuck on an external issue |
@@ -97,7 +98,7 @@ Note: `blocked` is different from dependency blocking. A task with unmet depende
 Before working on a task, claim it:
 
 ```bash
-hzl task claim <id> --agent "Claude Code"
+hzl task claim <id> --agent worker-1
 ```
 
 Claiming:

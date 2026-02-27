@@ -1,5 +1,5 @@
 ---
-layout: default
+layout: doc
 title: Multi-Agent Coordination
 parent: Workflows
 nav_order: 2
@@ -7,175 +7,68 @@ nav_order: 2
 
 # Multi-Agent Coordination
 
-Multiple AI agents working on the same project without conflicts.
+Multiple agents can coordinate through shared task state without duplicate work.
 
-## The Problem
+## Coordination Pattern
 
-When multiple agents (Claude Code, Codex, Gemini, human developers) work on the same codebase, you risk:
+1. Shared backlog exists (global `inbox` or project scope).
+2. Agents pull candidate work.
+3. Agents claim work atomically.
+4. Agents checkpoint progress and complete.
+5. Humans monitor and intervene when needed.
 
-- Two agents claiming the same task
-- Lost context between agents
-- No visibility into who's doing what
-
-## The Solution
-
-HZL's atomic claiming and author tracking prevent conflicts.
-
-## Setup
+## Shared Pool Example (Project Scope)
 
 ```bash
-# Create project with tasks
-hzl project create api-v2
-hzl task add "Implement auth endpoints" -P api-v2
-hzl task add "Build user CRUD" -P api-v2
-hzl task add "Add rate limiting" -P api-v2
+# Shared domain queue
+hzl project create writing
+hzl task add "Draft product announcement" -P writing
+hzl task add "Edit API release notes" -P writing
+
+# Two agents can independently pull from same scope
+hzl task claim --next -P writing --agent writer-1
+hzl task claim --next -P writing --agent writer-2
 ```
 
-## Agent Workflow
+Both agents get different tasks because claim-next is atomic.
 
-Each agent follows the same pattern:
+## Explicit vs Automatic Claim
+
+- **Automatic:** `task claim --next` when agent wants HZL to choose the next eligible task.
+- **Explicit:** `task claim <id>` when agent has already reasoned over candidate tasks.
+
+Both are valid and can coexist in one system.
+
+## Leases for Recovery
+
+Use leases when work can stall or agents may crash:
 
 ```bash
-# 1. Get next available task
-hzl task claim --next -P api-v2
-
-# 2. Claim it with your identifier
-hzl task claim <id> --agent claude-code
-
-# 3. Work on the task
-# ... do the work ...
-
-# 4. Record progress
-hzl task checkpoint <id> "Completed auth middleware"
-
-# 5. Complete when done
-hzl task complete <id>
+hzl task claim --next -P writing --agent writer-1 --lease 60
 ```
 
-## Atomic Claiming
-
-When two agents call `hzl task claim --next` simultaneously:
+Recover expired work:
 
 ```bash
-# Agent 1                    # Agent 2
-hzl task claim --next -P api-v2     hzl task claim --next -P api-v2
-# Returns task 1             # Returns task 1
-
-hzl task claim 1 --agent claude-code
-# Success!                   hzl task claim 1 --agent codex
-                            # Error: Already claimed
-```
-
-HZL uses database transactions to ensure only one agent wins.
-
-## Authorship Tracking
-
-| Concept | What it tracks | Set by |
-|---------|----------------|--------|
-| **Agent** | Who owns the task | `--agent` on `claim` or `add` |
-| **Event author** | Who performed an action | `--author` on other commands |
-
-```bash
-# Alice owns the task
-hzl task claim <id> --agent alice
-
-# Bob adds a checkpoint (doesn't change ownership)
-hzl task checkpoint <id> "Reviewed the code" --author bob
-```
-
-For AI agents that need session tracking:
-
-```bash
-hzl task claim <id> --agent "Claude Code" --agent-id "session-abc123"
-```
-
-## Agent Identifiers
-
-Use consistent agent names:
-
-| Agent | Agent Flag |
-|-------|---------------|
-| Claude Code | `--agent claude-code` |
-| OpenAI Codex | `--agent codex` |
-| Google Gemini | `--agent gemini` |
-| Human developer | `--agent human` or your name |
-
-## Leases for Long-Running Work
-
-Use leases to indicate how long before a task is considered stuck:
-
-```bash
-hzl task claim <id> --agent <name> --lease 30  # 30 minutes
-```
-
-If the lease expires without completion or renewal, the task can be recovered.
-
-## Recovering Stuck Tasks
-
-If an agent dies or becomes unresponsive:
-
-```bash
-# Find tasks with expired leases
 hzl task stuck
-
-# Review checkpoints before taking over
 hzl task show <task-id>
-
-# Take over an expired task
-hzl task steal <task-id> --if-expired --agent agent-2
+hzl task steal <task-id> --if-expired --agent writer-2
 ```
 
-## Monitoring Progress
-
-Check what everyone is working on:
+## Monitoring Shared Work
 
 ```bash
-# See all tasks with assignees
-hzl task list -P api-v2
+# Detailed tasks grouped by agent
+hzl task list -P writing --group-by-agent --view standard
 
-# View specific task details
-hzl task show 1
-```
-
-Or use the dashboard:
-
-```bash
-hzl serve
-```
-
-## Example: Three Agents
-
-```bash
-# Initial setup
-hzl project create backend
-hzl task add "Auth system" -P backend
-hzl task add "User profiles" -P backend
-hzl task add "Notifications" -P backend
-
-# Claude Code session
-hzl task claim --next -P backend          # Gets task 1
-hzl task claim 1 --agent claude-code
-# ... works on auth ...
-hzl task complete 1
-
-# Codex session (parallel)
-hzl task claim --next -P backend          # Gets task 2 (1 is claimed)
-hzl task claim 2 --agent codex
-# ... works on profiles ...
-hzl task complete 2
-
-# Gemini session (parallel)
-hzl task claim --next -P backend          # Gets task 3
-hzl task claim 3 --agent gemini
-# ... works on notifications ...
-hzl task complete 3
+# Counts-only workload summary
+hzl agent stats -P writing
 ```
 
 ## Best Practices
 
-1. **Always use `--agent`** - Track who did what
-2. **Use `task claim --next`** - Don't hardcode task IDs
-3. **Checkpoint frequently** - Other agents can see progress
-4. **Complete promptly** - Don't leave tasks claimed but idle
-5. **Use leases** - Enable stuck task detection for long work
-6. **Review before stealing** - Check checkpoints before taking over
+1. Use consistent `--agent` naming.
+2. Use project scopes when many agents share one domain.
+3. Use `claim --next` for simple pull loops; use explicit claim when agents reason over choices.
+4. Checkpoint before pauses or handoffs.
+5. Use leases on long-running tasks.

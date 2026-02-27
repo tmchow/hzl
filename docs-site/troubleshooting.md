@@ -1,5 +1,5 @@
 ---
-layout: default
+layout: doc
 title: Troubleshooting
 nav_order: 7
 ---
@@ -56,11 +56,11 @@ hzl task show <id>
 
 **Fix:**
 - Complete blocking dependencies first
-- Or remove dependency: task has no `remove-dep` command, create a new task instead
+- Or remove an incorrect dependency: `hzl task remove-dep <task-id> <depends-on-id>`
 
 ### Already Claimed Error
 
-**Error:** "Task already claimed by <agent>"
+**Error:** "Task already claimed by `<agent>`"
 
 **Cause:** Another agent owns this task.
 
@@ -179,14 +179,6 @@ hzl --help
 hzl task --help
 hzl task add --help
 ```
-
-### Workflow Guide
-
-```bash
-hzl guide
-```
-
-Full workflow documentation in the terminal.
 
 ### Report Issues
 

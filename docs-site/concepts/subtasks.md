@@ -1,5 +1,5 @@
 ---
-layout: default
+layout: doc
 title: Subtasks
 parent: Concepts
 nav_order: 3

@@ -1,5 +1,5 @@
 ---
-layout: default
+layout: doc
 title: Blocking & Unblocking
 parent: Workflows
 nav_order: 5
@@ -16,7 +16,7 @@ Block a task when:
 - Waiting for external input (API keys, credentials)
 - Waiting for a human decision
 - Waiting for an external service or dependency
-- Can't proceed without information from another team
+- Can't proceed without information from another owner
 
 **Don't use block for:**
 - Dependencies on other HZL tasks (use `--depends-on` instead)
@@ -31,7 +31,7 @@ hzl task block <id> --comment "Waiting for API keys from DevOps"
 The comment is important—it explains why the task is blocked and what's needed to unblock it.
 
 Good blocking comments:
-- "Waiting for design review from product team"
+- "Waiting for design review from product owner"
 - "Blocked on database credentials from ops@company.com"
 - "Need clarification on auth requirements - asked in #engineering Slack"
 
@@ -97,7 +97,7 @@ hzl task claim 5 --agent claude-code
 hzl task checkpoint 5 "Started auth implementation"
 
 # Hit a blocker
-hzl task block 5 --comment "Need OAuth client ID from DevOps team - emailed ops@company.com"
+hzl task block 5 --comment "Need OAuth client ID from infrastructure owner - emailed ops@company.com"
 
 # ... time passes, blocker resolved ...
 

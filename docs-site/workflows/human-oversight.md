@@ -1,5 +1,5 @@
 ---
-layout: default
+layout: doc
 title: Human Oversight
 parent: Workflows
 nav_order: 6
@@ -70,8 +70,8 @@ hzl task add "Implement feature X" -P myapp -s ready \
   -d "Requirements documented in linked spec" \
   -l docs/feature-x-spec.md
 
-# Set priority to influence order
-hzl task add "Fix critical bug" -P myapp -s ready --priority 5
+# Set priority to influence order (0-3)
+hzl task add "Fix critical bug" -P myapp -s ready --priority 3
 
 # Add dependencies to enforce sequencing
 hzl task add "Write tests" -P myapp -s ready --depends-on 1,2

@@ -1,5 +1,5 @@
 ---
-layout: default
+layout: doc
 title: Session Handoffs
 parent: Workflows
 nav_order: 3
@@ -89,7 +89,7 @@ Good checkpoints include:
 
 ```bash
 # Good checkpoint
-hzl task checkpoint 1 "Auth middleware complete (auth_middleware.rb). Next: add rate limiting. Using Redis for token storage per team decision."
+hzl task checkpoint 1 "Auth middleware complete (auth_middleware.rb). Next: add rate limiting. Using Redis for token storage per prior architecture decision."
 
 # Not helpful
 hzl task checkpoint 1 "Working on it"

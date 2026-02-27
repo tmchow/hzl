@@ -1,5 +1,5 @@
 ---
-layout: default
+layout: doc
 title: Cloud Sync
 parent: Concepts
 nav_order: 8

@@ -1,5 +1,5 @@
 ---
-layout: default
+layout: doc
 title: Architecture
 parent: Reference
 nav_order: 2
@@ -199,12 +199,11 @@ The `--available` flag and `task claim --next` command filter to available tasks
 ```mermaid
 flowchart LR
   You[You] --> OC["OpenClaw (orchestrator)"]
-  OC --> Tools["OpenClaw tools"]
   OC <--> HZL[(HZL)]
-  OC --> S1[Claude Code]
-  OC --> S2[Codex]
-  S1 <--> HZL
-  S2 <--> HZL
+  OC --> A1[Agent 1]
+  OC --> A2[Agent 2]
+  A1 <--> HZL
+  A2 <--> HZL
 ```
 
 ### Multi-Agent System
@@ -213,21 +212,21 @@ flowchart LR
 flowchart LR
   U[You] --> O["Orchestrator"]
   O <--> HZL[(HZL)]
-  O --> C[Claude Code]
-  O --> X[Codex]
-  O --> G[Gemini]
-  C <--> HZL
-  X <--> HZL
-  G <--> HZL
+  O --> A1[Research Agent]
+  O --> A2[Writing Agent]
+  O --> A3[Coding Agent]
+  A1 <--> HZL
+  A2 <--> HZL
+  A3 <--> HZL
 ```
 
 ### Single Agent, Multiple Sessions
 
 ```mermaid
 flowchart LR
-  U[You] --> A["Coding agent"]
+  U[You] --> A["Agent"]
   A <--> HZL[(HZL)]
-  A --> R[Repo / files]
+  A --> W[Work artifacts]
 ```
 
 ### Custom UI Backend

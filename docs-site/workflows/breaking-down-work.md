@@ -1,5 +1,5 @@
 ---
-layout: default
+layout: doc
 title: Breaking Down Work
 parent: Workflows
 nav_order: 4
