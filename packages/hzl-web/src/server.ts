@@ -117,6 +117,19 @@ function parseUrl(url: string): { pathname: string; params: URLSearchParams } {
   };
 }
 
+function withLegacyAssigneeAlias(data: Record<string, unknown>): Record<string, unknown> {
+  if (Object.prototype.hasOwnProperty.call(data, 'assignee')) {
+    return data;
+  }
+  if (!Object.prototype.hasOwnProperty.call(data, 'agent')) {
+    return data;
+  }
+  return {
+    ...data,
+    assignee: data.agent,
+  };
+}
+
 function json(res: ServerResponse, data: unknown, status = 200): void {
   res.writeHead(status, {
     'Content-Type': 'application/json',
@@ -229,7 +242,7 @@ export function createWebServer(options: ServerOptions): ServerHandle {
       due_at: task.due_at,
       metadata: task.metadata,
       claimed_at: task.claimed_at,
-      assignee: task.assignee,
+      assignee: task.agent ?? null,
       progress: task.progress,
       lease_until: task.lease_until,
       created_at: task.created_at,
@@ -265,7 +278,7 @@ export function createWebServer(options: ServerOptions): ServerHandle {
       event_id: e.event_id,
       task_id: e.task_id,
       type: e.type,
-      data: e.data,
+      data: withLegacyAssigneeAlias(e.data),
       author: e.author ?? null,
       agent_id: e.agent_id ?? null,
       timestamp: e.timestamp,
@@ -307,7 +320,7 @@ export function createWebServer(options: ServerOptions): ServerHandle {
     for (const taskId of taskIds) {
       const task = taskService.getTaskById(taskId);
       taskMetadataMap.set(taskId, {
-        task_assignee: task?.assignee ?? null,
+        task_assignee: task?.agent ?? null,
         task_description: task?.description ?? null,
         task_status: task?.status ?? null,
       });
@@ -318,7 +331,7 @@ export function createWebServer(options: ServerOptions): ServerHandle {
       event_id: e.event_id,
       task_id: e.task_id,
       type: e.type,
-      data: e.data,
+      data: withLegacyAssigneeAlias(e.data),
       author: e.author ?? null,
       agent_id: e.agent_id ?? null,
       timestamp: e.timestamp,

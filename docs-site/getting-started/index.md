@@ -1,5 +1,5 @@
 ---
-layout: default
+layout: doc
 title: Getting Started
 nav_order: 2
 has_children: true
@@ -7,47 +7,27 @@ has_children: true
 
 # Getting Started
 
-Get HZL running in minutes.
+HZL is installed once per machine and used by many agents through one shared task ledger.
 
-## Choose Your Path
+Setup has two parts:
 
-| You're using... | Start here |
-|-----------------|------------|
-| **Claude Code, Codex, or Gemini** | [Coding Agents Setup](./coding-agents) |
-| **OpenClaw** | [OpenClaw Setup](./openclaw) |
+1. Install the HZL CLI and initialize storage
+2. Configure OpenClaw to use HZL (**TBD**)
 
-Both paths start with [installing HZL](./installation), then configure your specific agent.
+## Step 1
 
-## Quick Overview
+- [Installation](./installation)
 
-```
-┌─────────────────────────────────────────────────────────┐
-│  1. Install HZL CLI (once per machine)                  │
-│     └─ npm install -g hzl-cli && hzl init              │
-│                                                         │
-│  2. Set up your agent integration                       │
-│     └─ Claude Code plugin, Codex skill, or OpenClaw    │
-│                                                         │
-│  3. Add agent policy to your repos                      │
-│     └─ Append snippet to AGENTS.md / CLAUDE.md         │
-│                                                         │
-│  4. Start using HZL                                     │
-│     └─ hzl project create, task add, claim, complete   │
-└─────────────────────────────────────────────────────────┘
-```
+## Step 2
 
-## New to HZL?
+- [OpenClaw Setup (TBD)](./openclaw)
 
-Start with the [Quickstart Tutorial](./quickstart) for a hands-on introduction.
+## Learn the workflow
 
-## What Gets Installed Where
+- [Quickstart](./quickstart)
+- [Tasks](../concepts/tasks)
+- [Claiming & Leases](../concepts/claiming-leases)
 
-HZL uses a **machine-level installation** — you install it once, not per-repo:
+## Looking for non-primary integrations?
 
-| Component | Location | Notes |
-|-----------|----------|-------|
-| CLI binary | Global (npm/Homebrew) | One install serves all repos |
-| Database | `~/.local/share/hzl/` | Shared across all projects |
-| Agent policy | Your repo's `AGENTS.md` | The only HZL content in repos |
-
-See [Concepts](../concepts/) for more on HZL's architecture.
+See [Experimental integrations](../experimental-integrations).

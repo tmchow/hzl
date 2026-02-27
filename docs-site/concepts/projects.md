@@ -1,5 +1,5 @@
 ---
-layout: default
+layout: doc
 title: Projects
 parent: Concepts
 nav_order: 1
@@ -7,122 +7,71 @@ nav_order: 1
 
 # Projects
 
-Projects are stable containers for related work. They group tasks together and persist across sessions.
+Projects are optional namespaces for grouping tasks into shared work domains.
 
-## Typical Pattern: One Repo = One Project
+## What a Project Is
 
-| Repo Structure | HZL Mapping |
-|---------------|-------------|
-| Single repo | One project |
-| Monorepo | One project (intra-repo deps work) |
-| Split repos with shared features | One project per initiative |
+A project is a scope boundary, not a required container.
 
-See [Simplicity through Constraints](./index#simplicity-through-constraints) for why HZL enforces this pattern.
+- Use projects when you want separate queues.
+- Skip projects when one global queue is enough.
+- Tasks without explicit project go to `inbox`.
 
-## Creating a Project
+## Why Projects Help
 
-```bash
-hzl project create my-feature
-```
+Projects are most useful when multiple agents can work in the same area and tasks are not pre-assigned.
 
-Project names should be descriptive and kebab-case:
-- `auth-feature`
-- `api-refactor`
-- `myapp-backend`
+Examples:
+- Two research agents pulling from `research`
+- Two writing agents pulling from `writing`
+- Several coding agents pulling from `checkout` or `platform`
 
-## Anti-pattern: Project Sprawl
+This keeps candidate work scoped while preserving agent autonomy for which task to claim.
 
-**Don't create a new project for every feature.** Features should be parent tasks within a single project.
+## Typical Mapping Patterns
 
-```bash
-# Wrong: feature is not a project
-hzl project create "query-perf"
-
-# Correct: parent task for the feature
-hzl task add "Query perf" -P myrepo
-hzl task add "Fix N+1 queries" --parent <parent-id>
-hzl task add "Add query caching" --parent <parent-id>
-```
-
-**Why?**
-- Projects are meant to be long-lived containers
-- Features come and go; repos persist
-- Dependencies only work within a project
-- Too many projects = cognitive overhead
+| Pattern | Example |
+|--------|---------|
+| Product area | `checkout`, `auth`, `mobile` |
+| Repo-aligned (optional) | `api-service` |
+| Cross-repo initiative | `q2-reliability` |
+| Non-coding domain | `research`, `writing`, `ops` |
 
 ## When to Create a Project
 
-**Good reasons:**
-- Starting work in a new repository
-- New codebase or major initiative
-- Work that needs its own dependency graph
+Create one when you need:
+- Shared backlog boundaries
+- Scoped prioritization/filtering
+- Cleaner coordination among multiple agents in one domain
 
-**Bad reasons:**
-- Every feature or bug fix
-- Every sprint or iteration
-- Every pull request
+Avoid creating one when:
+- Work is one-off or ad hoc
+- `inbox` is sufficient
+- You are creating a new project for every tiny task
 
-## Listing Projects
+## Creating and Listing Projects
 
 ```bash
-# List all projects
+hzl project create research
 hzl project list
-
-# JSON output for scripting
-hzl project list --json
 ```
 
-## Project Lifecycle
-
-Projects are meant to be long-lived. Unlike tasks, they don't have statuses like "done."
-
-**Active project:** Has tasks being worked on
-
-**Dormant project:** No recent activity, but may resume
-
-**Archivable:** All tasks complete, work is finished
-
-## Working with Projects
-
-### Adding Tasks to a Project
+## Working With Project-Scoped Queues
 
 ```bash
-hzl task add "My task title" -P my-feature
-hzl task add "Another task" --project my-feature
-```
+# Add tasks into one domain
+hzl task add "Draft benchmark summary" -P research
+hzl task add "Compare model latency data" -P research --priority 2
 
-### Filtering by Project
-
-```bash
-# List tasks in a project
-hzl task list -P my-feature
-
-# Get next available task in project
-hzl task next -P my-feature
+# Agents pull from that shared scope
+hzl task list -P research --available
+hzl task claim --next -P research --agent research-agent-1
 ```
 
 ## Best Practices
 
-1. **One project per repo** - The typical pattern
-2. **Check existing projects first** - `hzl project list` before creating
-3. **Use descriptive names** - `user-auth` not `project1`
-4. **Features are parent tasks** - Not separate projects
-5. **Dependencies stay within projects** - By design
-
-## Example Workflow
-
-```bash
-# Check if project exists
-hzl project list
-
-# Create if needed (typically once per repo)
-hzl project create api-v2
-
-# Add tasks (features as parent tasks)
-hzl task add "Design new endpoints" -P api-v2
-hzl task add "Implement auth changes" -P api-v2 --depends-on 1
-hzl task add "Update documentation" -P api-v2 --depends-on 2
-
-# View project tasks
-hzl task list -P api-v2
-```
+1. Keep projects long-lived and domain-oriented.
+2. Use project scopes for shared multi-agent pools.
+3. Use parent tasks and subtasks for feature breakdown, not new projects.
+4. Prefer clear names (`research`, `checkout`) over temporary labels.
+5. Use `inbox` when scoping adds no value.

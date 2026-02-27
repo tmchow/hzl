@@ -10,7 +10,7 @@ export interface StuckTask {
   task_id: string;
   title: string;
   project: string;
-  assignee: string | null;
+  agent: string | null;
   lease_until: string;
   expired_for_ms: number;
 }
@@ -39,13 +39,13 @@ export function runStuck(options: {
     task_id: string;
     title: string;
     project: string;
-    assignee: string | null;
+    agent: string | null;
     lease_until: string;
   };
 
   // Find tasks with expired leases
   let query = `
-    SELECT task_id, title, project, assignee, lease_until
+    SELECT task_id, title, project, agent, lease_until
     FROM tasks_current
     WHERE status = 'in_progress'
       AND lease_until IS NOT NULL
@@ -77,7 +77,7 @@ export function runStuck(options: {
       task_id: row.task_id,
       title: row.title,
       project: row.project,
-      assignee: row.assignee,
+      agent: row.agent,
       lease_until: row.lease_until,
       expired_for_ms: expiredForMs,
     });
@@ -99,7 +99,7 @@ export function runStuck(options: {
       for (const task of tasks) {
         const expiredMinutes = Math.round(task.expired_for_ms / 60000);
         console.log(`  [${shortId(task.task_id)}] ${task.title} (${task.project})`);
-        console.log(`    Assignee: ${task.assignee ?? 'unknown'} | Expired: ${expiredMinutes}m ago`);
+        console.log(`    Agent: ${task.agent ?? 'unknown'} | Expired: ${expiredMinutes}m ago`);
       }
     }
   }

@@ -1,5 +1,5 @@
 ---
-layout: default
+layout: doc
 title: Checkpoints
 parent: Concepts
 nav_order: 6
@@ -37,7 +37,7 @@ Good checkpoints include context for resuming:
 
 ```bash
 # Good: specific, actionable
-hzl task checkpoint 1 "Auth middleware complete (auth_middleware.rb). Next: add rate limiting. Using Redis for token storage per team decision."
+hzl task checkpoint 1 "Auth middleware complete (auth_middleware.rb). Next: add rate limiting. Using Redis for token storage per prior architecture decision."
 
 # Good: captures decision
 hzl task checkpoint 1 "Decided on REST over GraphQL for simplicity. Defined endpoints: GET/POST /users, GET/PUT/DELETE /users/:id"
@@ -58,7 +58,7 @@ Output:
 ```
 Task #1: Implement user authentication
 Status: in_progress
-Assignee: claude-code
+Agent: claude-code
 
 Checkpoints:
   [2024-01-15 10:30] Designed schema with users, sessions, tokens tables

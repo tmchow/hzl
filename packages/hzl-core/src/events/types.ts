@@ -130,6 +130,9 @@ const TaskCreatedSchema = z.object({
   priority: priorityNumber.optional(),
   due_at: isoDateTime.optional(),
   metadata: metadataRecord.optional(),
+  // Canonical v2 field.
+  agent: z.string().max(FIELD_LIMITS.IDENTIFIER).optional(),
+  // Legacy v1 field accepted for backward compatibility during replay/interop.
   assignee: z.string().max(FIELD_LIMITS.IDENTIFIER).optional(),
 });
 
@@ -140,6 +143,9 @@ const StatusChangedSchema = z.object({
   // New code emits CommentAdded events instead of embedding reason here.
   reason: reasonString.optional(),
   lease_until: isoDateTime.optional(),
+  // Canonical v2 field.
+  agent: z.string().max(FIELD_LIMITS.IDENTIFIER).optional(),
+  // Legacy v1 field accepted for backward compatibility during replay/interop.
   assignee: z.string().max(FIELD_LIMITS.IDENTIFIER).optional(),
 });
 
@@ -166,6 +172,8 @@ export const UPDATABLE_TASK_FIELDS = [
   'due_at',
   'metadata',
   'parent_id',
+  'agent',
+  // Legacy alias kept so historical events with field=assignee still validate.
   'assignee',
 ] as const;
 
@@ -181,6 +189,7 @@ const updatableFieldValidators: Record<UpdatableTaskField, z.ZodSchema<unknown>>
   due_at: isoDateTime.nullable(),
   metadata: metadataRecord,
   parent_id: nonEmptyString.nullable(),
+  agent: z.string().max(FIELD_LIMITS.IDENTIFIER).nullable(),
   assignee: z.string().max(FIELD_LIMITS.IDENTIFIER).nullable(),
 };
 

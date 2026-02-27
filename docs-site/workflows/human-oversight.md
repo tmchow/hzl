@@ -1,5 +1,5 @@
 ---
-layout: default
+layout: doc
 title: Human Oversight
 parent: Workflows
 nav_order: 6
@@ -55,7 +55,7 @@ Comments are visible in task history and can provide mid-task direction.
 **Important:** Agents should check for comments before completing tasks:
 
 ```bash
-hzl task show <task-id> --json
+hzl task show <task-id>
 ```
 
 Review the task history for steering feedback before marking complete. This ensures human guidance is incorporated.
@@ -70,8 +70,8 @@ hzl task add "Implement feature X" -P myapp -s ready \
   -d "Requirements documented in linked spec" \
   -l docs/feature-x-spec.md
 
-# Set priority to influence order
-hzl task add "Fix critical bug" -P myapp -s ready --priority 5
+# Set priority to influence order (0-3)
+hzl task add "Fix critical bug" -P myapp -s ready --priority 3
 
 # Add dependencies to enforce sequencing
 hzl task add "Write tests" -P myapp -s ready --depends-on 1,2
@@ -118,7 +118,7 @@ If an agent is stuck or unavailable:
 hzl task show <task-id>
 
 # Take over if needed
-hzl task steal <task-id> --if-expired --assignee human
+hzl task steal <task-id> --if-expired --agent human
 ```
 
 ## Audit Trail
@@ -127,7 +127,7 @@ HZL's event-sourced architecture provides a complete audit trail:
 
 ```bash
 # See full task history
-hzl task show <task-id> --json
+hzl task show <task-id>
 ```
 
 Every action is recorded:

@@ -23,6 +23,8 @@ export interface CreateTaskInput {
   priority?: number;
   due_at?: string;
   metadata?: Record<string, unknown>;
+  agent?: string;
+  /** @deprecated Use `agent` */
   assignee?: string;
   /** Initial status for the task (defaults to Backlog) */
   initial_status?: TaskStatus;
@@ -42,18 +44,26 @@ export interface ClaimTaskOptions extends EventContext {
   lease_until?: string;
 }
 
+export interface CompleteTaskOptions extends EventContext {
+  comment?: string;
+}
+
 export interface ClaimNextOptions {
   author?: string;
   agent_id?: string;
   project?: string;
   tags?: string[];
   lease_until?: string;
+  agent?: string;
+  /** @deprecated Use `agent` */
   assignee?: string;
 }
 
 export interface StealOptions {
   ifExpired?: boolean;
   force?: boolean;
+  agent?: string;
+  /** @deprecated Use `agent` */
   assignee?: string;
   author?: string;
   agent_id?: string;
@@ -70,7 +80,9 @@ export interface StuckTask {
   title: string;
   project: string;
   claimed_at: string;
-  assignee: string | null;
+  agent: string | null;
+  /** @deprecated Use `agent` */
+  assignee?: string | null;
   lease_until: string | null;
 }
 
@@ -129,7 +141,9 @@ export interface TaskListItem {
   project: string;
   status: TaskStatus;
   priority: number;
-  assignee: string | null;
+  agent: string | null;
+  /** @deprecated Use `agent` */
+  assignee?: string | null;
   lease_until: string | null;
   updated_at: string;
   parent_id: string | null;
@@ -156,7 +170,9 @@ export interface Task {
   due_at: string | null;
   metadata: Record<string, unknown>;
   claimed_at: string | null;
-  assignee: string | null;
+  agent: string | null;
+  /** @deprecated Use `agent` */
+  assignee?: string | null;
   progress: number | null;
   lease_until: string | null;
   created_at: string;
@@ -176,7 +192,7 @@ type TaskRow = {
   due_at: string | null;
   metadata: string;
   claimed_at: string | null;
-  assignee: string | null;
+  agent: string | null;
   progress: number | null;
   lease_until: string | null;
   created_at: string;
@@ -255,7 +271,7 @@ export class TaskService {
     this.getSubtasksStmt = db.prepare(`
       SELECT task_id, title, project, status, parent_id, description,
              links, tags, priority, due_at, metadata,
-             claimed_at, assignee, progress, lease_until,
+             claimed_at, agent, progress, lease_until,
              created_at, updated_at
       FROM tasks_current
       WHERE parent_id = ?
@@ -265,7 +281,7 @@ export class TaskService {
     this.getTaskByIdStmt = db.prepare(`
       SELECT task_id, title, project, status, parent_id, description,
              links, tags, priority, due_at, metadata,
-             claimed_at, assignee, progress, lease_until,
+             claimed_at, agent, progress, lease_until,
              created_at, updated_at
       FROM tasks_current
       WHERE task_id = ?
@@ -321,7 +337,7 @@ export class TaskService {
       priority: input.priority,
       due_at: input.due_at,
       metadata: input.metadata,
-      assignee: input.assignee,
+      agent: input.agent ?? input.assignee,
     };
 
     const cleanedEventData = Object.fromEntries(
@@ -348,11 +364,12 @@ export class TaskService {
           from: TaskStatus.Backlog,
           to: input.initial_status,
         };
-        if (input.initial_status === TaskStatus.InProgress && input.assignee) {
-          statusData.assignee = input.assignee;
+        const initialAgent = input.agent ?? input.assignee;
+        if (input.initial_status === TaskStatus.InProgress && initialAgent) {
+          statusData.agent = initialAgent;
         }
 
-        // Emit StatusChanged event. For in_progress, projection prefers explicit assignee
+        // Emit StatusChanged event. For in_progress, projection prefers explicit agent
         // from event data and falls back to author/agent_id for ownership.
         const statusEvent = this.eventStore.append({
           task_id: taskId,
@@ -517,7 +534,7 @@ export class TaskService {
     });
   }
 
-  completeTask(taskId: string, ctx?: EventContext): Task {
+  completeTask(taskId: string, ctx?: CompleteTaskOptions): Task {
     return withWriteTransaction(this.db, () => {
       const task = this.getTaskById(taskId);
       if (!task) throw new TaskNotFoundError(taskId);
@@ -535,6 +552,11 @@ export class TaskService {
       });
 
       this.projectionEngine.applyEvent(event);
+
+      if (ctx?.comment) {
+        this.emitComment(taskId, ctx.comment, ctx);
+      }
+
       return this.getTaskById(taskId)!;
     });
   }
@@ -563,12 +585,12 @@ export class TaskService {
           query += ' AND tc.project = ?';
           params.push(opts.project);
         }
-        const assigneeForPriority = opts.assignee ?? opts.author ?? opts.agent_id ?? '';
-        query += ' ORDER BY tc.priority DESC, (tc.assignee = ?) DESC, tc.created_at ASC, tc.task_id ASC LIMIT 1';
+        const assigneeForPriority = opts.agent ?? opts.assignee ?? opts.author ?? opts.agent_id ?? '';
+        query += ' ORDER BY tc.priority DESC, (tc.agent = ?) DESC, (tc.due_at IS NULL) ASC, tc.due_at ASC, tc.created_at ASC, tc.task_id ASC LIMIT 1';
         params.push(assigneeForPriority);
         candidate = this.db.prepare(query).get(...params) as TaskIdRow | undefined;
       } else if (opts.project) {
-        const assigneeForPriority = opts.assignee ?? opts.author ?? opts.agent_id ?? '';
+        const assigneeForPriority = opts.agent ?? opts.assignee ?? opts.author ?? opts.agent_id ?? '';
         candidate = this.db.prepare(`
           SELECT tc.task_id FROM tasks_current tc
           WHERE tc.status = 'ready' AND tc.project = ?
@@ -577,10 +599,10 @@ export class TaskService {
               JOIN tasks_current dep ON td.depends_on_id = dep.task_id
               WHERE td.task_id = tc.task_id AND dep.status != 'done'
             )
-          ORDER BY tc.priority DESC, (tc.assignee = ?) DESC, tc.created_at ASC, tc.task_id ASC LIMIT 1
+          ORDER BY tc.priority DESC, (tc.agent = ?) DESC, (tc.due_at IS NULL) ASC, tc.due_at ASC, tc.created_at ASC, tc.task_id ASC LIMIT 1
         `).get(opts.project, assigneeForPriority) as TaskIdRow | undefined;
       } else {
-        const assigneeForPriority = opts.assignee ?? opts.author ?? opts.agent_id ?? '';
+        const assigneeForPriority = opts.agent ?? opts.assignee ?? opts.author ?? opts.agent_id ?? '';
         candidate = this.db.prepare(`
           SELECT tc.task_id FROM tasks_current tc
           WHERE tc.status = 'ready'
@@ -589,7 +611,7 @@ export class TaskService {
               JOIN tasks_current dep ON td.depends_on_id = dep.task_id
               WHERE td.task_id = tc.task_id AND dep.status != 'done'
             )
-          ORDER BY tc.priority DESC, (tc.assignee = ?) DESC, tc.created_at ASC, tc.task_id ASC LIMIT 1
+          ORDER BY tc.priority DESC, (tc.agent = ?) DESC, (tc.due_at IS NULL) ASC, tc.due_at ASC, tc.created_at ASC, tc.task_id ASC LIMIT 1
         `).get(assigneeForPriority) as TaskIdRow | undefined;
       }
 
@@ -791,7 +813,7 @@ export class TaskService {
         }
       }
 
-      const assignee = opts.assignee ?? opts.author ?? opts.agent_id;
+      const agent = opts.agent ?? opts.assignee ?? opts.author ?? opts.agent_id;
       const event = this.eventStore.append({
         task_id: taskId,
         type: EventType.StatusChanged,
@@ -800,7 +822,7 @@ export class TaskService {
           to: TaskStatus.InProgress,
           reason: 'stolen',
           lease_until: opts.lease_until,
-          ...(assignee ? { assignee } : {}),
+          ...(agent ? { agent } : {}),
         },
         author: opts.author,
         agent_id: opts.agent_id,
@@ -816,7 +838,7 @@ export class TaskService {
     const cutoffTime = new Date(Date.now() - opts.olderThan).toISOString();
 
     let query = `
-      SELECT task_id, title, project, claimed_at, assignee, lease_until
+      SELECT task_id, title, project, claimed_at, agent, lease_until
       FROM tasks_current WHERE status = 'in_progress' AND claimed_at < ?
     `;
     const params: Array<string | number> = [cutoffTime];
@@ -827,7 +849,15 @@ export class TaskService {
     }
     query += ' ORDER BY claimed_at ASC';
 
-    return this.db.prepare(query).all(...params) as StuckTask[];
+    const rows = this.db.prepare(query).all(...params) as Array<{
+      task_id: string;
+      title: string;
+      project: string;
+      claimed_at: string;
+      agent: string | null;
+      lease_until: string | null;
+    }>;
+    return rows.map((row) => ({ ...row, assignee: row.agent }));
   }
 
   areAllDepsDone(taskId: string): boolean {
@@ -881,7 +911,7 @@ export class TaskService {
       params.push(...opts.tagsAll, opts.tagsAll.length);
     }
 
-    query += ' ORDER BY tc.priority DESC, tc.created_at ASC, tc.task_id ASC';
+    query += ' ORDER BY tc.priority DESC, (tc.due_at IS NULL) ASC, tc.due_at ASC, tc.created_at ASC, tc.task_id ASC';
 
     if (opts.limit) {
       query += ' LIMIT ?';
@@ -949,7 +979,7 @@ export class TaskService {
       params.push(opts.parent);
     }
 
-    query += ' ORDER BY tc.priority DESC, tc.created_at ASC, tc.task_id ASC LIMIT 1';
+    query += ' ORDER BY tc.priority DESC, (tc.due_at IS NULL) ASC, tc.due_at ASC, tc.created_at ASC, tc.task_id ASC LIMIT 1';
 
     const row = this.db.prepare(query).get(...params) as {
       task_id: string;
@@ -1131,7 +1161,7 @@ export class TaskService {
 
     const sql = `
       SELECT task_id, title, project, status, priority,
-             assignee, progress, lease_until, updated_at,
+             agent, progress, lease_until, updated_at,
              parent_id, description, links, tags, due_at, metadata,
              claimed_at, created_at
       FROM tasks_current
@@ -1146,7 +1176,8 @@ export class TaskService {
       project: row.project,
       status: row.status,
       priority: row.priority,
-      assignee: row.assignee,
+      agent: row.agent,
+      assignee: row.agent,
       lease_until: row.lease_until,
       updated_at: row.updated_at,
       parent_id: row.parent_id,
@@ -1745,7 +1776,8 @@ export class TaskService {
       due_at: row.due_at,
       metadata: JSON.parse(row.metadata) as Record<string, unknown>,
       claimed_at: row.claimed_at,
-      assignee: row.assignee,
+      agent: row.agent,
+      assignee: row.agent,
       progress: row.progress,
       lease_until: row.lease_until,
       created_at: row.created_at,

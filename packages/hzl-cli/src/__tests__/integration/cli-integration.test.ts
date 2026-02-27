@@ -90,13 +90,13 @@ describe('CLI Integration Tests', { timeout: 30000 }, () => {
       const afterReady = hzlJson<{ task: { status: string } }>(ctx, `task show ${taskId}`);
       expect(afterReady.task.status).toBe('ready');
 
-      hzlJson(ctx, `task claim ${taskId} --assignee agent-1 --lease 30`);
-      const afterClaim = hzlJson<{ task: { status: string; assignee: string | null } }>(
+      hzlJson(ctx, `task claim ${taskId} --agent agent-1 --lease 30`);
+      const afterClaim = hzlJson<{ task: { status: string; agent: string | null } }>(
         ctx,
         `task show ${taskId}`
       );
       expect(afterClaim.task.status).toBe('in_progress');
-      expect(afterClaim.task.assignee).toBe('agent-1');
+      expect(afterClaim.task.agent).toBe('agent-1');
 
       hzlJson(ctx, `task complete ${taskId} --author agent-1`);
       const afterComplete = hzlJson<{ task: { status: string } }>(ctx, `task show ${taskId}`);
@@ -107,7 +107,7 @@ describe('CLI Integration Tests', { timeout: 30000 }, () => {
       expect(afterArchive.task.status).toBe('archived');
     });
 
-    it('next command respects priority ordering', () => {
+    it('claim --next respects priority ordering', () => {
       addTask('inbox', 'Low priority', '--priority 0');
       const high = addTask('inbox', 'High priority', '--priority 3');
       addTask('inbox', 'Medium priority', '--priority 1');
@@ -120,38 +120,37 @@ describe('CLI Integration Tests', { timeout: 30000 }, () => {
         hzlJson(ctx, `task set-status ${task.task_id} ready`);
       }
 
-      const next = hzlJson<{ task_id: string }>(ctx, 'task next --project inbox');
+      const next = hzlJson<{ task_id: string }>(ctx, 'task claim --next --project inbox');
       expect(next.task_id).toBe(high.task_id);
     });
 
-    it('next respects dependency ordering', () => {
+    it('claim --next respects dependency ordering', () => {
       const dep = addTask('inbox', 'Dependency task');
       const main = addTask('inbox', 'Main task', `--depends-on ${dep.task_id}`);
 
       hzlJson(ctx, `task set-status ${dep.task_id} ready`);
       hzlJson(ctx, `task set-status ${main.task_id} ready`);
 
-      const next1 = hzlJson<{ task_id: string }>(ctx, 'task next --project inbox');
+      const next1 = hzlJson<{ task_id: string }>(ctx, 'task claim --next --project inbox');
       expect(next1.task_id).toBe(dep.task_id);
 
-      hzlJson(ctx, `task claim ${dep.task_id} --assignee agent-1`);
       hzlJson(ctx, `task complete ${dep.task_id} --author agent-1`);
 
-      const next2 = hzlJson<{ task_id: string }>(ctx, 'task next --project inbox');
+      const next2 = hzlJson<{ task_id: string }>(ctx, 'task claim --next --project inbox');
       expect(next2.task_id).toBe(main.task_id);
     });
 
-    it('filters task list by assignee', () => {
+    it('filters task list by agent', () => {
       const taskA = addTask('inbox', 'Owned by Kenji');
       const taskB = addTask('inbox', 'Owned by Clara');
       hzlJson(ctx, `task set-status ${taskA.task_id} ready`);
       hzlJson(ctx, `task set-status ${taskB.task_id} ready`);
-      hzlJson(ctx, `task claim ${taskA.task_id} --assignee kenji`);
-      hzlJson(ctx, `task claim ${taskB.task_id} --assignee clara`);
+      hzlJson(ctx, `task claim ${taskA.task_id} --agent kenji`);
+      hzlJson(ctx, `task claim ${taskB.task_id} --agent clara`);
 
       const list = hzlJson<{ tasks: Array<{ task_id: string; title: string }> }>(
         ctx,
-        'task list --assignee kenji'
+        'task list --agent kenji'
       );
 
       expect(list.tasks).toHaveLength(1);
@@ -159,17 +158,17 @@ describe('CLI Integration Tests', { timeout: 30000 }, () => {
       expect(list.tasks[0].title).toBe('Owned by Kenji');
     });
 
-    it('combines --project and --assignee filters', () => {
+    it('combines --project and --agent filters', () => {
       const inboxTask = addTask('inbox', 'Inbox by Kenji');
       const projTask = addTask('project-a', 'Project by Kenji');
       hzlJson(ctx, `task set-status ${inboxTask.task_id} ready`);
       hzlJson(ctx, `task set-status ${projTask.task_id} ready`);
-      hzlJson(ctx, `task claim ${inboxTask.task_id} --assignee kenji`);
-      hzlJson(ctx, `task claim ${projTask.task_id} --assignee kenji`);
+      hzlJson(ctx, `task claim ${inboxTask.task_id} --agent kenji`);
+      hzlJson(ctx, `task claim ${projTask.task_id} --agent kenji`);
 
       const list = hzlJson<{ tasks: Array<{ task_id: string }> }>(
         ctx,
-        'task list --project project-a --assignee kenji'
+        'task list --project project-a --agent kenji'
       );
       expect(list.tasks).toHaveLength(1);
       expect(list.tasks[0].task_id).toBe(projTask.task_id);
@@ -320,7 +319,7 @@ describe('CLI Integration Tests', { timeout: 30000 }, () => {
     it('shows full event history for a task', () => {
       const task = addTask('inbox', 'Test task');
       hzlJson(ctx, `task set-status ${task.task_id} ready`);
-      hzlJson(ctx, `task claim ${task.task_id} --assignee agent-1`);
+      hzlJson(ctx, `task claim ${task.task_id} --agent agent-1`);
       hzlJson(ctx, `task comment ${task.task_id} "Working on it"`);
       hzlJson(ctx, `task complete ${task.task_id} --author agent-1`);
 
@@ -345,9 +344,9 @@ describe('CLI Integration Tests', { timeout: 30000 }, () => {
 
       hzlJson(ctx, `task set-status ${t2.task_id} ready`);
       hzlJson(ctx, `task set-status ${t3.task_id} ready`);
-      hzlJson(ctx, `task claim ${t3.task_id} --assignee agent-1`);
+      hzlJson(ctx, `task claim ${t3.task_id} --agent agent-1`);
       hzlJson(ctx, `task set-status ${t4.task_id} ready`);
-      hzlJson(ctx, `task claim ${t4.task_id} --assignee agent-1`);
+      hzlJson(ctx, `task claim ${t4.task_id} --agent agent-1`);
       hzlJson(ctx, `task complete ${t4.task_id} --author agent-1`);
 
       const stats = hzlJson<{ by_status: Record<string, number> }>(ctx, 'stats --project inbox');
@@ -398,21 +397,21 @@ describe('CLI Integration Tests', { timeout: 30000 }, () => {
     it('releases a claimed task back to ready', () => {
       const task = addTask('inbox', 'Task to release');
       hzlJson(ctx, `task set-status ${task.task_id} ready`);
-      hzlJson(ctx, `task claim ${task.task_id} --assignee agent-1`);
+      hzlJson(ctx, `task claim ${task.task_id} --agent agent-1`);
 
-      const released = hzlJson<{ status: string; assignee: string | null }>(
+      const released = hzlJson<{ status: string; agent: string | null }>(
         ctx,
         `task release ${task.task_id}`
       );
       expect(released.status).toBe('ready');
-      // Per design: assignee persists across status changes (shows who worked on task)
-      expect(released.assignee).toBe('agent-1');
+      // Per design: agent persists across status changes (shows who worked on task)
+      expect(released.agent).toBe('agent-1');
     });
 
     it('reopens a done task', () => {
       const task = addTask('inbox', 'Task to reopen');
       hzlJson(ctx, `task set-status ${task.task_id} ready`);
-      hzlJson(ctx, `task claim ${task.task_id} --assignee agent-1`);
+      hzlJson(ctx, `task claim ${task.task_id} --agent agent-1`);
       hzlJson(ctx, `task complete ${task.task_id} --author agent-1`);
 
       const reopened = hzlJson<{ status: string }>(ctx, `task reopen ${task.task_id}`);
@@ -424,35 +423,35 @@ describe('CLI Integration Tests', { timeout: 30000 }, () => {
     it('steals a task with force flag', () => {
       const task = addTask('inbox', 'Task to steal');
       hzlJson(ctx, `task set-status ${task.task_id} ready`);
-      hzlJson(ctx, `task claim ${task.task_id} --assignee agent-1 --lease 60`);
+      hzlJson(ctx, `task claim ${task.task_id} --agent agent-1 --lease 60`);
 
-      const stolen = hzlJson<{ assignee: string | null }>(
+      const stolen = hzlJson<{ agent: string | null }>(
         ctx,
-        `task steal ${task.task_id} --force --assignee agent-2`
+        `task steal ${task.task_id} --force --agent agent-2`
       );
-      expect(stolen.assignee).toBe('agent-2');
+      expect(stolen.agent).toBe('agent-2');
     });
 
     it('accepts deprecated --owner alias for backward compatibility', () => {
       const task = addTask('inbox', 'Task to steal (legacy flag)');
       hzlJson(ctx, `task set-status ${task.task_id} ready`);
-      hzlJson(ctx, `task claim ${task.task_id} --assignee agent-1 --lease 60`);
+      hzlJson(ctx, `task claim ${task.task_id} --agent agent-1 --lease 60`);
 
-      const stolen = hzlJson<{ assignee: string | null }>(
+      const stolen = hzlJson<{ agent: string | null }>(
         ctx,
         `task steal ${task.task_id} --force --owner agent-2`
       );
-      expect(stolen.assignee).toBe('agent-2');
+      expect(stolen.agent).toBe('agent-2');
     });
 
-    it('rejects conflicting --assignee and --owner values', () => {
+    it('rejects conflicting --agent and --owner values', () => {
       const task = addTask('inbox', 'Task to steal (conflicting flags)');
       hzlJson(ctx, `task set-status ${task.task_id} ready`);
-      hzlJson(ctx, `task claim ${task.task_id} --assignee agent-1 --lease 60`);
+      hzlJson(ctx, `task claim ${task.task_id} --agent agent-1 --lease 60`);
 
       const result = hzlMayFail(
         ctx,
-        `task steal ${task.task_id} --force --assignee agent-2 --owner agent-3`
+        `task steal ${task.task_id} --force --agent agent-2 --owner agent-3`
       );
       expect(result.success).toBe(false);
     });

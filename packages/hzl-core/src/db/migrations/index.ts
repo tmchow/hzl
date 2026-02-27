@@ -7,6 +7,7 @@
 
 import type Database from 'libsql';
 import { ADD_TERMINAL_AT_COLUMN, CREATE_TERMINAL_AT_INDEX } from './v2.js';
+import { ADD_AGENT_COLUMN, BACKFILL_AGENT_FROM_ASSIGNEE, CREATE_AGENT_INDEX } from './v3.js';
 
 /**
  * Check if a table exists in the database.
@@ -53,5 +54,18 @@ export function runCacheMigrations(db: Database.Database): void {
   // Only create here if table already exists with the column
   if (columnExists(db, 'tasks_current', 'terminal_at')) {
     db.exec(CREATE_TERMINAL_AT_INDEX);
+  }
+
+  // Migration V3: Add agent ownership column and backfill from legacy assignee.
+  if (tableExists(db, 'tasks_current') && !columnExists(db, 'tasks_current', 'agent')) {
+    db.exec(ADD_AGENT_COLUMN);
+  }
+
+  if (columnExists(db, 'tasks_current', 'agent') && columnExists(db, 'tasks_current', 'assignee')) {
+    db.exec(BACKFILL_AGENT_FROM_ASSIGNEE);
+  }
+
+  if (columnExists(db, 'tasks_current', 'agent')) {
+    db.exec(CREATE_AGENT_INDEX);
   }
 }

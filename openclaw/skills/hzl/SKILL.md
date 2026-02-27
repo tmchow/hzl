@@ -57,9 +57,9 @@ Personal tasks: HZL is not a polished human to-do app, but it is usable for pers
 
 ## Core concepts
 
-- **Project**: stable container. For OpenClaw, use a single `openclaw` project—this keeps `hzl task next` simple. Check `hzl project list` before creating.
+- **Project**: stable container. For OpenClaw, use a single `openclaw` project—this keeps `hzl task claim --next` simple. Check `hzl project list` before creating.
 - **Task**: top-level work item. For multi-step requests, this becomes a parent task.
-- **Subtask**: breakdown of a task into parts (`--parent <id>`). Max 1 level of nesting. Parent tasks are organizational containers—never returned by `hzl task next`.
+- **Subtask**: breakdown of a task into parts (`--parent <id>`). Max 1 level of nesting. Parent tasks are organizational containers—never returned by `hzl task claim --next`.
 - **Checkpoint**: short progress snapshot to support recovery
 - **Lease**: time-limited claim (prevents orphaned work in multi-agent flows)
 
@@ -102,13 +102,13 @@ hzl task add "Install garage sensors" -P openclaw
 hzl task add "Wire sensor to hub" --parent abc123
 hzl task add "Configure alerts" --parent abc123
 
-# hzl task next --project openclaw always works
+# hzl task claim --next --project openclaw always works
 ```
 
 Why this matters:
 - Projects accumulate forever; you'll have dozens of abandoned one-off projects
-- `hzl task next --project X` requires knowing which project to query
-- With a single project, `hzl task next --project openclaw` always works
+- `hzl task claim --next --project X` requires knowing which project to query
+- With a single project, `hzl task claim --next --project openclaw` always works
 
 ## Sizing Parent Tasks
 
@@ -162,9 +162,9 @@ hzl task add "Subtask B" --parent <id> --depends-on <subtask-a-id>  # With depen
 
 **Working on a task:**
 ```bash
-hzl task next -P openclaw                # Next available task
-hzl task next --parent <id>              # Next subtask of parent
-hzl task next -P openclaw --claim        # Find and claim in one step
+hzl task claim --next -P openclaw                # Next available task
+hzl task claim --next --parent <id>              # Next subtask of parent
+hzl task claim --next -P openclaw        # Find and claim in one step
 hzl task claim <id>                      # Claim specific task
 hzl task checkpoint <id> "milestone X"   # Notable progress or before pausing
 ```
@@ -188,7 +188,7 @@ hzl task comment <id> "Implemented X, tested Y"  # Optional: final notes
 hzl task complete <id>
 
 # After completing a subtask, check parent:
-hzl task show <parent-id> --json         # Any subtasks left?
+hzl task show <parent-id>         # Any subtasks left?
 hzl task complete <parent-id>            # If all done, complete parent
 ```
 
@@ -212,13 +212,13 @@ hzl doctor                                    # Health check for debugging
 # Create with options
 hzl task add "<title>" -P openclaw --priority 2 --tags backend,auth
 hzl task add "<title>" -P openclaw --depends-on <other-id>
-hzl task add "<title>" -P openclaw -s ready --assignee <name>         # Pre-assign owner
-hzl task add "<title>" -P openclaw -s ready --assignee <name> --author <name>  # Optional delegation attribution
-hzl task add "<title>" -P openclaw -s in_progress --assignee <name>  # Create and claim
+hzl task add "<title>" -P openclaw -s ready --agent <name>         # Pre-assign owner
+hzl task add "<title>" -P openclaw -s ready --agent <name> --author <name>  # Optional delegation attribution
+hzl task add "<title>" -P openclaw -s in_progress --agent <name>  # Create and claim
 
 # List and find
 hzl task list -P openclaw --available        # Ready tasks with met dependencies
-hzl task list -P openclaw --assignee <agent-id>  # Tasks currently assigned to a specific agent
+hzl task list -P openclaw --agent <agent-id>  # Tasks currently assigned to a specific agent
 hzl task list --parent <id>                  # Subtasks of a parent
 hzl task list --root                         # Top-level tasks only
 
@@ -239,12 +239,12 @@ hzl serve --status           # Check if running
 hzl serve --stop             # Stop background server
 
 # Multi-agent recovery
-hzl task claim <id> --assignee <agent-id> --lease 30
+hzl task claim <id> --agent <agent-id> --lease 30
 hzl task stuck
-hzl task steal <id> --if-expired --assignee <agent-id>
+hzl task steal <id> --if-expired --agent <agent-id>
 ```
 
-Tip: When a tool needs to parse output, prefer `--json`.
+Tip: JSON output is the default. Use `--format md` only when you need human-readable text.
 
 ## Authorship tracking
 
@@ -252,26 +252,26 @@ HZL tracks authorship at two levels:
 
 | Concept | What it tracks | Set by |
 |---------|----------------|--------|
-| **Assignee** | Who owns the task | `--assignee` on `claim` or `add` |
-| **Event author** | Who performed an action | `--author` on mutating commands (except `claim`, which uses `--assignee`) |
+| **Agent** | Who owns the task | `--agent` on `claim` or `add` |
+| **Event author** | Who performed an action | `--author` on mutating commands (except `claim`, which uses `--agent`) |
 
 `--author` is optional. Skip it when one orchestrator is tracking its own work or sub-agents do not expose stable identities. Use it when handoffs or accountability need explicit actor attribution.
 
-The `--assignee` flag on `claim` and `add` sets task ownership. The `--author` flag records who performed each action:
+The `--agent` flag on `claim` and `add` sets task ownership. The `--author` flag records who performed each action:
 
 Decision policy for OpenClaw agents:
 1. Default: omit `--author`.
-2. Add `--author` when actor != assignee (delegation/handoff/audit trail).
-3. `task claim` has no `--author`; `--assignee` is recorded as event author.
-4. `task steal` should use `--assignee` for new ownership; add `--author` only when actor differs from the assignee. (`--owner` is a deprecated alias.)
+2. Add `--author` when actor != agent (delegation/handoff/audit trail).
+3. `task claim` has no `--author`; `--agent` is recorded as event author.
+4. `task steal` should use `--agent` for new ownership; add `--author` only when actor differs from the agent. (`--owner` is a deprecated alias.)
 5. For `update`, `move`, `add-dep`, `remove-dep`, `checkpoint`, and `comment`, add `--author` only when attribution matters.
 
 ```bash
 # Alice owns the task
-hzl task claim 1 --assignee alice
+hzl task claim 1 --agent alice
 
 # Clara assigns ownership to Kenji at creation time
-hzl task add "Implement auth flow" -P openclaw -s ready --assignee kenji --author clara
+hzl task add "Implement auth flow" -P openclaw -s ready --agent kenji --author clara
 
 # Bob adds a checkpoint (doesn't change ownership)
 hzl task checkpoint 1 "Reviewed the code" --author bob
@@ -279,12 +279,12 @@ hzl task checkpoint 1 "Reviewed the code" --author bob
 # Task is still assigned to Alice, but checkpoint was recorded by Bob
 
 # Clara moves ownership to Kenji while keeping attribution
-hzl task steal 1 --if-expired --assignee kenji --author clara
+hzl task steal 1 --if-expired --agent kenji --author clara
 ```
 
 For AI agents that need session tracking, use `--agent-id` on claim:
 ```bash
-hzl task claim 1 --assignee "Claude Code" --agent-id "session-abc123"
+hzl task claim 1 --agent "Claude Code" --agent-id "session-abc123"
 ```
 
 ## Recommended patterns
@@ -323,23 +323,23 @@ This is THE core use case for OpenClaw agents — you wake up fresh and need to 
 ```bash
 # 1. Check what's in progress or stuck
 hzl task list -P openclaw --available     # What's ready to work?
-hzl task list -P openclaw --assignee orchestrator  # What is already assigned to me?
+hzl task list -P openclaw --agent orchestrator  # What is already assigned to me?
 hzl task stuck                            # Any expired leases from crashed sessions?
 
 # 2. If there are stuck tasks, review their checkpoints before stealing
-hzl task show <stuck-id> --json           # Read last checkpoint to understand state
+hzl task show <stuck-id>           # Read last checkpoint to understand state
 
 # 3. Steal the expired task and continue
-hzl task steal <stuck-id> --if-expired --assignee orchestrator
+hzl task steal <stuck-id> --if-expired --agent orchestrator
 
 # 4. Read the last checkpoint to know exactly where to resume
-hzl task show <stuck-id> --json | jq '.checkpoints[-1]'
+hzl task show <stuck-id> | jq '.checkpoints[-1]'
 
 # 5. Continue working, checkpoint your progress
 hzl task checkpoint <stuck-id> "Resumed from previous session. Continuing from: <last checkpoint>"
 ```
 
-**If no stuck tasks:** just use `hzl task next -P openclaw --claim` to grab the next available work.
+**If no stuck tasks:** just use `hzl task claim --next -P openclaw` to grab the next available work.
 
 ### Work a task with checkpoints
 
@@ -357,7 +357,7 @@ Checkpoint at notable milestones or before pausing work. A checkpoint should be 
 **Rule of thumb:** If the session died right now, could another agent resume from your last checkpoint? If not, checkpoint now.
 
 ```bash
-hzl task claim <id> --assignee orchestrator
+hzl task claim <id> --agent orchestrator
 # ...do work...
 hzl task checkpoint <id> "Implemented login flow. Next: add token refresh." --progress 50
 # ...more work...
@@ -375,7 +375,7 @@ hzl task progress <id> 75
 When stuck on external dependencies, mark the task as blocked:
 
 ```bash
-hzl task claim <id> --assignee orchestrator
+hzl task claim <id> --agent orchestrator
 hzl task checkpoint <id> "Implemented login flow. Blocked: need API key for staging."
 hzl task block <id> --comment "Blocked: waiting for staging API key from DevOps"
 
@@ -390,27 +390,27 @@ hzl task complete <id>
 - Good: "Unblocked: keys received, resuming work"
 - Bad: "waiting for API keys" (missing action context)
 
-Blocked tasks stay visible in the dashboard (Blocked column) and keep their assignee, but don't appear in `--available` lists.
+Blocked tasks stay visible in the dashboard (Blocked column) and keep their agent, but don't appear in `--available` lists.
 
 ### Coordinate sub-agents with leases
 
 Use leases when delegating, so you can detect abandoned work and recover.
 
 ```bash
-hzl task add "Implement REST endpoints" -P myapp-auth --priority 3 --json
-hzl task claim <id> --assignee subagent-claude-code --lease 30
+hzl task add "Implement REST endpoints" -P myapp-auth --priority 3
+hzl task claim <id> --agent subagent-claude-code --lease 30
 ```
 
 Delegate with explicit instructions:
-- claim the task (with their assignee id)
+- claim the task (with their agent id)
 - checkpoint progress as they go
 - complete when done
 
 Monitor:
 ```bash
-hzl task show <id> --json
+hzl task show <id>
 hzl task stuck
-hzl task steal <id> --if-expired --assignee orchestrator
+hzl task steal <id> --if-expired --agent orchestrator
 ```
 
 ### Break down work with subtasks
@@ -431,17 +431,17 @@ hzl task add "Plan activities" --parent abc123
 hzl task show abc123
 
 # Work through subtasks
-hzl task next --parent abc123
+hzl task claim --next --parent abc123
 ```
 
-**Important:** `hzl task next` only returns leaf tasks (tasks without children). Parent tasks are organizational containers—they are never returned as "next available work."
+**Important:** `hzl task claim --next` only returns leaf tasks (tasks without children). Parent tasks are organizational containers—they are never returned as "next available work."
 
 **Finishing subtasks:** After completing each subtask, check if the parent has remaining work:
 ```bash
 hzl task complete <subtask-id>
 
 # Check parent status
-hzl task show abc123 --json         # Any subtasks left?
+hzl task show abc123         # Any subtasks left?
 hzl task complete abc123            # If all done, complete parent
 ```
 
@@ -498,7 +498,7 @@ Use `--background` for temporary sessions. Use systemd for always-on access.
 
 ## Best Practices
 
-1. **Always use `--json`** for programmatic output
+1. **JSON is default output**; use `--format md` for human-readable output
 2. **Checkpoint at milestones** or before pausing work
 3. **Check for comments** before completing tasks
 4. **Use a single `openclaw` project** for all work
@@ -520,4 +520,4 @@ These are features for your orchestration layer, not for the task tracker.
 
 - Run `hzl ...` via the Exec tool.
 - OpenClaw skill gating checks `requires.bins` on the host at skill load time. If sandboxing is enabled, the binary must also exist inside the sandbox container too. Install it via `agents.defaults.sandbox.docker.setupCommand` (or use a custom image).
-- If multiple agents share the same HZL database, use distinct `--assignee` ids (for example: `orchestrator`, `subagent-claude`, `subagent-gemini`) and rely on leases to avoid collisions.
+- If multiple agents share the same HZL database, use distinct `--agent` ids (for example: `orchestrator`, `subagent-claude`, `subagent-gemini`) and rely on leases to avoid collisions.

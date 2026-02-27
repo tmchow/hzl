@@ -1,5 +1,5 @@
 ---
-layout: default
+layout: doc
 title: Pruning
 parent: Concepts
 nav_order: 5
@@ -58,7 +58,7 @@ hzl task prune --project my-project --older-than 30d --dry-run
 For scripting:
 
 ```bash
-hzl task prune --project my-project --older-than 30d --yes --json
+hzl task prune --project my-project --older-than 30d --yes
 ```
 
 Returns:

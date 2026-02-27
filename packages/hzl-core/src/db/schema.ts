@@ -85,7 +85,7 @@ CREATE TABLE IF NOT EXISTS tasks_current (
     due_at             TEXT,
     metadata           TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(metadata)),
     claimed_at         TEXT,
-    assignee           TEXT,
+    agent             TEXT,
     progress           INTEGER CHECK (progress >= 0 AND progress <= 100),
     lease_until        TEXT,
     terminal_at        TEXT,
@@ -154,6 +154,7 @@ CREATE INDEX IF NOT EXISTS idx_tasks_current_stuck ON tasks_current(project, sta
 CREATE INDEX IF NOT EXISTS idx_tasks_current_parent ON tasks_current(parent_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_current_terminal_at ON tasks_current(terminal_at);
 CREATE INDEX IF NOT EXISTS idx_tasks_current_due_at ON tasks_current(due_at);
+CREATE INDEX IF NOT EXISTS idx_tasks_current_agent ON tasks_current(agent);
 
 -- Indexes for dependencies
 CREATE INDEX IF NOT EXISTS idx_deps_depends_on ON task_dependencies(depends_on_id);

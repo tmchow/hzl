@@ -1,5 +1,5 @@
 ---
-layout: default
+layout: doc
 title: Tasks
 parent: Concepts
 nav_order: 2
@@ -27,8 +27,8 @@ Tasks require a title and project:
 | `-l, --links` | Comma-separated URLs or file paths to reference docs |
 | `-t, --tags` | Comma-separated tags for filtering |
 | `-p, --priority` | Priority level 0-3 (higher = more important) |
-| `-s, --status` | Initial status (backlog, ready, in_progress, blocked, done) |
-| `--assignee` | Initial assignee (free-form string, no identity lookup) |
+| `-s, --status` | Initial status (backlog, ready, in_progress, blocked, done, archived) |
+| `--agent` | Initial agent (free-form string, no identity lookup) |
 | `--author` | Optional actor attribution for task creation events |
 | `--depends-on` | Comma-separated task IDs this depends on |
 | `--parent` | Parent task ID (creates a subtask) |
@@ -57,11 +57,11 @@ EOF
 )"
 ```
 
-To track who delegated work, set both assignee and author:
+To track who delegated work, set both agent and author:
 
 ```bash
 hzl task add "Investigate flaky auth test" -P myapp -s ready \
-  --assignee kenji \
+  --agent kenji \
   --author clara
 ```
 
@@ -69,14 +69,14 @@ hzl task add "Investigate flaky auth test" -P myapp -s ready \
 
 HZL separates task ownership from action attribution:
 
-- **Assignee (`--assignee`)**: who currently owns the task.
+- **Agent (`--agent`)**: who currently owns the task.
 - **Author (`--author`)**: who performed a specific mutation event.
 
 `--author` is optional. Use it when one actor is operating on behalf of another (delegation, handoffs, audits). Skip it for solo/self-tracking flows.
 
 Important behavior:
-- `hzl task claim` has no `--author` flag; the `--assignee` value is recorded as the event author.
-- `hzl task steal` uses `--assignee` for takeover ownership and optional `--author` for attribution (`--owner` remains as a deprecated alias).
+- `hzl task claim` has no `--author` flag; the `--agent` value is recorded as the event author.
+- `hzl task steal` uses `--agent` for takeover ownership and optional `--author` for attribution (`--owner` remains as a deprecated alias).
 
 ## Task Statuses
 
@@ -84,6 +84,7 @@ Tasks move through these statuses:
 
 | Status | Meaning |
 |--------|---------|
+| `backlog` | Not ready to be claimed yet |
 | `ready` | Available to be claimed |
 | `in_progress` | Someone is working on it |
 | `blocked` | Stuck on an external issue |
@@ -97,7 +98,7 @@ Note: `blocked` is different from dependency blocking. A task with unmet depende
 Before working on a task, claim it:
 
 ```bash
-hzl task claim <id> --assignee "Claude Code"
+hzl task claim <id> --agent worker-1
 ```
 
 Claiming:
@@ -159,23 +160,23 @@ hzl task list
 hzl task list -P my-project
 
 # Assigned to a specific agent/person
-hzl task list --assignee kenji
+hzl task list --agent kenji
 
 # Assigned to a specific agent/person in one project
-hzl task list -P my-project --assignee kenji
+hzl task list -P my-project --agent kenji
 
 # Only available (ready, not blocked)
 hzl task list --available
 
 # Get next available task
-hzl task next -P my-project
+hzl task claim --next -P my-project
 ```
 
 ## Task Details
 
 ```bash
 hzl task show <id>
-hzl task show <id> --deep --json   # Full subtask fields + blocked_by
+hzl task show <id> --deep   # Full subtask fields + blocked_by
 ```
 
 Shows title, description, status, dependencies, and checkpoints.
@@ -235,7 +236,7 @@ hzl task prune --project my-project --older-than 90d --yes
 1. **Keep tasks small** - 1-2 hours of focused work
 2. **Use descriptive titles** - Future you will thank you
 3. **Checkpoint frequently** - Preserve context across sessions
-4. **Track ownership first** - Use `--assignee` to set who owns active work
+4. **Track ownership first** - Use `--agent` to set who owns active work
 5. **Use `--author` selectively** - Add it when attribution differs from ownership
 6. **Block when stuck** - Use `hzl task block` instead of leaving tasks in limbo
 7. **Complete or archive** - Don't leave tasks hanging

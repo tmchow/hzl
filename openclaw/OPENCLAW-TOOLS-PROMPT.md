@@ -46,9 +46,9 @@ hzl task add "Subtask B" --parent <id> --depends-on <subtask-a-id>  # With depen
 
 **Working on a task:**
 ```bash
-hzl task next -P openclaw                # Next available task
-hzl task next --parent <id>              # Next subtask of parent
-hzl task next -P openclaw --claim        # Find and claim in one step
+hzl task claim --next -P openclaw                # Next available task
+hzl task claim --next --parent <id>              # Next subtask of parent
+hzl task claim --next -P openclaw        # Find and claim in one step
 hzl task claim <id>                      # Claim specific task
 hzl task checkpoint <id> "milestone X"   # Notable progress or before pausing
 ```
@@ -72,7 +72,7 @@ hzl task comment <id> "Implemented X, tested Y"  # Optional: final notes
 hzl task complete <id>
 
 # After completing a subtask, check parent:
-hzl task show <parent-id> --json         # Any subtasks left?
+hzl task show <parent-id>         # Any subtasks left?
 hzl task complete <parent-id>            # If all done, complete parent
 ```
 

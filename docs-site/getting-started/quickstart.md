@@ -1,5 +1,5 @@
 ---
-layout: default
+layout: doc
 title: Quickstart
 parent: Getting Started
 nav_order: 2
@@ -7,110 +7,64 @@ nav_order: 2
 
 # Quickstart Tutorial
 
-A 5-minute hands-on introduction to HZL.
+A short hands-on introduction to HZL.
 
 ## Prerequisites
 
-- HZL installed (`hzl --version` should work)
-- If not, see [Installation](./installation)
+- HZL installed (`hzl --version`)
+- HZL initialized (`hzl init`)
 
-## 1. Create a Project
+## Mode A: Global Queue (`inbox`)
 
-Projects are containers for related work. Typically one per repo.
-
-```bash
-hzl project create my-feature
-```
-
-## 2. Add Tasks
-
-Create tasks with titles and optional details:
+Use this when you do not need project scoping.
 
 ```bash
-# Simple task
-hzl task add "Design the API schema" -P my-feature
+# Add unscoped work (defaults to inbox)
+hzl task add "Triage new bugs"
+hzl task add "Write daily status summary" --priority 1
 
-# Task with priority (higher = more important)
-hzl task add "Implement user endpoints" -P my-feature --priority 2
+# See claimable work
+hzl task list --available
 
-# Task that depends on another (waits until dependency completes)
-hzl task add "Write API tests" -P my-feature --depends-on 2
+# Claim next eligible task
+hzl task claim --next --agent agent-1
+
+# Record progress and finish
+hzl task checkpoint <task-id> "Triage pass complete; 3 bugs prioritized"
+hzl task complete <task-id>
 ```
 
-## 3. See What's Available
+## Mode B: Project-Scoped Queue (Optional)
+
+Use this when multiple agents share work in one domain.
 
 ```bash
-# List all tasks
-hzl task list -P my-feature
+# Create optional scope
+hzl project create research
 
-# Show only claimable tasks (ready, dependencies met)
-hzl task list -P my-feature --available
+# Add scoped tasks
+hzl task add "Compare retrieval strategies" -P research
+hzl task add "Summarize RAG benchmark paper" -P research --priority 2
+
+# Pull from that scope
+hzl task list -P research --available
+hzl task claim --next -P research --agent research-agent-1
+
+# Work and complete
+hzl task checkpoint <task-id> "Draft findings prepared"
+hzl task complete <task-id>
 ```
 
-## 4. Claim and Work
-
-Before working on a task, claim it:
-
-```bash
-# Get the next available task
-hzl task next -P my-feature
-
-# Claim it
-hzl task claim 1 --assignee claude-code
-```
-
-## 5. Record Progress
-
-Save checkpoints as you work:
-
-```bash
-hzl task checkpoint 1 "Schema designed: users, sessions, permissions tables"
-hzl task checkpoint 1 "Added foreign key constraints, ready for review"
-```
-
-Checkpoints preserve context for future sessions or other agents.
-
-## 6. Complete the Task
-
-```bash
-hzl task complete 1
-```
-
-Completing a task unblocks any tasks that depend on it.
-
-## 7. View the Dashboard (Optional)
+## Optional: Visual Dashboard
 
 ```bash
 hzl serve
 ```
 
-Opens a Kanban board at [http://localhost:3456](http://localhost:3456) showing all your tasks visually.
+Opens at `http://localhost:3456` for human visibility.
 
-## Full Workflow Example
+## What to Learn Next
 
-```bash
-# Setup
-hzl project create auth-system
-
-# Add tasks with dependencies
-hzl task add "Design auth flow" -P auth-system
-hzl task add "Implement login endpoint" -P auth-system --depends-on 1
-hzl task add "Implement logout endpoint" -P auth-system --depends-on 1
-hzl task add "Add session management" -P auth-system --depends-on 2,3
-hzl task add "Write integration tests" -P auth-system --depends-on 4
-
-# Work through them
-hzl task next -P auth-system --claim --assignee my-agent
-# ... do the work ...
-hzl task checkpoint 1 "Auth flow designed: OAuth2 with JWT tokens"
-hzl task complete 1
-
-# Continue with the next available task
-hzl task next -P auth-system --claim --assignee my-agent
-```
-
-## Next Steps
-
-- [Concepts](../concepts/) — Understand projects, tasks, dependencies
-- [Workflows](../workflows/) — Common usage patterns
-- [CLI Reference](../reference/cli) — Complete command documentation
+- [Concepts](../concepts/) — model and guarantees
+- [Workflows](../workflows/) — operating patterns
+- [CLI Reference](../reference/cli) — full command details

@@ -35,7 +35,7 @@ describe('runRelease', () => {
     });
 
     expect(result.status).toBe(TaskStatus.Ready);
-    expect(result.assignee).toBeNull();
+    expect(result.agent).toBeNull();
   });
 
   it('accepts a comment', () => {

@@ -150,10 +150,10 @@ describe('Concurrency Stress Tests', () => {
       expect(successes[0].taskId).toBe(task.task_id);
 
       const taskRow = db
-        .prepare('SELECT status, assignee FROM tasks_current WHERE task_id = ?')
-        .get(task.task_id) as { status: string; assignee: string | null };
+        .prepare('SELECT status, agent FROM tasks_current WHERE task_id = ?')
+        .get(task.task_id) as { status: string; agent: string | null };
       expect(taskRow.status).toBe('in_progress');
-      expect(taskRow.assignee).toBeDefined();
+      expect(taskRow.agent).toBeDefined();
     });
   });
 
@@ -181,7 +181,7 @@ describe('Concurrency Stress Tests', () => {
       expect(successes).toHaveLength(1);
 
       const updatedTask = taskService.getTaskById(task.task_id);
-      expect(updatedTask?.assignee).toBeTruthy();
+      expect(updatedTask?.agent).toBeTruthy();
     });
 
     it('rejects steal when lease is not expired', () => {
@@ -284,10 +284,10 @@ describe('Concurrency Stress Tests', () => {
       expect(successCount).toBe(1);
 
       const taskRow = db
-        .prepare('SELECT status, assignee FROM tasks_current WHERE task_id = ?')
-        .get(task.task_id) as { status: string; assignee: string | null };
+        .prepare('SELECT status, agent FROM tasks_current WHERE task_id = ?')
+        .get(task.task_id) as { status: string; agent: string | null };
       expect(taskRow.status).toBe('in_progress');
-      expect(taskRow.assignee).toBeDefined();
+      expect(taskRow.agent).toBeDefined();
     });
 
     it('maintains consistent event count under concurrent writes', async () => {

@@ -15,15 +15,17 @@ export interface CompleteResult {
 
 interface CompleteCommandOptions {
   author?: string;
+  comment?: string;
 }
 
 export function runComplete(options: {
   services: Services;
   taskId: string;
   author?: string;
+  comment?: string;
   json: boolean;
 }): CompleteResult {
-  const { services, taskId, author, json } = options;
+  const { services, taskId, author, comment, json } = options;
 
   // Check task status before completing to provide actionable error
   const existingTask = services.taskService.getTaskById(taskId);
@@ -34,7 +36,7 @@ export function runComplete(options: {
     );
   }
 
-  const task = services.taskService.completeTask(taskId, { author });
+  const task = services.taskService.completeTask(taskId, { author, comment });
 
   const result: CompleteResult = {
     task_id: task.task_id,
@@ -46,6 +48,9 @@ export function runComplete(options: {
     console.log(JSON.stringify(result));
   } else {
     console.log(`✓ Completed task ${task.task_id}: ${task.title}`);
+    if (comment) {
+      console.log(`  Comment: ${comment}`);
+    }
   }
 
   return result;
@@ -56,6 +61,7 @@ export function createCompleteCommand(): Command {
     .description('Mark a task as done')
     .argument('<taskId>', 'Task ID')
     .option('--author <name>', 'Author name')
+    .option('--comment <comment>', 'Optional completion note')
     .action(function (this: Command, rawTaskId: string, opts: CompleteCommandOptions) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
@@ -66,6 +72,7 @@ export function createCompleteCommand(): Command {
           services,
           taskId,
           author: opts.author,
+          comment: opts.comment,
           json: globalOpts.json ?? false,
         });
       } catch (e) {

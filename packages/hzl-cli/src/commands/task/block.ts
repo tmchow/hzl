@@ -11,7 +11,7 @@ export interface BlockResult {
   task_id: string;
   title: string;
   status: string;
-  assignee: string | null;
+  agent: string | null;
 }
 
 interface BlockCommandOptions {
@@ -32,7 +32,7 @@ export function runBlock(options: {
   const existingTask = services.taskService.getTaskById(taskId);
   if (existingTask && existingTask.status !== TaskStatus.InProgress && existingTask.status !== TaskStatus.Blocked) {
     throw new CLIError(
-      `Cannot block task ${taskId} (status: ${existingTask.status})\nHint: hzl task claim ${taskId} --assignee <name>`,
+      `Cannot block task ${taskId} (status: ${existingTask.status})\nHint: hzl task claim ${taskId} --agent <name>`,
       ExitCode.InvalidInput
     );
   }
@@ -43,7 +43,7 @@ export function runBlock(options: {
     task_id: task.task_id,
     title: task.title,
     status: task.status,
-    assignee: task.assignee,
+    agent: task.agent,
   };
 
   if (json) {

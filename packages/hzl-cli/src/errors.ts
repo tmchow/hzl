@@ -1,4 +1,6 @@
 // packages/hzl-cli/src/errors.ts
+import { createErrorEnvelope } from './output.js';
+
 export enum ExitCode {
   Success = 0,
   GeneralError = 1,
@@ -11,10 +13,19 @@ export enum ExitCode {
 
 export class CLIError extends Error {
   public readonly exitCode: ExitCode;
+  public readonly code: string;
+  public readonly details?: unknown;
 
-  constructor(message: string, exitCode: ExitCode = ExitCode.GeneralError) {
+  constructor(
+    message: string,
+    exitCode: ExitCode = ExitCode.GeneralError,
+    code?: string,
+    details?: unknown
+  ) {
     super(message);
     this.exitCode = exitCode;
+    this.code = code ?? codeForExitCode(exitCode);
+    this.details = details;
     this.name = 'CLIError';
   }
 }
@@ -22,7 +33,7 @@ export class CLIError extends Error {
 export function handleError(error: unknown, json: boolean = false): void {
   if (error instanceof CLIError) {
     if (json) {
-      console.log(JSON.stringify({ error: error.message, code: error.exitCode }));
+      console.log(JSON.stringify(createErrorEnvelope(error.code, error.message, error.details)));
     } else {
       console.error(`Error: ${error.message}`);
     }
@@ -31,9 +42,30 @@ export function handleError(error: unknown, json: boolean = false): void {
 
   const message = error instanceof Error ? error.message : String(error);
   if (json) {
-    console.log(JSON.stringify({ error: message, code: ExitCode.GeneralError }));
+    console.log(JSON.stringify(createErrorEnvelope(codeForExitCode(ExitCode.GeneralError), message)));
   } else {
     console.error(`Error: ${message}`);
   }
   process.exit(ExitCode.GeneralError);
+}
+
+export function codeForExitCode(exitCode: ExitCode): string {
+  switch (exitCode) {
+    case ExitCode.InvalidUsage:
+      return 'invalid_usage';
+    case ExitCode.InvalidInput:
+      return 'invalid_input';
+    case ExitCode.NotFound:
+      return 'not_found';
+    case ExitCode.DatabaseError:
+      return 'database_error';
+    case ExitCode.ValidationError:
+      return 'validation_error';
+    case ExitCode.GeneralError:
+      return 'general_error';
+    case ExitCode.Success:
+      return 'success';
+    default:
+      return 'general_error';
+  }
 }

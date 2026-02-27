@@ -64,38 +64,38 @@ describe('runAdd', () => {
     expect(task?.links).toEqual(['docs/design.md', 'https://example.com/spec']);
   });
 
-  it('creates a task with assignee in backlog', () => {
+  it('creates a task with agent in backlog', () => {
     const result = runAdd({
       services,
       project: 'inbox',
       title: 'Backlog task',
-      assignee: 'kenji',
+      agent: 'kenji',
       json: false,
     });
 
     const task = services.taskService.getTaskById(result.task_id);
     expect(task?.status).toBe('backlog');
-    expect(task?.assignee).toBe('kenji');
+    expect(task?.agent).toBe('kenji');
   });
 
-  it('records author separately from assignee on create', () => {
+  it('records author separately from agent on create', () => {
     const result = runAdd({
       services,
       project: 'inbox',
       title: 'Delegated task',
-      assignee: 'kenji',
+      agent: 'kenji',
       author: 'clara',
       status: 'ready',
       json: false,
     });
 
     const task = services.taskService.getTaskById(result.task_id);
-    expect(task?.assignee).toBe('kenji');
+    expect(task?.agent).toBe('kenji');
 
     const events = services.eventStore.getByTaskId(result.task_id);
     expect(events[0].type).toBe('task_created');
     expect(events[0].author).toBe('clara');
-    expect((events[0].data as { assignee?: string }).assignee).toBe('kenji');
+    expect((events[0].data as { agent?: string }).agent).toBe('kenji');
   });
 
   it('creates a task with dependencies', () => {
@@ -205,50 +205,50 @@ describe('runAdd', () => {
       expect(task?.status).toBe('ready');
     });
 
-    it('creates task with -s ready and keeps assignee', () => {
+    it('creates task with -s ready and keeps agent', () => {
       const result = runAdd({
         services,
         project: 'inbox',
         title: 'Ready task',
         status: 'ready',
-        assignee: 'kenji',
+        agent: 'kenji',
         json: false,
       });
 
       const task = services.taskService.getTaskById(result.task_id);
       expect(task?.status).toBe('ready');
-      expect(task?.assignee).toBe('kenji');
+      expect(task?.agent).toBe('kenji');
     });
 
-    it('creates task with -s in_progress and sets assignee', () => {
+    it('creates task with -s in_progress and sets agent', () => {
       const result = runAdd({
         services,
         project: 'inbox',
         title: 'In progress task',
         status: 'in_progress',
-        assignee: 'agent-1',
+        agent: 'agent-1',
         json: false,
       });
 
       const task = services.taskService.getTaskById(result.task_id);
       expect(task?.status).toBe('in_progress');
-      expect(task?.assignee).toBe('agent-1');
+      expect(task?.agent).toBe('agent-1');
     });
 
-    it('keeps assignee when -s in_progress has distinct --author', () => {
+    it('keeps agent when -s in_progress has distinct --author', () => {
       const result = runAdd({
         services,
         project: 'inbox',
         title: 'Delegated in progress task',
         status: 'in_progress',
-        assignee: 'kenji',
+        agent: 'kenji',
         author: 'clara',
         json: false,
       });
 
       const task = services.taskService.getTaskById(result.task_id);
       expect(task?.status).toBe('in_progress');
-      expect(task?.assignee).toBe('kenji');
+      expect(task?.agent).toBe('kenji');
 
       const events = services.eventStore.getByTaskId(result.task_id);
       expect(events[0].author).toBe('clara');

@@ -22,8 +22,8 @@ Run `hzl guide` to get the full workflow documentation. This covers:
 ```bash
 hzl guide                            # Full workflow documentation
 hzl project list                     # Check existing projects
-hzl task next -P <project> --claim   # Get and claim next task
-hzl task list -P <project> --assignee <agent-id>  # Find tasks already assigned to you
+hzl task claim --next -P <project>   # Get and claim next task
+hzl task list -P <project> --agent <agent-id>  # Find tasks already assigned to you
 hzl task checkpoint <id> "progress"  # Save progress
 hzl task complete <id>               # Mark task done
 ```
@@ -70,30 +70,30 @@ When multiple agents work on the same project:
 
 ### Atomic claiming
 
-HZL uses atomic claiming. Two agents calling `task next --claim` simultaneously will get different tasks. This prevents duplicate work.
+HZL uses atomic claiming. Two agents calling `task claim --next` simultaneously will get different tasks. This prevents duplicate work.
 
 ### Authorship tracking
 
 | Concept | What it tracks | Set by |
 |---------|----------------|--------|
-| **Assignee** | Who owns the task | `--assignee` on `claim` or `add` |
-| **Event author** | Who performed an action | `--author` on mutating commands (except `claim`, which uses `--assignee`) |
+| **Agent** | Who owns the task | `--agent` on `claim` or `add` |
+| **Event author** | Who performed an action | `--author` on mutating commands (except `claim`, which uses `--agent`) |
 
 `--author` is optional. Skip it for solo tracking or when sub-agents do not have stable identities. Use it when delegation, handoffs, or auditability require "who did what".
 
 Decision policy for agents:
 1. Default: omit `--author`.
-2. Add `--author` when actor != assignee (for example, delegating to another assignee).
-3. `task claim` has no `--author`; `--assignee` is recorded as the event author.
-4. `task steal` should use `--assignee` for new ownership; add `--author` only when actor differs from the assignee. (`--owner` is a deprecated alias.)
+2. Add `--author` when actor != agent (for example, delegating to another agent).
+3. `task claim` has no `--author`; `--agent` is recorded as the event author.
+4. `task steal` should use `--agent` for new ownership; add `--author` only when actor differs from the agent. (`--owner` is a deprecated alias.)
 5. For non-ownership mutations (`update`, `move`, `add-dep`, `remove-dep`, `checkpoint`, `comment`), add `--author` only when attribution matters.
 
 ```bash
 # Alice owns the task
-hzl task claim <id> --assignee alice
+hzl task claim <id> --agent alice
 
 # Clara assigns ownership to Kenji at creation time
-hzl task add "Implement auth flow" -P myrepo -s ready --assignee kenji --author clara
+hzl task add "Implement auth flow" -P myrepo -s ready --agent kenji --author clara
 
 # Bob adds a checkpoint (doesn't change ownership)
 hzl task checkpoint <id> "Reviewed the code" --author bob
@@ -110,13 +110,13 @@ hzl task add-dep <id> <depends-on-id> --author clara
 # Clara removes a dependency on Kenji's task
 hzl task remove-dep <id> <depends-on-id> --author clara
 
-# Clara steals to Kenji (assignee) but keeps actor attribution
-hzl task steal <id> --if-expired --assignee kenji --author clara
+# Clara steals to Kenji (agent) but keeps actor attribution
+hzl task steal <id> --if-expired --agent kenji --author clara
 ```
 
 For AI agents that need session tracking:
 ```bash
-hzl task claim <id> --assignee "Claude Code" --agent-id "session-abc123"
+hzl task claim <id> --agent "Claude Code" --agent-id "session-abc123"
 ```
 
 ### Leases for long-running work
@@ -124,7 +124,7 @@ hzl task claim <id> --assignee "Claude Code" --agent-id "session-abc123"
 Use leases to indicate how long before a task is considered stuck:
 
 ```bash
-hzl task claim <id> --assignee <name> --lease 30  # 30 minutes
+hzl task claim <id> --agent <name> --lease 30  # 30 minutes
 ```
 
 ### Recovering stuck tasks
@@ -133,14 +133,14 @@ If an agent dies or becomes unresponsive:
 
 ```bash
 # Find tasks with expired leases
-hzl task stuck --json
+hzl task stuck
 
 # Review checkpoints before taking over
-hzl task show <task-id> --json
-hzl task show <task-id> --deep --json    # Full subtask details + blocked_by
+hzl task show <task-id>
+hzl task show <task-id> --deep    # Full subtask details + blocked_by
 
 # Take over an expired task
-hzl task steal <task-id> --if-expired --assignee agent-2
+hzl task steal <task-id> --if-expired --agent agent-2
 ```
 
 ## Advanced: Human Oversight
@@ -152,7 +152,7 @@ Humans can monitor and steer agent work through HZL:
 ```bash
 hzl project list
 hzl task list --project myapp --status in_progress
-hzl task list --project myapp --assignee my-agent
+hzl task list --project myapp --agent my-agent
 hzl task show <task-id>
 ```
 
@@ -169,7 +169,7 @@ hzl task comment <task-id> "Please also handle the edge case where user is alrea
 
 **Agents should check for comments before completing tasks:**
 ```bash
-hzl task show <task-id> --json
+hzl task show <task-id>
 ```
 Review the task history for steering feedback before marking complete.
 
@@ -191,7 +191,7 @@ hzl validate
 
 ## Best Practices
 
-1. **Always use `--json`** for programmatic output
+1. **JSON is default output**; use `--format md` for human-readable output
 2. **Checkpoint at milestones** or before pausing work
 3. **Check for comments** before completing tasks
 4. **Use stable project names** derived from repo or agent identity

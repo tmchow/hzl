@@ -16,6 +16,9 @@
     "lint:fix": "eslint \"packages/*/src/**/*.ts\" --fix",
     "format": "prettier -w .",
     "format:check": "prettier -c .",
+    "docs:dev": "vitepress dev docs-site",
+    "docs:build": "vitepress build docs-site",
+    "docs:preview": "vitepress preview docs-site",
     "verify:marketplace": "node scripts/verify-marketplace-versions.js",
     "clean": "rm -rf packages/*/dist packages/*/.turbo",
     "prepare": "husky && pnpm run build"
@@ -38,6 +41,7 @@
     "semantic-release": "^25.0.3",
     "typescript": "^5.3.3",
     "typescript-eslint": "^8.56.0",
+    "vitepress": "^1.6.4",
     "vitest": "^4.0.18"
   },
   "repository": {

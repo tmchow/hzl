@@ -1,5 +1,5 @@
 ---
-layout: default
+layout: doc
 title: Architecture
 parent: Reference
 nav_order: 2
@@ -122,7 +122,7 @@ Agent 2: ROLLBACK                   → Try again
 Agent 2: SELECT task WHERE ready    → Task #2
 ```
 
-Two agents calling `task next --claim` simultaneously will get different tasks.
+Two agents calling `task claim --next` simultaneously will get different tasks.
 
 ## Database Location
 
@@ -190,7 +190,7 @@ A task is "available" (claimable) when:
 2. All dependencies have status `done`
 3. Not currently claimed by another agent
 
-The `--available` flag and `task next` command filter to available tasks.
+The `--available` flag and `task claim --next` command filter to available tasks.
 
 ## Where HZL Fits
 
@@ -199,12 +199,11 @@ The `--available` flag and `task next` command filter to available tasks.
 ```mermaid
 flowchart LR
   You[You] --> OC["OpenClaw (orchestrator)"]
-  OC --> Tools["OpenClaw tools"]
   OC <--> HZL[(HZL)]
-  OC --> S1[Claude Code]
-  OC --> S2[Codex]
-  S1 <--> HZL
-  S2 <--> HZL
+  OC --> A1[Agent 1]
+  OC --> A2[Agent 2]
+  A1 <--> HZL
+  A2 <--> HZL
 ```
 
 ### Multi-Agent System
@@ -213,21 +212,21 @@ flowchart LR
 flowchart LR
   U[You] --> O["Orchestrator"]
   O <--> HZL[(HZL)]
-  O --> C[Claude Code]
-  O --> X[Codex]
-  O --> G[Gemini]
-  C <--> HZL
-  X <--> HZL
-  G <--> HZL
+  O --> A1[Research Agent]
+  O --> A2[Writing Agent]
+  O --> A3[Coding Agent]
+  A1 <--> HZL
+  A2 <--> HZL
+  A3 <--> HZL
 ```
 
 ### Single Agent, Multiple Sessions
 
 ```mermaid
 flowchart LR
-  U[You] --> A["Coding agent"]
+  U[You] --> A["Agent"]
   A <--> HZL[(HZL)]
-  A --> R[Repo / files]
+  A --> W[Work artifacts]
 ```
 
 ### Custom UI Backend
@@ -255,7 +254,7 @@ const task = await taskService.createTask({
 });
 
 // Claim task
-await taskService.claimTask(task.id, { assignee: 'my-agent' });
+await taskService.claimTask(task.id, { agent: 'my-agent' });
 
 // Add checkpoint
 await taskService.addCheckpoint(task.id, 'Progress made');

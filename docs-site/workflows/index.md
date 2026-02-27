@@ -1,5 +1,5 @@
 ---
-layout: default
+layout: doc
 title: Workflows
 nav_order: 4
 has_children: true
@@ -48,7 +48,7 @@ Common patterns for using HZL effectively.
 
 ```bash
 # Start work
-hzl task next -P myproject --claim --assignee my-agent
+hzl task claim --next -P myproject --agent my-agent
 
 # Record progress
 hzl task checkpoint <id> "milestone achieved"
