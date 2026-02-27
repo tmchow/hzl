@@ -1,3 +1,12 @@
+## [1.34.1](https://github.com/tmchow/hzl/compare/v1.34.0...v1.34.1) (2026-02-27)
+
+
+### Bug Fixes
+
+* **ci:** avoid github-script actions method mismatch ([#125](https://github.com/tmchow/hzl/issues/125)) ([d70c23c](https://github.com/tmchow/hzl/commit/d70c23c68320edd46a8510fe41b7d1d1e865f196))
+* **ci:** harden release CI guard lookup ([#124](https://github.com/tmchow/hzl/issues/124)) ([a6b1732](https://github.com/tmchow/hzl/commit/a6b1732914988c4a28df30b727c9b42a7004b9b1))
+* **ci:** restore OIDC auth for release dry-run ([#123](https://github.com/tmchow/hzl/issues/123)) ([2476e66](https://github.com/tmchow/hzl/commit/2476e66ead9225b4383a76a7e4c9f542aa8c52dd))
+
 # [1.34.0](https://github.com/tmchow/hzl/compare/v1.33.1...v1.34.0) (2026-02-26)
 
 
