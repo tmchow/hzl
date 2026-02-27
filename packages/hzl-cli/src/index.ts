@@ -20,6 +20,9 @@ import { createLockCommand } from './commands/lock.js';
 import { createSampleProjectCommand } from './commands/sample-project.js';
 import { createServeCommand } from './commands/serve.js';
 import { createGuideCommand } from './commands/guide.js';
+import { createDepCommand } from './commands/dep/index.js';
+import { createHookCommand } from './commands/hook.js';
+import { createWorkflowCommand } from './commands/workflow/index.js';
 import { CLIError, ExitCode } from './errors.js';
 import { resolveDbPaths, readConfig } from './config.js';
 import { createErrorEnvelope, formatOutput, printSuccess, printError, printTable } from './output.js';
@@ -50,6 +53,9 @@ export function createProgram(): Command {
   program.addCommand(createLockCommand());
   program.addCommand(createServeCommand());
   program.addCommand(createGuideCommand());
+  program.addCommand(createDepCommand());
+  program.addCommand(createHookCommand());
+  program.addCommand(createWorkflowCommand());
 
   return program;
 }

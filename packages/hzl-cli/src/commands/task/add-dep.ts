@@ -22,20 +22,22 @@ function wouldCreateCycle(db: Database.Database, taskId: string, dependsOnId: st
   // Check if dependsOnId can reach taskId through its dependencies
   const visited = new Set<string>();
   const queue = [dependsOnId];
-  
+
   while (queue.length > 0) {
     const current = queue.shift()!;
     if (current === taskId) return true;
     if (visited.has(current)) continue;
     visited.add(current);
-    
+
     // Get dependencies of current task
-    const deps = db.prepare('SELECT depends_on_id FROM task_dependencies WHERE task_id = ?').all(current) as { depends_on_id: string }[];
+    const deps = db
+      .prepare('SELECT depends_on_id FROM task_dependencies WHERE task_id = ?')
+      .all(current) as { depends_on_id: string }[];
     for (const dep of deps) {
       queue.push(dep.depends_on_id);
     }
   }
-  
+
   return false;
 }
 
@@ -94,14 +96,25 @@ export function createAddDepCommand(): Command {
     .argument('<taskId>', 'Task ID that will depend on the other')
     .argument('<dependsOnId>', 'Task ID that must be completed first')
     .option('--author <name>', 'Author name')
-    .action(function (this: Command, rawTaskId: string, rawDependsOnId: string, opts: { author?: string }) {
+    .action(function (
+      this: Command,
+      rawTaskId: string,
+      rawDependsOnId: string,
+      opts: { author?: string }
+    ) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
       const services = initializeDb({ eventsDbPath, cacheDbPath });
       try {
         const taskId = resolveId(services, rawTaskId);
         const dependsOnId = resolveId(services, rawDependsOnId);
-        runAddDep({ services, taskId, dependsOnId, author: opts.author, json: globalOpts.json ?? false });
+        runAddDep({
+          services,
+          taskId,
+          dependsOnId,
+          author: opts.author,
+          json: globalOpts.json ?? false,
+        });
       } catch (e) {
         handleError(e, globalOpts.json);
       } finally {

@@ -40,6 +40,15 @@ export interface EventContext {
   causation_id?: string;
 }
 
+export interface HookOnDoneConfig {
+  url?: string;
+  headers?: Record<string, string>;
+}
+
+export interface TaskServiceOptions {
+  onDone?: HookOnDoneConfig;
+}
+
 export interface ClaimTaskOptions extends EventContext {
   lease_until?: string;
 }
@@ -219,14 +228,6 @@ export class DependenciesNotDoneError extends Error {
   }
 }
 
-export class CrossProjectDependencyError extends Error {
-  constructor(taskProject: string, depTaskId: string, depProject: string) {
-    super(
-      `Cross-project dependencies not supported: task in project '${taskProject}' cannot depend on task ${depTaskId} in project '${depProject}'`
-    );
-  }
-}
-
 export class AmbiguousPrefixError extends Error {
   public readonly matches: Array<{ task_id: string; title: string }>;
 
@@ -252,14 +253,18 @@ export class TaskService {
   private getSubtasksStmt: Database.Statement;
   private getTaskByIdStmt: Database.Statement;
   private resolveTaskIdStmt: Database.Statement;
+  private hookOutboxAvailable: boolean | null = null;
+  private onDoneHook?: HookOnDoneConfig;
 
   constructor(
     private db: Database.Database, // cache database
     private eventStore: EventStore,
     private projectionEngine: ProjectionEngine,
     private projectService?: ProjectService,
-    private eventsDb?: Database.Database // events database for pruning
+    private eventsDb?: Database.Database, // events database for pruning
+    options?: TaskServiceOptions
   ) {
+    this.onDoneHook = options?.onDone;
     this.getIncompleteDepsStmt = db.prepare(`
       SELECT td.depends_on_id
       FROM task_dependencies td
@@ -309,19 +314,68 @@ export class TaskService {
     this.projectionEngine.applyEvent(event);
   }
 
+  private hasHookOutboxTable(): boolean {
+    if (this.hookOutboxAvailable !== null) return this.hookOutboxAvailable;
+    const row = this.db
+      .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='hook_outbox'")
+      .get() as { name: string } | undefined;
+    this.hookOutboxAvailable = Boolean(row?.name);
+    return this.hookOutboxAvailable;
+  }
+
+  private enqueueOnDoneHook(taskId: string, from: TaskStatus, to: TaskStatus, ctx?: EventContext): void {
+    if (to !== TaskStatus.Done) return;
+    if (!this.onDoneHook?.url) return;
+    if (!this.hasHookOutboxTable()) return;
+
+    const task = this.getTaskById(taskId);
+    if (!task) return;
+
+    const now = new Date().toISOString();
+    const payload = {
+      trigger: 'on_done',
+      task: {
+        task_id: task.task_id,
+        title: task.title,
+        project: task.project,
+        status: task.status,
+        priority: task.priority,
+        agent: task.agent,
+        lease_until: task.lease_until,
+      },
+      transition: { from, to },
+      timestamp: now,
+      context: {
+        author: ctx?.author ?? null,
+        agent_id: ctx?.agent_id ?? null,
+        session_id: ctx?.session_id ?? null,
+        correlation_id: ctx?.correlation_id ?? null,
+        causation_id: ctx?.causation_id ?? null,
+      },
+    };
+
+    this.db
+      .prepare(`
+        INSERT INTO hook_outbox (
+          hook_name, status, url, headers, payload, attempts, next_attempt_at, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `)
+      .run(
+        'on_done',
+        'queued',
+        this.onDoneHook.url,
+        JSON.stringify(this.onDoneHook.headers ?? {}),
+        JSON.stringify(payload),
+        0,
+        now,
+        now,
+        now
+      );
+  }
+
   createTask(input: CreateTaskInput, ctx?: EventContext): Task {
     if (this.projectService) {
       this.projectService.requireProject(input.project);
-    }
-
-    // Validate dependencies are in the same project (cross-project deps not supported)
-    if (input.depends_on && input.depends_on.length > 0) {
-      for (const depId of input.depends_on) {
-        const depTask = this.getTaskById(depId);
-        if (depTask && depTask.project !== input.project) {
-          throw new CrossProjectDependencyError(input.project, depId, depTask.project);
-        }
-      }
     }
 
     const taskId = generateId();
@@ -382,6 +436,7 @@ export class TaskService {
           causation_id: ctx?.causation_id,
         });
         this.projectionEngine.applyEvent(statusEvent);
+        this.enqueueOnDoneHook(taskId, TaskStatus.Backlog, input.initial_status, ctx);
       }
 
       // Emit comment for any task creation if provided
@@ -530,6 +585,7 @@ export class TaskService {
       });
 
       this.projectionEngine.applyEvent(event);
+      this.enqueueOnDoneHook(taskId, task.status, toStatus, ctx);
       return this.getTaskById(taskId)!;
     });
   }
@@ -552,6 +608,7 @@ export class TaskService {
       });
 
       this.projectionEngine.applyEvent(event);
+      this.enqueueOnDoneHook(taskId, task.status, TaskStatus.Done, ctx);
 
       if (ctx?.comment) {
         this.emitComment(taskId, ctx.comment, ctx);
@@ -1546,10 +1603,9 @@ export class TaskService {
     const thresholdTime = referenceTime - opts.olderThanDays * 24 * 60 * 60 * 1000;
     const thresholdIso = new Date(thresholdTime).toISOString();
 
-    // Query to find eligible tasks using the complex family + dependency logic.
-    // NOTE: This query filters by project, which is safe because cross-project
-    // dependencies are explicitly prevented at task creation time (see createTask).
-    // All dependencies of a task are guaranteed to be in the same project.
+    // Query to find eligible tasks using family + dependency logic.
+    // Dependency blockers are computed globally so project-scoped pruning
+    // still respects dependents in other projects.
     const query = `
       WITH family_status AS (
         SELECT
@@ -1567,12 +1623,11 @@ export class TaskService {
       ),
       dep_blockers AS (
         -- Tasks that are depended on by non-terminal tasks cannot be pruned.
-        -- Safe to use family_status (project-scoped) because cross-project
-        -- dependencies are not allowed.
+        -- This intentionally scans all projects.
         SELECT DISTINCT d.depends_on_id AS task_id
         FROM task_dependencies d
-        JOIN family_status t ON t.task_id = d.task_id
-        WHERE t.self_eligible = 0
+        JOIN tasks_current dependent ON dependent.task_id = d.task_id
+        WHERE dependent.status NOT IN ('done', 'archived')
       ),
       family_eligible AS (
         -- A task is family-eligible only if itself AND all family members are eligible

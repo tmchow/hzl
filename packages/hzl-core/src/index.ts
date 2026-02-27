@@ -108,7 +108,6 @@ export {
   TaskNotFoundError,
   TaskNotClaimableError,
   DependenciesNotDoneError,
-  CrossProjectDependencyError,
   AmbiguousPrefixError,
   type CreateTaskInput,
   type EventContext,
@@ -154,6 +153,33 @@ export {
   BackupService,
   type ImportResult,
 } from './services/backup-service.js';
+
+export {
+  WorkflowService,
+  UnknownWorkflowError,
+  parseWorkflowName,
+  type WorkflowName,
+  type ResumePolicy,
+  type OthersLimit,
+  type WorkflowSummary,
+  type WorkflowArgSpec,
+  type WorkflowDefinition,
+  type WorkflowIdempotencyMetadata,
+  type WorkflowTaskView,
+  type WorkflowStartInput,
+  type WorkflowStartResult,
+  type WorkflowHandoffInput,
+  type WorkflowHandoffResult,
+  type WorkflowDelegateInput,
+  type WorkflowDelegateResult,
+} from './services/workflow-service.js';
+
+export {
+  HookDrainService,
+  type HookDrainConfig,
+  type HookDrainRunOptions,
+  type HookDrainResult,
+} from './services/hook-drain-service.js';
 
 // ============================================================================
 // Utilities

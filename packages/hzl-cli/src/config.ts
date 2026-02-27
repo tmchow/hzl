@@ -27,6 +27,12 @@ const ConfigFileSchema = z.object({
     }).optional(),
   }).optional(),
   dbPath: z.string().optional(),
+  hooks: z.object({
+    on_done: z.object({
+      url: z.string().optional(),
+      headers: z.record(z.string(), z.string()).optional(),
+    }).optional(),
+  }).optional(),
   defaultProject: z.string().optional(),
   defaultAuthor: z.string().optional(),
   leaseMinutes: z.number().positive().optional(),
@@ -245,7 +251,11 @@ export function readConfig(configPath: string = getConfigPath()): Config {
   try {
     const parsed: unknown = JSON.parse(content);
     const result = ConfigFileSchema.safeParse(parsed);
-    return result.success ? result.data : {};
+    if (!result.success) {
+      return {};
+    }
+
+    return result.data;
   } catch {
     throw new Error(`Config file at ${configPath} is invalid JSON`);
   }

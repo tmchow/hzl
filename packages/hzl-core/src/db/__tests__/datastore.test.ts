@@ -57,6 +57,30 @@ describe('createDatastore', () => {
         expect(tables.length).toBe(1);
     });
 
+    it('initializes hook/workflow foundation tables and indexes in cache.db', () => {
+        const config: DbConfig = {
+            events: { path: path.join(testDir, 'events.db'), syncMode: 'offline', readYourWrites: true },
+            cache: { path: path.join(testDir, 'cache.db') },
+        };
+
+        datastore = createDatastore(config);
+
+        const tables = datastore.cacheDb.prepare(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('hook_outbox', 'workflow_ops')"
+        ).all() as { name: string }[];
+
+        expect(tables.map(t => t.name).sort()).toEqual(['hook_outbox', 'workflow_ops']);
+
+        const indexes = datastore.cacheDb.prepare(
+            "SELECT name FROM sqlite_master WHERE type='index' AND name IN ('idx_hook_outbox_drain', 'idx_workflow_ops_workflow_input')"
+        ).all() as { name: string }[];
+
+        expect(indexes.map(i => i.name).sort()).toEqual([
+            'idx_hook_outbox_drain',
+            'idx_workflow_ops_workflow_input',
+        ]);
+    });
+
     it.skip('reports sync mode when syncUrl configured', () => {
         const config: DbConfig = {
             events: {
