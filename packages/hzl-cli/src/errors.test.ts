@@ -48,4 +48,29 @@ describe('CLIError', () => {
       },
     });
   });
+
+  it('maps typed task domain errors to invalid input exit code', () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation((code?: string | number | null) => {
+      throw new Error(`exit:${code}`);
+    });
+
+    const domainError = new Error('Progress must be an integer between 0 and 100') as Error & {
+      code: string;
+    };
+    domainError.code = 'task_invalid_progress';
+
+    expect(() => handleError(domainError, true)).toThrow('exit:3');
+    expect(exitSpy).toHaveBeenCalledWith(ExitCode.InvalidInput);
+
+    const payload = JSON.parse(logSpy.mock.calls[0]?.[0] as string);
+    expect(payload).toEqual({
+      schema_version: SCHEMA_VERSION,
+      ok: false,
+      error: {
+        code: 'task_invalid_progress',
+        message: 'Progress must be an integer between 0 and 100',
+      },
+    });
+  });
 });

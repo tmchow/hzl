@@ -190,8 +190,10 @@ export function createWebServer(options: ServerOptions): ServerHandle {
       });
     } catch (err) {
       // Only treat dueMonth validation errors as 400; re-throw others (e.g. DB errors → 500)
-      if (err instanceof Error && (err.message.startsWith('Invalid dueMonth') || err.message.startsWith('Invalid month'))) {
-        json(res, { error: err.message }, 400);
+      const domainCode = err && typeof err === 'object' ? (err as { code?: unknown }).code : undefined;
+      if (domainCode === 'task_invalid_due_month') {
+        const message = err instanceof Error ? err.message : 'Invalid dueMonth';
+        json(res, { error: message }, 400);
         return;
       }
       throw err;
