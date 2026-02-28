@@ -6,6 +6,7 @@ import { handleError, CLIError, ExitCode } from '../../errors.js';
 import { EventType } from 'hzl-core/events/types.js';
 import { GlobalOptionsSchema } from '../../types.js';
 import { resolveId } from '../../resolve-id.js';
+import { parseInteger } from '../../parse.js';
 
 export interface UpdateResult {
   task_id: string;
@@ -169,7 +170,9 @@ export function createUpdateCommand(): Command {
         if (opts.links !== undefined) {
           updates.links = opts.links === '' ? [] : opts.links.split(',');
         }
-        if (opts.priority !== undefined) updates.priority = parseInt(opts.priority, 10);
+        if (opts.priority !== undefined) {
+          updates.priority = parseInteger(opts.priority, 'Priority', { min: 0, max: 3 });
+        }
         if (opts.tags !== undefined) {
           updates.tags = opts.tags === '' ? [] : opts.tags.split(',');
         }

@@ -5,6 +5,7 @@ import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError } from '../../errors.js';
 import { GlobalOptionsSchema } from '../../types.js';
 import { createShortId } from '../../short-id.js';
+import { parseIntegerWithDefault } from '../../parse.js';
 
 export interface StuckTask {
   task_id: string;
@@ -120,7 +121,7 @@ export function createStuckCommand(): Command {
         runStuck({
           services,
           project: opts.project,
-          olderThanMinutes: parseInt(opts.olderThan ?? '0', 10),
+          olderThanMinutes: parseIntegerWithDefault(opts.olderThan, 'older-than', 0, { min: 0 }),
           json: globalOpts.json ?? false,
         });
       } catch (e) {

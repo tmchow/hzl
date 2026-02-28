@@ -6,6 +6,7 @@ import { initializeDb, closeDb, type Services } from '../../db.js';
 import { CLIError, ExitCode, handleError } from '../../errors.js';
 import { GlobalOptionsSchema } from '../../types.js';
 import { resolveId } from '../../resolve-id.js';
+import { parseOptionalInteger } from '../../parse.js';
 import { TaskStatus } from 'hzl-core/events/types.js';
 import {
   DependenciesNotDoneError,
@@ -565,6 +566,7 @@ export function createClaimCommand(): Command {
       const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
       const services = initializeDb({ eventsDbPath, cacheDbPath });
       try {
+        const leaseMinutes = parseOptionalInteger(opts.lease, 'Lease', { min: 1 });
         if (opts.next) {
           if (rawTaskId) {
             throw new CLIError('Cannot use <taskId> with --next', ExitCode.InvalidUsage);
@@ -584,7 +586,7 @@ export function createClaimCommand(): Command {
             parent,
             agent: opts.agent,
             agentId: opts.agentId,
-            leaseMinutes: opts.lease ? parseInt(opts.lease, 10) : undefined,
+            leaseMinutes,
             view: opts.view ?? 'standard',
             json: globalOpts.json ?? false,
           });
@@ -598,7 +600,7 @@ export function createClaimCommand(): Command {
             taskId,
             agent: opts.agent,
             agentId: opts.agentId,
-            leaseMinutes: opts.lease ? parseInt(opts.lease, 10) : undefined,
+            leaseMinutes,
             view: opts.view ?? 'standard',
             json: globalOpts.json ?? false,
           });

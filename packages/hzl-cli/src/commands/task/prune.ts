@@ -5,6 +5,7 @@ import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError, CLIError, ExitCode } from '../../errors.js';
 import { GlobalOptionsSchema } from '../../types.js';
 import { createShortId } from '../../short-id.js';
+import { parseInteger } from '../../parse.js';
 import type { PruneResult } from 'hzl-core/services/task-service.js';
 
 interface PruneCommandOptions {
@@ -25,15 +26,7 @@ function parseOlderThan(olderThanStr: string): number {
     );
   }
 
-  const days = parseInt(match[1], 10);
-  if (days < 1) {
-    throw new CLIError(
-      '--older-than must be at least 1d',
-      ExitCode.InvalidUsage
-    );
-  }
-
-  return days;
+  return parseInteger(match[1], '--older-than', { min: 1 });
 }
 
 function validateScope(opts: PruneCommandOptions): void {

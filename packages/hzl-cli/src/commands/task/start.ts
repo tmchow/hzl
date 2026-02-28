@@ -5,6 +5,7 @@ import { initializeDb, closeDb } from '../../db.js';
 import { handleError } from '../../errors.js';
 import { GlobalOptionsSchema } from '../../types.js';
 import { resolveId } from '../../resolve-id.js';
+import { parseOptionalInteger } from '../../parse.js';
 import { runClaim } from './claim.js';
 
 interface StartCommandOptions {
@@ -26,12 +27,13 @@ export function createStartCommand(): Command {
       const services = initializeDb({ eventsDbPath, cacheDbPath });
       try {
         const taskId = resolveId(services, rawTaskId);
+        const leaseMinutes = parseOptionalInteger(opts.lease, 'Lease', { min: 1 });
         runClaim({
           services,
           taskId,
           agent: opts.agent,
           agentId: opts.agentId,
-          leaseMinutes: opts.lease ? parseInt(opts.lease, 10) : undefined,
+          leaseMinutes,
           json: globalOpts.json ?? false,
         });
       } catch (e) {

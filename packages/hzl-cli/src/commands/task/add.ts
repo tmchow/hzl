@@ -6,6 +6,7 @@ import { CLIError, ExitCode, handleError } from '../../errors.js';
 import { TaskStatus } from 'hzl-core/events/types.js';
 import { GlobalOptionsSchema } from '../../types.js';
 import { resolveId } from '../../resolve-id.js';
+import { parseIntegerWithDefault, parseTaskStatus } from '../../parse.js';
 
 export interface AddResult {
   task_id: string;
@@ -56,27 +57,14 @@ export function runAdd(options: AddOptions): AddResult {
   let initialStatus: TaskStatus | undefined;
   if (status) {
     const statusLower = status.toLowerCase();
-    const validStatuses = ['backlog', 'ready', 'in_progress', 'blocked', 'done'];
-    const statusMap: Record<string, TaskStatus> = {
-      backlog: TaskStatus.Backlog,
-      ready: TaskStatus.Ready,
-      in_progress: TaskStatus.InProgress,
-      blocked: TaskStatus.Blocked,
-      done: TaskStatus.Done,
-    };
 
     // Check for archived first - provide helpful message before generic validation
     if (statusLower === 'archived') {
       throw new CLIError('Cannot create task as archived. Use -s done, then archive separately.', ExitCode.InvalidInput);
     }
 
-    if (!validStatuses.includes(statusLower)) {
-      throw new CLIError(`Invalid status: ${status}. Valid: ${validStatuses.join(', ')}`, ExitCode.InvalidInput);
-    }
-
     // Note: --comment is optional but encouraged for blocked status
-
-    initialStatus = statusMap[statusLower];
+    initialStatus = parseTaskStatus(statusLower);
   }
 
   // Validate parent and inherit project
@@ -162,7 +150,7 @@ export function createAddCommand(): Command {
           description: opts.description,
           links: opts.links?.split(','),
           tags: opts.tags?.split(','),
-          priority: parseInt(opts.priority ?? '0', 10),
+          priority: parseIntegerWithDefault(opts.priority, 'Priority', 0, { min: 0, max: 3 }),
           dependsOn,
           parent,
           status: opts.status,

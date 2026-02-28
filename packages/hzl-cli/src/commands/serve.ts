@@ -8,6 +8,7 @@ import { resolveDbPaths, isDevMode } from '../config.js';
 import { initializeDb, closeDb } from '../db.js';
 import { handleError } from '../errors.js';
 import { GlobalOptionsSchema } from '../types.js';
+import { parseIntegerWithDefault } from '../parse.js';
 import { createWebServer } from 'hzl-web';
 
 const DEFAULT_PORT = 3456;
@@ -258,7 +259,7 @@ export function createServeCommand(): Command {
     .option('--print-systemd', 'Print systemd unit file')
     .action(async function (this: Command, opts: ServeCommandOptions) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
-      const port = parseInt(opts.port ?? String(DEFAULT_PORT), 10);
+      const port = parseIntegerWithDefault(opts.port, 'Port', DEFAULT_PORT, { min: 1, max: 65535 });
       const host = opts.host ?? DEFAULT_HOST;
 
       try {

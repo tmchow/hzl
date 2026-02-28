@@ -6,8 +6,7 @@ import { handleError, CLIError, ExitCode } from '../../errors.js';
 import { TaskStatus } from 'hzl-core/events/types.js';
 import { GlobalOptionsSchema } from '../../types.js';
 import { createShortId } from '../../short-id.js';
-
-const validStatuses = Object.values(TaskStatus);
+import { parseIntegerWithDefault, parseTaskStatus } from '../../parse.js';
 
 export interface TaskListItem {
   task_id: string;
@@ -344,9 +343,7 @@ export function createListCommand(): Command {
       const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
       const services = initializeDb({ eventsDbPath, cacheDbPath });
       try {
-        const status = opts.status && validStatuses.includes(opts.status as TaskStatus)
-          ? (opts.status as TaskStatus)
-          : undefined;
+        const status = parseTaskStatus(opts.status);
         runList({
           services,
           project: opts.project,
@@ -356,10 +353,10 @@ export function createListCommand(): Command {
           availableOnly: opts.available,
           parent: opts.parent,
           rootOnly: opts.root,
-          page: parseInt(opts.page ?? '1', 10),
+          page: parseIntegerWithDefault(opts.page, 'Page', 1, { min: 1 }),
           view: opts.view ?? 'summary',
           groupByAgent: opts.groupByAgent,
-          limit: parseInt(opts.limit ?? '50', 10),
+          limit: parseIntegerWithDefault(opts.limit, 'Limit', 50, { min: 1 }),
           json: globalOpts.json ?? false,
         });
       } catch (e) {
