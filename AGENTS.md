@@ -153,6 +153,18 @@ This isolation is automatic - no env vars or setup required. The CLI shows `(dev
 
 To disable dev mode (for tests checking production behavior): `HZL_DEV_MODE=0`
 
+### Formal Local-Dev DB Contract
+
+When running from the source repo, HZL must use repo-local storage by default:
+- Events DB: `.local/hzl/events.db`
+- Cache DB: `.local/hzl/cache.db`
+- Config: `.config/hzl/config.json`
+
+Guardrails:
+- In dev mode, HZL rejects production XDG DB paths by default (for `--db`, `HZL_DB`, `HZL_DB_EVENTS_PATH`, and config `db.events.path`).
+- In dev mode, HZL rejects production XDG config paths provided by `HZL_CONFIG`.
+- To intentionally use production DB/config paths from source, set `HZL_ALLOW_PROD_DB=1` and/or `HZL_ALLOW_PROD_CONFIG=1` (or disable dev mode with `HZL_DEV_MODE=0`).
+
 ### CRITICAL: Never modify user's XDG directories
 
 **Do not delete, overwrite, or modify `~/.local/share/hzl/` or `~/.config/hzl/`.** These directories contain the user's real production data if they use hzl outside of development.
@@ -161,6 +173,7 @@ When testing or developing:
 - Always use the dev mode paths (automatic when running from source)
 - Never run commands that could affect the user's XDG directories
 - If you need to test with a clean database, use the project-local `.local/hzl/` directory
+- For agents/runtimes without hook callbacks, preflight commands with `scripts/guard-production-hzl-data.sh --tool Bash --command "<command>"` or path checks with `--tool Write --file-path "<path>"`
 
 ## Testing Concurrency
 
@@ -230,7 +243,7 @@ The documentation is organized into three folders:
 |--------|---------|---------------|
 | `snippets/AGENT-POLICY.md` | Minimal policy (when to use HZL) | Installer/instruction-file guidance |
 | `snippets/HZL-GUIDE.md` | Full workflow guide | Via `hzl guide` command |
-| `skills/hzl/SKILL.md` | Advanced topics | On-demand (skill invocation) |
+| `skills/hzl/SKILL.md` | OpenClaw skill reference | During OpenClaw agent operation |
 | `docs-site/getting-started/installation.md` | OpenClaw-specific setup and runtime policy | During OpenClaw install/maintenance |
 
 Agents get the minimal HZL policy in AGENTS.md, then run `hzl guide` for full workflow documentation.
@@ -251,8 +264,7 @@ When adding or modifying CLI commands, flags, or workflows, update **all** of th
 |----------|------|----------------|
 | **README** | `README.md` | CLI reference section |
 | **Agent policy snippet** | `snippets/AGENT-POLICY.md` | Key commands list |
-| **Claude Code / Codex skill** | `skills/hzl/SKILL.md` | Scenarios, examples, command reference |
-| **OpenClaw skill** | `openclaw/skills/hzl/SKILL.md` | Quick reference, patterns, examples |
+| **OpenClaw skill** | `skills/hzl/SKILL.md` | Quick reference, patterns, examples |
 | **Docs site - Tasks** | `docs-site/concepts/tasks.md` | Task creation flags, update options, workflows |
 | **Docs site - Other** | `docs-site/concepts/*.md` | Check if other concept pages are affected |
 

@@ -130,7 +130,9 @@ export function getDefaultDbPath(): string {
 }
 
 export function getConfigPath(): string {
-  if (process.env.HZL_CONFIG) return process.env.HZL_CONFIG;
+  if (process.env.HZL_CONFIG) {
+    return enforceDevConfigIsolation(process.env.HZL_CONFIG, 'env');
+  }
   // Running from source repo? Use project-local storage
   if (isDevMode()) {
     return path.join(getDevConfigDir(), 'config.json');
@@ -174,35 +176,81 @@ export interface ResolvedDbPathsWithSource extends ResolvedDbPaths {
   source: DbPathSource;
 }
 
+function normalizeForCompare(filePath: string): string {
+  const resolved = path.resolve(expandTilde(filePath));
+  return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
+}
+
+function isPathWithinRoot(filePath: string, rootPath: string): boolean {
+  const candidate = normalizeForCompare(filePath);
+  const root = normalizeForCompare(rootPath);
+  return candidate === root || candidate.startsWith(`${root}${path.sep}`);
+}
+
+function enforceDevConfigIsolation(configPath: string, source: 'env' | 'default'): string {
+  if (!isDevMode()) return configPath;
+  if (process.env.HZL_ALLOW_PROD_CONFIG === '1') return configPath;
+
+  const productionConfigRoot = path.join(getXdgConfigHome(), 'hzl');
+  if (isPathWithinRoot(configPath, productionConfigRoot)) {
+    throw new Error(
+      `Refusing to use production config path in dev mode (source: ${source}). ` +
+      `Use repo-local .config/hzl/config.json, set HZL_DEV_MODE=0 to disable dev mode, ` +
+      `or set HZL_ALLOW_PROD_CONFIG=1 to override intentionally.`
+    );
+  }
+
+  return configPath;
+}
+
+function enforceDevDbIsolation(paths: ResolvedDbPathsWithSource): ResolvedDbPathsWithSource {
+  if (!isDevMode()) return paths;
+  if (process.env.HZL_ALLOW_PROD_DB === '1') return paths;
+
+  const productionDbRoot = path.join(getXdgDataHome(), 'hzl');
+  const eventsInProd = isPathWithinRoot(paths.eventsDbPath, productionDbRoot);
+  const cacheInProd = isPathWithinRoot(paths.cacheDbPath, productionDbRoot);
+
+  if (eventsInProd || cacheInProd) {
+    throw new Error(
+      `Refusing to use production DB path in dev mode (source: ${paths.source}). ` +
+      `Use repo-local .local/hzl paths, set HZL_DEV_MODE=0 to disable dev mode, ` +
+      `or set HZL_ALLOW_PROD_DB=1 to override intentionally.`
+    );
+  }
+
+  return paths;
+}
+
 export function resolveDbPathsWithSource(cliOption?: string, configPath: string = getConfigPath()): ResolvedDbPathsWithSource {
   // CLI option overrides everything
   if (cliOption) {
     const expanded = expandTilde(cliOption);
-    return {
+    return enforceDevDbIsolation({
       eventsDbPath: expanded,
       cacheDbPath: deriveCachePath(expanded),
       source: 'cli',
-    };
+    });
   }
 
   // Environment variables
   if (process.env.HZL_DB_EVENTS_PATH) {
     const eventsPath = expandTilde(process.env.HZL_DB_EVENTS_PATH);
-    return {
+    return enforceDevDbIsolation({
       eventsDbPath: eventsPath,
       cacheDbPath: expandTilde(process.env.HZL_DB_CACHE_PATH ?? deriveCachePath(eventsPath)),
       source: 'env',
-    };
+    });
   }
 
   // Legacy HZL_DB env var
   if (process.env.HZL_DB) {
     const expanded = expandTilde(process.env.HZL_DB);
-    return {
+    return enforceDevDbIsolation({
       eventsDbPath: expanded,
       cacheDbPath: deriveCachePath(expanded),
       source: 'env',
-    };
+    });
   }
 
   // Config file
@@ -211,30 +259,30 @@ export function resolveDbPathsWithSource(cliOption?: string, configPath: string 
   // New nested structure
   if (config.db?.events?.path) {
     const eventsPath = expandTilde(config.db.events.path);
-    return {
+    return enforceDevDbIsolation({
       eventsDbPath: eventsPath,
       cacheDbPath: expandTilde(config.db.cache?.path ?? deriveCachePath(eventsPath)),
       source: 'config',
-    };
+    });
   }
 
   // Legacy dbPath
   if (config.dbPath) {
     const expanded = expandTilde(config.dbPath);
-    return {
+    return enforceDevDbIsolation({
       eventsDbPath: expanded,
       cacheDbPath: deriveCachePath(expanded),
       source: 'config',
-    };
+    });
   }
 
   // Default
   const defaultEventsPath = getDefaultDbPath();
-  return {
+  return enforceDevDbIsolation({
     eventsDbPath: defaultEventsPath,
     cacheDbPath: deriveCachePath(defaultEventsPath),
     source: isDevMode() ? 'dev' : 'default',
-  };
+  });
 }
 
 export function resolveDbPaths(cliOption?: string, configPath: string = getConfigPath()): ResolvedDbPaths {
