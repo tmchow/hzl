@@ -30,7 +30,7 @@ export function runShow(options: {
 
   const task = services.taskService.getTaskById(taskId);
   if (!task) {
-    throw new CLIError(`Task not found: ${taskId}`, ExitCode.NotFound);
+    throw new CLIError(`Task not found: ${taskId}`, ExitCode.NotFound, undefined, undefined, ['hzl task list']);
   }
 
   const comments = services.taskService.getComments(taskId);

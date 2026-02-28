@@ -71,7 +71,7 @@ export function runAdd(options: AddOptions): AddResult {
   if (parent) {
     const parentTask = services.taskService.getTaskById(parent);
     if (!parentTask) {
-      throw new CLIError(`Parent task not found: ${parent}`, ExitCode.NotFound);
+      throw new CLIError(`Parent task not found: ${parent}`, ExitCode.NotFound, undefined, undefined, ['hzl task list']);
     }
     if (parentTask.status === TaskStatus.Archived) {
       throw new CLIError(`Cannot create subtask of archived parent: ${parent}`, ExitCode.InvalidInput);

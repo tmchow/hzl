@@ -31,8 +31,11 @@ export function runComplete(options: {
   const existingTask = services.taskService.getTaskById(taskId);
   if (existingTask && existingTask.status !== TaskStatus.InProgress && existingTask.status !== TaskStatus.Blocked) {
     throw new CLIError(
-      `Cannot complete task ${taskId} (status: ${existingTask.status})\nHint: Claim the task first to start working on it`,
-      ExitCode.InvalidInput
+      `Cannot complete task ${taskId} (status: ${existingTask.status})`,
+      ExitCode.InvalidInput,
+      undefined,
+      undefined,
+      [`hzl task claim ${taskId} --agent <name>`]
     );
   }
 

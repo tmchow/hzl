@@ -288,7 +288,7 @@ export function runClaim(options: {
         reason: `Task not found: ${taskId}`,
       },
     });
-    throw new CLIError(`Task not found: ${taskId}`, ExitCode.NotFound, undefined, { decision_trace: trace });
+    throw new CLIError(`Task not found: ${taskId}`, ExitCode.NotFound, undefined, { decision_trace: trace }, ['hzl task list']);
   }
 
   if (existingTask.status !== TaskStatus.Ready) {
@@ -305,10 +305,11 @@ export function runClaim(options: {
     });
 
     throw new CLIError(
-      `Task ${taskId} is not claimable (status: ${existingTask.status})\nHint: hzl task set-status ${taskId} ready`,
+      `Task ${taskId} is not claimable (status: ${existingTask.status})`,
       ExitCode.InvalidInput,
       undefined,
-      { decision_trace: trace }
+      { decision_trace: trace },
+      [`hzl task set-status ${taskId} ready`]
     );
   }
 
@@ -335,7 +336,8 @@ export function runClaim(options: {
       `Task ${taskId} has dependencies not done: ${blockers.join(', ')}`,
       ExitCode.InvalidInput,
       undefined,
-      { decision_trace: trace }
+      { decision_trace: trace },
+      blockers.slice(0, 3).map(id => `hzl task show ${id}`)
     );
   }
 

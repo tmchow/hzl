@@ -11,12 +11,12 @@ export function resolveId(services: Services, idOrPrefix: string): string {
   try {
     const resolved = services.taskService.resolveTaskId(idOrPrefix);
     if (resolved === null) {
-      throw new CLIError(`Task not found: ${idOrPrefix}`, ExitCode.NotFound);
+      throw new CLIError(`Task not found: ${idOrPrefix}`, ExitCode.NotFound, undefined, undefined, ['hzl task list']);
     }
     return resolved;
   } catch (e) {
     if (e instanceof AmbiguousPrefixError) {
-      throw new CLIError(e.message, ExitCode.InvalidInput);
+      throw new CLIError(e.message, ExitCode.InvalidInput, undefined, undefined, e.matches.slice(0, 5).map(m => `hzl task show ${m.task_id}`));
     }
     throw e;
   }
