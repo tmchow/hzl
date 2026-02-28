@@ -2,8 +2,9 @@ import { Command } from 'commander';
 import { TaskStatus } from 'hzl-core/events/types.js';
 import { resolveDbPaths } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
-import { CLIError, ExitCode, handleError } from '../../errors.js';
+import { handleError } from '../../errors.js';
 import { GlobalOptionsSchema } from '../../types.js';
+import { parseTaskStatus } from '../../parse.js';
 
 export interface AgentStatsEntry {
   agent: string;
@@ -108,18 +109,10 @@ export function createAgentStatsCommand(): Command {
       const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
       const services = initializeDb({ eventsDbPath, cacheDbPath });
       try {
-        const parsedStatus =
-          opts.status && Object.values(TaskStatus).includes(opts.status as TaskStatus)
-            ? (opts.status as TaskStatus)
-            : undefined;
-        if (opts.status && !parsedStatus) {
-          throw new CLIError(`Invalid status: ${opts.status}`, ExitCode.InvalidInput);
-        }
-
         runAgentStats({
           services,
           project: opts.project,
-          status: parsedStatus,
+          status: parseTaskStatus(opts.status),
           json: globalOpts.json ?? false,
         });
       } catch (error) {
@@ -129,4 +122,3 @@ export function createAgentStatsCommand(): Command {
       }
     });
 }
-

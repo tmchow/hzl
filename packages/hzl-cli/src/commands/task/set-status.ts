@@ -6,6 +6,7 @@ import { handleError, CLIError, ExitCode } from '../../errors.js';
 import { TaskStatus } from 'hzl-core/events/types.js';
 import { GlobalOptionsSchema } from '../../types.js';
 import { resolveId } from '../../resolve-id.js';
+import { parseTaskStatus } from '../../parse.js';
 
 export interface SetStatusResult {
   task_id: string;
@@ -69,14 +70,18 @@ export function createSetStatusCommand(): Command {
       const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
       const services = initializeDb({ eventsDbPath, cacheDbPath });
       try {
-        if (!validStatuses.includes(status as TaskStatus)) {
-          throw new CLIError(`Invalid status: ${status}. Valid: ${validStatuses.join(', ')}`, ExitCode.InvalidInput);
+        const parsedStatus = parseTaskStatus(status);
+        if (!parsedStatus) {
+          throw new CLIError(
+            `Invalid status: ${status}. Valid: ${validStatuses.join(', ')}`,
+            ExitCode.InvalidInput
+          );
         }
         const taskId = resolveId(services, rawTaskId);
         runSetStatus({
           services,
           taskId,
-          status: status as TaskStatus,
+          status: parsedStatus,
           author: opts.author,
           json: globalOpts.json ?? false,
         });

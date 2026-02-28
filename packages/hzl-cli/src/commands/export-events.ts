@@ -5,6 +5,7 @@ import { resolveDbPaths } from '../config.js';
 import { initializeDb, closeDb, type Services } from '../db.js';
 import { handleError } from '../errors.js';
 import { GlobalOptionsSchema } from '../types.js';
+import { parseOptionalInteger } from '../parse.js';
 
 export interface ExportEventsResult {
   count: number;
@@ -70,7 +71,7 @@ export function createExportEventsCommand(): Command {
         runExportEvents({
           services,
           outputPath: output,
-          fromId: opts.from ? parseInt(opts.from, 10) : undefined,
+          fromId: parseOptionalInteger(opts.from, 'from', { min: 0 }),
           json: globalOpts.json ?? false,
         });
       } catch (e) {

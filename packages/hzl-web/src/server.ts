@@ -117,6 +117,13 @@ function parseUrl(url: string): { pathname: string; params: URLSearchParams } {
   };
 }
 
+function parseStrictNonNegativeInt(value: string): number | null {
+  if (!/^\d+$/.test(value)) return null;
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed < 0) return null;
+  return parsed;
+}
+
 function withLegacyAssigneeAlias(data: Record<string, unknown>): Record<string, unknown> {
   if (Object.prototype.hasOwnProperty.call(data, 'assignee')) {
     return data;
@@ -163,6 +170,15 @@ export function createWebServer(options: ServerOptions): ServerHandle {
     const project = params.get('project');
 
     const since = params.get('since') || '3d';
+    const validSince = Object.prototype.hasOwnProperty.call(DATE_PRESETS, since);
+    if (!dueMonth && !validSince) {
+      json(
+        res,
+        { error: `Invalid since value: ${since}. Expected one of: ${Object.keys(DATE_PRESETS).join(', ')}` },
+        400
+      );
+      return;
+    }
     const days = DATE_PRESETS[since] ?? 3;
 
     // Get tasks from service (service validates dueMonth format/range)
@@ -174,8 +190,10 @@ export function createWebServer(options: ServerOptions): ServerHandle {
       });
     } catch (err) {
       // Only treat dueMonth validation errors as 400; re-throw others (e.g. DB errors → 500)
-      if (err instanceof Error && (err.message.startsWith('Invalid dueMonth') || err.message.startsWith('Invalid month'))) {
-        json(res, { error: err.message }, 400);
+      const domainCode = err && typeof err === 'object' ? (err as { code?: unknown }).code : undefined;
+      if (domainCode === 'task_invalid_due_month') {
+        const message = err instanceof Error ? err.message : 'Invalid dueMonth';
+        json(res, { error: message }, 400);
         return;
       }
       throw err;
@@ -270,8 +288,16 @@ export function createWebServer(options: ServerOptions): ServerHandle {
       throw e;
     }
 
-    const limitRaw = parseInt(params.get('limit') || '200', 10);
-    const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(500, limitRaw)) : 200;
+    const limitParam = params.get('limit');
+    let limit = 200;
+    if (limitParam !== null) {
+      const parsed = parseStrictNonNegativeInt(limitParam);
+      if (parsed === null || parsed < 1 || parsed > 500) {
+        json(res, { error: 'Invalid limit value. Expected integer 1-500.' }, 400);
+        return;
+      }
+      limit = parsed;
+    }
 
     const events = eventStore.getByTaskId(resolvedId, { limit }).map((e) => ({
       id: e.rowid,
@@ -307,7 +333,12 @@ export function createWebServer(options: ServerOptions): ServerHandle {
   }
 
   function handleEvents(params: URLSearchParams, res: ServerResponse): void {
-    const sinceId = parseInt(params.get('since') || '0', 10);
+    const sinceParam = params.get('since') || '0';
+    const sinceId = parseStrictNonNegativeInt(sinceParam);
+    if (sinceId === null) {
+      json(res, { error: 'Invalid since value. Expected a non-negative integer.' }, 400);
+      return;
+    }
 
     // Get events from EventStore
     const rawEvents = eventStore.getRecentEvents({ sinceId, limit: 50 });

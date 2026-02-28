@@ -7,6 +7,7 @@ import { ProjectionEngine } from '../../projections/engine.js';
 import { TasksCurrentProjector } from '../../projections/tasks-current.js';
 import { DependenciesProjector } from '../../projections/dependencies.js';
 import { TagsProjector } from '../../projections/tags.js';
+import { CommentsCheckpointsProjector } from '../../projections/comments-checkpoints.js';
 import { rebuildAllProjections } from '../../projections/rebuild.js';
 import { TaskService } from '../../services/task-service.js';
 import { ValidationService } from '../../services/validation-service.js';
@@ -37,6 +38,7 @@ describe('Property-Based Tests', () => {
     engine.register(new TasksCurrentProjector());
     engine.register(new DependenciesProjector());
     engine.register(new TagsProjector());
+    engine.register(new CommentsCheckpointsProjector());
     const taskService = new TaskService(db, eventStore, engine);
     const validationService = new ValidationService(db);
 
@@ -104,6 +106,160 @@ describe('Property-Based Tests', () => {
             })
         ),
         { numRuns: 50 }
+      );
+    });
+  });
+
+  describe('invariant: rebuild equivalence after random lifecycle operations', () => {
+    function snapshotProjection(db: Database.Database): Record<string, unknown> {
+      return {
+        tasks: db
+          .prepare(
+            `SELECT task_id, title, project, status, parent_id, description, tags, priority, due_at,
+                    metadata, claimed_at, agent, progress, lease_until, created_at, updated_at
+             FROM tasks_current ORDER BY task_id`
+          )
+          .all(),
+        tags: db.prepare('SELECT task_id, tag FROM task_tags ORDER BY task_id, tag').all(),
+        comments: db
+          .prepare(
+            'SELECT event_rowid, task_id, author, agent_id, text, timestamp FROM task_comments ORDER BY event_rowid'
+          )
+          .all(),
+        checkpoints: db
+          .prepare(
+            'SELECT event_rowid, task_id, name, data, timestamp FROM task_checkpoints ORDER BY event_rowid'
+          )
+          .all(),
+      };
+    }
+
+    it('rebuilding projections yields identical projection state', () => {
+      const actionArb = fc.array(
+        fc.record({
+          kind: fc.constantFrom(
+            'create',
+            'ready',
+            'claim',
+            'release',
+            'complete',
+            'archive',
+            'block',
+            'unblock',
+            'progress',
+            'comment',
+            'checkpoint'
+          ),
+          index: fc.integer({ min: 0, max: 50 }),
+          progress: fc.integer({ min: 0, max: 100 }),
+        }),
+        { minLength: 1, maxLength: 80 }
+      );
+
+      fc.assert(
+        fc.property(actionArb, (actions) =>
+          withIsolatedServices(({ db, taskService }) => {
+            const taskIds: string[] = [];
+            for (const action of actions) {
+              const pickTaskId = (): string | undefined =>
+                taskIds.length > 0 ? taskIds[action.index % taskIds.length] : undefined;
+
+              try {
+                switch (action.kind) {
+                  case 'create': {
+                    const created = taskService.createTask({
+                      title: `Task ${action.index}`,
+                      project: 'inbox',
+                      tags: [`tag-${action.index % 5}`],
+                      priority: action.index % 4,
+                    });
+                    taskIds.push(created.task_id);
+                    break;
+                  }
+                  case 'ready': {
+                    const taskId = pickTaskId();
+                    if (taskId) taskService.setStatus(taskId, TaskStatus.Ready);
+                    break;
+                  }
+                  case 'claim': {
+                    const taskId = pickTaskId();
+                    if (taskId) taskService.claimTask(taskId, { author: 'agent-1' });
+                    break;
+                  }
+                  case 'release': {
+                    const taskId = pickTaskId();
+                    if (taskId) taskService.releaseTask(taskId, { comment: 'release' });
+                    break;
+                  }
+                  case 'complete': {
+                    const taskId = pickTaskId();
+                    if (taskId) taskService.completeTask(taskId, { comment: 'done' });
+                    break;
+                  }
+                  case 'archive': {
+                    const taskId = pickTaskId();
+                    if (taskId) taskService.archiveTask(taskId);
+                    break;
+                  }
+                  case 'block': {
+                    const taskId = pickTaskId();
+                    if (taskId) taskService.blockTask(taskId, { comment: 'blocked' });
+                    break;
+                  }
+                  case 'unblock': {
+                    const taskId = pickTaskId();
+                    if (taskId) taskService.unblockTask(taskId);
+                    break;
+                  }
+                  case 'progress': {
+                    const taskId = pickTaskId();
+                    if (taskId) taskService.setProgress(taskId, action.progress);
+                    break;
+                  }
+                  case 'comment': {
+                    const taskId = pickTaskId();
+                    if (taskId) taskService.addComment(taskId, `comment-${action.index}`);
+                    break;
+                  }
+                  case 'checkpoint': {
+                    const taskId = pickTaskId();
+                    if (taskId) {
+                      taskService.addCheckpoint(
+                        taskId,
+                        `checkpoint-${action.index}`,
+                        { idx: action.index },
+                        { progress: action.progress }
+                      );
+                    }
+                    break;
+                  }
+                }
+              } catch {
+                continue;
+              }
+            }
+
+            const before = snapshotProjection(db);
+
+            db.exec('DELETE FROM tasks_current');
+            db.exec('DELETE FROM task_dependencies');
+            db.exec('DELETE FROM task_tags');
+            db.exec('DELETE FROM task_comments');
+            db.exec('DELETE FROM task_checkpoints');
+            db.exec('DELETE FROM projection_state');
+
+            const rebuildEngine = new ProjectionEngine(db);
+            rebuildEngine.register(new TasksCurrentProjector());
+            rebuildEngine.register(new DependenciesProjector());
+            rebuildEngine.register(new TagsProjector());
+            rebuildEngine.register(new CommentsCheckpointsProjector());
+            rebuildAllProjections(db, rebuildEngine);
+
+            const after = snapshotProjection(db);
+            return JSON.stringify(before) === JSON.stringify(after);
+          })
+        ),
+        { numRuns: 40 }
       );
     });
   });

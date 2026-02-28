@@ -238,13 +238,40 @@ export class AmbiguousPrefixError extends Error {
   }
 }
 
+export class TaskValidationError extends Error {
+  public readonly code: string;
+
+  constructor(code: string, message: string) {
+    super(message);
+    this.code = code;
+  }
+}
+
+export class InvalidProgressError extends TaskValidationError {
+  constructor(message = 'Progress must be an integer between 0 and 100') {
+    super('task_invalid_progress', message);
+  }
+}
+
+export class InvalidDueMonthError extends TaskValidationError {
+  constructor(message: string) {
+    super('task_invalid_due_month', message);
+  }
+}
+
+export class InvalidStatusTransitionError extends TaskValidationError {
+  constructor(message: string) {
+    super('task_invalid_status_transition', message);
+  }
+}
+
 /**
  * Validate progress value is an integer between 0 and 100.
  * @throws Error if progress is invalid
  */
 function validateProgress(progress: number): void {
   if (progress < 0 || progress > 100 || !Number.isInteger(progress)) {
-    throw new Error('Progress must be an integer between 0 and 100');
+    throw new InvalidProgressError();
   }
 }
 
@@ -596,7 +623,9 @@ export class TaskService {
       if (!task) throw new TaskNotFoundError(taskId);
       // Allow completing from both in_progress and blocked status
       if (task.status !== TaskStatus.InProgress && task.status !== TaskStatus.Blocked) {
-        throw new Error(`Cannot complete: status is ${task.status}, must be in_progress or blocked`);
+        throw new InvalidStatusTransitionError(
+          `Cannot complete: status is ${task.status}, must be in_progress or blocked`
+        );
       }
 
       const event = this.eventStore.append({
@@ -692,7 +721,9 @@ export class TaskService {
       const task = this.getTaskById(taskId);
       if (!task) throw new TaskNotFoundError(taskId);
       if (task.status !== TaskStatus.InProgress) {
-        throw new Error(`Cannot release: status is ${task.status}, expected in_progress`);
+        throw new InvalidStatusTransitionError(
+          `Cannot release: status is ${task.status}, expected in_progress`
+        );
       }
 
       const event = this.eventStore.append({
@@ -742,7 +773,7 @@ export class TaskService {
       const task = this.getTaskById(taskId);
       if (!task) throw new TaskNotFoundError(taskId);
       if (task.status !== TaskStatus.Done) {
-        throw new Error(`Cannot reopen: status is ${task.status}, expected done`);
+        throw new InvalidStatusTransitionError(`Cannot reopen: status is ${task.status}, expected done`);
       }
 
       const toStatus = opts?.to_status ?? TaskStatus.Ready;
@@ -776,7 +807,9 @@ export class TaskService {
 
       // Allow blocked → blocked to add comments
       if (task.status !== TaskStatus.InProgress && task.status !== TaskStatus.Blocked) {
-        throw new Error(`Cannot block: status is ${task.status}, expected in_progress or blocked`);
+        throw new InvalidStatusTransitionError(
+          `Cannot block: status is ${task.status}, expected in_progress or blocked`
+        );
       }
 
       const event = this.eventStore.append({
@@ -805,7 +838,7 @@ export class TaskService {
       const task = this.getTaskById(taskId);
       if (!task) throw new TaskNotFoundError(taskId);
       if (task.status !== TaskStatus.Blocked) {
-        throw new Error(`Cannot unblock: status is ${task.status}, expected blocked`);
+        throw new InvalidStatusTransitionError(`Cannot unblock: status is ${task.status}, expected blocked`);
       }
 
       const toStatus = opts?.release ? TaskStatus.Ready : TaskStatus.InProgress;
@@ -1188,14 +1221,14 @@ export class TaskService {
     if (dueMonth) {
       // Validate YYYY-MM format
       if (!/^\d{4}-\d{2}$/.test(dueMonth)) {
-        throw new Error('Invalid dueMonth format. Expected YYYY-MM.');
+        throw new InvalidDueMonthError('Invalid dueMonth format. Expected YYYY-MM.');
       }
       // Parse YYYY-MM and compute padded UTC boundaries (±1 day for timezone safety)
       const [yearStr, monthStr] = dueMonth.split('-');
       const year = parseInt(yearStr, 10);
       const month = parseInt(monthStr, 10); // 1-indexed
       if (month < 1 || month > 12) {
-        throw new Error('Invalid month in dueMonth. Expected 01-12.');
+        throw new InvalidDueMonthError('Invalid month in dueMonth. Expected 01-12.');
       }
       // Start: first day of month minus 1 day
       const startDate = new Date(Date.UTC(year, month - 1, 1));

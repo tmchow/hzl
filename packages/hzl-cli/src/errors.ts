@@ -40,6 +40,18 @@ export function handleError(error: unknown, json: boolean = false): void {
     process.exit(error.exitCode);
   }
 
+  if (error instanceof Error) {
+    const domainCode = (error as { code?: unknown }).code;
+    if (typeof domainCode === 'string' && domainCode.startsWith('task_invalid_')) {
+      if (json) {
+        console.log(JSON.stringify(createErrorEnvelope(domainCode, error.message)));
+      } else {
+        console.error(`Error: ${error.message}`);
+      }
+      process.exit(ExitCode.InvalidInput);
+    }
+  }
+
   const message = error instanceof Error ? error.message : String(error);
   if (json) {
     console.log(JSON.stringify(createErrorEnvelope(codeForExitCode(ExitCode.GeneralError), message)));

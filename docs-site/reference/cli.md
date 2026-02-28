@@ -41,6 +41,9 @@ hzl stats
 ```bash
 hzl project create <name>
 hzl project list
+hzl project show <name>
+hzl project rename <old-name> <new-name>
+hzl project delete <name>
 ```
 
 ## Agent queries
@@ -85,6 +88,10 @@ hzl task list --group-by-agent --view standard
 hzl task show <taskId>
 hzl task show <taskId> --deep
 hzl task show <taskId> --no-subtasks
+
+hzl task search "<query>"
+hzl task search "<query>" -P <project>
+hzl task search "<query>" -s <status>
 ```
 
 `task list` key options:
@@ -106,6 +113,7 @@ hzl task show <taskId> --no-subtasks
 hzl task claim <taskId> --agent <name>
 hzl task claim --next --agent <name>
 hzl task claim --next -P <project> --agent <name>
+hzl task start <taskId> --agent <name>
 
 hzl task complete <taskId>
 hzl task release <taskId>
@@ -231,8 +239,11 @@ Important: `--auto-op-id` is intentionally unsupported for `workflow run start` 
 ```bash
 hzl serve
 hzl export-events [output.jsonl]
-hzl sample-project
-hzl lock --help
+hzl sample-project create
+hzl sample-project reset
+hzl lock status
+hzl lock clear
+hzl lock clear --force
 hzl guide
 ```
 

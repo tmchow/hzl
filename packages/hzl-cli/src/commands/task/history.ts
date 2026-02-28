@@ -5,6 +5,7 @@ import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError } from '../../errors.js';
 import { GlobalOptionsSchema } from '../../types.js';
 import { resolveId } from '../../resolve-id.js';
+import { parseIntegerWithDefault } from '../../parse.js';
 
 export interface HistoryEvent {
   rowid: number;
@@ -85,7 +86,7 @@ export function createHistoryCommand(): Command {
         runHistory({
           services,
           taskId,
-          limit: parseInt(opts.limit, 10),
+          limit: parseIntegerWithDefault(opts.limit, 'Limit', 100, { min: 1 }),
           json: globalOpts.json ?? false,
         });
       } catch (e) {

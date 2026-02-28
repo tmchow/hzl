@@ -5,6 +5,7 @@ import path from 'path';
 import os from 'os';
 import { runSearch } from './search.js';
 import { initializeDbFromPath, closeDb, type Services } from '../../db.js';
+import { TaskStatus } from 'hzl-core/events/types.js';
 
 describe('runSearch', () => {
   let tempDir: string;
@@ -48,5 +49,43 @@ describe('runSearch', () => {
 
     const result = runSearch({ services, query: 'nonexistent', json: false });
     expect(result.tasks).toHaveLength(0);
+  });
+
+  it('filters by status', () => {
+    const ready = services.taskService.createTask({ title: 'Auth issue', project: 'inbox' });
+    services.taskService.createTask({ title: 'Auth note', project: 'inbox' });
+    services.taskService.setStatus(ready.task_id, TaskStatus.Ready);
+
+    const result = runSearch({ services, query: 'Auth', status: TaskStatus.Ready, json: false });
+    expect(result.tasks).toHaveLength(1);
+    expect(result.tasks[0].status).toBe(TaskStatus.Ready);
+  });
+
+  it('returns full total when results are paginated', () => {
+    services.taskService.createTask({ title: 'Search match 1', project: 'inbox' });
+    services.taskService.createTask({ title: 'Search match 2', project: 'inbox' });
+    services.taskService.createTask({ title: 'Search match 3', project: 'inbox' });
+
+    const result = runSearch({ services, query: 'Search', limit: 2, json: false });
+    expect(result.tasks).toHaveLength(2);
+    expect(result.total).toBe(3);
+  });
+
+  it('rejects invalid status', () => {
+    expect(() =>
+      runSearch({ services, query: 'anything', status: 'not-a-status', json: false })
+    ).toThrow(/Invalid status/);
+  });
+
+  it('rejects invalid limit', () => {
+    expect(() => runSearch({ services, query: 'anything', limit: 0, json: false })).toThrow(
+      /Limit must be an integer >= 1/
+    );
+  });
+
+  it('rejects invalid offset', () => {
+    expect(() => runSearch({ services, query: 'anything', offset: -1, json: false })).toThrow(
+      /Offset must be an integer >= 0/
+    );
   });
 });

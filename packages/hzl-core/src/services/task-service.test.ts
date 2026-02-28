@@ -1,7 +1,13 @@
 // packages/hzl-core/src/services/task-service.test.ts
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import Database from 'libsql';
-import { TaskService, AmbiguousPrefixError } from './task-service.js';
+import {
+  TaskService,
+  AmbiguousPrefixError,
+  InvalidDueMonthError,
+  InvalidProgressError,
+  InvalidStatusTransitionError,
+} from './task-service.js';
 import { ProjectService, ProjectNotFoundError } from './project-service.js';
 import { createTestDb } from '../db/test-utils.js';
 import { EventStore } from '../events/store.js';
@@ -528,6 +534,11 @@ describe('TaskService', () => {
       expect(commentEvent).toBeDefined();
       expect((commentEvent!.data as any).text).toBe('Blocked on external dependency');
     });
+
+    it('throws InvalidStatusTransitionError when task is not in_progress', () => {
+      const task = taskService.createTask({ title: 'Test', project: 'inbox' });
+      expect(() => taskService.releaseTask(task.task_id)).toThrow(InvalidStatusTransitionError);
+    });
   });
 
   describe('archive', () => {
@@ -1037,6 +1048,11 @@ describe('TaskService', () => {
         .toThrow('Invalid month in dueMonth');
       expect(() => taskService.listTasks({ dueMonth: '2026-13' }))
         .toThrow('Invalid month in dueMonth');
+    });
+
+    it('throws InvalidDueMonthError for invalid dueMonth values', () => {
+      expect(() => taskService.listTasks({ dueMonth: 'bad-month' })).toThrow(InvalidDueMonthError);
+      expect(() => taskService.listTasks({ dueMonth: '2026-00' })).toThrow(InvalidDueMonthError);
     });
   });
 
@@ -1606,6 +1622,12 @@ describe('TaskService', () => {
         .toThrow('Progress must be an integer between 0 and 100');
       expect(() => taskService.setProgress(task.task_id, 50.5))
         .toThrow('Progress must be an integer between 0 and 100');
+    });
+
+    it('throws InvalidProgressError on invalid progress values', () => {
+      const task = taskService.createTask({ title: 'Test', project: 'inbox' });
+      expect(() => taskService.setProgress(task.task_id, -1)).toThrow(InvalidProgressError);
+      expect(() => taskService.setProgress(task.task_id, 101)).toThrow(InvalidProgressError);
     });
 
     it('allows setting progress to 0 and 100', () => {

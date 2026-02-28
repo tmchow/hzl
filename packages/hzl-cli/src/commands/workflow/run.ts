@@ -11,6 +11,7 @@ import { closeDb, initializeDb, type Services } from '../../db.js';
 import { CLIError, ExitCode, handleError } from '../../errors.js';
 import { resolveId } from '../../resolve-id.js';
 import { GlobalOptionsSchema } from '../../types.js';
+import { parseInteger, parseOptionalInteger } from '../../parse.js';
 
 interface WorkflowStartCommandOptions {
   agent?: string;
@@ -65,22 +66,17 @@ function parseTags(raw?: string): string[] | undefined {
 }
 
 function parsePositiveInt(raw: string | undefined, optionName: string): number | undefined {
-  if (raw === undefined) return undefined;
-  const value = Number.parseInt(raw, 10);
-  if (Number.isNaN(value) || value < 0) {
-    throw new CLIError(`${optionName} must be a non-negative integer`, ExitCode.InvalidInput);
-  }
-  return value;
+  return parseOptionalInteger(raw, optionName, { min: 0 });
 }
 
 function parseOthersLimit(raw?: string): OthersLimit | undefined {
   if (raw === undefined) return undefined;
   if (raw === 'all') return 'all';
-  const value = Number.parseInt(raw, 10);
-  if (Number.isNaN(value) || value < 0) {
+  try {
+    return parseInteger(raw, '--others-limit', { min: 0 });
+  } catch {
     throw new CLIError('--others-limit must be a non-negative integer or "all"', ExitCode.InvalidInput);
   }
-  return value;
 }
 
 function assertNoConflictingOpFlags(opts: { opId?: string; autoOpId?: boolean }): void {

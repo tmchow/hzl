@@ -5,6 +5,7 @@ import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError } from '../../errors.js';
 import { GlobalOptionsSchema } from '../../types.js';
 import { resolveId } from '../../resolve-id.js';
+import { parseInteger } from '../../parse.js';
 
 export interface ProgressResult {
   task_id: string;
@@ -17,11 +18,11 @@ interface ProgressCommandOptions {
 }
 
 function parseProgress(value: string): number {
-  const parsed = parseInt(value, 10);
-  if (isNaN(parsed) || parsed < 0 || parsed > 100) {
+  try {
+    return parseInteger(value, 'Progress', { min: 0, max: 100 });
+  } catch {
     throw new InvalidArgumentError('Progress must be an integer between 0 and 100');
   }
-  return parsed;
 }
 
 export function runProgress(options: {

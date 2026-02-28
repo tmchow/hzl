@@ -1,0 +1,2284 @@
+{
+  "schema_version": 1,
+  "root": "hzl",
+  "global_options": [
+    {
+      "flags": "-V, --version",
+      "short": "-V",
+      "long": "--version",
+      "required": false,
+      "mandatory": false,
+      "optional": false,
+      "defaultValue": null,
+      "description": "output the version number"
+    },
+    {
+      "flags": "--db <path>",
+      "short": null,
+      "long": "--db",
+      "required": true,
+      "mandatory": false,
+      "optional": false,
+      "defaultValue": null,
+      "description": "Path to database file"
+    },
+    {
+      "flags": "--format <format>",
+      "short": null,
+      "long": "--format",
+      "required": true,
+      "mandatory": false,
+      "optional": false,
+      "defaultValue": "json",
+      "description": "Output format: json or md"
+    }
+  ],
+  "commands": [
+    {
+      "path": "hzl agent",
+      "description": "Agent-oriented query commands",
+      "arguments": [],
+      "options": [],
+      "hasSubcommands": true
+    },
+    {
+      "path": "hzl agent stats",
+      "description": "Show counts-only workload summaries by agent",
+      "arguments": [],
+      "options": [
+        {
+          "flags": "-P, --project <project>",
+          "short": "-P",
+          "long": "--project",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Filter by project"
+        },
+        {
+          "flags": "-s, --status <status>",
+          "short": "-s",
+          "long": "--status",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Filter by status"
+        }
+      ],
+      "hasSubcommands": false
+    },
+    {
+      "path": "hzl config",
+      "description": "Show current configuration",
+      "arguments": [],
+      "options": [],
+      "hasSubcommands": false
+    },
+    {
+      "path": "hzl dep",
+      "description": "Dependency commands",
+      "arguments": [],
+      "options": [],
+      "hasSubcommands": true
+    },
+    {
+      "path": "hzl dep list",
+      "description": "List dependency edges",
+      "arguments": [],
+      "options": [
+        {
+          "flags": "-P, --project <project>",
+          "short": "-P",
+          "long": "--project",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Filter edges where either side is in this project"
+        },
+        {
+          "flags": "--from-project <project>",
+          "short": null,
+          "long": "--from-project",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Filter by dependent task project"
+        },
+        {
+          "flags": "--to-project <project>",
+          "short": null,
+          "long": "--to-project",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Filter by dependency task project"
+        },
+        {
+          "flags": "--agent <agent>",
+          "short": null,
+          "long": "--agent",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Filter edges where either side is assigned to this agent"
+        },
+        {
+          "flags": "--from-agent <agent>",
+          "short": null,
+          "long": "--from-agent",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Filter by dependent task agent"
+        },
+        {
+          "flags": "--to-agent <agent>",
+          "short": null,
+          "long": "--to-agent",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Filter by dependency task agent"
+        },
+        {
+          "flags": "--blocking-only",
+          "short": null,
+          "long": "--blocking-only",
+          "required": false,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": false,
+          "description": "Show only currently blocking dependencies"
+        },
+        {
+          "flags": "--cross-project-only",
+          "short": null,
+          "long": "--cross-project-only",
+          "required": false,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": false,
+          "description": "Show only cross-project dependencies"
+        }
+      ],
+      "hasSubcommands": false
+    },
+    {
+      "path": "hzl doctor",
+      "description": "Validate database setup and connectivity",
+      "arguments": [],
+      "options": [],
+      "hasSubcommands": false
+    },
+    {
+      "path": "hzl export-events",
+      "description": "Export events to JSONL file",
+      "arguments": [
+        {
+          "name": "output",
+          "required": false,
+          "variadic": false,
+          "defaultValue": "-"
+        }
+      ],
+      "options": [
+        {
+          "flags": "--from <id>",
+          "short": null,
+          "long": "--from",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Export events starting from rowid"
+        }
+      ],
+      "hasSubcommands": false
+    },
+    {
+      "path": "hzl guide",
+      "description": "Output HZL workflow documentation for AI agents",
+      "arguments": [],
+      "options": [],
+      "hasSubcommands": false
+    },
+    {
+      "path": "hzl hook",
+      "description": "Hook delivery commands (host-process model; no daemon required)",
+      "arguments": [],
+      "options": [],
+      "hasSubcommands": true
+    },
+    {
+      "path": "hzl hook drain",
+      "description": "Process queued hook deliveries once",
+      "arguments": [],
+      "options": [
+        {
+          "flags": "--limit <n>",
+          "short": null,
+          "long": "--limit",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Maximum queued records to process this run"
+        }
+      ],
+      "hasSubcommands": false
+    },
+    {
+      "path": "hzl init",
+      "description": "Initialize a new HZL database",
+      "arguments": [],
+      "options": [
+        {
+          "flags": "--reset-config",
+          "short": null,
+          "long": "--reset-config",
+          "required": false,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Reset config to default database location (non-destructive)"
+        },
+        {
+          "flags": "-f, --force",
+          "short": "-f",
+          "long": "--force",
+          "required": false,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "DESTRUCTIVE: Delete existing database and create fresh. Prompts for confirmation."
+        },
+        {
+          "flags": "-y, --yes",
+          "short": "-y",
+          "long": "--yes",
+          "required": false,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Skip confirmation prompt (use with --force)"
+        },
+        {
+          "flags": "--sync-url <url>",
+          "short": null,
+          "long": "--sync-url",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Turso sync URL (libsql://...)"
+        },
+        {
+          "flags": "--auth-token <token>",
+          "short": null,
+          "long": "--auth-token",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Turso auth token"
+        },
+        {
+          "flags": "--encryption-key <key>",
+          "short": null,
+          "long": "--encryption-key",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Local encryption key"
+        },
+        {
+          "flags": "--local",
+          "short": null,
+          "long": "--local",
+          "required": false,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Explicit local-only mode, don't configure sync"
+        }
+      ],
+      "hasSubcommands": false
+    },
+    {
+      "path": "hzl lock",
+      "description": "Manage database lock",
+      "arguments": [],
+      "options": [],
+      "hasSubcommands": true
+    },
+    {
+      "path": "hzl lock clear",
+      "description": "Clear a stale database lock",
+      "arguments": [],
+      "options": [
+        {
+          "flags": "-f, --force",
+          "short": "-f",
+          "long": "--force",
+          "required": false,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Clear lock even if process appears active (dangerous)"
+        }
+      ],
+      "hasSubcommands": false
+    },
+    {
+      "path": "hzl lock status",
+      "description": "Show current lock status",
+      "arguments": [],
+      "options": [],
+      "hasSubcommands": false
+    },
+    {
+      "path": "hzl project",
+      "description": "Project management commands",
+      "arguments": [],
+      "options": [],
+      "hasSubcommands": true
+    },
+    {
+      "path": "hzl project create",
+      "description": "Create a new project",
+      "arguments": [
+        {
+          "name": "name",
+          "required": true,
+          "variadic": false,
+          "defaultValue": null
+        }
+      ],
+      "options": [
+        {
+          "flags": "-d, --description <desc>",
+          "short": "-d",
+          "long": "--description",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Project description"
+        }
+      ],
+      "hasSubcommands": false
+    },
+    {
+      "path": "hzl project delete",
+      "description": "Delete a project",
+      "arguments": [
+        {
+          "name": "name",
+          "required": true,
+          "variadic": false,
+          "defaultValue": null
+        }
+      ],
+      "options": [
+        {
+          "flags": "--move-to <project>",
+          "short": null,
+          "long": "--move-to",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Move tasks to target project"
+        },
+        {
+          "flags": "--archive-tasks",
+          "short": null,
+          "long": "--archive-tasks",
+          "required": false,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Archive tasks before deleting project"
+        },
+        {
+          "flags": "--delete-tasks",
+          "short": null,
+          "long": "--delete-tasks",
+          "required": false,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Delete tasks before deleting project"
+        }
+      ],
+      "hasSubcommands": false
+    },
+    {
+      "path": "hzl project list",
+      "description": "List projects with task counts",
+      "arguments": [],
+      "options": [],
+      "hasSubcommands": false
+    },
+    {
+      "path": "hzl project rename",
+      "description": "Rename a project",
+      "arguments": [
+        {
+          "name": "oldName",
+          "required": true,
+          "variadic": false,
+          "defaultValue": null
+        },
+        {
+          "name": "newName",
+          "required": true,
+          "variadic": false,
+          "defaultValue": null
+        }
+      ],
+      "options": [],
+      "hasSubcommands": false
+    },
+    {
+      "path": "hzl project show",
+      "description": "Show project details",
+      "arguments": [
+        {
+          "name": "name",
+          "required": true,
+          "variadic": false,
+          "defaultValue": null
+        }
+      ],
+      "options": [],
+      "hasSubcommands": false
+    },
+    {
+      "path": "hzl sample-project",
+      "description": "Create or reset the sample project dataset",
+      "arguments": [],
+      "options": [],
+      "hasSubcommands": true
+    },
+    {
+      "path": "hzl sample-project create",
+      "description": "Create the sample project if it does not exist",
+      "arguments": [],
+      "options": [],
+      "hasSubcommands": false
+    },
+    {
+      "path": "hzl sample-project reset",
+      "description": "Delete and recreate the sample project",
+      "arguments": [],
+      "options": [],
+      "hasSubcommands": false
+    },
+    {
+      "path": "hzl serve",
+      "description": "Start the web dashboard server",
+      "arguments": [],
+      "options": [
+        {
+          "flags": "-p, --port <port>",
+          "short": "-p",
+          "long": "--port",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Port to listen on (default: 3456)"
+        },
+        {
+          "flags": "-H, --host <host>",
+          "short": "-H",
+          "long": "--host",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Host to bind to (default: 0.0.0.0 for network/Tailscale, use 127.0.0.1 for localhost only)"
+        },
+        {
+          "flags": "-b, --background",
+          "short": "-b",
+          "long": "--background",
+          "required": false,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Run in background"
+        },
+        {
+          "flags": "--allow-framing",
+          "short": null,
+          "long": "--allow-framing",
+          "required": false,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Allow embedding in iframes (disables X-Frame-Options)"
+        },
+        {
+          "flags": "--stop",
+          "short": null,
+          "long": "--stop",
+          "required": false,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Stop the background server"
+        },
+        {
+          "flags": "--status",
+          "short": null,
+          "long": "--status",
+          "required": false,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Check if server is running"
+        },
+        {
+          "flags": "--print-systemd",
+          "short": null,
+          "long": "--print-systemd",
+          "required": false,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Print systemd unit file"
+        }
+      ],
+      "hasSubcommands": false
+    },
+    {
+      "path": "hzl stats",
+      "description": "Show database statistics",
+      "arguments": [],
+      "options": [
+        {
+          "flags": "-P, --project <project>",
+          "short": "-P",
+          "long": "--project",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Filter by project"
+        }
+      ],
+      "hasSubcommands": false
+    },
+    {
+      "path": "hzl status",
+      "description": "Show database connection status and sync information",
+      "arguments": [],
+      "options": [],
+      "hasSubcommands": false
+    },
+    {
+      "path": "hzl sync",
+      "description": "Synchronize local database with remote Turso instance",
+      "arguments": [],
+      "options": [
+        {
+          "flags": "--conflict-strategy <strategy>",
+          "short": null,
+          "long": "--conflict-strategy",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": "merge",
+          "description": "Conflict resolution strategy: merge, discard-local, fail"
+        },
+        {
+          "flags": "-f, --force",
+          "short": "-f",
+          "long": "--force",
+          "required": false,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Force sync even if rate limited or recently synced. Use with --reset to force full re-sync."
+        },
+        {
+          "flags": "--reset",
+          "short": null,
+          "long": "--reset",
+          "required": false,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Reset sync state and perform full re-sync (requires --force). WARNING: This rebuilds all projections from scratch."
+        }
+      ],
+      "hasSubcommands": false
+    },
+    {
+      "path": "hzl task",
+      "description": "Task management commands",
+      "arguments": [],
+      "options": [],
+      "hasSubcommands": true
+    },
+    {
+      "path": "hzl task add",
+      "description": "Create a new task",
+      "arguments": [
+        {
+          "name": "title",
+          "required": true,
+          "variadic": false,
+          "defaultValue": null
+        }
+      ],
+      "options": [
+        {
+          "flags": "-P, --project <project>",
+          "short": "-P",
+          "long": "--project",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": "inbox",
+          "description": "Project name"
+        },
+        {
+          "flags": "-d, --description <desc>",
+          "short": "-d",
+          "long": "--description",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Task description"
+        },
+        {
+          "flags": "-l, --links <links>",
+          "short": "-l",
+          "long": "--links",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Comma-separated links (URLs or file paths)"
+        },
+        {
+          "flags": "-t, --tags <tags>",
+          "short": "-t",
+          "long": "--tags",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Comma-separated tags"
+        },
+        {
+          "flags": "-p, --priority <n>",
+          "short": "-p",
+          "long": "--priority",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": "0",
+          "description": "Priority (0-3)"
+        },
+        {
+          "flags": "--depends-on <ids>",
+          "short": null,
+          "long": "--depends-on",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Comma-separated task IDs this depends on"
+        },
+        {
+          "flags": "--parent <taskId>",
+          "short": null,
+          "long": "--parent",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Parent task ID (creates subtask, inherits project)"
+        },
+        {
+          "flags": "-s, --status <status>",
+          "short": "-s",
+          "long": "--status",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Initial status (backlog, ready, in_progress, blocked, done)"
+        },
+        {
+          "flags": "--agent <name>",
+          "short": null,
+          "long": "--agent",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Agent identity for task ownership"
+        },
+        {
+          "flags": "--author <name>",
+          "short": null,
+          "long": "--author",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Who is performing this create/assignment action"
+        },
+        {
+          "flags": "--comment <comment>",
+          "short": null,
+          "long": "--comment",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Comment explaining the status (recommended for blocked)"
+        }
+      ],
+      "hasSubcommands": false
+    },
+    {
+      "path": "hzl task add-dep",
+      "description": "Add a dependency between tasks",
+      "arguments": [
+        {
+          "name": "taskId",
+          "required": true,
+          "variadic": false,
+          "defaultValue": null
+        },
+        {
+          "name": "dependsOnId",
+          "required": true,
+          "variadic": false,
+          "defaultValue": null
+        }
+      ],
+      "options": [
+        {
+          "flags": "--author <name>",
+          "short": null,
+          "long": "--author",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Author name"
+        }
+      ],
+      "hasSubcommands": false
+    },
+    {
+      "path": "hzl task archive",
+      "description": "Archive a task",
+      "arguments": [
+        {
+          "name": "taskId",
+          "required": true,
+          "variadic": false,
+          "defaultValue": null
+        }
+      ],
+      "options": [
+        {
+          "flags": "--comment <comment>",
+          "short": null,
+          "long": "--comment",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Comment explaining the archive"
+        },
+        {
+          "flags": "--author <name>",
+          "short": null,
+          "long": "--author",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Author name"
+        },
+        {
+          "flags": "--cascade",
+          "short": null,
+          "long": "--cascade",
+          "required": false,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": false,
+          "description": "Archive all subtasks (if task has children)"
+        },
+        {
+          "flags": "--orphan",
+          "short": null,
+          "long": "--orphan",
+          "required": false,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": false,
+          "description": "Promote subtasks to top-level (if task has children)"
+        }
+      ],
+      "hasSubcommands": false
+    },
+    {
+      "path": "hzl task block",
+      "description": "Block a task that is stuck waiting for external dependencies",
+      "arguments": [
+        {
+          "name": "taskId",
+          "required": true,
+          "variadic": false,
+          "defaultValue": null
+        }
+      ],
+      "options": [
+        {
+          "flags": "--comment <comment>",
+          "short": null,
+          "long": "--comment",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Comment explaining why task is blocked"
+        },
+        {
+          "flags": "--author <name>",
+          "short": null,
+          "long": "--author",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Author name"
+        }
+      ],
+      "hasSubcommands": false
+    },
+    {
+      "path": "hzl task checkpoint",
+      "description": "Record a checkpoint for a task",
+      "arguments": [
+        {
+          "name": "taskId",
+          "required": true,
+          "variadic": false,
+          "defaultValue": null
+        },
+        {
+          "name": "name",
+          "required": true,
+          "variadic": false,
+          "defaultValue": null
+        }
+      ],
+      "options": [
+        {
+          "flags": "--data <json>",
+          "short": null,
+          "long": "--data",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Checkpoint data as JSON"
+        },
+        {
+          "flags": "--progress <value>",
+          "short": null,
+          "long": "--progress",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Set progress (0-100)"
+        },
+        {
+          "flags": "--author <name>",
+          "short": null,
+          "long": "--author",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Author name"
+        }
+      ],
+      "hasSubcommands": false
+    },
+    {
+      "path": "hzl task claim",
+      "description": "Claim a task",
+      "arguments": [
+        {
+          "name": "taskId",
+          "required": false,
+          "variadic": false,
+          "defaultValue": null
+        }
+      ],
+      "options": [
+        {
+          "flags": "--next",
+          "short": null,
+          "long": "--next",
+          "required": false,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Automatically claim the next eligible task"
+        },
+        {
+          "flags": "-P, --project <project>",
+          "short": "-P",
+          "long": "--project",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Filter candidate tasks by project (with --next)"
+        },
+        {
+          "flags": "-t, --tags <tags>",
+          "short": "-t",
+          "long": "--tags",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Required tags for candidates, comma-separated (with --next)"
+        },
+        {
+          "flags": "--parent <taskId>",
+          "short": null,
+          "long": "--parent",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Claim next subtask under parent (with --next)"
+        },
+        {
+          "flags": "--agent <name>",
+          "short": null,
+          "long": "--agent",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Agent identity for task ownership"
+        },
+        {
+          "flags": "--agent-id <id>",
+          "short": null,
+          "long": "--agent-id",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Agent ID (machine/AI identifier)"
+        },
+        {
+          "flags": "-l, --lease <minutes>",
+          "short": "-l",
+          "long": "--lease",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Lease duration in minutes"
+        },
+        {
+          "flags": "--view <view>",
+          "short": null,
+          "long": "--view",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": "standard",
+          "description": "Response view: summary | standard | full"
+        },
+        {
+          "flags": "--no-stagger",
+          "short": null,
+          "long": "--no-stagger",
+          "required": false,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Disable deterministic anti-herd delay for --next claims"
+        }
+      ],
+      "hasSubcommands": false
+    },
+    {
+      "path": "hzl task comment",
+      "description": "Add a comment to a task",
+      "arguments": [
+        {
+          "name": "taskId",
+          "required": true,
+          "variadic": false,
+          "defaultValue": null
+        },
+        {
+          "name": "text",
+          "required": true,
+          "variadic": false,
+          "defaultValue": null
+        }
+      ],
+      "options": [
+        {
+          "flags": "--author <name>",
+          "short": null,
+          "long": "--author",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Author name"
+        }
+      ],
+      "hasSubcommands": false
+    },
+    {
+      "path": "hzl task complete",
+      "description": "Mark a task as done",
+      "arguments": [
+        {
+          "name": "taskId",
+          "required": true,
+          "variadic": false,
+          "defaultValue": null
+        }
+      ],
+      "options": [
+        {
+          "flags": "--author <name>",
+          "short": null,
+          "long": "--author",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Author name"
+        },
+        {
+          "flags": "--comment <comment>",
+          "short": null,
+          "long": "--comment",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Optional completion note"
+        }
+      ],
+      "hasSubcommands": false
+    },
+    {
+      "path": "hzl task history",
+      "description": "Show full event history for a task",
+      "arguments": [
+        {
+          "name": "taskId",
+          "required": true,
+          "variadic": false,
+          "defaultValue": null
+        }
+      ],
+      "options": [
+        {
+          "flags": "-l, --limit <n>",
+          "short": "-l",
+          "long": "--limit",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": "100",
+          "description": "Limit number of events"
+        }
+      ],
+      "hasSubcommands": false
+    },
+    {
+      "path": "hzl task list",
+      "description": "List tasks",
+      "arguments": [],
+      "options": [
+        {
+          "flags": "-P, --project <project>",
+          "short": "-P",
+          "long": "--project",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Filter by project"
+        },
+        {
+          "flags": "-s, --status <status>",
+          "short": "-s",
+          "long": "--status",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Filter by status"
+        },
+        {
+          "flags": "--agent <name>",
+          "short": null,
+          "long": "--agent",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Filter by exact agent identity"
+        },
+        {
+          "flags": "--agent-pattern <glob>",
+          "short": null,
+          "long": "--agent-pattern",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Filter by case-insensitive agent glob (use '*' wildcard)"
+        },
+        {
+          "flags": "-a, --available",
+          "short": "-a",
+          "long": "--available",
+          "required": false,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": false,
+          "description": "Show only available (ready, no blocking deps)"
+        },
+        {
+          "flags": "--parent <taskId>",
+          "short": null,
+          "long": "--parent",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Filter by parent task"
+        },
+        {
+          "flags": "--root",
+          "short": null,
+          "long": "--root",
+          "required": false,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": false,
+          "description": "Show only root tasks (no parent)"
+        },
+        {
+          "flags": "--page <n>",
+          "short": null,
+          "long": "--page",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": "1",
+          "description": "Page number (1-based)"
+        },
+        {
+          "flags": "--group-by-agent",
+          "short": null,
+          "long": "--group-by-agent",
+          "required": false,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Group task details by agent"
+        },
+        {
+          "flags": "-l, --limit <n>",
+          "short": "-l",
+          "long": "--limit",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": "50",
+          "description": "Limit results"
+        },
+        {
+          "flags": "--view <view>",
+          "short": null,
+          "long": "--view",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": "summary",
+          "description": "Response view: summary | standard | full"
+        }
+      ],
+      "hasSubcommands": false
+    },
+    {
+      "path": "hzl task move",
+      "description": "Move a task to a different project",
+      "arguments": [
+        {
+          "name": "taskId",
+          "required": true,
+          "variadic": false,
+          "defaultValue": null
+        },
+        {
+          "name": "project",
+          "required": true,
+          "variadic": false,
+          "defaultValue": null
+        }
+      ],
+      "options": [
+        {
+          "flags": "--author <name>",
+          "short": null,
+          "long": "--author",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Author name"
+        }
+      ],
+      "hasSubcommands": false
+    },
+    {
+      "path": "hzl task progress",
+      "description": "Set progress (0-100) on a task",
+      "arguments": [
+        {
+          "name": "taskId",
+          "required": true,
+          "variadic": false,
+          "defaultValue": null
+        },
+        {
+          "name": "value",
+          "required": true,
+          "variadic": false,
+          "defaultValue": null
+        }
+      ],
+      "options": [
+        {
+          "flags": "--author <name>",
+          "short": null,
+          "long": "--author",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Author name"
+        }
+      ],
+      "hasSubcommands": false
+    },
+    {
+      "path": "hzl task prune",
+      "description": "Permanently delete old tasks in terminal states",
+      "arguments": [],
+      "options": [
+        {
+          "flags": "-P, --project <name>",
+          "short": "-P",
+          "long": "--project",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Prune tasks in specific project"
+        },
+        {
+          "flags": "-A, --all",
+          "short": "-A",
+          "long": "--all",
+          "required": false,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Prune tasks in all projects"
+        },
+        {
+          "flags": "--older-than <duration>",
+          "short": null,
+          "long": "--older-than",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": "30d",
+          "description": "Age threshold (e.g., 30d)"
+        },
+        {
+          "flags": "--as-of <timestamp>",
+          "short": null,
+          "long": "--as-of",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Evaluate age threshold as of a fixed time (ISO)"
+        },
+        {
+          "flags": "-y, --yes",
+          "short": "-y",
+          "long": "--yes",
+          "required": false,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Skip confirmation prompt (required for non-interactive use)"
+        },
+        {
+          "flags": "--dry-run",
+          "short": null,
+          "long": "--dry-run",
+          "required": false,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Preview what would be pruned without deleting"
+        }
+      ],
+      "hasSubcommands": false
+    },
+    {
+      "path": "hzl task release",
+      "description": "Release a claimed task",
+      "arguments": [
+        {
+          "name": "taskId",
+          "required": true,
+          "variadic": false,
+          "defaultValue": null
+        }
+      ],
+      "options": [
+        {
+          "flags": "--comment <comment>",
+          "short": null,
+          "long": "--comment",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Comment explaining the release"
+        },
+        {
+          "flags": "--author <name>",
+          "short": null,
+          "long": "--author",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Author name"
+        }
+      ],
+      "hasSubcommands": false
+    },
+    {
+      "path": "hzl task remove-dep",
+      "description": "Remove a dependency between tasks",
+      "arguments": [
+        {
+          "name": "taskId",
+          "required": true,
+          "variadic": false,
+          "defaultValue": null
+        },
+        {
+          "name": "dependsOnId",
+          "required": true,
+          "variadic": false,
+          "defaultValue": null
+        }
+      ],
+      "options": [
+        {
+          "flags": "--author <name>",
+          "short": null,
+          "long": "--author",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Author name"
+        }
+      ],
+      "hasSubcommands": false
+    },
+    {
+      "path": "hzl task reopen",
+      "description": "Reopen a done or archived task",
+      "arguments": [
+        {
+          "name": "taskId",
+          "required": true,
+          "variadic": false,
+          "defaultValue": null
+        }
+      ],
+      "options": [
+        {
+          "flags": "-s, --status <status>",
+          "short": "-s",
+          "long": "--status",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": "ready",
+          "description": "Target status (ready or backlog)"
+        },
+        {
+          "flags": "--comment <comment>",
+          "short": null,
+          "long": "--comment",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Comment explaining the reopen"
+        },
+        {
+          "flags": "--author <name>",
+          "short": null,
+          "long": "--author",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Author name"
+        }
+      ],
+      "hasSubcommands": false
+    },
+    {
+      "path": "hzl task search",
+      "description": "Search for tasks",
+      "arguments": [
+        {
+          "name": "query",
+          "required": true,
+          "variadic": false,
+          "defaultValue": null
+        }
+      ],
+      "options": [
+        {
+          "flags": "-P, --project <project>",
+          "short": "-P",
+          "long": "--project",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Filter by project"
+        },
+        {
+          "flags": "-s, --status <status>",
+          "short": "-s",
+          "long": "--status",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Filter by status"
+        },
+        {
+          "flags": "-l, --limit <n>",
+          "short": "-l",
+          "long": "--limit",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": "20",
+          "description": "Max results"
+        }
+      ],
+      "hasSubcommands": false
+    },
+    {
+      "path": "hzl task set-status",
+      "description": "Change task status",
+      "arguments": [
+        {
+          "name": "taskId",
+          "required": true,
+          "variadic": false,
+          "defaultValue": null
+        },
+        {
+          "name": "status",
+          "required": true,
+          "variadic": false,
+          "defaultValue": null
+        }
+      ],
+      "options": [
+        {
+          "flags": "--author <name>",
+          "short": null,
+          "long": "--author",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Author name"
+        }
+      ],
+      "hasSubcommands": false
+    },
+    {
+      "path": "hzl task show",
+      "description": "Show task details with comments, checkpoints, and subtasks",
+      "arguments": [
+        {
+          "name": "taskId",
+          "required": true,
+          "variadic": false,
+          "defaultValue": null
+        }
+      ],
+      "options": [
+        {
+          "flags": "--no-subtasks",
+          "short": null,
+          "long": "--no-subtasks",
+          "required": false,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Hide subtasks in output"
+        },
+        {
+          "flags": "--deep",
+          "short": null,
+          "long": "--deep",
+          "required": false,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Include full task fields and blocked_by for each subtask"
+        }
+      ],
+      "hasSubcommands": false
+    },
+    {
+      "path": "hzl task start",
+      "description": "Start working on a task (alias for claim)",
+      "arguments": [
+        {
+          "name": "taskId",
+          "required": true,
+          "variadic": false,
+          "defaultValue": null
+        }
+      ],
+      "options": [
+        {
+          "flags": "--agent <name>",
+          "short": null,
+          "long": "--agent",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Agent identity for task ownership"
+        },
+        {
+          "flags": "--agent-id <id>",
+          "short": null,
+          "long": "--agent-id",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Agent ID (machine/AI identifier)"
+        },
+        {
+          "flags": "-l, --lease <minutes>",
+          "short": "-l",
+          "long": "--lease",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Lease duration in minutes"
+        }
+      ],
+      "hasSubcommands": false
+    },
+    {
+      "path": "hzl task steal",
+      "description": "Steal a claimed task",
+      "arguments": [
+        {
+          "name": "taskId",
+          "required": true,
+          "variadic": false,
+          "defaultValue": null
+        }
+      ],
+      "options": [
+        {
+          "flags": "--agent <name>",
+          "short": null,
+          "long": "--agent",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "New agent name"
+        },
+        {
+          "flags": "--owner <name>",
+          "short": null,
+          "long": "--owner",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Deprecated alias for --agent"
+        },
+        {
+          "flags": "--author <name>",
+          "short": null,
+          "long": "--author",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Author name"
+        },
+        {
+          "flags": "--force",
+          "short": null,
+          "long": "--force",
+          "required": false,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Force steal even if lease is active"
+        },
+        {
+          "flags": "--if-expired",
+          "short": null,
+          "long": "--if-expired",
+          "required": false,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Only steal if lease has expired"
+        }
+      ],
+      "hasSubcommands": false
+    },
+    {
+      "path": "hzl task stuck",
+      "description": "List tasks with expired leases",
+      "arguments": [],
+      "options": [
+        {
+          "flags": "-P, --project <project>",
+          "short": "-P",
+          "long": "--project",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Filter by project"
+        },
+        {
+          "flags": "--older-than <minutes>",
+          "short": null,
+          "long": "--older-than",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": "0",
+          "description": "Only show tasks expired for more than N minutes"
+        }
+      ],
+      "hasSubcommands": false
+    },
+    {
+      "path": "hzl task unblock",
+      "description": "Unblock a blocked task, returning it to work",
+      "arguments": [
+        {
+          "name": "taskId",
+          "required": true,
+          "variadic": false,
+          "defaultValue": null
+        }
+      ],
+      "options": [
+        {
+          "flags": "--release",
+          "short": null,
+          "long": "--release",
+          "required": false,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Return task to ready status instead of in_progress"
+        },
+        {
+          "flags": "--comment <comment>",
+          "short": null,
+          "long": "--comment",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Comment explaining the unblock"
+        },
+        {
+          "flags": "--author <name>",
+          "short": null,
+          "long": "--author",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Author name"
+        }
+      ],
+      "hasSubcommands": false
+    },
+    {
+      "path": "hzl task update",
+      "description": "Update task fields",
+      "arguments": [
+        {
+          "name": "taskId",
+          "required": true,
+          "variadic": false,
+          "defaultValue": null
+        }
+      ],
+      "options": [
+        {
+          "flags": "--title <title>",
+          "short": null,
+          "long": "--title",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "New title"
+        },
+        {
+          "flags": "--desc <description>",
+          "short": null,
+          "long": "--desc",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "New description"
+        },
+        {
+          "flags": "-l, --links <links>",
+          "short": "-l",
+          "long": "--links",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "New links (comma-separated URLs or file paths)"
+        },
+        {
+          "flags": "-p, --priority <n>",
+          "short": "-p",
+          "long": "--priority",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "New priority (0-3)"
+        },
+        {
+          "flags": "-t, --tags <tags>",
+          "short": "-t",
+          "long": "--tags",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "New tags (comma-separated)"
+        },
+        {
+          "flags": "--parent <taskId>",
+          "short": null,
+          "long": "--parent",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Set parent task (use \"\" to remove)"
+        },
+        {
+          "flags": "--author <name>",
+          "short": null,
+          "long": "--author",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Author name"
+        }
+      ],
+      "hasSubcommands": false
+    },
+    {
+      "path": "hzl validate",
+      "description": "Validate database integrity (check for cycles, missing deps)",
+      "arguments": [],
+      "options": [],
+      "hasSubcommands": false
+    },
+    {
+      "path": "hzl which-db",
+      "description": "Show resolved database paths",
+      "arguments": [],
+      "options": [],
+      "hasSubcommands": false
+    },
+    {
+      "path": "hzl workflow",
+      "description": "Workflow discovery and execution commands",
+      "arguments": [],
+      "options": [],
+      "hasSubcommands": true
+    },
+    {
+      "path": "hzl workflow list",
+      "description": "List available built-in workflows",
+      "arguments": [],
+      "options": [],
+      "hasSubcommands": false
+    },
+    {
+      "path": "hzl workflow run",
+      "description": "Run a built-in workflow",
+      "arguments": [],
+      "options": [],
+      "hasSubcommands": true
+    },
+    {
+      "path": "hzl workflow run delegate",
+      "description": "Create delegated task, add dependency by default, optionally pause parent",
+      "arguments": [],
+      "options": [
+        {
+          "flags": "--from <taskId>",
+          "short": null,
+          "long": "--from",
+          "required": true,
+          "mandatory": true,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Source task id"
+        },
+        {
+          "flags": "--title <title>",
+          "short": null,
+          "long": "--title",
+          "required": true,
+          "mandatory": true,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Delegated task title"
+        },
+        {
+          "flags": "-P, --project <project>",
+          "short": "-P",
+          "long": "--project",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Delegated task project"
+        },
+        {
+          "flags": "--agent <agent>",
+          "short": null,
+          "long": "--agent",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Delegated task assignee"
+        },
+        {
+          "flags": "--no-depends",
+          "short": null,
+          "long": "--no-depends",
+          "required": false,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Do not add parent->delegated dependency edge"
+        },
+        {
+          "flags": "--checkpoint <text>",
+          "short": null,
+          "long": "--checkpoint",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Checkpoint to add to source task"
+        },
+        {
+          "flags": "--pause-parent",
+          "short": null,
+          "long": "--pause-parent",
+          "required": false,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Pause parent task (blocked) when currently in_progress"
+        },
+        {
+          "flags": "--author <name>",
+          "short": null,
+          "long": "--author",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Author for emitted workflow events"
+        },
+        {
+          "flags": "--op-id <key>",
+          "short": null,
+          "long": "--op-id",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Explicit idempotency key"
+        },
+        {
+          "flags": "--auto-op-id",
+          "short": null,
+          "long": "--auto-op-id",
+          "required": false,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Generate deterministic idempotency key from normalized input"
+        }
+      ],
+      "hasSubcommands": false
+    },
+    {
+      "path": "hzl workflow run handoff",
+      "description": "Complete source task and create a follow-on task",
+      "arguments": [],
+      "options": [
+        {
+          "flags": "--from <taskId>",
+          "short": null,
+          "long": "--from",
+          "required": true,
+          "mandatory": true,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Source task id"
+        },
+        {
+          "flags": "--title <title>",
+          "short": null,
+          "long": "--title",
+          "required": true,
+          "mandatory": true,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Follow-on task title"
+        },
+        {
+          "flags": "-P, --project <project>",
+          "short": "-P",
+          "long": "--project",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Follow-on task project"
+        },
+        {
+          "flags": "--agent <agent>",
+          "short": null,
+          "long": "--agent",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Follow-on task assignee"
+        },
+        {
+          "flags": "--carry-checkpoints <n>",
+          "short": null,
+          "long": "--carry-checkpoints",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": "3",
+          "description": "Number of checkpoints to carry"
+        },
+        {
+          "flags": "--carry-max-chars <n>",
+          "short": null,
+          "long": "--carry-max-chars",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": "4000",
+          "description": "Max carried checkpoint chars"
+        },
+        {
+          "flags": "--author <name>",
+          "short": null,
+          "long": "--author",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Author for emitted workflow events"
+        },
+        {
+          "flags": "--op-id <key>",
+          "short": null,
+          "long": "--op-id",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Explicit idempotency key"
+        },
+        {
+          "flags": "--auto-op-id",
+          "short": null,
+          "long": "--auto-op-id",
+          "required": false,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Generate deterministic idempotency key from normalized input"
+        }
+      ],
+      "hasSubcommands": false
+    },
+    {
+      "path": "hzl workflow run start",
+      "description": "Resume in-progress work for an agent, otherwise claim next",
+      "arguments": [],
+      "options": [
+        {
+          "flags": "--agent <name>",
+          "short": null,
+          "long": "--agent",
+          "required": true,
+          "mandatory": true,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Agent identity for resume/claim"
+        },
+        {
+          "flags": "-P, --project <project>",
+          "short": "-P",
+          "long": "--project",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Project filter for resume/claim"
+        },
+        {
+          "flags": "--tags <tags>",
+          "short": null,
+          "long": "--tags",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Required tags, comma-separated"
+        },
+        {
+          "flags": "-l, --lease <minutes>",
+          "short": "-l",
+          "long": "--lease",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Lease duration in minutes"
+        },
+        {
+          "flags": "--resume-policy <policy>",
+          "short": null,
+          "long": "--resume-policy",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": "priority",
+          "description": "Resume policy: first | latest | priority"
+        },
+        {
+          "flags": "--include-others",
+          "short": null,
+          "long": "--include-others",
+          "required": false,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Include alternate candidates in response"
+        },
+        {
+          "flags": "--no-include-others",
+          "short": null,
+          "long": "--no-include-others",
+          "required": false,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Exclude alternate candidates from response"
+        },
+        {
+          "flags": "--others-limit <n|all>",
+          "short": null,
+          "long": "--others-limit",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": "5",
+          "description": "Bound alternate candidates in response"
+        },
+        {
+          "flags": "--op-id <key>",
+          "short": null,
+          "long": "--op-id",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Explicit idempotency key"
+        },
+        {
+          "flags": "--auto-op-id",
+          "short": null,
+          "long": "--auto-op-id",
+          "required": false,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Unsupported for start; use explicit --op-id retries instead"
+        }
+      ],
+      "hasSubcommands": false
+    },
+    {
+      "path": "hzl workflow show",
+      "description": "Show workflow details and contract notes",
+      "arguments": [
+        {
+          "name": "name",
+          "required": true,
+          "variadic": false,
+          "defaultValue": null
+        }
+      ],
+      "options": [],
+      "hasSubcommands": false
+    }
+  ],
+  "leaf_commands": [
+    "hzl agent stats",
+    "hzl config",
+    "hzl dep list",
+    "hzl doctor",
+    "hzl export-events",
+    "hzl guide",
+    "hzl hook drain",
+    "hzl init",
+    "hzl lock clear",
+    "hzl lock status",
+    "hzl project create",
+    "hzl project delete",
+    "hzl project list",
+    "hzl project rename",
+    "hzl project show",
+    "hzl sample-project create",
+    "hzl sample-project reset",
+    "hzl serve",
+    "hzl stats",
+    "hzl status",
+    "hzl sync",
+    "hzl task add",
+    "hzl task add-dep",
+    "hzl task archive",
+    "hzl task block",
+    "hzl task checkpoint",
+    "hzl task claim",
+    "hzl task comment",
+    "hzl task complete",
+    "hzl task history",
+    "hzl task list",
+    "hzl task move",
+    "hzl task progress",
+    "hzl task prune",
+    "hzl task release",
+    "hzl task remove-dep",
+    "hzl task reopen",
+    "hzl task search",
+    "hzl task set-status",
+    "hzl task show",
+    "hzl task start",
+    "hzl task steal",
+    "hzl task stuck",
+    "hzl task unblock",
+    "hzl task update",
+    "hzl validate",
+    "hzl which-db",
+    "hzl workflow list",
+    "hzl workflow run delegate",
+    "hzl workflow run handoff",
+    "hzl workflow run start",
+    "hzl workflow show"
+  ]
+}

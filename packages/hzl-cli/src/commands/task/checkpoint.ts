@@ -5,6 +5,7 @@ import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError, CLIError, ExitCode } from '../../errors.js';
 import { GlobalOptionsSchema } from '../../types.js';
 import { resolveId } from '../../resolve-id.js';
+import { parseInteger } from '../../parse.js';
 
 export interface CheckpointResult {
   task_id: string;
@@ -89,10 +90,7 @@ export function createCheckpointCommand(): Command {
 
         let progress: number | undefined;
         if (opts.progress !== undefined) {
-          progress = parseInt(opts.progress, 10);
-          if (isNaN(progress) || progress < 0 || progress > 100) {
-            throw new CLIError('Progress must be an integer between 0 and 100', ExitCode.InvalidInput);
-          }
+          progress = parseInteger(opts.progress, 'Progress', { min: 0, max: 100 });
         }
 
         runCheckpoint({
