@@ -19,6 +19,7 @@ Paste this into your OpenClaw instance to begin:
 
 ```md
 Read https://www.hzl-tasks.com/getting-started/installation and follow the setup instructions.
+Install the OpenClaw HZL skill by running: npx clawhub@latest install hzl
 Check your existing config to discover agent roster, gateway URL, and scheduling capability before asking me anything.
 Confirm your findings with me in one message before making any changes.
 ```
@@ -53,7 +54,17 @@ hzl task list
 
 ## Tier 2: OpenClaw integration (instance-specific)
 
-## 1) For agents: discover, then confirm
+## 1) Install the OpenClaw HZL skill
+
+Why: the OpenClaw skill gives agents HZL-specific operating guidance (workflow-first loop, recovery patterns, and command usage) directly in runtime context.
+
+```bash
+npx clawhub@latest install hzl
+```
+
+Run this once per OpenClaw workspace/environment where agents should use HZL.
+
+## 2) For agents: discover, then confirm
 
 Why: OpenClaw deployments are parameterized by your agent IDs, gateway config, and scheduler capabilities.
 
@@ -76,7 +87,7 @@ Does this look right before I proceed?
 
 Only ask the operator for a value if it is genuinely missing from config/state.
 
-## 2) Choose project routing model
+## 3) Choose project routing model
 
 Why: tasks routed to a project pool (instead of a specific agent) can be claimed by any agent monitoring that pool.
 
@@ -103,7 +114,7 @@ Pool routing rule:
 - Create tasks in the target project without `--agent`.
 - Any matching agent can claim with `task claim --next -P <project> --agent <id>`.
 
-## 3) Add session-start polling in each agent HEARTBEAT
+## 4) Add session-start polling in each agent HEARTBEAT
 
 Why: this ensures each agent checks pending work at session start before doing anything else.
 
@@ -121,7 +132,7 @@ If no task is returned, continue normally.
 
 Use each agent's exact identity string.
 
-## 4) Hook delivery (configure endpoint + schedule drain)
+## 5) Hook delivery (configure endpoint + schedule drain)
 
 Why: when a task completes, HZL queues a callback to your OpenClaw gateway; `hzl hook drain` delivers queued callbacks. Without a scheduler running drain, callbacks accumulate but never fire.
 
@@ -160,7 +171,7 @@ hzl hook drain
 
 If no scheduler exists, hooks remain queued until you run `hzl hook drain` manually.
 
-## 5) Verify end-to-end
+## 6) Verify end-to-end
 
 Version note:
 - `workflow run` commands require a recent HZL build that includes workflows.
@@ -178,13 +189,13 @@ Expected:
 - `workflow run start` returns resumed/claimed task info.
 - `hook drain` reports claimed/delivered/retried/failed counts.
 
-## 6) Add per-agent TOOLS.md baseline (recommended during setup)
+## 7) Add per-agent TOOLS.md baseline (recommended during setup)
 
 Why: each agent should know its own HZL identity, queue scope, and relevant commands without inferring full-system context.
 
 Add an HZL section to each agent's `TOOLS.md` using the guidance in [Per-agent TOOLS.md guidance](#per-agent-tools-md-guidance).
 
-## 7) Record what changed (required for clean teardown)
+## 8) Record what changed (required for clean teardown)
 
 Add this to `TOOLS.md` or your runtime memory file:
 
@@ -198,7 +209,7 @@ HZL integration (installed <date>):
 - Update scheduler/job id (if any): <id>
 ```
 
-## 8) Configure HZL update preference
+## 9) Configure HZL update preference
 
 Why: update behavior is an operator decision, not a silent default. Auto-updating a task ledger CLI can affect workflows (for example migrations or behavior changes).
 
