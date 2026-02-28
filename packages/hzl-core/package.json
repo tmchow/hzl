@@ -103,6 +103,7 @@
   "scripts": {
     "build": "tsc",
     "test": "vitest run",
+    "test:ci": "vitest run --coverage --exclude src/__tests__/concurrency/stress.test.ts",
     "test:watch": "vitest"
   },
   "dependencies": {

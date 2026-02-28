@@ -9,7 +9,7 @@
   "scripts": {
     "build": "pnpm -r run build",
     "test": "pnpm -r run test",
-    "test:ci": "pnpm -r run test -- --run --coverage",
+    "test:ci": "pnpm -r run test:ci",
     "test:watch": "pnpm -r run test -- --watch",
     "typecheck": "tsc -b packages/*/tsconfig.json",
     "lint": "eslint \"packages/*/src/**/*.ts\"",
