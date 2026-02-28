@@ -7,7 +7,7 @@ import { EventStore } from '../events/store.js';
 import { ProjectionEngine } from '../projections/engine.js';
 import { TasksCurrentProjector } from '../projections/tasks-current.js';
 import { SearchProjector } from '../projections/search.js';
-import { EventType } from '../events/types.js';
+import { EventType, TaskStatus } from '../events/types.js';
 
 describe('SearchService', () => {
   let db: Database.Database;
@@ -56,6 +56,21 @@ describe('SearchService', () => {
       const results = searchService.search('Auth', { project: 'project-a' });
       expect(results.tasks).toHaveLength(1);
       expect(results.tasks[0].task_id).toBe('TASK1');
+    });
+
+    it('supports status filter', () => {
+      createTask('TASK1', 'Auth task', 'project-a');
+      createTask('TASK2', 'Auth task followup', 'project-a');
+      const readyEvent = eventStore.append({
+        task_id: 'TASK2',
+        type: EventType.StatusChanged,
+        data: { from: TaskStatus.Backlog, to: TaskStatus.Ready },
+      });
+      engine.applyEvent(readyEvent);
+
+      const results = searchService.search('Auth', { status: TaskStatus.Ready });
+      expect(results.tasks).toHaveLength(1);
+      expect(results.tasks[0].task_id).toBe('TASK2');
     });
 
     it('supports limit and offset pagination', () => {

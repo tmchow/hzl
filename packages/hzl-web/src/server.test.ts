@@ -198,6 +198,13 @@ describe('hzl-web server', () => {
       expect((data as { since: string }).since).toBe('7d');
     });
 
+    it('returns 400 for invalid since preset', async () => {
+      createServer(4519);
+      const { status, data } = await fetchJson('/api/tasks?since=99d');
+      expect(status).toBe(400);
+      expect((data as { error: string }).error).toContain('Invalid since value');
+    });
+
     it('marks blocked tasks', async () => {
       // Blocker task stays in backlog (not done)
       const blocker = taskService.createTask({
@@ -578,6 +585,13 @@ describe('hzl-web server', () => {
       expect((data as { events: unknown[] }).events).toHaveLength(0);
     });
 
+    it('returns 400 for invalid since value', async () => {
+      createServer(4570);
+      const { status, data } = await fetchJson('/api/events?since=abc');
+      expect(status).toBe(400);
+      expect((data as { error: string }).error).toContain('Invalid since value');
+    });
+
     it('includes task metadata fields in events', async () => {
       const task = taskService.createTask({
         title: 'Named Task',
@@ -640,6 +654,22 @@ describe('hzl-web server', () => {
       createServer(4554);
       const { data } = await fetchJson(`/api/tasks/${task.task_id}/events?limit=1`);
       expect((data as { events: unknown[] }).events).toHaveLength(1);
+    });
+
+    it('returns 400 for invalid limit parameter', async () => {
+      const task = taskService.createTask({ title: 'Task', project: 'test-project' });
+      createServer(4571);
+      const { status, data } = await fetchJson(`/api/tasks/${task.task_id}/events?limit=abc`);
+      expect(status).toBe(400);
+      expect((data as { error: string }).error).toContain('Invalid limit');
+    });
+
+    it('returns 400 for out-of-range limit parameter', async () => {
+      const task = taskService.createTask({ title: 'Task', project: 'test-project' });
+      createServer(4572);
+      const { status, data } = await fetchJson(`/api/tasks/${task.task_id}/events?limit=501`);
+      expect(status).toBe(400);
+      expect((data as { error: string }).error).toContain('Invalid limit');
     });
   });
 
