@@ -14,6 +14,7 @@ export interface ErrorEnvelope {
     code: string;
     message: string;
     details?: unknown;
+    suggestions?: string[];
   };
 }
 
@@ -33,7 +34,7 @@ export function createSuccessEnvelope<T>(data: T): SuccessEnvelope<T> {
   };
 }
 
-export function createErrorEnvelope(code: string, message: string, details?: unknown): ErrorEnvelope {
+export function createErrorEnvelope(code: string, message: string, details?: unknown, suggestions?: string[]): ErrorEnvelope {
   return {
     schema_version: SCHEMA_VERSION,
     ok: false,
@@ -41,6 +42,7 @@ export function createErrorEnvelope(code: string, message: string, details?: unk
       code,
       message,
       ...(details !== undefined ? { details } : {}),
+      ...(suggestions && suggestions.length > 0 ? { suggestions } : {}),
     },
   };
 }
