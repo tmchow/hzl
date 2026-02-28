@@ -81,6 +81,7 @@ describe('Concurrency Stress Tests', () => {
   let taskService: TaskService;
 
   beforeAll(() => {
+    if (process.env.HZL_STRESS_SKIP_BUILD === '1') return;
     execSync('npm run build', { cwd: packageRoot, stdio: 'inherit' });
   });
 
