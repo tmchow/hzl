@@ -305,6 +305,32 @@ When adding or modifying CLI commands, flags, or workflows, update **all** of th
 - Users won't find documentation (docs site)
 - The README will be out of date
 
+### CLI/docs parity checks
+
+The repo now has a CLI manifest + docs parity gate to prevent command drift:
+
+```bash
+# Regenerate machine-readable CLI manifest from the real Commander command tree
+pnpm generate:cli-manifest
+
+# Verify committed manifest is current (CI check)
+pnpm verify:cli-manifest
+
+# Verify docs-site/reference/cli.md covers all leaf CLI commands
+pnpm verify:cli-docs
+```
+
+Files involved:
+- `docs/metadata/cli-manifest.json` — generated manifest (source of truth snapshot)
+- `scripts/generate-cli-manifest.js` — generator
+- `scripts/verify-cli-doc-parity.js` — docs checker
+
+When adding/removing/renaming commands:
+1. Run `pnpm --filter hzl-cli build`
+2. Run `pnpm generate:cli-manifest`
+3. Update `docs-site/reference/cli.md`
+4. Run `pnpm verify:cli-manifest && pnpm verify:cli-docs`
+
 ### Node.js Version Updates
 
 When changing the minimum Node.js version, update these locations:
