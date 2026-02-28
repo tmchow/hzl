@@ -168,23 +168,31 @@ function processFile(filePath, snippetCache, checkOnly) {
 
 function main() {
   const checkOnly = process.argv.includes('--check');
+  const porcelain = process.argv.includes('--porcelain');
   const files = findTargetFiles();
   const snippetCache = {};
-  let anyChanged = false;
+  const changedFiles = [];
 
-  console.log(`Scanning ${files.length} files for snippet markers...`);
+  if (!porcelain) {
+    console.log(`Scanning ${files.length} files for snippet markers...`);
+  }
 
   for (const file of files) {
     const changed = processFile(file, snippetCache, checkOnly);
-    if (changed) anyChanged = true;
+    if (changed) changedFiles.push(file);
   }
 
-  if (checkOnly && anyChanged) {
+  if (checkOnly && changedFiles.length > 0) {
     console.error('\nSnippets out of sync. Run: node scripts/sync-snippets.js');
     process.exit(1);
   }
 
-  if (!anyChanged) {
+  if (porcelain) {
+    // Machine-readable: output only changed file paths, one per line
+    for (const f of changedFiles) {
+      console.log(f);
+    }
+  } else if (changedFiles.length === 0) {
     console.log('All snippets up to date.');
   }
 }
