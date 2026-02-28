@@ -543,10 +543,11 @@ export class TaskService {
         // Move all subtasks (fetched inside transaction for consistency)
         const subtasks = this.getSubtasks(taskId);
         for (const subtask of subtasks) {
+          if (subtask.project === toProject) continue; // already in target project
           const subtaskMoveEvent = this.eventStore.append({
             task_id: subtask.task_id,
             type: EventType.TaskMoved,
-            data: { from_project: fromProject, to_project: toProject },
+            data: { from_project: subtask.project, to_project: toProject },
             author: ctx?.author,
             agent_id: ctx?.agent_id,
             session_id: ctx?.session_id,

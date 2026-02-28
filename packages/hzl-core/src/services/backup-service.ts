@@ -8,6 +8,7 @@ import { DependenciesProjector } from '../projections/dependencies.js';
 import { TagsProjector } from '../projections/tags.js';
 import { SearchProjector } from '../projections/search.js';
 import { CommentsCheckpointsProjector } from '../projections/comments-checkpoints.js';
+import { ProjectsProjector } from '../projections/projects.js';
 import { rebuildAllProjections } from '../projections/rebuild.js';
 import { EventType, validateEventData } from '../events/types.js';
 
@@ -186,6 +187,7 @@ export class BackupService {
     engine.register(new TagsProjector());
     engine.register(new SearchProjector());
     engine.register(new CommentsCheckpointsProjector());
+    engine.register(new ProjectsProjector());
     rebuildAllProjections(this.db, engine);
   }
 }
