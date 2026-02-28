@@ -62,6 +62,34 @@ Tasks are displayed in columns by status:
 
 The dashboard auto-refreshes when tasks change. You can keep multiple viewers open against the same board.
 
+## Install as an App (PWA)
+
+The dashboard supports installable web app metadata and icons (`HZL`), so you can install it like a native app.
+
+Installability requirements:
+- `http://localhost:3456` works for local development.
+- Remote installs generally require HTTPS (for example, put HZL behind an HTTPS reverse proxy).
+
+### Desktop (Chrome/Edge)
+
+1. Start the dashboard with `hzl serve`.
+2. Open the dashboard URL in Chrome or Edge.
+3. Click the install icon in the address bar (or browser menu `Install HZL`).
+4. Confirm install.
+
+### Android (Chrome)
+
+1. Open the dashboard URL in Chrome on Android.
+2. Tap the browser menu.
+3. Tap `Install app` (or `Add to Home screen` depending on Chrome version).
+
+### iOS (Safari)
+
+1. Open the dashboard URL in Safari.
+2. Tap the Share button.
+3. Tap `Add to Home Screen`.
+4. Confirm the app name `HZL`.
+
 ## Background Mode
 
 Run the dashboard as a background process:

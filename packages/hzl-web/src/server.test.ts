@@ -778,6 +778,74 @@ describe('hzl-web server', () => {
       expect(res.headers.get('referrer-policy')).toBe('no-referrer');
     });
 
+    it('includes favicon and manifest markups in the root HTML', async () => {
+      server = createServer(4610);
+
+      const { body } = await fetchText('/');
+      expect(body).toMatch(/<link[^>]*rel=["']icon["'][^>]*href=["']\/favicon-96x96\.png["'][^>]*>/i);
+      expect(body).not.toMatch(/<link[^>]*rel=["']icon["'][^>]*href=["']\/favicon\.svg["'][^>]*>/i);
+      expect(body).toMatch(/<link[^>]*rel=["']shortcut icon["'][^>]*href=["']\/favicon\.ico["'][^>]*>/i);
+      expect(body).toMatch(/<link[^>]*rel=["']apple-touch-icon["'][^>]*href=["']\/apple-touch-icon\.png["'][^>]*>/i);
+      expect(body).toMatch(/<meta[^>]*name=["']apple-mobile-web-app-title["'][^>]*content=["']HZL["'][^>]*>/i);
+      expect(body).toMatch(/<link[^>]*rel=["']manifest["'][^>]*href=["']\/site\.webmanifest["'][^>]*>/i);
+    });
+
+    it('serves site.webmanifest with HZL metadata', async () => {
+      server = createServer(4611);
+
+      const res = await globalThis.fetch(`${server.url}/site.webmanifest`);
+      expect(res.status).toBe(200);
+      expect(res.headers.get('content-type')).toContain('application/manifest+json');
+      const manifest = await res.json();
+      expect(manifest).toMatchObject({
+        name: 'HZL',
+        short_name: 'HZL',
+        display: 'standalone',
+      });
+    });
+
+    it('serves service worker script', async () => {
+      server = createServer(4612);
+
+      const res = await globalThis.fetch(`${server.url}/sw.js`);
+      const body = await res.text();
+      expect(res.status).toBe(200);
+      expect(res.headers.get('content-type')).toContain('application/javascript');
+      expect(res.headers.get('cache-control')).toContain('no-cache');
+      expect(body).toContain("self.addEventListener('install'");
+    });
+
+    it('serves favicon and app icon assets', async () => {
+      server = createServer(4613);
+
+      const checks = await Promise.all([
+        globalThis.fetch(`${server.url}/favicon-96x96.png`),
+        globalThis.fetch(`${server.url}/favicon.ico`),
+        globalThis.fetch(`${server.url}/apple-touch-icon.png`),
+        globalThis.fetch(`${server.url}/web-app-manifest-192x192.png`),
+        globalThis.fetch(`${server.url}/web-app-manifest-512x512.png`),
+      ]);
+
+      for (const res of checks) {
+        expect(res.status).toBe(200);
+        expect(res.headers.get('x-content-type-options')).toBe('nosniff');
+        expect(Number(res.headers.get('content-length'))).toBeGreaterThan(0);
+      }
+
+      expect(checks[0].headers.get('content-type')).toContain('image/png');
+      expect(checks[1].headers.get('content-type')).toContain('image/x-icon');
+      expect(checks[2].headers.get('content-type')).toContain('image/png');
+      expect(checks[3].headers.get('content-type')).toContain('image/png');
+      expect(checks[4].headers.get('content-type')).toContain('image/png');
+    });
+
+    it('does not serve an SVG favicon route', async () => {
+      server = createServer(4614);
+
+      const res = await globalThis.fetch(`${server.url}/favicon.svg`);
+      expect(res.status).toBe(404);
+    });
+
     it('renders project metadata in the top-right header and assignee metadata in card footer', async () => {
       server = createServer(4590);
 

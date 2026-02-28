@@ -7,7 +7,16 @@ import {
   AmbiguousPrefixError,
   type TaskListItem as CoreTaskListItem,
 } from 'hzl-core';
-import { DASHBOARD_HTML } from './ui-embed.js';
+import {
+  DASHBOARD_HTML,
+  DASHBOARD_SITE_MANIFEST,
+  DASHBOARD_SERVICE_WORKER,
+  DASHBOARD_FAVICON_PNG_96,
+  DASHBOARD_FAVICON_ICO,
+  DASHBOARD_APPLE_TOUCH_ICON,
+  DASHBOARD_WEB_APP_ICON_192,
+  DASHBOARD_WEB_APP_ICON_512,
+} from './ui-embed.js';
 
 export interface ServerOptions {
   port: number;
@@ -143,6 +152,49 @@ function json(res: ServerResponse, data: unknown, status = 200): void {
     // No CORS header - dashboard is served from same origin
   });
   res.end(JSON.stringify(data));
+}
+
+function text(
+  res: ServerResponse,
+  body: string,
+  contentType: string,
+  status = 200,
+  cacheControl?: string
+): void {
+  const bodyLength = Buffer.byteLength(body);
+  const headers: Record<string, string> = {
+    'Content-Type': contentType,
+    'X-Content-Type-Options': 'nosniff',
+    'Content-Length': String(bodyLength),
+  };
+
+  if (cacheControl) {
+    headers['Cache-Control'] = cacheControl;
+  }
+
+  res.writeHead(status, headers);
+  res.end(body);
+}
+
+function bytes(
+  res: ServerResponse,
+  body: Buffer,
+  contentType: string,
+  status = 200,
+  cacheControl?: string
+): void {
+  const headers: Record<string, string> = {
+    'Content-Type': contentType,
+    'X-Content-Type-Options': 'nosniff',
+    'Content-Length': String(body.length),
+  };
+
+  if (cacheControl) {
+    headers['Cache-Control'] = cacheControl;
+  }
+
+  res.writeHead(status, headers);
+  res.end(body);
 }
 
 function notFound(res: ServerResponse, message = 'Not Found'): void {
@@ -455,8 +507,8 @@ export function createWebServer(options: ServerOptions): ServerHandle {
 
   function handleRoot(res: ServerResponse): void {
     const csp = allowFraming
-      ? "default-src 'self'; script-src 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'unsafe-inline'; frame-ancestors *"
-      : "default-src 'self'; script-src 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'unsafe-inline'";
+      ? "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'unsafe-inline'; frame-ancestors *"
+      : "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'unsafe-inline'";
 
     const headers: Record<string, string> = {
       'Content-Type': 'text/html; charset=utf-8',
@@ -473,6 +525,34 @@ export function createWebServer(options: ServerOptions): ServerHandle {
     res.end(DASHBOARD_HTML);
   }
 
+  function handleSiteManifest(res: ServerResponse): void {
+    text(res, DASHBOARD_SITE_MANIFEST, 'application/manifest+json; charset=utf-8', 200, 'max-age=3600');
+  }
+
+  function handleServiceWorker(res: ServerResponse): void {
+    text(res, DASHBOARD_SERVICE_WORKER, 'application/javascript; charset=utf-8', 200, 'no-cache');
+  }
+
+  function handleFaviconPng96(res: ServerResponse): void {
+    bytes(res, DASHBOARD_FAVICON_PNG_96, 'image/png', 200, 'max-age=86400');
+  }
+
+  function handleFaviconIco(res: ServerResponse): void {
+    bytes(res, DASHBOARD_FAVICON_ICO, 'image/x-icon', 200, 'max-age=86400');
+  }
+
+  function handleAppleTouchIcon(res: ServerResponse): void {
+    bytes(res, DASHBOARD_APPLE_TOUCH_ICON, 'image/png', 200, 'max-age=86400');
+  }
+
+  function handleWebAppIcon192(res: ServerResponse): void {
+    bytes(res, DASHBOARD_WEB_APP_ICON_192, 'image/png', 200, 'max-age=86400');
+  }
+
+  function handleWebAppIcon512(res: ServerResponse): void {
+    bytes(res, DASHBOARD_WEB_APP_ICON_512, 'image/png', 200, 'max-age=86400');
+  }
+
   // Request handler
   function handleRequest(req: IncomingMessage, res: ServerResponse): void {
     const { pathname, params } = parseUrl(req.url || '/');
@@ -481,6 +561,41 @@ export function createWebServer(options: ServerOptions): ServerHandle {
       // Route matching
       if (pathname === '/') {
         handleRoot(res);
+        return;
+      }
+
+      if (pathname === '/site.webmanifest') {
+        handleSiteManifest(res);
+        return;
+      }
+
+      if (pathname === '/sw.js') {
+        handleServiceWorker(res);
+        return;
+      }
+
+      if (pathname === '/favicon-96x96.png') {
+        handleFaviconPng96(res);
+        return;
+      }
+
+      if (pathname === '/favicon.ico') {
+        handleFaviconIco(res);
+        return;
+      }
+
+      if (pathname === '/apple-touch-icon.png') {
+        handleAppleTouchIcon(res);
+        return;
+      }
+
+      if (pathname === '/web-app-manifest-192x192.png') {
+        handleWebAppIcon192(res);
+        return;
+      }
+
+      if (pathname === '/web-app-manifest-512x512.png') {
+        handleWebAppIcon512(res);
         return;
       }
 
