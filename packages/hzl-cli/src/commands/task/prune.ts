@@ -88,7 +88,7 @@ export function runPrune(options: {
     // Handle dry-run (no deletion)
     if (dryRun) {
       if (json) {
-        console.log(JSON.stringify({ wouldPrune: eligible, count: eligible.length }, null, 2));
+        console.log(JSON.stringify({ wouldPrune: eligible, count: eligible.length }));
       } else {
         if (eligible.length === 0) {
           console.log('No tasks eligible for pruning');
@@ -141,20 +141,16 @@ export function runPrune(options: {
 
     if (json) {
       console.log(
-        JSON.stringify(
-          {
-            pruned: result.pruned.map(t => ({
-              task_id: t.task_id,
-              title: t.title,
-              project: t.project,
-              status: t.status,
-            })),
-            count: result.count,
-            eventsDeleted: result.eventsDeleted,
-          },
-          null,
-          2
-        )
+        JSON.stringify({
+          pruned: result.pruned.map(t => ({
+            task_id: t.task_id,
+            title: t.title,
+            project: t.project,
+            status: t.status,
+          })),
+          count: result.count,
+          eventsDeleted: result.eventsDeleted,
+        })
       );
     } else {
       console.log(`Pruned ${result.count} task(s) (${result.eventsDeleted} events deleted)`);

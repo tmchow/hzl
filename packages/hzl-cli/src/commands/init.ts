@@ -234,7 +234,7 @@ export function runInit(options: InitOptions): InitResult {
   };
 
   if (json) {
-    console.log(JSON.stringify(result, null, 2));
+    console.log(JSON.stringify(result));
   } else {
     const sourceHint = formatSourceHint(pathSource);
     const message = result.created
