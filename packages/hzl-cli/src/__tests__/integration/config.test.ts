@@ -37,6 +37,7 @@ function createTestContext(): TestContext {
 
 describe('config integration', () => {
   let ctx: TestContext;
+  const repoRoot = path.resolve(packageRoot, '../..');
 
   beforeAll(() => {
     execSync('npm run build', { cwd: packageRoot, stdio: 'inherit' });
@@ -122,5 +123,94 @@ describe('config integration', () => {
     } else {
       expect(config.db.value).toContain('.local/share/hzl');
     }
+  });
+
+  it('blocks production XDG db path in dev mode unless explicitly overridden', () => {
+    const baseConfigCmd = `node "${cliPath}" config`;
+    const baseline = execSync(baseConfigCmd, {
+      encoding: 'utf-8',
+      env: { ...process.env, HZL_CONFIG: undefined, HZL_DB: undefined, HZL_DEV_MODE: undefined },
+    });
+    const baselineConfig = JSON.parse(baseline.trim()) as { db: { value: string; source: string } };
+    const devDefaultDbPath = path.join(repoRoot, '.local', 'hzl', 'events.db');
+    if (baselineConfig.db.value !== devDefaultDbPath) {
+      return;
+    }
+
+    const xdgDataHome = process.platform === 'win32'
+      ? (process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local'))
+      : (process.env.XDG_DATA_HOME || path.join(os.homedir(), '.local', 'share'));
+    const prodPath = path.join(xdgDataHome, 'hzl', 'events.db');
+
+    expect(() => {
+      execSync(baseConfigCmd, {
+        encoding: 'utf-8',
+        env: {
+          ...process.env,
+          HZL_CONFIG: ctx.configPath,
+          HZL_DB: prodPath,
+          HZL_ALLOW_PROD_DB: undefined,
+          HZL_DEV_MODE: undefined,
+        },
+      });
+    }).toThrow(/Refusing to use production DB path in dev mode/);
+
+    const allowed = execSync(baseConfigCmd, {
+      encoding: 'utf-8',
+      env: {
+        ...process.env,
+        HZL_CONFIG: ctx.configPath,
+        HZL_DB: prodPath,
+        HZL_ALLOW_PROD_DB: '1',
+        HZL_DEV_MODE: undefined,
+      },
+    });
+    const allowedConfig = JSON.parse(allowed.trim()) as { db: { source: string; value: string } };
+    expect(allowedConfig.db.source).toBe('env');
+    expect(allowedConfig.db.value).toBe(prodPath);
+  });
+
+  it('blocks production HZL_CONFIG path in dev mode unless explicitly overridden', () => {
+    const baseConfigCmd = `node "${cliPath}" config`;
+    const baseline = execSync(baseConfigCmd, {
+      encoding: 'utf-8',
+      env: { ...process.env, HZL_CONFIG: undefined, HZL_DB: undefined, HZL_DEV_MODE: undefined },
+    });
+    const baselineConfig = JSON.parse(baseline.trim()) as { db: { value: string } };
+    const devDefaultDbPath = path.join(repoRoot, '.local', 'hzl', 'events.db');
+    if (baselineConfig.db.value !== devDefaultDbPath) {
+      return;
+    }
+
+    const xdgConfigHome = process.platform === 'win32'
+      ? (process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'))
+      : (process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config'));
+    const prodConfigPath = path.join(xdgConfigHome, 'hzl', 'config.json');
+
+    expect(() => {
+      execSync(baseConfigCmd, {
+        encoding: 'utf-8',
+        env: {
+          ...process.env,
+          HZL_CONFIG: prodConfigPath,
+          HZL_DB: undefined,
+          HZL_ALLOW_PROD_CONFIG: undefined,
+          HZL_DEV_MODE: undefined,
+        },
+      });
+    }).toThrow(/Refusing to use production config path in dev mode/);
+
+    expect(() => {
+      execSync(baseConfigCmd, {
+        encoding: 'utf-8',
+        env: {
+          ...process.env,
+          HZL_CONFIG: prodConfigPath,
+          HZL_DB: undefined,
+          HZL_ALLOW_PROD_CONFIG: '1',
+          HZL_DEV_MODE: undefined,
+        },
+      });
+    }).not.toThrow();
   });
 });

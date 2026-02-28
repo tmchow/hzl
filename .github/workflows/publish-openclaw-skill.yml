@@ -1,0 +1,160 @@
+name: Publish OpenClaw Skill
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'skills/hzl/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22.14.0'
+
+      - name: Install ClawHub CLI
+        run: npm i -g clawhub
+
+      - name: Compute version and bump hint
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          VERSION=$(node -p "require('./packages/hzl-cli/package.json').version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+          if [[ "${GITHUB_EVENT_NAME}" == "push" && "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]]; then
+            RANGE="${{ github.event.before }}..${GITHUB_SHA}"
+            COMMITS=$(git log --format=%B "$RANGE" || true)
+          else
+            COMMITS=$(git log -n 20 --format=%B)
+          fi
+
+          BUMP=patch
+          if printf '%s\n' "$COMMITS" | grep -Eiq 'BREAKING CHANGE|^[a-zA-Z]+(\([^)]+\))?!:'; then
+            BUMP=major
+          elif printf '%s\n' "$COMMITS" | grep -Eiq '^feat(\([^)]+\))?:'; then
+            BUMP=minor
+          fi
+
+          echo "bump=$BUMP" >> "$GITHUB_OUTPUT"
+
+      - name: Validate token
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${{ secrets.CLAWHUB_TOKEN }}" ]]; then
+            echo "::error::Missing CLAWHUB_TOKEN secret."
+            exit 1
+          fi
+
+      - name: Login to ClawHub
+        shell: bash
+        env:
+          CLAWHUB_TOKEN: ${{ secrets.CLAWHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          clawhub login --token "$CLAWHUB_TOKEN" --no-browser --label "GitHub Actions"
+
+      - name: Publish skills/hzl
+        id: publish
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          BASE_VERSION="${{ steps.meta.outputs.version }}"
+          PUBLISHED=false
+          PUBLISHED_VERSION=""
+          MAX_ATTEMPTS=30
+
+          publish_with_version() {
+            local version="$1"
+            set +e
+            OUTPUT=$(
+              clawhub --no-input publish skills/hzl \
+                --slug hzl \
+                --name "HZL" \
+                --version "$version" \
+                --changelog "" \
+                --tags latest 2>&1
+            )
+            STATUS=$?
+            set -e
+
+            printf '%s\n' "$OUTPUT"
+
+            if [[ $STATUS -eq 0 ]]; then
+              PUBLISHED=true
+              PUBLISHED_VERSION="$version"
+              return 0
+            fi
+
+            if printf '%s\n' "$OUTPUT" | grep -Eiq 'already exists|already published|version exists'; then
+              return 10
+            fi
+
+            return $STATUS
+          }
+
+          if publish_with_version "$BASE_VERSION"; then
+            :
+          else
+            STATUS=$?
+            if [[ $STATUS -ne 10 ]]; then
+              echo "::error::ClawHub publish failed for $BASE_VERSION."
+              exit "$STATUS"
+            fi
+
+            echo "::notice::Base version $BASE_VERSION already exists. Trying prerelease suffixes."
+            for i in $(seq 1 "$MAX_ATTEMPTS"); do
+              CANDIDATE="${BASE_VERSION}-skill.${i}"
+              if publish_with_version "$CANDIDATE"; then
+                break
+              fi
+              STATUS=$?
+              if [[ $STATUS -ne 10 ]]; then
+                echo "::error::ClawHub publish failed for $CANDIDATE."
+                exit "$STATUS"
+              fi
+            done
+          fi
+
+          if [[ "$PUBLISHED" != "true" ]]; then
+            echo "::error::Unable to publish after trying base + $MAX_ATTEMPTS prerelease versions."
+            exit 1
+          fi
+
+          echo "published=true" >> "$GITHUB_OUTPUT"
+          echo "published_version=$PUBLISHED_VERSION" >> "$GITHUB_OUTPUT"
+          echo "::notice::Published skills/hzl as version $PUBLISHED_VERSION"
+
+      - name: Workflow summary
+        shell: bash
+        run: |
+          {
+            echo "## OpenClaw Skill Publish"
+            echo ""
+            echo "- Skill path: \`skills/hzl\`"
+            echo "- CLI base version: \`${{ steps.meta.outputs.version }}\` (from \`packages/hzl-cli/package.json\`)"
+            echo "- Published version: \`${{ steps.publish.outputs.published_version }}\`"
+            echo "- Commit-derived bump hint: \`${{ steps.meta.outputs.bump }}\`"
+            echo "- Published this run: \`${{ steps.publish.outputs.published }}\`"
+            echo "- Changelog mode: \`--changelog \"\"\`"
+            echo "- Version policy: publish CLI base first, then fallback to \`<base>-skill.N\` if base already exists."
+          } >> "$GITHUB_STEP_SUMMARY"
