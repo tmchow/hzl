@@ -1,3 +1,22 @@
+# [2.2.0](https://github.com/tmchow/hzl/compare/v2.1.0...v2.2.0) (2026-02-28)
+
+
+### Bug Fixes
+
+* correct projection registration, subtask move logic, and update atomicity ([#138](https://github.com/tmchow/hzl/issues/138)) ([ceee25f](https://github.com/tmchow/hzl/commit/ceee25f8bbd4207befa5285fe263ef618d5562ac))
+
+
+### Features
+
+* improve CLI reliability, validation, and docs parity ([#133](https://github.com/tmchow/hzl/issues/133)) ([d3f0bd0](https://github.com/tmchow/hzl/commit/d3f0bd04ba2c592653f62bbc0746239af8e72941))
+* **web:** add collapsible parent controls and dashboard UI polish ([#134](https://github.com/tmchow/hzl/issues/134)) ([00b2e3d](https://github.com/tmchow/hzl/commit/00b2e3d88a28ba389a1e8bf7900446d312657b40))
+* **web:** add dashboard PWA support and install docs ([#135](https://github.com/tmchow/hzl/issues/135)) ([e055310](https://github.com/tmchow/hzl/commit/e055310b97352fadc695bf6ff4e6c0934dd865e2))
+
+
+### Performance Improvements
+
+* transaction-wrap rebuild and narrow listTasks SELECT ([#132](https://github.com/tmchow/hzl/issues/132)) ([4a79966](https://github.com/tmchow/hzl/commit/4a79966b5304cdb67ce0bd4054d120809a971d25))
+
 # [2.1.0](https://github.com/tmchow/hzl/compare/v2.0.0...v2.1.0) (2026-02-27)
 
 
