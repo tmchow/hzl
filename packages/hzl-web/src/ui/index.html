@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>hzl dashboard</title>
+  <title>HZL</title>
   <style>
     :root {
       --bg-primary: #1a1a1a;
@@ -42,7 +42,8 @@
     .header {
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      justify-content: flex-start;
+      gap: 14px;
       padding: 12px 16px;
       background: var(--bg-secondary);
       border-bottom: 1px solid var(--border);
@@ -55,6 +56,7 @@
       display: flex;
       align-items: center;
       gap: 8px;
+      flex-shrink: 0;
     }
 
     .logo {
@@ -66,13 +68,15 @@
     .header-filters {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 8px;
+      flex: 1;
+      min-width: 0;
     }
 
     .filter-group {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 8px;
       position: relative;
     }
 
@@ -87,9 +91,11 @@
       background: var(--bg-primary);
       color: var(--text-primary);
       border: 1px solid var(--border);
-      padding: 4px 8px;
-      border-radius: 4px;
+      padding: 0 44px 0 12px;
+      border-radius: 6px;
       cursor: pointer;
+      min-height: 42px;
+      line-height: 1.2;
     }
 
     select:focus {
@@ -97,10 +103,69 @@
       border-color: var(--accent);
     }
 
+    .task-search-group {
+      gap: 6px;
+    }
+
+    .task-search-input {
+      width: 220px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+      padding: 0 12px;
+      border-radius: 6px;
+      min-height: 42px;
+    }
+
+    .task-search-input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .task-search-clear {
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: var(--bg-primary);
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      line-height: 1;
+      padding: 4px 8px;
+      cursor: pointer;
+    }
+
+    .task-search-clear:hover {
+      border-color: var(--accent);
+      color: var(--text-primary);
+    }
+
+    .task-search-clear[hidden] {
+      display: none;
+    }
+
+    .task-search-meta {
+      min-width: 0;
+      width: 0;
+      overflow: hidden;
+      font-size: 11px;
+      color: var(--text-muted);
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      transition: width 120ms ease;
+    }
+
+    .task-search-group.active .task-search-meta {
+      width: 56px;
+    }
+
     .header-right {
       display: flex;
       align-items: center;
       gap: 12px;
+      margin-left: auto;
+      flex-shrink: 0;
     }
 
     .connection-indicator {
@@ -134,13 +199,71 @@
       background: var(--bg-primary);
       color: var(--text-primary);
       border: 1px solid var(--border);
-      padding: 6px 12px;
-      border-radius: 4px;
+      min-height: 42px;
+      padding: 0 14px;
+      border-radius: 6px;
       cursor: pointer;
     }
 
     .activity-btn:hover {
       border-color: var(--accent);
+    }
+
+    .settings-shortcuts-btn {
+      width: 100%;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      background: var(--bg-primary);
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+      padding: 6px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    .settings-shortcuts-btn:hover {
+      color: var(--text-primary);
+      border-color: var(--accent);
+    }
+
+    .settings-view-select {
+      width: 100%;
+    }
+
+    .collapse-parents-actions {
+      display: flex;
+      gap: 6px;
+      margin-top: 2px;
+    }
+
+    .collapse-parents-btn {
+      flex: 1;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      background: var(--bg-primary);
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+      padding: 5px 6px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .collapse-parents-btn:hover:not(:disabled) {
+      color: var(--text-primary);
+      border-color: var(--accent);
+    }
+
+    .collapse-parents-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .collapse-parents-meta {
+      margin-top: 5px;
+      font-size: 10px;
+      color: var(--text-muted);
     }
 
     /* Column Visibility Dropdown */
@@ -207,9 +330,23 @@
       background: var(--bg-primary);
       color: var(--text-secondary);
       border: 1px solid var(--border);
-      padding: 6px 8px;
-      border-radius: 4px;
+      width: 42px;
+      height: 42px;
+      padding: 0;
+      border-radius: 6px;
       cursor: pointer;
+    }
+
+    #dateFilter {
+      min-width: 150px;
+    }
+
+    #projectFilter {
+      min-width: 220px;
+    }
+
+    #assigneeFilter {
+      min-width: 180px;
     }
 
     .settings-toggle:hover {
@@ -482,6 +619,26 @@
       font-size: 11px;
       color: var(--text-muted);
       margin-bottom: 6px;
+    }
+
+    .card-subtask-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: var(--bg-primary);
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 2px 6px;
+      margin-bottom: 6px;
+      cursor: pointer;
+    }
+
+    .card-subtask-toggle:hover {
+      color: var(--text-primary);
+      border-color: var(--accent);
     }
 
     .card-blocked {
@@ -977,6 +1134,91 @@
       display: block;
     }
 
+    .shortcuts-modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.65);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 300;
+    }
+
+    .shortcuts-modal-overlay.open {
+      display: flex;
+    }
+
+    .shortcuts-modal {
+      width: min(460px, calc(100vw - 24px));
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+      overflow: hidden;
+    }
+
+    .shortcuts-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .shortcuts-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .shortcuts-close {
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 18px;
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    .shortcuts-close:hover {
+      color: var(--text-primary);
+    }
+
+    .shortcuts-body {
+      padding: 14px 16px 16px;
+    }
+
+    .shortcuts-list {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 8px 12px;
+      align-items: center;
+    }
+
+    .shortcut-key {
+      display: inline-block;
+      min-width: 34px;
+      padding: 1px 8px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      font-size: 11px;
+      text-align: center;
+      font-weight: 600;
+    }
+
+    .shortcut-desc {
+      color: var(--text-secondary);
+      font-size: 12px;
+    }
+
+    .shortcuts-note {
+      margin-top: 12px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
     /* Activity Panel */
     .activity-panel {
       position: fixed;
@@ -1100,41 +1342,6 @@
       margin-top: 2px;
     }
 
-    /* View Toggle */
-    .view-toggle {
-      display: flex;
-      gap: 0;
-      background: var(--bg-primary);
-      border-radius: 6px;
-      padding: 2px;
-      border: 1px solid var(--border);
-    }
-
-    .view-btn {
-      padding: 6px 12px;
-      border: none;
-      background: transparent;
-      color: var(--text-secondary);
-      cursor: pointer;
-      border-radius: 4px;
-      font-family: var(--font-mono);
-      font-size: 12px;
-    }
-
-    .view-btn.active {
-      background: var(--accent);
-      color: var(--bg-primary);
-    }
-
-    .view-btn:hover:not(.active):not(:disabled) {
-      color: var(--text-primary);
-    }
-
-    .view-btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-
     /* Graph Container */
     .graph-container {
       flex: 1;
@@ -1175,13 +1382,66 @@
     @media (max-width: 768px) {
       .header {
         flex-wrap: wrap;
+        row-gap: 10px;
+        align-items: center;
+        align-content: flex-start;
+      }
+
+      .header-left {
+        order: 1;
+        flex: 0 0 auto;
+        min-height: 42px;
+      }
+
+      .header-right {
+        order: 2;
+        flex: 0 0 auto;
+        margin-left: auto;
+        min-height: 42px;
         gap: 8px;
       }
 
       .header-filters {
         order: 3;
+        flex: 0 0 100%;
         width: 100%;
-        flex-wrap: wrap;
+        max-width: 100%;
+        min-width: 100%;
+        display: none;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+        border-top: 1px solid var(--border);
+        padding-top: 8px;
+      }
+
+      .header-filters.open {
+        display: flex;
+      }
+
+      .filter-group {
+        width: 100%;
+        max-width: 100%;
+      }
+
+      .task-search-group {
+        width: 100%;
+      }
+
+      .task-search-input {
+        flex: 1;
+        width: 100%;
+      }
+
+      #dateFilter,
+      #projectFilter,
+      #assigneeFilter {
+        min-width: 0;
+        width: 100%;
+      }
+
+      .task-search-meta {
+        display: none;
       }
 
       .board {
@@ -1190,10 +1450,6 @@
 
       .graph-container {
         min-height: calc(100vh - 150px);
-      }
-
-      .view-toggle {
-        margin-left: auto;
       }
 
       .mobile-tabs {
@@ -1428,12 +1684,7 @@
   <header class="header">
     <div class="header-left">
       <button class="hamburger" id="hamburgerBtn">&#9776;</button>
-      <span class="logo">hzl dashboard</span>
-      <div class="view-toggle" id="viewToggle">
-        <button class="view-btn active" data-view="kanban">Kanban</button>
-        <button class="view-btn" data-view="calendar">Calendar</button>
-        <button class="view-btn" data-view="graph">Graph</button>
-      </div>
+      <span class="logo">HZL</span>
     </div>
     <div class="header-filters">
       <div class="filter-group">
@@ -1455,6 +1706,17 @@
         <option value="">Any Agent</option>
       </select>
       </div>
+      <div class="filter-group task-search-group" id="taskSearchGroup">
+        <input
+          type="search"
+          id="taskSearchInput"
+          class="task-search-input"
+          placeholder="Find task (/)"
+          aria-label="Search tasks"
+        >
+        <button type="button" class="task-search-clear" id="taskSearchClear" hidden>&times;</button>
+        <span class="task-search-meta" id="taskSearchMeta"></span>
+      </div>
       <div class="filter-group settings-group">
         <button class="settings-toggle" id="settingsToggle" title="Settings">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
@@ -1463,6 +1725,14 @@
           </svg>
         </button>
         <div class="settings-dropdown" id="settingsDropdown">
+          <div class="settings-section">
+            <label class="settings-label" for="viewFilter">View</label>
+            <select id="viewFilter" class="settings-view-select" aria-label="Select view">
+              <option value="kanban">Kanban</option>
+              <option value="calendar">Calendar</option>
+              <option value="graph">Graph</option>
+            </select>
+          </div>
           <div class="settings-section">
             <label class="settings-label">Refresh</label>
             <select id="refreshFilter">
@@ -1497,6 +1767,25 @@
             <label class="column-checkbox">
               <input type="checkbox" id="showSubtasks" checked> Show subtasks
             </label>
+          </div>
+          <div class="settings-section">
+            <label class="settings-label">Parent View</label>
+            <div class="collapse-parents-actions">
+              <button type="button" class="collapse-parents-btn" id="collapseAllParentsBtn">Collapse all</button>
+              <button type="button" class="collapse-parents-btn" id="expandAllParentsBtn">Expand all</button>
+            </div>
+            <div class="collapse-parents-meta" id="collapseParentsMeta"></div>
+          </div>
+          <div class="settings-section">
+            <button
+              type="button"
+              class="settings-shortcuts-btn"
+              id="shortcutsBtn"
+              title="Keyboard shortcuts (?)"
+              aria-label="Keyboard shortcuts"
+            >
+              Shortcuts (?)
+            </button>
           </div>
         </div>
       </div>
@@ -1613,6 +1902,24 @@
     </div>
   </div>
 
+  <div class="shortcuts-modal-overlay" id="shortcutsModalOverlay">
+    <div class="shortcuts-modal">
+      <div class="shortcuts-header">
+        <span class="shortcuts-title">Keyboard Shortcuts</span>
+        <button type="button" class="shortcuts-close" id="shortcutsClose">&times;</button>
+      </div>
+      <div class="shortcuts-body">
+        <div class="shortcuts-list">
+          <span class="shortcut-key">/</span><span class="shortcut-desc">Focus task search</span>
+          <span class="shortcut-key">a</span><span class="shortcut-desc">Toggle activity panel</span>
+          <span class="shortcut-key">?</span><span class="shortcut-desc">Open this shortcuts dialog</span>
+          <span class="shortcut-key">Esc</span><span class="shortcut-desc">Close open dialogs/panels</span>
+        </div>
+        <div class="shortcuts-note">Shortcuts are disabled while typing in inputs.</div>
+      </div>
+    </div>
+  </div>
+
   <script>
     // State
     let tasks = [];
@@ -1641,6 +1948,8 @@
     const TASK_ACTIVITY_DISPLAY_LIMIT = 20;
     let activeTab = 'ready';
     let activeView = 'kanban';
+    let taskSearchQuery = '';
+    let collapsedParents = new Set();
     let graphInstance = null;
     let graphInitialized = false;
     let nodeStatusMap = new Map();
@@ -1649,14 +1958,23 @@
     let copyFeedbackTimer = null;
     let calendarYear = new Date().getFullYear();
     let calendarMonth = new Date().getMonth(); // 0-indexed
+    let initialTaskIdFromUrl = null;
+    let initialActivityPanelOpen = false;
 
     // DOM Elements
     const dateFilter = document.getElementById('dateFilter');
+    const taskSearchInput = document.getElementById('taskSearchInput');
+    const taskSearchClear = document.getElementById('taskSearchClear');
+    const taskSearchMeta = document.getElementById('taskSearchMeta');
+    const taskSearchGroup = document.getElementById('taskSearchGroup');
     const projectFilter = document.getElementById('projectFilter');
     const assigneeFilter = document.getElementById('assigneeFilter');
     const refreshFilter = document.getElementById('refreshFilter');
     const connectionDot = document.getElementById('connectionDot');
     const connectionText = document.getElementById('connectionText');
+    const shortcutsBtn = document.getElementById('shortcutsBtn');
+    const shortcutsModalOverlay = document.getElementById('shortcutsModalOverlay');
+    const shortcutsClose = document.getElementById('shortcutsClose');
     const activityBtn = document.getElementById('activityBtn');
     const activityPanel = document.getElementById('activityPanel');
     const activityClose = document.getElementById('activityClose');
@@ -1673,12 +1991,16 @@
     const mobileTabs = document.getElementById('mobileTabs');
     const settingsToggle = document.getElementById('settingsToggle');
     const settingsDropdown = document.getElementById('settingsDropdown');
+    const viewFilter = document.getElementById('viewFilter');
     const showSubtasksCheckbox = document.getElementById('showSubtasks');
-    const viewToggle = document.getElementById('viewToggle');
+    const collapseAllParentsBtn = document.getElementById('collapseAllParentsBtn');
+    const expandAllParentsBtn = document.getElementById('expandAllParentsBtn');
+    const collapseParentsMeta = document.getElementById('collapseParentsMeta');
     const board = document.getElementById('board');
     const calendarContainer = document.getElementById('calendarContainer');
     const graphContainer = document.getElementById('graphContainer');
     const graphLoading = document.getElementById('graphLoading');
+    let pendingProjectPreference = null;
     let pendingAssigneePreference = null;
     let pendingActivityAssigneePreference = null;
     const columnScrollTimers = new WeakMap();
@@ -1768,17 +2090,266 @@
       });
     }
 
+    function normalizeTaskSearchQuery(value) {
+      if (typeof value !== 'string') return '';
+      return value.trim().replace(/\s+/g, ' ').slice(0, 120);
+    }
+
+    function getTaskSearchQuery() {
+      return taskSearchQuery.toLowerCase();
+    }
+
+    function taskMatchesSearch(task, query) {
+      if (!query) return true;
+      const terms = query.split(' ');
+      const haystack = [
+        task.task_id,
+        task.title,
+        task.project,
+        getAssigneeValue(task.assignee),
+        task.description,
+        Array.isArray(task.tags) ? task.tags.join(' ') : '',
+        Array.isArray(task.blocked_by) ? task.blocked_by.join(' ') : '',
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return terms.every((term) => haystack.includes(term));
+    }
+
+    function getParentTaskIds(taskList = tasks) {
+      return taskList
+        .filter((task) => (task.subtask_total ?? 0) > 0)
+        .map((task) => task.task_id);
+    }
+
+    function pruneCollapsedParents(taskList = tasks) {
+      const validParents = new Set(getParentTaskIds(taskList));
+      let changed = false;
+      for (const parentId of Array.from(collapsedParents)) {
+        if (!validParents.has(parentId)) {
+          collapsedParents.delete(parentId);
+          changed = true;
+        }
+      }
+      return changed;
+    }
+
+    function updateCollapseControls() {
+      const parentIds = getParentTaskIds(tasks);
+      const collapsedCount = parentIds.filter((parentId) => collapsedParents.has(parentId)).length;
+      const showSubtasks = showSubtasksCheckbox.checked;
+
+      collapseAllParentsBtn.disabled = !showSubtasks || parentIds.length === 0 || collapsedCount === parentIds.length;
+      expandAllParentsBtn.disabled = !showSubtasks || collapsedCount === 0;
+
+      if (parentIds.length === 0) {
+        collapseParentsMeta.textContent = 'No parent tasks';
+        return;
+      }
+
+      if (!showSubtasks) {
+        collapseParentsMeta.textContent = 'Enable "Show subtasks" to expand by parent';
+        return;
+      }
+
+      collapseParentsMeta.textContent = `${collapsedCount}/${parentIds.length} collapsed`;
+    }
+
+    function toggleParentCollapsed(parentId) {
+      if (!parentId) return;
+      if (collapsedParents.has(parentId)) {
+        collapsedParents.delete(parentId);
+      } else {
+        collapsedParents.add(parentId);
+      }
+      savePreferences();
+      renderBoard();
+      renderActivity();
+    }
+
+    function collapseAllParents() {
+      if (!showSubtasksCheckbox.checked) return;
+      for (const parentId of getParentTaskIds(tasks)) {
+        collapsedParents.add(parentId);
+      }
+      savePreferences();
+      renderBoard();
+      renderActivity();
+    }
+
+    function expandAllParents() {
+      for (const parentId of getParentTaskIds(tasks)) {
+        collapsedParents.delete(parentId);
+      }
+      savePreferences();
+      renderBoard();
+      renderActivity();
+    }
+
+    function parseYearMonth(value) {
+      const match = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(value);
+      if (!match) return null;
+      return {
+        year: Number(match[1]),
+        month: Number(match[2]) - 1,
+      };
+    }
+
+    function getActiveTaskId() {
+      const taskId = selectedTask?.task?.task_id;
+      return typeof taskId === 'string' && taskId ? taskId : null;
+    }
+
+    function setShortcutsModalOpen(open) {
+      shortcutsModalOverlay.classList.toggle('open', open);
+    }
+
+    function setActivityPanelOpen(open, options = {}) {
+      const { persist = true } = options;
+      activityPanel.classList.toggle('open', open);
+      if (persist) {
+        syncUrlState();
+      }
+    }
+
+    function setActiveTab(status, options = {}) {
+      const { persist = true } = options;
+      if (!COLUMNS.includes(status)) return;
+      activeTab = status;
+      document.querySelectorAll('.mobile-tab').forEach((tab) => {
+        tab.classList.toggle('active', tab.dataset.status === activeTab);
+      });
+      document.querySelectorAll('.mobile-cards').forEach((cards) => {
+        cards.classList.toggle('active', cards.dataset.status === activeTab);
+      });
+      if (persist) {
+        savePreferences();
+      }
+    }
+
+    function buildUrlStateParams() {
+      const params = new URLSearchParams();
+
+      if (activeView !== 'kanban') {
+        params.set('view', activeView);
+      }
+
+      if (activeView === 'calendar') {
+        const month = String(calendarMonth + 1).padStart(2, '0');
+        params.set('month', `${calendarYear}-${month}`);
+      } else if (dateFilter.value !== '3d') {
+        params.set('since', dateFilter.value);
+      }
+
+      if (projectFilter.value) params.set('project', projectFilter.value);
+      if (assigneeFilter.value) params.set('assignee', assigneeFilter.value);
+      if (taskSearchQuery) params.set('q', taskSearchQuery);
+      if (!showSubtasksCheckbox.checked) params.set('subtasks', '0');
+      if (activeTab !== 'ready') params.set('tab', activeTab);
+      if (activityAssigneeFilter.value) params.set('activity_assignee', activityAssigneeFilter.value);
+      if (activityKeywordFilter.value.trim()) params.set('activity_q', activityKeywordFilter.value.trim());
+      if (activityPanel.classList.contains('open')) params.set('activity', '1');
+
+      const taskId = getActiveTaskId();
+      if (taskId) params.set('task', taskId);
+
+      return params;
+    }
+
+    function syncUrlState() {
+      const params = buildUrlStateParams();
+      const query = params.toString();
+      const nextUrl = `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash || ''}`;
+      history.replaceState(null, '', nextUrl);
+    }
+
+    function applyUrlStateOverrides() {
+      const params = new URLSearchParams(window.location.search);
+      let preferredView = null;
+
+      const since = params.get('since');
+      const validDateValues = new Set(Array.from(dateFilter.options).map((option) => option.value));
+      if (since && validDateValues.has(since)) {
+        dateFilter.value = since;
+      }
+
+      const view = params.get('view');
+      if (view && (view === 'kanban' || view === 'calendar' || view === 'graph')) {
+        preferredView = view;
+      }
+
+      const monthParam = params.get('month');
+      if (monthParam) {
+        const parsedMonth = parseYearMonth(monthParam);
+        if (parsedMonth) {
+          calendarYear = parsedMonth.year;
+          calendarMonth = parsedMonth.month;
+          if (!preferredView) preferredView = 'calendar';
+        }
+      }
+
+      const project = params.get('project');
+      if (project !== null) {
+        pendingProjectPreference = project;
+      }
+
+      const assignee = params.get('assignee');
+      if (assignee !== null) {
+        pendingAssigneePreference = assignee;
+      }
+
+      const activityAssignee = params.get('activity_assignee');
+      if (activityAssignee !== null) {
+        pendingActivityAssigneePreference = activityAssignee;
+      }
+
+      const activityKeyword = params.get('activity_q');
+      if (activityKeyword !== null) {
+        activityKeywordFilter.value = activityKeyword;
+      }
+
+      const searchQuery = params.get('q');
+      if (searchQuery !== null) {
+        taskSearchQuery = normalizeTaskSearchQuery(searchQuery);
+        taskSearchInput.value = taskSearchQuery;
+      }
+
+      const subtasks = params.get('subtasks');
+      if (subtasks === '0') showSubtasksCheckbox.checked = false;
+      if (subtasks === '1') showSubtasksCheckbox.checked = true;
+
+      const tab = params.get('tab');
+      if (tab && COLUMNS.includes(tab)) {
+        activeTab = tab;
+      }
+
+      const taskId = params.get('task');
+      if (taskId && taskId.trim()) {
+        initialTaskIdFromUrl = taskId.trim();
+      }
+
+      initialActivityPanelOpen = params.get('activity') === '1';
+
+      return { preferredView };
+    }
+
     // Load saved preferences
     function loadPreferences() {
+      let preferredView = null;
       const saved = localStorage.getItem('hzl-dashboard-prefs');
       if (saved) {
         try {
           const prefs = JSON.parse(saved);
           if (prefs.dateFilter) dateFilter.value = prefs.dateFilter;
-          if (prefs.projectFilter) projectFilter.value = prefs.projectFilter;
+          if (typeof prefs.projectFilter === 'string') pendingProjectPreference = prefs.projectFilter;
           if (typeof prefs.assigneeFilter === 'string') pendingAssigneePreference = prefs.assigneeFilter;
           if (typeof prefs.activityAssigneeFilter === 'string') pendingActivityAssigneePreference = prefs.activityAssigneeFilter;
           if (typeof prefs.activityKeywordFilter === 'string') activityKeywordFilter.value = prefs.activityKeywordFilter;
+          if (typeof prefs.taskSearch === 'string') {
+            taskSearchQuery = normalizeTaskSearchQuery(prefs.taskSearch);
+            taskSearchInput.value = taskSearchQuery;
+          }
           if (prefs.refreshFilter) refreshFilter.value = prefs.refreshFilter;
           if (Array.isArray(prefs.columnVisibility)) {
             settingsDropdown.querySelectorAll('.column-checkboxes input[type="checkbox"]').forEach(cb => {
@@ -1789,11 +2360,36 @@
           if (prefs.showSubtasks !== undefined) {
             showSubtasksCheckbox.checked = prefs.showSubtasks;
           }
-          if (prefs.activeView && prefs.activeView !== 'kanban') {
-            // Defer view switch until after ForceGraph may have loaded
-            setTimeout(() => setActiveView(prefs.activeView), 100);
+          if (Array.isArray(prefs.collapsedParents)) {
+            collapsedParents = new Set(
+              prefs.collapsedParents.filter((value) => typeof value === 'string' && value.length > 0)
+            );
           }
-        } catch (e) {}
+          if (typeof prefs.activeTab === 'string' && COLUMNS.includes(prefs.activeTab)) {
+            activeTab = prefs.activeTab;
+          }
+          if (prefs.activeView && prefs.activeView !== 'kanban') {
+            preferredView = prefs.activeView;
+          }
+        } catch {}
+      }
+
+      const urlOverrides = applyUrlStateOverrides();
+      if (urlOverrides.preferredView) {
+        preferredView = urlOverrides.preferredView;
+      }
+
+      if (initialActivityPanelOpen) {
+        setActivityPanelOpen(true, { persist: false });
+      }
+
+      setActiveTab(activeTab, { persist: false });
+      updateTaskSearchUi();
+      updateCollapseControls();
+
+      if (preferredView && preferredView !== 'kanban') {
+        // Defer view switch until after ForceGraph may have loaded
+        setTimeout(() => setActiveView(preferredView), 100);
       }
     }
 
@@ -1804,23 +2400,30 @@
         assigneeFilter: assigneeFilter.value,
         activityAssigneeFilter: activityAssigneeFilter.value,
         activityKeywordFilter: activityKeywordFilter.value,
+        taskSearch: taskSearchQuery,
         refreshFilter: refreshFilter.value,
         columnVisibility: Array.from(
           settingsDropdown.querySelectorAll('.column-checkboxes input[type="checkbox"]:checked')
         ).map(cb => cb.value),
         showSubtasks: showSubtasksCheckbox.checked,
+        collapsedParents: Array.from(collapsedParents),
         activeView: activeView,
+        activeTab: activeTab,
       };
       localStorage.setItem('hzl-dashboard-prefs', JSON.stringify(prefs));
+      syncUrlState();
     }
 
     // Graph View Functions
     function handleGraphLibError() {
       console.warn('[hzl] force-graph CDN failed to load');
-      const graphBtn = viewToggle.querySelector('[data-view="graph"]');
-      if (graphBtn) {
-        graphBtn.disabled = true;
-        graphBtn.title = 'Graph unavailable - CDN failed to load';
+      const graphOption = viewFilter.querySelector('option[value="graph"]');
+      if (graphOption) {
+        graphOption.disabled = true;
+        graphOption.textContent = 'Graph (unavailable)';
+      }
+      if (activeView === 'graph') {
+        setActiveView('kanban');
       }
     }
 
@@ -2161,7 +2764,22 @@
         const countLabel = visibleCount === totalCount
           ? `${visibleCount} ${label}`
           : `${visibleCount}/${totalCount} ${label}`;
-        subtaskHtml = `<div class="card-subtask-count">[${countLabel}]</div>`;
+        if (showSubtasks) {
+          const isCollapsed = collapsedParents.has(task.task_id);
+          const symbol = isCollapsed ? '&#9654;' : '&#9660;';
+          subtaskHtml = `
+            <button
+              type="button"
+              class="card-subtask-toggle"
+              data-action="toggle-subtasks"
+              data-parent-id="${escapeHtml(task.task_id)}"
+              aria-expanded="${isCollapsed ? 'false' : 'true'}"
+              title="${isCollapsed ? 'Expand subtasks' : 'Collapse subtasks'}"
+            >${symbol} [${countLabel}]</button>
+          `;
+        } else {
+          subtaskHtml = `<div class="card-subtask-count">[${countLabel}]</div>`;
+        }
       }
 
       // Build progress badge
@@ -2224,8 +2842,47 @@
       );
     }
 
+    function updateTaskSearchUi() {
+      const hasQuery = taskSearchQuery.length > 0;
+      taskSearchGroup.classList.toggle('active', hasQuery);
+      taskSearchClear.hidden = !hasQuery;
+
+      if (!hasQuery) {
+        taskSearchMeta.textContent = '';
+        return;
+      }
+
+      const totalCandidates = getFilteredBoardTasks(tasks, { applySearchFilter: false }).length;
+      const matchedCount = getFilteredBoardTasks(tasks).length;
+      const label = totalCandidates === 1 ? 'task' : 'tasks';
+      taskSearchMeta.textContent = `${matchedCount}/${totalCandidates} ${label}`;
+    }
+
+    function applyTaskSearch(value, options = {}) {
+      const { persist = true } = options;
+      const normalized = normalizeTaskSearchQuery(value);
+      taskSearchInput.value = normalized;
+      if (normalized === taskSearchQuery) return;
+
+      taskSearchQuery = normalized;
+      updateTaskSearchUi();
+      updateAssigneeOptions();
+      updateActivityAssigneeOptions();
+      renderBoard();
+      renderActivity();
+
+      if (persist) {
+        savePreferences();
+      }
+    }
+
     function getFilteredBoardTasks(taskList = tasks, options = {}) {
-      const { onlyVisibleColumns = false, applyAssigneeFilter = true } = options;
+      const {
+        onlyVisibleColumns = false,
+        applyAssigneeFilter = true,
+        applySearchFilter = true,
+        applyCollapsedParents = true,
+      } = options;
       const showSubtasks = showSubtasksCheckbox.checked;
 
       let filtered = showSubtasks ? taskList : taskList.filter(task => !task.parent_id);
@@ -2237,6 +2894,26 @@
 
       if (applyAssigneeFilter && assigneeFilter.value) {
         filtered = filtered.filter(task => getAssigneeValue(task.assignee) === assigneeFilter.value);
+      }
+
+      if (applySearchFilter) {
+        const query = getTaskSearchQuery();
+        if (query) {
+          filtered = filtered.filter((task) => taskMatchesSearch(task, query));
+        }
+      }
+
+      if (showSubtasks && applyCollapsedParents) {
+        // Search mode should always show matching subtasks, regardless of collapsed parents.
+        const query = getTaskSearchQuery();
+        if (!query) {
+          const visibleTaskIds = new Set(filtered.map((task) => task.task_id));
+          filtered = filtered.filter((task) => {
+            if (!task.parent_id) return true;
+            if (!visibleTaskIds.has(task.parent_id)) return true;
+            return !collapsedParents.has(task.parent_id);
+          });
+        }
       }
 
       return filtered;
@@ -2483,17 +3160,20 @@
     function navPrev() {
       calendarMonth--;
       if (calendarMonth < 0) { calendarMonth = 11; calendarYear--; }
+      syncUrlState();
       requestPoll();
     }
     function navNext() {
       calendarMonth++;
       if (calendarMonth > 11) { calendarMonth = 0; calendarYear++; }
+      syncUrlState();
       requestPoll();
     }
     function navToday() {
       const today = new Date();
       calendarYear = today.getFullYear();
       calendarMonth = today.getMonth();
+      syncUrlState();
       requestPoll();
     }
 
@@ -2591,6 +3271,7 @@
       const showSubtasks = showSubtasksCheckbox.checked;
       const emojiMap = buildEmojiMap(tasks);
       const visibleTasks = getFilteredBoardTasks(tasks);
+      const emptyMessage = taskSearchQuery ? 'No matching tasks' : 'No tasks';
 
       const columns = groupTasksByStatus(visibleTasks);
 
@@ -2601,7 +3282,7 @@
 
         if (container) {
           if (statusTasks.length === 0) {
-            container.innerHTML = '<div class="empty-column">No tasks</div>';
+            container.innerHTML = `<div class="empty-column">${emptyMessage}</div>`;
           } else {
             container.innerHTML = statusTasks.map(task => {
               const emojiInfo = emojiMap.get(task.task_id);
@@ -2615,6 +3296,8 @@
 
       // Render mobile cards for active tab
       renderMobileCards(showSubtasks, emojiMap);
+      updateTaskSearchUi();
+      updateCollapseControls();
 
       // Card click handlers are set up via event delegation in init
     }
@@ -2641,13 +3324,14 @@
       if (!container) return;
 
       const visibleTasks = getFilteredBoardTasks(tasks);
+      const emptyMessage = taskSearchQuery ? 'No matching tasks' : 'No tasks';
 
       const columns = groupTasksByStatus(visibleTasks);
 
       container.innerHTML = Object.entries(columns).map(([status, statusTasks]) => `
         <div class="mobile-cards ${status === activeTab ? 'active' : ''}" data-status="${status}">
           ${statusTasks.length === 0
-            ? '<div class="empty-column">No tasks</div>'
+            ? `<div class="empty-column">${emptyMessage}</div>`
             : statusTasks.map(task => {
                 const emojiInfo = emojiMap.get(task.task_id);
                 return renderCard(task, emojiInfo, showSubtasks);
@@ -2901,6 +3585,7 @@
 
         modalBody.innerHTML = html;
         modalOverlay.classList.add('open');
+        syncUrlState();
 
         // Attach tab switching handlers (DOM-only, no re-fetch)
         modalBody.querySelectorAll('.modal-tab').forEach(tab => {
@@ -2953,12 +3638,16 @@
     }
 
     function closeModal() {
+      const wasOpen = modalOverlay.classList.contains('open');
       modalOverlay.classList.remove('open');
       selectedTask = null;
       modalTaskIdValue.textContent = '-';
       modalTaskIdCopy.dataset.taskId = '';
       modalTaskIdCopy.disabled = true;
       setTaskIdCopyFeedback('idle');
+      if (wasOpen) {
+        syncUrlState();
+      }
     }
 
     // Live updates + refresh
@@ -2996,11 +3685,12 @@
           ]);
 
           tasks = newTasks;
+          const collapsedParentsPruned = pruneCollapsedParents(tasks);
           const selectionUpdate = updateAssigneeOptions(pendingAssigneePreference);
           pendingAssigneePreference = null;
           const activitySelectionUpdate = updateActivityAssigneeOptions(pendingActivityAssigneePreference);
           pendingActivityAssigneePreference = null;
-          if (selectionUpdate.reset || activitySelectionUpdate.reset) {
+          if (selectionUpdate.reset || activitySelectionUpdate.reset || collapsedParentsPruned) {
             savePreferences();
           }
 
@@ -3010,9 +3700,12 @@
           }
 
           // Update project filter
-          const currentProject = projectFilter.value;
+          const currentProject = pendingProjectPreference ?? projectFilter.value;
           projectFilter.innerHTML = '<option value="">All projects</option>' +
-            stats.projects.map(p => `<option value="${escapeHtml(p)}" ${p === currentProject ? 'selected' : ''}>${escapeHtml(p)}</option>`).join('');
+            stats.projects.map(p => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('');
+          const hasProject = currentProject && stats.projects.includes(currentProject);
+          projectFilter.value = hasProject ? currentProject : '';
+          pendingProjectPreference = null;
 
           if (activeView === 'calendar') {
             renderCalendar();
@@ -3021,6 +3714,14 @@
             updateGraphData();
           }
           renderActivity();
+          updateTaskSearchUi();
+          syncUrlState();
+
+          if (initialTaskIdFromUrl) {
+            const taskToOpen = initialTaskIdFromUrl;
+            initialTaskIdFromUrl = null;
+            void openTaskModal(taskToOpen);
+          }
 
           lastPollTime = Date.now();
           lastPollError = false;
@@ -3457,10 +4158,25 @@
       return '';
     }
 
+    function isTypingTarget(target) {
+      if (!target || !(target instanceof Element)) return false;
+      if (target.closest('input, textarea, select')) return true;
+      return target.isContentEditable;
+    }
+
     // Event listeners
     dateFilter.addEventListener('change', () => {
       savePreferences();
       requestPoll();
+    });
+
+    taskSearchInput.addEventListener('input', () => {
+      applyTaskSearch(taskSearchInput.value);
+    });
+
+    taskSearchClear.addEventListener('click', () => {
+      applyTaskSearch('');
+      taskSearchInput.focus();
     });
 
     projectFilter.addEventListener('change', () => {
@@ -3493,12 +4209,26 @@
       requestPoll();
     });
 
+    shortcutsBtn.addEventListener('click', () => {
+      setShortcutsModalOpen(true);
+    });
+
+    shortcutsClose.addEventListener('click', () => {
+      setShortcutsModalOpen(false);
+    });
+
+    shortcutsModalOverlay.addEventListener('click', (e) => {
+      if (e.target === shortcutsModalOverlay) {
+        setShortcutsModalOpen(false);
+      }
+    });
+
     activityBtn.addEventListener('click', () => {
-      activityPanel.classList.add('open');
+      setActivityPanelOpen(true);
     });
 
     activityClose.addEventListener('click', () => {
-      activityPanel.classList.remove('open');
+      setActivityPanelOpen(false);
     });
 
     activityList.addEventListener('click', (e) => {
@@ -3525,8 +4255,32 @@
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         closeModal();
-        activityPanel.classList.remove('open');
+        setActivityPanelOpen(false);
+        setShortcutsModalOpen(false);
         settingsDropdown.classList.remove('open');
+        return;
+      }
+
+      if (isTypingTarget(e.target)) {
+        return;
+      }
+
+      if (e.key === '/') {
+        e.preventDefault();
+        taskSearchInput.focus();
+        taskSearchInput.select();
+        return;
+      }
+
+      if (e.key === '?') {
+        e.preventDefault();
+        setShortcutsModalOpen(true);
+        return;
+      }
+
+      if (e.key.toLowerCase() === 'a') {
+        e.preventDefault();
+        setActivityPanelOpen(!activityPanel.classList.contains('open'));
       }
     });
 
@@ -3554,20 +4308,13 @@
     mobileTabs.addEventListener('click', (e) => {
       const tab = e.target.closest('.mobile-tab');
       if (!tab) return;
-
-      activeTab = tab.dataset.status;
-
-      document.querySelectorAll('.mobile-tab').forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
-
-      document.querySelectorAll('.mobile-cards').forEach(c => c.classList.remove('active'));
-      document.querySelector(`.mobile-cards[data-status="${activeTab}"]`)?.classList.add('active');
+      setActiveTab(tab.dataset.status);
     });
 
     // Hamburger menu (toggle filters on mobile)
     hamburgerBtn.addEventListener('click', () => {
       const filters = document.querySelector('.header-filters');
-      filters.style.display = filters.style.display === 'none' ? 'flex' : 'none';
+      filters.classList.toggle('open');
     });
 
     // Settings dropdown
@@ -3603,19 +4350,33 @@
       renderActivity();
     });
 
-    // View toggle (Kanban/Graph)
+    collapseAllParentsBtn.addEventListener('click', () => {
+      collapseAllParents();
+    });
+
+    expandAllParentsBtn.addEventListener('click', () => {
+      expandAllParents();
+    });
+
+    // View selection
     function setActiveView(view) {
+      const allowedViews = new Set(['kanban', 'calendar', 'graph']);
+      if (!allowedViews.has(view)) {
+        view = 'kanban';
+      }
+
+      const graphOption = viewFilter.querySelector('option[value="graph"]');
+      if (view === 'graph' && graphOption && graphOption.disabled) {
+        view = 'kanban';
+      }
+
       // Dismiss calendar popover when leaving calendar view
       if (activeView === 'calendar' && view !== 'calendar') {
         dismissPopover();
       }
 
       activeView = view;
-
-      // Update toggle buttons
-      viewToggle.querySelectorAll('.view-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.view === view);
-      });
+      viewFilter.value = view;
 
       // Show/hide containers
       board.style.display = view === 'kanban' ? '' : 'none';
@@ -3642,23 +4403,29 @@
       requestPoll();
     }
 
-    viewToggle.addEventListener('click', (e) => {
-      const btn = e.target.closest('.view-btn');
-      if (btn && !btn.disabled && btn.dataset.view !== activeView) {
-        setActiveView(btn.dataset.view);
+    viewFilter.addEventListener('change', () => {
+      if (viewFilter.value !== activeView) {
+        setActiveView(viewFilter.value);
       }
     });
 
     // Event delegation for card clicks (avoids re-adding handlers on every render)
-    board.addEventListener('click', (e) => {
-      const card = e.target.closest('.card');
-      if (card) openTaskModal(card.dataset.taskId);
-    });
+    function handleCardContainerClick(e) {
+      const toggle = e.target.closest('[data-action="toggle-subtasks"]');
+      if (toggle) {
+        e.preventDefault();
+        e.stopPropagation();
+        const parentId = toggle.dataset.parentId;
+        toggleParentCollapsed(parentId);
+        return;
+      }
 
-    document.getElementById('mobileCardsContainer').addEventListener('click', (e) => {
       const card = e.target.closest('.card');
       if (card) openTaskModal(card.dataset.taskId);
-    });
+    }
+
+    board.addEventListener('click', handleCardContainerClick);
+    document.getElementById('mobileCardsContainer').addEventListener('click', handleCardContainerClick);
 
     // Initialize
     loadPreferences();
