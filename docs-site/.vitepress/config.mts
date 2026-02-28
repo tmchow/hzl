@@ -1,31 +1,34 @@
 import { defineConfig } from 'vitepress'
 
 export default defineConfig({
-  title: 'HZL Documentation',
-  description: 'Shared task ledger for OpenClaw and multi-agent systems',
+  title: 'HZL',
+  description:
+    'HZL is the shared task ledger for OpenClaw, with durable task state, atomic claiming, and session-safe handoffs.',
   head: [
     ['meta', { property: 'og:type', content: 'website' }],
-    ['meta', { property: 'og:site_name', content: 'HZL Documentation' }],
-    ['meta', { property: 'og:title', content: 'HZL Documentation' }],
+    ['meta', { property: 'og:site_name', content: 'HZL' }],
+    ['meta', { property: 'og:title', content: 'HZL | Shared Task Ledger for OpenClaw' }],
     [
       'meta',
       {
         property: 'og:description',
-        content: 'Shared task ledger for OpenClaw and multi-agent systems',
+        content:
+          'Coordinate OpenClaw agents with durable shared tasks, atomic claiming, and clear human visibility across sessions.',
       },
     ],
     ['meta', { property: 'og:url', content: 'https://hzl-tasks.com/' }],
     ['meta', { property: 'og:image', content: 'https://hzl-tasks.com/og-hzl-tasks.png' }],
     ['meta', { property: 'og:image:width', content: '1200' }],
     ['meta', { property: 'og:image:height', content: '630' }],
-    ['meta', { property: 'og:image:alt', content: 'HZL mascot holding a blue ball' }],
+    ['meta', { property: 'og:image:alt', content: 'HZL shared task ledger for OpenClaw agents' }],
     ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
-    ['meta', { name: 'twitter:title', content: 'HZL Documentation' }],
+    ['meta', { name: 'twitter:title', content: 'HZL | Shared Task Ledger for OpenClaw' }],
     [
       'meta',
       {
         name: 'twitter:description',
-        content: 'Shared task ledger for OpenClaw and multi-agent systems',
+        content:
+          'Coordinate OpenClaw agents with durable shared tasks, atomic claiming, and clear human visibility across sessions.',
       },
     ],
     ['meta', { name: 'twitter:image', content: 'https://hzl-tasks.com/og-hzl-tasks.png' }],
@@ -95,7 +98,7 @@ export default defineConfig({
     ],
     socialLinks: [{ icon: 'github', link: 'https://github.com/tmchow/hzl' }],
     footer: {
-      message: 'HZL - Shared task ledger for OpenClaw and multi-agent systems',
+      message: 'HZL - Shared task ledger for OpenClaw',
     },
   },
 })
