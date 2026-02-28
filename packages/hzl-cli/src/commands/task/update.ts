@@ -4,6 +4,7 @@ import { resolveDbPaths } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError, CLIError, ExitCode } from '../../errors.js';
 import { EventType } from 'hzl-core/events/types.js';
+import { withWriteTransaction } from 'hzl-core/db/transaction.js';
 import { GlobalOptionsSchema } from '../../types.js';
 import { resolveId } from '../../resolve-id.js';
 import { parseInteger } from '../../parse.js';
@@ -67,57 +68,59 @@ export function runUpdate(options: {
     }
   }
 
-  // Emit one task_updated event per field change
-  // The TaskUpdatedSchema requires: field, old_value (optional), new_value
-  if (updates.title !== undefined && updates.title !== task.title) {
-    const event = eventStore.append({
-      task_id: taskId,
-      type: EventType.TaskUpdated,
-      data: { field: 'title', old_value: task.title, new_value: updates.title },
-      author,
-    });
-    projectionEngine.applyEvent(event);
-  }
+  // Emit one task_updated event per field change, wrapped in a transaction
+  // so that multi-field updates are atomic (consistent with TaskService patterns).
+  withWriteTransaction(services.cacheDb, () => {
+    if (updates.title !== undefined && updates.title !== task.title) {
+      const event = eventStore.append({
+        task_id: taskId,
+        type: EventType.TaskUpdated,
+        data: { field: 'title', old_value: task.title, new_value: updates.title },
+        author,
+      });
+      projectionEngine.applyEvent(event);
+    }
 
-  if (updates.description !== undefined && updates.description !== task.description) {
-    const event = eventStore.append({
-      task_id: taskId,
-      type: EventType.TaskUpdated,
-      data: { field: 'description', old_value: task.description, new_value: updates.description },
-      author,
-    });
-    projectionEngine.applyEvent(event);
-  }
+    if (updates.description !== undefined && updates.description !== task.description) {
+      const event = eventStore.append({
+        task_id: taskId,
+        type: EventType.TaskUpdated,
+        data: { field: 'description', old_value: task.description, new_value: updates.description },
+        author,
+      });
+      projectionEngine.applyEvent(event);
+    }
 
-  if (updates.priority !== undefined && updates.priority !== task.priority) {
-    const event = eventStore.append({
-      task_id: taskId,
-      type: EventType.TaskUpdated,
-      data: { field: 'priority', old_value: task.priority, new_value: updates.priority },
-      author,
-    });
-    projectionEngine.applyEvent(event);
-  }
+    if (updates.priority !== undefined && updates.priority !== task.priority) {
+      const event = eventStore.append({
+        task_id: taskId,
+        type: EventType.TaskUpdated,
+        data: { field: 'priority', old_value: task.priority, new_value: updates.priority },
+        author,
+      });
+      projectionEngine.applyEvent(event);
+    }
 
-  if (updates.tags !== undefined) {
-    const event = eventStore.append({
-      task_id: taskId,
-      type: EventType.TaskUpdated,
-      data: { field: 'tags', old_value: task.tags, new_value: updates.tags },
-      author,
-    });
-    projectionEngine.applyEvent(event);
-  }
+    if (updates.tags !== undefined) {
+      const event = eventStore.append({
+        task_id: taskId,
+        type: EventType.TaskUpdated,
+        data: { field: 'tags', old_value: task.tags, new_value: updates.tags },
+        author,
+      });
+      projectionEngine.applyEvent(event);
+    }
 
-  if (updates.links !== undefined) {
-    const event = eventStore.append({
-      task_id: taskId,
-      type: EventType.TaskUpdated,
-      data: { field: 'links', old_value: task.links, new_value: updates.links },
-      author,
-    });
-    projectionEngine.applyEvent(event);
-  }
+    if (updates.links !== undefined) {
+      const event = eventStore.append({
+        task_id: taskId,
+        type: EventType.TaskUpdated,
+        data: { field: 'links', old_value: task.links, new_value: updates.links },
+        author,
+      });
+      projectionEngine.applyEvent(event);
+    }
+  });
 
   // Get updated task
   const updatedTask = services.taskService.getTaskById(taskId)!;

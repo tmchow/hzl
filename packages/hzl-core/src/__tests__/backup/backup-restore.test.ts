@@ -11,6 +11,7 @@ import { DependenciesProjector } from '../../projections/dependencies.js';
 import { TagsProjector } from '../../projections/tags.js';
 import { SearchProjector } from '../../projections/search.js';
 import { CommentsCheckpointsProjector } from '../../projections/comments-checkpoints.js';
+import { ProjectsProjector } from '../../projections/projects.js';
 import { TaskService } from '../../services/task-service.js';
 import { BackupService } from '../../services/backup-service.js';
 import { TaskStatus } from '../../events/types.js';
@@ -34,6 +35,7 @@ describe('Backup/Restore Round-Trip Tests', () => {
     engine.register(new TagsProjector());
     engine.register(new SearchProjector());
     engine.register(new CommentsCheckpointsProjector());
+    engine.register(new ProjectsProjector());
     return {
       taskService: new TaskService(database, eventStore, engine),
       backupService: new BackupService(database),
