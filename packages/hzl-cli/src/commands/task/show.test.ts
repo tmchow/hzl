@@ -7,6 +7,7 @@ import { runShow } from './show.js';
 import { initializeDbFromPath, closeDb, type Services } from '../../db.js';
 import { CLIError, ExitCode } from '../../errors.js';
 import { TaskStatus } from 'hzl-core/events/types.js';
+import type { Task } from 'hzl-core/services/task-service.js';
 import type { DeepSubtask } from './show.js';
 
 describe('runShow', () => {
@@ -48,9 +49,10 @@ describe('runShow', () => {
 
     const result = runShow({ services, taskId: task.task_id, json: false });
     expect(result).not.toBeNull();
-    expect(result!.task.title).toBe('Test task');
-    expect(result!.task.description).toBe('A description');
-    expect(result!.task.priority).toBe(2);
+    const fullTask = result!.task as Task;
+    expect(fullTask.title).toBe('Test task');
+    expect(fullTask.description).toBe('A description');
+    expect(fullTask.priority).toBe(2);
   });
 
   it('includes comments and checkpoints', () => {
@@ -102,11 +104,12 @@ describe('runShow', () => {
     it('includes default values for all Task fields', () => {
       const task = services.taskService.createTask({ title: 'Test', project: 'inbox' });
       const result = runShow({ services, taskId: task.task_id, json: false });
-      expect(result.task.links).toEqual([]);
-      expect(result.task.metadata).toEqual({});
-      expect(result.task.due_at).toBeNull();
-      expect(result.task.claimed_at).toBeNull();
-      expect(result.task.lease_until).toBeNull();
+      const fullTask = result.task as Task;
+      expect(fullTask.links).toEqual([]);
+      expect(fullTask.metadata).toEqual({});
+      expect(fullTask.due_at).toBeNull();
+      expect(fullTask.claimed_at).toBeNull();
+      expect(fullTask.lease_until).toBeNull();
     });
 
     it('includes links field with values when set', () => {
@@ -116,7 +119,73 @@ describe('runShow', () => {
         links: ['docs/spec.md', 'https://example.com'],
       });
       const result = runShow({ services, taskId: task.task_id, json: false });
-      expect(result.task.links).toEqual(['docs/spec.md', 'https://example.com']);
+      const fullTask = result.task as Task;
+      expect(fullTask.links).toEqual(['docs/spec.md', 'https://example.com']);
+    });
+  });
+
+  describe('--view', () => {
+    it('summary view returns minimal task fields and omits comments/checkpoints', () => {
+      const task = services.taskService.createTask({
+        title: 'Test',
+        project: 'inbox',
+        description: 'Full description',
+        tags: ['urgent'],
+      });
+      services.taskService.addComment(task.task_id, 'A comment');
+
+      const result = runShow({ services, taskId: task.task_id, view: 'summary', json: false });
+      expect(result.task).toHaveProperty('task_id');
+      expect(result.task).toHaveProperty('title');
+      expect(result.task).toHaveProperty('status');
+      expect(result.task).toHaveProperty('project');
+      expect(result.task).toHaveProperty('priority');
+      expect(result.task).toHaveProperty('parent_id');
+      expect(result.task).toHaveProperty('agent');
+      expect(result.task).not.toHaveProperty('description');
+      expect(result.task).not.toHaveProperty('links');
+      expect(result.task).not.toHaveProperty('metadata');
+      expect(result.comments).toEqual([]);
+      expect(result.checkpoints).toEqual([]);
+    });
+
+    it('standard view includes due_at and tags but omits description/links/metadata', () => {
+      const task = services.taskService.createTask({
+        title: 'Test',
+        project: 'inbox',
+        description: 'Full description',
+        tags: ['urgent'],
+      });
+
+      const result = runShow({ services, taskId: task.task_id, view: 'standard', json: false });
+      expect(result.task).toHaveProperty('tags');
+      expect(result.task).toHaveProperty('due_at');
+      expect(result.task).not.toHaveProperty('description');
+      expect(result.task).not.toHaveProperty('links');
+      expect(result.task).not.toHaveProperty('metadata');
+      expect(result).toHaveProperty('comments');
+      expect(result).toHaveProperty('checkpoints');
+    });
+
+    it('full view returns everything (default behavior)', () => {
+      const task = services.taskService.createTask({
+        title: 'Test',
+        project: 'inbox',
+        description: 'Full description',
+      });
+
+      const result = runShow({ services, taskId: task.task_id, view: 'full', json: false });
+      expect(result.task).toHaveProperty('description');
+      expect(result.task).toHaveProperty('links');
+      expect(result.task).toHaveProperty('metadata');
+      expect(result).toHaveProperty('comments');
+      expect(result).toHaveProperty('checkpoints');
+    });
+
+    it('defaults to full view when --view not specified', () => {
+      const task = services.taskService.createTask({ title: 'Test', project: 'inbox', description: 'desc' });
+      const result = runShow({ services, taskId: task.task_id, json: false });
+      expect(result.task).toHaveProperty('description');
     });
   });
 
