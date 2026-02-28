@@ -66,6 +66,12 @@ jobs:
       - name: Build packages
         run: pnpm build
 
+      - name: Verify CLI manifest in sync
+        run: pnpm verify:cli-manifest
+
+      - name: Verify CLI/docs parity
+        run: pnpm verify:cli-docs
+
       - name: Run tests
         run: pnpm test:ci
 

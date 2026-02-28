@@ -20,6 +20,9 @@
     "docs:build": "vitepress build docs-site",
     "docs:preview": "vitepress preview docs-site",
     "verify:marketplace": "node scripts/verify-marketplace-versions.js",
+    "generate:cli-manifest": "node scripts/generate-cli-manifest.js",
+    "verify:cli-manifest": "node scripts/generate-cli-manifest.js --check",
+    "verify:cli-docs": "node scripts/verify-cli-doc-parity.js",
     "clean": "rm -rf packages/*/dist packages/*/.turbo",
     "prepare": "husky && pnpm run build"
   },
