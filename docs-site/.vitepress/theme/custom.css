@@ -76,3 +76,31 @@ h4 {
   border-radius: 8px;
   padding: 0.65rem 0.9rem;
 }
+
+.vp-doc .audio-overview {
+  margin: 1.2rem 0 1.4rem;
+  padding: 0.9rem 1rem 1rem;
+  border: 1px solid rgba(255, 90, 45, 0.28);
+  border-radius: 12px;
+  background: linear-gradient(145deg, rgba(255, 90, 45, 0.13), rgba(87, 167, 255, 0.08));
+}
+
+.vp-doc .audio-overview-title {
+  margin: 0 0 0.45rem;
+  font-size: 0.94rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--vp-c-text-1);
+}
+
+.vp-doc .audio-overview-description {
+  margin: 0 0 0.6rem;
+  color: var(--vp-c-text-2);
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.vp-doc .audio-overview audio {
+  width: 100%;
+  display: block;
+}
