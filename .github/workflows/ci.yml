@@ -84,6 +84,29 @@ jobs:
             packages/hzl-cli/dist
           retention-days: 7
 
+  concurrency-stress:
+    name: Concurrency Stress
+    runs-on: self-hosted
+    needs: test
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22.14.0'
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run concurrency stress tests
+        run: pnpm --filter hzl-core test src/__tests__/concurrency/stress.test.ts
+
   pr-validation:
     name: PR Validation
     if: github.event_name == 'pull_request'
