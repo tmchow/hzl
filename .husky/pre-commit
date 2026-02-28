@@ -5,6 +5,8 @@ pnpm install --frozen-lockfile --ignore-scripts 2>/dev/null || {
   exit 1
 }
 
-# Sync snippets and stage any changes
-node scripts/sync-snippets.js 2>/dev/null
-git add -u -- '*.md' 2>/dev/null || true
+# Sync snippets and stage only files the script actually changed
+changed_files=$(node scripts/sync-snippets.js --porcelain 2>/dev/null)
+if [ -n "$changed_files" ]; then
+  echo "$changed_files" | xargs git add --
+fi
