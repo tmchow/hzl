@@ -6,23 +6,23 @@ Thank you for your interest in contributing to HZL.
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-org/hzl.git
+   git clone https://github.com/tmchow/hzl.git
    cd hzl
    ```
 
-2. Install dependencies:
+2. Install dependencies (requires [pnpm](https://pnpm.io/) and Node.js ≥ 22.14.0):
    ```bash
-   npm install
+   pnpm install
    ```
 
 3. Build all packages:
    ```bash
-   npm run build
+   pnpm build
    ```
 
 4. Run tests:
    ```bash
-   npm test
+   pnpm test
    ```
 
 ## Project Structure
@@ -31,9 +31,10 @@ Thank you for your interest in contributing to HZL.
 hzl/
 ├── packages/
 │   ├── hzl-core/     # Core business logic, SQLite, events, projections
-│   └── hzl-cli/      # CLI wrapper over hzl-core
-├── docs/
-│   └── plans/        # Implementation plans
+│   ├── hzl-cli/      # CLI wrapper over hzl-core
+│   └── hzl-web/      # Web dashboard server
+├── docs-site/        # Documentation site (hzl-tasks.com)
+├── docs/             # Internal development docs
 └── .github/
     └── workflows/    # CI/CD configuration
 ```
@@ -45,10 +46,10 @@ hzl/
 3. Write tests for new functionality.
 4. Ensure all checks pass:
    ```bash
-   npm test
-   npm run format:check
-   npm run typecheck
-   npm run lint
+   pnpm test
+   pnpm typecheck
+   pnpm lint
+   pnpm format:check
    ```
 5. Submit a pull request.
 
@@ -61,7 +62,7 @@ hzl/
 
 ## Commit Messages
 
-We use Conventional Commits:
+We use [Conventional Commits](https://www.conventionalcommits.org/), enforced by commitlint:
 
 - `feat(scope): add new feature`
 - `fix(scope): fix bug`
@@ -70,7 +71,7 @@ We use Conventional Commits:
 - `refactor(scope): refactor code`
 - `chore(scope): maintenance tasks`
 
-Scopes: `core`, `cli`, `ci`, `docs`
+Scopes: `core`, `cli`, `web`, `ci`, `docs`
 
 ## Code Style
 
@@ -80,6 +81,7 @@ Scopes: `core`, `cli`, `ci`, `docs`
 Useful commands:
 
 ```bash
-npm run format
-npm run lint:fix
+pnpm format        # Auto-format
+pnpm format:check  # Check formatting
+pnpm lint:fix      # Lint with auto-fix
 ```

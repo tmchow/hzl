@@ -27,7 +27,7 @@ features:
     details: Operators can inspect state and activity through CLI and dashboard.
 ---
 
-## The Problem in OpenClaw
+## The Problem in [OpenClaw](https://openclaw.ai)
 
 OpenClaw-style deployments always start with one main agent, then expand into specialist agents (writer, researcher, engineer, marketer).
 
