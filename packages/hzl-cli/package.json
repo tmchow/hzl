@@ -61,6 +61,8 @@
     "build": "tsc -b",
     "pretest": "node ../../scripts/generate-guide-content.js",
     "test": "vitest run",
+    "pretest:ci": "node ../../scripts/generate-guide-content.js",
+    "test:ci": "vitest run --coverage",
     "test:watch": "vitest"
   },
   "dependencies": {

@@ -54,6 +54,7 @@
   "scripts": {
     "build": "tsc -b && cp -r src/ui dist/",
     "test": "vitest run",
+    "test:ci": "vitest run --coverage",
     "test:watch": "vitest"
   },
   "dependencies": {
