@@ -3,6 +3,33 @@ import { defineConfig } from 'vitepress'
 export default defineConfig({
   title: 'HZL Documentation',
   description: 'Shared task ledger for OpenClaw and multi-agent systems',
+  head: [
+    ['meta', { property: 'og:type', content: 'website' }],
+    ['meta', { property: 'og:site_name', content: 'HZL Documentation' }],
+    ['meta', { property: 'og:title', content: 'HZL Documentation' }],
+    [
+      'meta',
+      {
+        property: 'og:description',
+        content: 'Shared task ledger for OpenClaw and multi-agent systems',
+      },
+    ],
+    ['meta', { property: 'og:url', content: 'https://hzl-tasks.com/' }],
+    ['meta', { property: 'og:image', content: 'https://hzl-tasks.com/og-hzl-tasks.png' }],
+    ['meta', { property: 'og:image:width', content: '1200' }],
+    ['meta', { property: 'og:image:height', content: '630' }],
+    ['meta', { property: 'og:image:alt', content: 'HZL mascot holding a blue ball' }],
+    ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
+    ['meta', { name: 'twitter:title', content: 'HZL Documentation' }],
+    [
+      'meta',
+      {
+        name: 'twitter:description',
+        content: 'Shared task ledger for OpenClaw and multi-agent systems',
+      },
+    ],
+    ['meta', { name: 'twitter:image', content: 'https://hzl-tasks.com/og-hzl-tasks.png' }],
+  ],
   cleanUrls: true,
   lastUpdated: true,
   appearance: 'dark',
