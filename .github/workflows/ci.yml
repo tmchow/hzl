@@ -5,7 +5,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
-    types: [opened, edited, synchronize, reopened]
+    types: [opened, synchronize, reopened, labeled, unlabeled]
 
 permissions:
   contents: read
@@ -16,8 +16,43 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  ci-scope:
+    name: CI Scope
+    runs-on: self-hosted
+    outputs:
+      run_main: ${{ github.event_name == 'push' || steps.changes.outputs.main_relevant == 'true' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'full-ci')) }}
+      run_stress: ${{ github.event_name == 'push' || steps.changes.outputs.stress_relevant == 'true' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'full-ci')) }}
+    steps:
+      - uses: actions/checkout@v6
+        if: github.event_name == 'pull_request'
+
+      - name: Detect CI-relevant changes
+        id: changes
+        if: github.event_name == 'pull_request'
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            main_relevant:
+              - '**'
+              - '!**/*.md'
+              - '!docs/**'
+              - '!docs-site/**'
+              - '!snippets/**'
+            stress_relevant:
+              - 'packages/hzl-core/src/__tests__/concurrency/**'
+              - 'packages/hzl-core/src/services/task-service.ts'
+              - 'packages/hzl-core/src/services/task-service.test.ts'
+              - 'packages/hzl-core/src/db/**'
+              - 'packages/hzl-core/src/events/**'
+              - 'packages/hzl-core/src/projections/**'
+              - 'packages/hzl-core/package.json'
+              - 'pnpm-lock.yaml'
+              - '.github/workflows/ci.yml'
+
   lint-and-typecheck:
     name: Lint & Typecheck
+    needs: ci-scope
+    if: needs.ci-scope.outputs.run_main == 'true'
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v6
@@ -44,8 +79,10 @@ jobs:
       - name: Verify marketplace versions
         run: pnpm verify:marketplace
 
-  test:
-    name: Test
+  build:
+    name: Build
+    needs: ci-scope
+    if: needs.ci-scope.outputs.run_main == 'true'
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v6
@@ -72,28 +109,18 @@ jobs:
       - name: Verify CLI/docs parity
         run: pnpm verify:cli-docs
 
-      - name: Run tests
-        run: pnpm test:ci
-
-      - name: Upload coverage
-        uses: codecov/codecov-action@v5
-        with:
-          files: ./packages/hzl-core/coverage/lcov.info,./packages/hzl-cli/coverage/lcov.info
-          fail_ci_if_error: false
-
-      - name: Upload build artifacts
+      - name: Upload hzl-core dist artifact
         uses: actions/upload-artifact@v6
         with:
-          name: dist
-          path: |
-            packages/hzl-core/dist
-            packages/hzl-cli/dist
+          name: hzl-core-dist
+          path: packages/hzl-core/dist
           retention-days: 7
 
-  concurrency-stress:
-    name: Concurrency Stress
+  test:
+    name: Test
+    needs: ci-scope
+    if: needs.ci-scope.outputs.run_main == 'true'
     runs-on: self-hosted
-    needs: test
     steps:
       - uses: actions/checkout@v6
 
@@ -110,7 +137,45 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Run tests
+        run: pnpm test:ci
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./packages/hzl-core/coverage/lcov.info,./packages/hzl-cli/coverage/lcov.info,./packages/hzl-web/coverage/lcov.info
+          fail_ci_if_error: false
+
+  concurrency-stress:
+    name: Concurrency Stress
+    runs-on: self-hosted
+    needs: [ci-scope, build]
+    if: needs.ci-scope.outputs.run_stress == 'true' && needs.build.result == 'success'
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22.14.0'
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v6
+        with:
+          name: hzl-core-dist
+          path: packages/hzl-core/dist
+
       - name: Run concurrency stress tests
+        env:
+          HZL_STRESS_SKIP_BUILD: '1'
         run: pnpm --filter hzl-core test src/__tests__/concurrency/stress.test.ts
 
   pr-validation:
