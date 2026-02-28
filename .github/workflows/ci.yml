@@ -73,12 +73,6 @@ jobs:
       - name: Run typecheck and lint
         run: pnpm typecheck & pnpm lint & wait
 
-      - name: Verify snippets in sync
-        run: node scripts/sync-snippets.js --check
-
-      - name: Verify marketplace versions
-        run: pnpm verify:marketplace
-
   build:
     name: Build
     needs: ci-scope

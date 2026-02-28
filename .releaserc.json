@@ -35,10 +35,7 @@
         "package.json",
         "pnpm-lock.yaml",
         "packages/*/package.json",
-        "packages/hzl-cli/README.md",
-        ".claude-plugin/marketplace.json",
-        ".claude-plugin/plugin.json",
-        "packages/hzl-marketplace/**/*.json"
+        "packages/hzl-cli/README.md"
       ],
       "message": "chore(release): ${nextRelease.version}\n\n${nextRelease.notes}"
     }],

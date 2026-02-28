@@ -1,1 +1,0 @@
-Install HZL from https://github.com/tmchow/hzl and run hzl init. Install the HZL skill from https://www.clawhub.ai/tmchow/hzl. Then append the HZL policy from https://raw.githubusercontent.com/tmchow/hzl/main/openclaw/OPENCLAW-TOOLS-PROMPT.md to my TOOLS.md.
