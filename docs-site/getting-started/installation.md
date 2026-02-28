@@ -87,6 +87,49 @@ Does this look right before I proceed?
 
 Only ask the operator for a value if it is genuinely missing from config/state.
 
+## 2b) Check sandbox mode for each agent
+
+Why: HZL uses the `exec` tool to run CLI commands. If an agent has sandbox mode enabled, `exec` runs in Docker, where the HZL binary and data directory are not present by default.
+
+Check `openclaw.json` for:
+- `agents.defaults.sandbox.mode`
+- `agents.list[].sandbox.mode` per agent
+
+If sandbox mode is absent or `off` for all agents, continue to step 3.
+
+If any agent has `sandbox.mode: "all"` or `sandbox.mode: "non-main"`, add HZL bind mounts to that agent's sandbox config:
+
+```json5
+{
+  "agents": {
+    "list": [{
+      "id": "<agent-id>",
+      "sandbox": {
+        "docker": {
+          "binds": [
+            "/home/<user>/.local/share/hzl:/home/<user>/.local/share/hzl:rw",
+            "<hzl-binary-path>:/usr/local/bin/hzl:ro"
+          ]
+        }
+      }
+    }]
+  }
+}
+```
+
+Find values with:
+
+```bash
+whoami
+which hzl
+```
+
+Apply changes via `config.patch`; do not hand-edit `openclaw.json`.
+
+`non-main` mode note:
+- `non-main` sandboxes all non-main sessions, including group/channel sessions (for example Discord or Telegram agents).
+- If `agents.defaults.sandbox.mode` is `non-main`, sub-agents are sandboxed even without per-agent overrides.
+
 ## 3) Choose project routing model
 
 Why: tasks routed to a project pool (instead of a specific agent) can be claimed by any agent monitoring that pool.
@@ -112,7 +155,41 @@ hzl project create marketing
 
 Pool routing rule:
 - Create tasks in the target project without `--agent`.
-- Any matching agent can claim with `task claim --next -P <project> --agent <id>`.
+- Any matching agent can claim with `hzl task claim --next -P <project> --agent <id>`.
+
+### Exec-denied agents (resolve before HEARTBEAT wiring)
+
+Run this check during discovery and resolve it before step 4.
+
+Some agents deny `exec` in `tools.deny`. HZL depends on `exec` for CLI commands, so this is all-or-nothing at the tool level.
+
+For each exec-denied agent, ask:
+
+```md
+Agent <id> has exec denied. HZL requires exec to run CLI commands. Two options:
+1) Allow exec for this agent by removing exec from tools.deny.
+2) Keep exec denied. This agent won't run HZL commands directly; another agent (for example the main agent) will manage tasks on its behalf with --agent <id>.
+
+Which do you prefer?
+```
+
+Do not assume option 2. The deny rule may be inherited rather than deliberate.
+
+If option 1 is chosen:
+- Remove `exec` from that agent's `tools.deny` before adding the HEARTBEAT Task Poll block.
+
+If deny is inherited from `group:runtime`, carve `exec` back out without re-enabling the full group:
+
+```json5
+"tools": {
+  "deny": ["group:runtime"],
+  "allow": ["exec"]
+}
+```
+
+If option 2 is chosen:
+- Skip the HEARTBEAT Task Poll block for that agent.
+- Record it as `indirect participant - tasks managed by <main-agent-id>` in integration notes.
 
 ## 4) Add session-start polling in each agent HEARTBEAT
 
@@ -191,9 +268,71 @@ Expected:
 
 ## 7) Add per-agent TOOLS.md baseline (recommended during setup)
 
-Why: each agent should know its own HZL identity, queue scope, and relevant commands without inferring full-system context.
+Why: each agent should know its own HZL identity, queue scope, sandbox expectation, and relevant commands without inferring full-system context.
 
 Add an HZL section to each agent's `TOOLS.md` using the guidance in [Per-agent TOOLS.md guidance](#per-agent-tools-md-guidance).
+
+## 7b) Optional: Add a shared HZL policy block to TOOLS.md
+
+Why: if your OpenClaw setup uses a shared runtime policy in `TOOLS.md`, use this canonical block.
+
+````md
+### Tasks: External tracking with HZL
+
+HZL is OpenClaw's durable task ledger for stateless sessions.
+
+Use HZL by default when work is non-trivial, spans sessions, or involves delegation.
+
+## Default operating loop
+
+```bash
+# Session start
+hzl workflow run start --agent <agent-id> --project <project>
+
+# During work
+hzl task checkpoint <id> "progress + next step"
+
+# Finish paths
+hzl task complete <id>
+# or
+hzl workflow run handoff --from <id> --title "<next task>" --project <project>
+# or
+hzl workflow run delegate --from <id> --title "<delegated task>" --project <project> --pause-parent
+```
+
+## Multi-agent routing
+
+- Prefer project pools for role queues.
+- Omit `--agent` when creating pool-routed tasks.
+- Claim with `hzl task claim --next -P <project> --agent <id>`.
+
+## Agent roster changes (standing instruction)
+
+When a new agent is added:
+- decide which HZL project pool(s) that agent monitors,
+- check sandbox settings and add HZL bind mounts first if sandbox mode is enabled,
+- add the marker-wrapped HZL Task Poll block to that agent's HEARTBEAT,
+- add/update that agent's HZL section in `TOOLS.md` (identity, projects, sandbox mode, relevant commands),
+- update the main agent's HZL system map in `TOOLS.md` to include the new agent and project ownership.
+
+## Reliability
+
+- Completion hooks are outbox-based.
+- Host runtime must schedule `hzl hook drain` (every 1-5 minutes).
+
+## Troubleshooting quick hits
+
+| Error | Fix |
+|---|---|
+| "not claimable (status: backlog)" | `hzl task set-status <id> ready` |
+| "Cannot complete: status is X" | `hzl task claim <id> --agent <id>` first |
+| "handoff requires --agent, --project, or both" | add explicit routing flags |
+
+## Destructive commands (never run unless explicitly requested)
+
+- `hzl init --force`
+- `hzl task prune`
+````
 
 ## 8) Record what changed (required for clean teardown)
 
@@ -205,6 +344,7 @@ HZL integration (installed <date>):
 - Config keys changed: hooks.on_done
 - HEARTBEAT files modified: <paths>
 - Projects created: <list>
+- Sandbox-enabled agents + HZL bind mounts: <list>
 - Update preference: auto-update | notify-only | manual
 - Update scheduler/job id (if any): <id>
 ```
@@ -269,6 +409,33 @@ No scheduled update checks. Operator updates intentionally when ready.
 Cron configuration:
 - none
 
+### Optional: Manual `upgrade hzl` helper script (OpenClaw)
+
+If you want one workspace command for manual upgrades, create `scripts/upgrade-hzl.sh`:
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+echo "Updating hzl-cli..."
+npm install -g hzl-cli@latest
+echo "hzl-cli version: $(hzl --version)"
+
+echo "Updating OpenClaw HZL skill..."
+npx clawhub update hzl
+echo "OpenClaw HZL skill update completed."
+```
+
+Then make it executable:
+
+```bash
+chmod +x scripts/upgrade-hzl.sh
+```
+
+If your runtime supports command aliases/intents, map `upgrade hzl` to this script.
+
 ## Ongoing maintenance (after initial setup)
 
 Use this section after you are already up and running.
@@ -285,6 +452,7 @@ Each agent should know its own identity, project scope, and commands relevant to
 
 Identity: <agent-id>
 Projects monitored: <project-name(s)>
+Sandbox mode: off  <!-- or: on (bind mounts configured in openclaw.json) -->
 
 Key commands:
 - hzl task complete <id>
@@ -322,11 +490,13 @@ System commands:
 ## New agent checklist
 
 When adding a new agent later:
-1. Add marker-wrapped Task Poll block to that agent's HEARTBEAT.
-2. Decide which project pool(s) it monitors.
-3. Add an HZL section to that agent's `TOOLS.md` with identity, projects, and relevant commands.
-4. Update the main agent's HZL system map in its `TOOLS.md` to include the new agent and project ownership.
-5. Record the change in your HZL integration notes.
+1. Decide which project pool(s) it monitors.
+2. Check sandbox config for the new agent and defaults.
+3. If sandbox mode is enabled (or defaults are `non-main`/`all`), add HZL bind mounts before HEARTBEAT wiring.
+4. Add marker-wrapped Task Poll block to that agent's HEARTBEAT.
+5. Add an HZL section to that agent's `TOOLS.md` with identity, projects, sandbox mode, and relevant commands.
+6. Update the main agent's HZL system map in its `TOOLS.md` to include the new agent and project ownership.
+7. Record the change in your HZL integration notes.
 
 ## Teardown checklist (manual, reverse order)
 

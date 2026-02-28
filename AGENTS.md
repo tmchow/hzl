@@ -228,56 +228,18 @@ The documentation is organized into three folders:
 
 | Source | Purpose | When accessed |
 |--------|---------|---------------|
-| `snippets/AGENT-POLICY.md` | Minimal policy (when to use HZL) | Embedded in AGENTS.md via markers |
+| `snippets/AGENT-POLICY.md` | Minimal policy (when to use HZL) | Installer/instruction-file guidance |
 | `snippets/HZL-GUIDE.md` | Full workflow guide | Via `hzl guide` command |
 | `skills/hzl/SKILL.md` | Advanced topics | On-demand (skill invocation) |
-| `openclaw/OPENCLAW-TOOLS-PROMPT.md` | OpenClaw-specific | OpenClaw context |
+| `docs-site/getting-started/installation.md` | OpenClaw-specific setup and runtime policy | During OpenClaw install/maintenance |
 
-Agents get the minimal HZL policy in AGENTS.md (via snippet markers), then run `hzl guide` for full workflow documentation.
+Agents get the minimal HZL policy in AGENTS.md, then run `hzl guide` for full workflow documentation.
 
-### Documentation Includes (Snippet System)
+### Snippet Source Files
 
-Reusable documentation lives in `/snippets/` (root level, UPPERCASE filenames). A GitHub Action syncs snippet content into target files automatically.
-
-**Scanned paths:**
-- `README.md`, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `CODEX.md`
-- `docs/**/*.md`, `docs-site/**/*.md`
-- `skills/**/*.md`
-
-**Available snippets:**
-- `snippets/AGENT-POLICY.md` — Minimal HZL policy (when to use HZL, embedded in AGENTS.md)
-- `snippets/HZL-GUIDE.md` — Full HZL workflow guide (output by `hzl guide` command)
-- `snippets/CODING-AGENT-SETUP.md` — Setup instructions for Claude Code, Codex, Gemini
-- `snippets/OPENCLAW-SETUP-PROMPT.md` — OpenClaw quick start prompt
-- `snippets/UPGRADE-HZL-PROMPT.md` — HZL upgrade prompt for OpenClaw
-
-**Marker syntax:**
-
-```markdown
-<!-- START snippets/YOUR-SNIPPET.md -->
-<!-- END snippets/YOUR-SNIPPET.md -->
-```
-
-To wrap the snippet in a code fence (for showing as copyable code):
-
-```markdown
-<!-- START [code:md] snippets/YOUR-SNIPPET.md -->
-<!-- END [code:md] snippets/YOUR-SNIPPET.md -->
-```
-
-The `[code:X]` modifier wraps content in triple backticks with language `X` (e.g., `md`, `txt`, `bash`).
-
-**How it works:**
-1. Edit the source file in `snippets/`
-2. Commit — the pre-commit hook runs `sync-snippets.js` and stages updated files
-3. CI verifies snippets are in sync
-
-**To add a new snippet:**
-1. Create the snippet file in `snippets/` (UPPERCASE filename)
-2. Add markers in any scanned file (see paths above)
-3. Commit — the hook syncs automatically
-
-**To edit a snippet:** Edit the source file in `snippets/`, never the content between markers. The pre-commit hook handles syncing.
+Reusable HZL source content lives in `/snippets/`:
+- `snippets/AGENT-POLICY.md` — Minimal policy used by installer messaging and instruction-file guidance.
+- `snippets/HZL-GUIDE.md` — Source for `hzl guide` content generation.
 
 ### ⚠️ Documentation to Update When CLI Changes
 
@@ -336,5 +298,4 @@ When adding/removing/renaming commands:
 When changing the minimum Node.js version, update these locations:
 
 1. `package.json` — `engines.node` field
-2. `scripts/install.sh` — `MIN_NODE_VERSION` constant
-3. `README.md` - mentions of node version
+2. `README.md` - mentions of node version
