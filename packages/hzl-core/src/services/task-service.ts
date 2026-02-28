@@ -1219,8 +1219,7 @@ export class TaskService {
     const sql = `
       SELECT task_id, title, project, status, priority,
              agent, progress, lease_until, updated_at,
-             parent_id, description, links, tags, due_at, metadata,
-             claimed_at, created_at
+             parent_id, due_at
       FROM tasks_current
       WHERE ${conditions.join(' AND ')}
       ORDER BY priority DESC, updated_at DESC
