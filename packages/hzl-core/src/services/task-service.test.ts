@@ -1157,6 +1157,22 @@ describe('TaskService', () => {
       expect(() => taskService.listTasks({ dueMonth: 'bad-month' })).toThrow(InvalidDueMonthError);
       expect(() => taskService.listTasks({ dueMonth: '2026-00' })).toThrow(InvalidDueMonthError);
     });
+
+    it('listTasks includes tags', () => {
+      taskService.createTask({ title: 'Tagged task', project: 'project-a', tags: ['bug', 'urgent'] });
+      const tasks = taskService.listTasks({ sinceDays: 7 });
+      const found = tasks.find((t) => t.title === 'Tagged task');
+      expect(found).toBeDefined();
+      expect(found!.tags).toEqual(['bug', 'urgent']);
+    });
+
+    it('listTasks returns empty tags array for untagged tasks', () => {
+      taskService.createTask({ title: 'No tags', project: 'project-a' });
+      const tasks = taskService.listTasks({ sinceDays: 7 });
+      const found = tasks.find((t) => t.title === 'No tags');
+      expect(found).toBeDefined();
+      expect(found!.tags).toEqual([]);
+    });
   });
 
   describe('getBlockedByMap', () => {

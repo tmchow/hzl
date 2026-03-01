@@ -161,6 +161,7 @@ export interface TaskListItem {
   parent_id: string | null;
   progress: number | null;
   due_at: string | null;
+  tags: string[];
 }
 
 export interface TaskStats {
@@ -1269,7 +1270,7 @@ export class TaskService {
     const sql = `
       SELECT task_id, title, project, status, priority,
              agent, progress, lease_until, updated_at,
-             parent_id, due_at
+             parent_id, due_at, tags
       FROM tasks_current
       WHERE ${conditions.join(' AND ')}
       ORDER BY priority DESC, updated_at DESC
@@ -1289,6 +1290,7 @@ export class TaskService {
       parent_id: row.parent_id,
       progress: row.progress,
       due_at: row.due_at,
+      tags: JSON.parse(row.tags) as string[],
     }));
   }
 
