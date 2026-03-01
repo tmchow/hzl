@@ -6,6 +6,7 @@ export interface UseTasksOptions {
   since?: string;
   project?: string;
   dueMonth?: string;
+  tag?: string;
 }
 
 export interface UseTasksResult {
@@ -16,7 +17,7 @@ export interface UseTasksResult {
 }
 
 export function useTasks(options: UseTasksOptions = {}): UseTasksResult {
-  const { since, project, dueMonth } = options;
+  const { since, project, dueMonth, tag } = options;
   const [tasks, setTasks] = useState<TaskListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -26,6 +27,7 @@ export function useTasks(options: UseTasksOptions = {}): UseTasksResult {
     if (dueMonth) params.due_month = dueMonth;
     else if (since) params.since = since;
     if (project) params.project = project;
+    if (tag) params.tag = tag;
 
     setLoading(true);
     fetchJson<TaskListResponse>('/api/tasks', params)
@@ -39,7 +41,7 @@ export function useTasks(options: UseTasksOptions = {}): UseTasksResult {
       .finally(() => {
         setLoading(false);
       });
-  }, [since, project, dueMonth]);
+  }, [since, project, dueMonth, tag]);
 
   useEffect(() => {
     refresh();
