@@ -1,3 +1,16 @@
+# [2.3.0](https://github.com/tmchow/hzl/compare/v2.2.0...v2.3.0) (2026-03-01)
+
+
+### Bug Fixes
+
+* **cli:** make parsing tolerant and output-consistent ([#142](https://github.com/tmchow/hzl/issues/142)) ([44619de](https://github.com/tmchow/hzl/commit/44619debcc948ed2690d8683b71e56833cb81b53))
+
+
+### Features
+
+* harden dev safety and automate OpenClaw skill publishing ([#141](https://github.com/tmchow/hzl/issues/141)) ([693e9e6](https://github.com/tmchow/hzl/commit/693e9e665ee88a1af2f4fabd4b10a228f5cbbc9b))
+* optimize CLI output for agent workflows ([#144](https://github.com/tmchow/hzl/issues/144)) ([803e878](https://github.com/tmchow/hzl/commit/803e8780d2dc80eb1d8100e664177545f5ed265d))
+
 # [2.2.0](https://github.com/tmchow/hzl/compare/v2.1.0...v2.2.0) (2026-02-28)
 
 
