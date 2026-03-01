@@ -10,7 +10,6 @@ import { parseOptionalInteger } from '../../parse.js';
 import { stripEmptyCollections } from '../../strip-empty.js';
 import { TaskStatus } from 'hzl-core/events/types.js';
 import {
-  DependenciesNotDoneError,
   TaskNotClaimableError,
   type Task,
 } from 'hzl-core/services/task-service.js';
@@ -356,7 +355,7 @@ export function runClaim(options: {
       lease_until: leaseUntil,
     });
   } catch (error) {
-    if (error instanceof TaskNotClaimableError || error instanceof DependenciesNotDoneError) {
+    if (error instanceof TaskNotClaimableError) {
       const trace = buildTrace({
         mode: 'explicit',
         filters: { task_id: taskId },

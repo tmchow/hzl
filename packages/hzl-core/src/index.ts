@@ -108,7 +108,6 @@ export {
   TaskService,
   TaskNotFoundError,
   TaskNotClaimableError,
-  DependenciesNotDoneError,
   AmbiguousPrefixError,
   TaskValidationError,
   InvalidProgressError,

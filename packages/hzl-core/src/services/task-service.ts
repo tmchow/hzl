@@ -233,12 +233,6 @@ export class TaskNotClaimableError extends Error {
   }
 }
 
-export class DependenciesNotDoneError extends Error {
-  constructor(taskId: string, pendingDeps: string[]) {
-    super(`Task ${taskId} has dependencies not done: ${pendingDeps.join(', ')}`);
-  }
-}
-
 export class AmbiguousPrefixError extends Error {
   public readonly matches: Array<{ task_id: string; title: string }>;
 
@@ -297,7 +291,6 @@ export class TaskService {
   private static readonly PRUNE_JOURNAL_FILENAME = 'prune-journal.json';
   private static readonly ATTACHED_EVENTS_SCHEMA = 'events_src';
 
-  private getIncompleteDepsStmt: Database.Statement;
   private getSubtasksStmt: Database.Statement;
   private getTaskByIdStmt: Database.Statement;
   private resolveTaskIdStmt: Database.Statement;
@@ -315,14 +308,6 @@ export class TaskService {
   ) {
     this.onDoneHook = options?.onDone;
     this.pruneJournalPath = this.resolvePruneJournalPath(options?.pruneJournalPath);
-    this.getIncompleteDepsStmt = db.prepare(`
-      SELECT td.depends_on_id
-      FROM task_dependencies td
-      LEFT JOIN tasks_current tc ON tc.task_id = td.depends_on_id
-      WHERE td.task_id = ?
-        AND (tc.status IS NULL OR tc.status != 'done')
-    `);
-
     this.getSubtasksStmt = db.prepare(`
       SELECT task_id, title, project, status, parent_id, description,
              links, tags, priority, due_at, metadata,
