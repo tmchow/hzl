@@ -3,10 +3,10 @@ import { useTasks } from './hooks/useTasks';
 import { useEvents } from './hooks/useEvents';
 import { useStats } from './hooks/useStats';
 import { useSSE } from './hooks/useSSE';
+import { useSearch } from './hooks/useSearch';
 import { loadPreferences, savePreferences } from './hooks/usePreferences';
 import { parseUrlState, syncUrlState } from './hooks/useUrlState';
 import type { ViewMode } from './hooks/useUrlState';
-import type { TaskListItem } from './api/types';
 import type { ActivityEvent } from './api/types';
 import { buildEmojiMap } from './utils/emoji';
 import { getAssigneeValue, getBoardStatus } from './utils/format';
@@ -24,24 +24,6 @@ import MobileTabs from './components/MobileTabs/MobileTabs';
 
 function normalizeSearchQuery(value: string): string {
   return value.trim().replace(/\s+/g, ' ').slice(0, 120);
-}
-
-function taskMatchesSearch(task: TaskListItem, query: string): boolean {
-  if (!query) return true;
-  const terms = query.split(' ');
-  const haystack = [
-    task.task_id,
-    task.title,
-    task.project,
-    getAssigneeValue(task.assignee),
-    task.description,
-    Array.isArray(task.tags) ? task.tags.join(' ') : '',
-    Array.isArray(task.blocked_by) ? task.blocked_by.join(' ') : '',
-  ]
-    .filter(Boolean)
-    .join(' ')
-    .toLowerCase();
-  return terms.every((term) => haystack.includes(term));
 }
 
 export default function App() {
@@ -117,6 +99,9 @@ export default function App() {
     refreshAll();
   });
 
+  const { results: searchResults, total: searchTotal, searching } = useSearch(searchQuery);
+  const isSearching = searchQuery.trim().length > 0;
+
   // Save preferences on state change
   const persistPrefs = useCallback(() => {
     savePreferences({
@@ -162,19 +147,15 @@ export default function App() {
 
   // Filter tasks
   const filteredTasks = useMemo(() => {
+    if (isSearching) return [];
+
     let filtered = showSubtasks ? tasks : tasks.filter((t) => !t.parent_id);
 
     if (assignee) {
       filtered = filtered.filter((t) => getAssigneeValue(t.assignee) === assignee);
     }
 
-    const query = normalizeSearchQuery(searchQuery).toLowerCase();
-    if (query) {
-      filtered = filtered.filter((t) => taskMatchesSearch(t, query));
-    }
-
-    // Collapsed parents: hide children of collapsed parents (but not during search)
-    if (showSubtasks && !query) {
+    if (showSubtasks) {
       const visibleIds = new Set(filtered.map((t) => t.task_id));
       filtered = filtered.filter((t) => {
         if (!t.parent_id) return true;
@@ -184,19 +165,13 @@ export default function App() {
     }
 
     return filtered;
-  }, [tasks, showSubtasks, assignee, searchQuery, collapsedParents]);
+  }, [tasks, showSubtasks, assignee, collapsedParents, isSearching]);
 
   // Compute search counts for filter bar
   const searchCounts = useMemo(() => {
-    if (!searchQuery) return { matched: 0, total: 0 };
-    let base = showSubtasks ? tasks : tasks.filter((t) => !t.parent_id);
-    if (assignee) {
-      base = base.filter((t) => getAssigneeValue(t.assignee) === assignee);
-    }
-    const query = normalizeSearchQuery(searchQuery).toLowerCase();
-    const matched = base.filter((t) => taskMatchesSearch(t, query));
-    return { matched: matched.length, total: base.length };
-  }, [tasks, showSubtasks, assignee, searchQuery]);
+    if (!isSearching) return { matched: 0, total: 0 };
+    return { matched: searchResults.length, total: searchTotal };
+  }, [isSearching, searchResults.length, searchTotal]);
 
   // Emoji map
   const emojiMap = useMemo(() => buildEmojiMap(tasks), [tasks]);
@@ -221,15 +196,14 @@ export default function App() {
 
   // Visible board task IDs (without assignee filter) — shared by activity panel memos
   const visibleBoardTaskIds = useMemo(() => {
+    if (isSearching) {
+      return new Set(searchResults.map((t) => t.task_id));
+    }
     let boardBase = showSubtasks ? tasks : tasks.filter((t) => !t.parent_id);
     const visibleStatuses = new Set(columnVisibility);
     boardBase = boardBase.filter((t) => visibleStatuses.has(getBoardStatus(t)));
-    const query = normalizeSearchQuery(searchQuery).toLowerCase();
-    if (query) {
-      boardBase = boardBase.filter((t) => taskMatchesSearch(t, query));
-    }
     return new Set(boardBase.map((t) => t.task_id));
-  }, [tasks, showSubtasks, columnVisibility, searchQuery]);
+  }, [tasks, showSubtasks, columnVisibility, isSearching, searchResults]);
 
   // Filtered events for activity panel
   const filteredEvents = useMemo(() => {
@@ -399,7 +373,7 @@ export default function App() {
         </div>
       </header>
 
-      {view === 'kanban' && (
+      {view === 'kanban' && !isSearching && (
         <>
           <MobileTabs
             tasks={filteredTasks}
@@ -425,7 +399,32 @@ export default function App() {
         </>
       )}
 
-      {view === 'calendar' && (
+      {isSearching && (
+        <div className="search-results">
+          {searching && <div className="search-loading">Searching...</div>}
+          {!searching && searchResults.length === 0 && searchQuery.trim() && (
+            <div className="search-empty">No results found</div>
+          )}
+          {searchResults.map((result) => (
+            <div
+              key={result.task_id}
+              className="search-result-card"
+              onClick={() => setSelectedTaskId(result.task_id)}
+            >
+              <div className="search-result-title">{result.title}</div>
+              <div className="search-result-meta">
+                <span className={`status-badge status-${result.status}`}>{result.status}</span>
+                <span className="search-result-project">{result.project}</span>
+              </div>
+              {result.description && (
+                <div className="search-result-description">{result.description}</div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {view === 'calendar' && !isSearching && (
         <CalendarView
           tasks={tasks}
           year={calendarYear}
@@ -435,7 +434,7 @@ export default function App() {
         />
       )}
 
-      {view === 'graph' && (
+      {view === 'graph' && !isSearching && (
         <GraphView
           tasks={tasks}
           onTaskClick={setSelectedTaskId}
