@@ -1,6 +1,8 @@
 import type Database from 'libsql';
 import { generateId } from '../utils/id.js';
-import { EventEnvelope, EventType, validateEventData } from './types.js';
+import { runEventsMigrations } from '../db/migrations/index.js';
+import { UpcasterRegistry } from './upcasters.js';
+import { CURRENT_SCHEMA_VERSION, EventEnvelope, EventType, validateEventData } from './types.js';
 
 export interface AppendEventInput {
   event_id?: string;
@@ -29,6 +31,7 @@ type EventRow = {
   task_id: string;
   type: EventType;
   data: string;
+  schema_version: number;
   author: string | null;
   agent_id: string | null;
   session_id: string | null;
@@ -43,17 +46,22 @@ export class EventStore {
   private selectByTaskStmt: Database.Statement;
   private selectByEventIdStmt: Database.Statement;
 
-  constructor(private db: Database.Database) {
+  constructor(
+    private db: Database.Database,
+    private upcasterRegistry: UpcasterRegistry = new UpcasterRegistry()
+  ) {
+    runEventsMigrations(db);
+
     // Use RETURNING to get canonical DB timestamp and rowid
     this.insertReturningStmt = db.prepare(`
-      INSERT INTO events (event_id, task_id, type, data, author, agent_id, session_id, correlation_id, causation_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO events (event_id, task_id, type, data, schema_version, author, agent_id, session_id, correlation_id, causation_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       RETURNING id, timestamp
     `);
 
     this.insertIgnoreStmt = db.prepare(`
-      INSERT OR IGNORE INTO events (event_id, task_id, type, data, author, agent_id, session_id, correlation_id, causation_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT OR IGNORE INTO events (event_id, task_id, type, data, schema_version, author, agent_id, session_id, correlation_id, causation_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     this.selectByTaskStmt = db.prepare(`
@@ -77,6 +85,7 @@ export class EventStore {
       input.task_id,
       input.type,
       JSON.stringify(input.data),
+      CURRENT_SCHEMA_VERSION,
       input.author ?? null,
       input.agent_id ?? null,
       input.session_id ?? null,
@@ -108,6 +117,7 @@ export class EventStore {
       input.task_id,
       input.type,
       JSON.stringify(input.data),
+      CURRENT_SCHEMA_VERSION,
       input.author ?? null,
       input.agent_id ?? null,
       input.session_id ?? null,
@@ -169,12 +179,24 @@ export class EventStore {
   }
 
   private rowToEnvelope(row: EventRow): PersistedEventEnvelope {
+    const parsedData = JSON.parse(row.data) as Record<string, unknown>;
+    const schemaVersion = row.schema_version ?? 1;
+    if (schemaVersion > CURRENT_SCHEMA_VERSION) {
+      console.warn(
+        `Encountered event ${row.event_id} (${row.type}) with schema version ${schemaVersion}, ` +
+          `newer than supported version ${CURRENT_SCHEMA_VERSION}; returning data unchanged`
+      );
+    }
+    const data = schemaVersion > CURRENT_SCHEMA_VERSION
+      ? parsedData
+      : this.upcasterRegistry.upcast(row.type, schemaVersion, parsedData);
+
     return {
       rowid: row.id,
       event_id: row.event_id,
       task_id: row.task_id,
       type: row.type,
-      data: JSON.parse(row.data) as Record<string, unknown>,
+      data,
       author: row.author ?? undefined,
       agent_id: row.agent_id ?? undefined,
       session_id: row.session_id ?? undefined,

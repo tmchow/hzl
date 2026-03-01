@@ -1,13 +1,17 @@
 /**
- * Cache database migrations.
+ * Database migrations.
  *
- * These migrations handle schema changes to the cache database (tasks_current, etc.)
- * which stores projections derived from events.
+ * - Events database migrations for append-only source-of-truth tables.
+ * - Cache database migrations for projections derived from events.
  */
 
 import type Database from 'libsql';
 import { ADD_TERMINAL_AT_COLUMN, CREATE_TERMINAL_AT_INDEX } from './v2.js';
 import { ADD_AGENT_COLUMN, BACKFILL_AGENT_FROM_ASSIGNEE, CREATE_AGENT_INDEX } from './v3.js';
+
+export const ADD_EVENTS_SCHEMA_VERSION_COLUMN = `
+ALTER TABLE events ADD COLUMN schema_version INTEGER NOT NULL DEFAULT 1
+`;
 
 const ENSURE_HOOK_AND_WORKFLOW_TABLES = `
 CREATE TABLE IF NOT EXISTS hook_outbox (
@@ -71,6 +75,15 @@ function columnExists(db: Database.Database, table: string, column: string): boo
   }
   const rows = db.prepare(`SELECT name FROM pragma_table_info('${table}')`).all() as { name: string }[];
   return rows.some(row => row.name === column);
+}
+
+/**
+ * Run events database migrations.
+ */
+export function runEventsMigrations(db: Database.Database): void {
+  if (tableExists(db, 'events') && !columnExists(db, 'events', 'schema_version')) {
+    db.exec(ADD_EVENTS_SCHEMA_VERSION_COLUMN);
+  }
 }
 
 /**
