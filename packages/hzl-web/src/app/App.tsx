@@ -100,7 +100,7 @@ export default function App() {
   });
 
   const { results: searchResults, total: searchTotal, searching } = useSearch(searchQuery);
-  const isSearching = searchQuery.trim().length > 0;
+  const isSearching = searchQuery.trim().length >= 2;
 
   // Save preferences on state change
   const persistPrefs = useCallback(() => {
@@ -145,11 +145,19 @@ export default function App() {
     syncUrl();
   }, [persistPrefs, syncUrl]);
 
+  // Search result IDs for board filtering
+  const searchResultIds = useMemo(() => {
+    if (!isSearching) return null;
+    return new Set(searchResults.map((t) => t.task_id));
+  }, [isSearching, searchResults]);
+
   // Filter tasks
   const filteredTasks = useMemo(() => {
-    if (isSearching) return [];
-
     let filtered = showSubtasks ? tasks : tasks.filter((t) => !t.parent_id);
+
+    if (searchResultIds) {
+      filtered = filtered.filter((t) => searchResultIds.has(t.task_id));
+    }
 
     if (assignee) {
       filtered = filtered.filter((t) => getAssigneeValue(t.assignee) === assignee);
@@ -165,7 +173,7 @@ export default function App() {
     }
 
     return filtered;
-  }, [tasks, showSubtasks, assignee, collapsedParents, isSearching]);
+  }, [tasks, showSubtasks, assignee, collapsedParents, searchResultIds]);
 
   // Compute search match count for filter bar
   const searchMatchTotal = useMemo(() => {
@@ -372,7 +380,7 @@ export default function App() {
         </div>
       </header>
 
-      {view === 'kanban' && !isSearching && (
+      {view === 'kanban' && (
         <>
           <MobileTabs
             tasks={filteredTasks}
@@ -398,32 +406,7 @@ export default function App() {
         </>
       )}
 
-      {isSearching && (
-        <div className="search-results">
-          {searching && <div className="search-loading">Searching...</div>}
-          {!searching && searchResults.length === 0 && searchQuery.trim() && (
-            <div className="search-empty">No results found</div>
-          )}
-          {searchResults.map((result) => (
-            <div
-              key={result.task_id}
-              className="search-result-card"
-              onClick={() => setSelectedTaskId(result.task_id)}
-            >
-              <div className="search-result-title">{result.title}</div>
-              <div className="search-result-meta">
-                <span className={`status-badge status-${result.status}`}>{result.status}</span>
-                <span className="search-result-project">{result.project}</span>
-              </div>
-              {result.description && (
-                <div className="search-result-description">{result.description}</div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {view === 'calendar' && !isSearching && (
+      {view === 'calendar' && (
         <CalendarView
           tasks={tasks}
           year={calendarYear}
@@ -433,7 +416,7 @@ export default function App() {
         />
       )}
 
-      {view === 'graph' && !isSearching && (
+      {view === 'graph' && (
         <GraphView
           tasks={tasks}
           onTaskClick={setSelectedTaskId}

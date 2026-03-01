@@ -15,7 +15,7 @@ export class SearchService {
 
     if (!trimmedQuery) return { tasks: [], total: 0, limit, offset };
 
-    const safeQuery = trimmedQuery.split(/\s+/).filter(w => w.length > 0).map(w => w.replace(/[^a-zA-Z0-9]/g, '')).filter(w => w.length > 0).join(' ');
+    const safeQuery = trimmedQuery.split(/\s+/).filter(w => w.length > 0).map(w => w.replace(/[^a-zA-Z0-9]/g, '')).filter(w => w.length > 0).map(w => `${w}*`).join(' ');
     if (!safeQuery) return { tasks: [], total: 0, limit, offset };
 
     const where: string[] = ['task_search MATCH ?'];

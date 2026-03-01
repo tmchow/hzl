@@ -3,6 +3,7 @@ import { fetchJson } from '../api/client';
 import type { SearchResponse, SearchTaskResult } from '../api/types';
 
 const DEBOUNCE_MS = 250;
+const MIN_QUERY_LENGTH = 2;
 
 export interface UseSearchResult {
   results: SearchTaskResult[];
@@ -20,7 +21,7 @@ export function useSearch(query: string): UseSearchResult {
   const doSearch = useCallback((q: string) => {
     abortRef.current?.abort();
 
-    if (!q.trim()) {
+    if (!q.trim() || q.trim().length < MIN_QUERY_LENGTH) {
       setResults([]);
       setTotal(0);
       setSearching(false);
