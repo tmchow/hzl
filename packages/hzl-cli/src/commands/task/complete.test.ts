@@ -88,6 +88,8 @@ describe('runComplete', () => {
 
   it('provides reopen flow suggestions when status is done', () => {
     const task = services.taskService.createTask({ title: 'Test', project: 'inbox' });
+    services.taskService.setStatus(task.task_id, TaskStatus.Ready);
+    services.taskService.setStatus(task.task_id, TaskStatus.InProgress);
     services.taskService.setStatus(task.task_id, TaskStatus.Done);
 
     try {

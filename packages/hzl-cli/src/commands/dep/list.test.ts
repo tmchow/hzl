@@ -161,6 +161,8 @@ describe('runDepList', () => {
       project: 'inbox',
       depends_on: [blocker.task_id],
     });
+    services.taskService.setStatus(pausedParent.task_id, TaskStatus.Ready);
+    services.taskService.setStatus(pausedParent.task_id, TaskStatus.InProgress);
     services.taskService.setStatus(pausedParent.task_id, TaskStatus.Blocked);
 
     const result = runDepList({ services, blockingOnly: true, json: false });

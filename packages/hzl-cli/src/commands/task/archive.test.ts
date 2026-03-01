@@ -123,6 +123,8 @@ describe('runArchive', () => {
       project: 'myproject',
       parent_id: parent.task_id
     });
+    services.taskService.setStatus(child.task_id, TaskStatus.Ready);
+    services.taskService.setStatus(child.task_id, TaskStatus.InProgress);
     services.taskService.setStatus(child.task_id, TaskStatus.Done);
 
     // Should work without flags since child is done
