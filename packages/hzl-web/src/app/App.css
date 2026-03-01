@@ -575,6 +575,43 @@ select:focus {
   color: var(--status-done);
 }
 
+.card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.card-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--tag-color) 15%, transparent);
+  color: var(--tag-color);
+  white-space: nowrap;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-tag::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--tag-color);
+  flex-shrink: 0;
+}
+
+.card-tag-overflow {
+  font-size: 10px;
+  color: var(--text-muted);
+  padding: 1px 4px;
+}
+
 .card-subtask-count {
   font-size: 11px;
   color: var(--text-muted);

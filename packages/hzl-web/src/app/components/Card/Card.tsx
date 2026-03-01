@@ -2,6 +2,7 @@ import type { TaskListItem } from '../../api/types';
 import type { EmojiInfo } from '../../utils/emoji';
 import { getTaskFamilyColor } from '../../utils/emoji';
 import { getAssigneeValue, truncateCardLabel } from '../../utils/format';
+import { getTagColor } from '../../utils/tag-color';
 import './Card.css';
 
 interface CardProps {
@@ -67,6 +68,18 @@ export default function Card({
         </div>
       )}
       <div className="card-title">{task.title}</div>
+      {task.tags && task.tags.length > 0 && (
+        <div className="card-tags">
+          {task.tags.slice(0, 3).map((tg) => (
+            <span key={tg} className="card-tag" style={{ '--tag-color': getTagColor(tg) } as React.CSSProperties}>
+              {tg}
+            </span>
+          ))}
+          {task.tags.length > 3 && (
+            <span className="card-tag-overflow">+{task.tags.length - 3}</span>
+          )}
+        </div>
+      )}
       {totalCount > 0 && (
         showSubtasks ? (
           <button
