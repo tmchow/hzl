@@ -7,6 +7,7 @@ import { CLIError, ExitCode, handleError } from '../../errors.js';
 import { GlobalOptionsSchema } from '../../types.js';
 import { resolveId } from '../../resolve-id.js';
 import { parseOptionalInteger } from '../../parse.js';
+import { stripEmptyCollections } from '../../strip-empty.js';
 import { TaskStatus } from 'hzl-core/events/types.js';
 import {
   DependenciesNotDoneError,
@@ -131,7 +132,11 @@ function shapeTaskForView(task: Task, view: ClaimView): ClaimTaskView {
 
 function printClaimResult(result: ClaimResult, json: boolean): void {
   if (json) {
-    console.log(JSON.stringify(result));
+    const output = {
+      ...result,
+      task: result.task ? stripEmptyCollections(result.task) : null,
+    };
+    console.log(JSON.stringify(output));
     return;
   }
 
@@ -288,7 +293,7 @@ export function runClaim(options: {
         reason: `Task not found: ${taskId}`,
       },
     });
-    throw new CLIError(`Task not found: ${taskId}`, ExitCode.NotFound, undefined, { decision_trace: trace });
+    throw new CLIError(`Task not found: ${taskId}`, ExitCode.NotFound, undefined, { decision_trace: trace }, ['hzl task list']);
   }
 
   if (existingTask.status !== TaskStatus.Ready) {
@@ -305,10 +310,11 @@ export function runClaim(options: {
     });
 
     throw new CLIError(
-      `Task ${taskId} is not claimable (status: ${existingTask.status})\nHint: hzl task set-status ${taskId} ready`,
+      `Task ${taskId} is not claimable (status: ${existingTask.status})`,
       ExitCode.InvalidInput,
       undefined,
-      { decision_trace: trace }
+      { decision_trace: trace },
+      [`hzl task set-status ${taskId} ready`]
     );
   }
 
@@ -335,7 +341,8 @@ export function runClaim(options: {
       `Task ${taskId} has dependencies not done: ${blockers.join(', ')}`,
       ExitCode.InvalidInput,
       undefined,
-      { decision_trace: trace }
+      { decision_trace: trace },
+      blockers.slice(0, 3).map(id => `hzl task show ${id}`)
     );
   }
 

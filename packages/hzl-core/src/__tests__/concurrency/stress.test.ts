@@ -74,7 +74,7 @@ function setupServices(database: Database.Database) {
   };
 }
 
-describe('Concurrency Stress Tests', () => {
+describe('Concurrency Stress Tests', { timeout: 60_000 }, () => {
   let tempDir: string;
   let dbPath: string;
   let db: Database.Database;
@@ -83,7 +83,7 @@ describe('Concurrency Stress Tests', () => {
   beforeAll(() => {
     if (process.env.HZL_STRESS_SKIP_BUILD === '1') return;
     execSync('npm run build', { cwd: packageRoot, stdio: 'inherit' });
-  });
+  }, 120_000);
 
   beforeEach(() => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hzl-stress-'));

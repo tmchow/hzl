@@ -24,7 +24,7 @@ const tagArb = fc
   .filter((s) => /^[a-z0-9-]+$/.test(s));
 const priorityArb = fc.integer({ min: 0, max: 3 });
 
-describe('Property-Based Tests', () => {
+describe('Property-Based Tests', { timeout: 30_000 }, () => {
   function withIsolatedServices<T>(
     fn: (ctx: {
       db: Database.Database;

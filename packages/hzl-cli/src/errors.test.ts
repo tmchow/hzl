@@ -21,6 +21,13 @@ describe('CLIError', () => {
     expect(error.code).toBe('not_found');
   });
 
+  it('creates error with suggestions', () => {
+    const error = new CLIError('Task not found: abc', ExitCode.NotFound, undefined, undefined, [
+      'hzl task list -P demo',
+    ]);
+    expect(error.suggestions).toEqual(['hzl task list -P demo']);
+  });
+
   it('maps exit codes to stable symbolic codes', () => {
     expect(codeForExitCode(ExitCode.InvalidUsage)).toBe('invalid_usage');
     expect(codeForExitCode(ExitCode.InvalidInput)).toBe('invalid_input');
@@ -47,6 +54,21 @@ describe('CLIError', () => {
         message: 'Bad input',
       },
     });
+  });
+
+  it('includes suggestions in error envelope JSON output', () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation((code?: string | number | null) => {
+      throw new Error(`exit:${code}`);
+    });
+
+    const error = new CLIError('Task not found: abc', ExitCode.NotFound, undefined, undefined, [
+      'hzl task list -P demo',
+    ]);
+    expect(() => handleError(error, true)).toThrow('exit:4');
+
+    const payload = JSON.parse(logSpy.mock.calls[0]?.[0] as string);
+    expect(payload.error.suggestions).toEqual(['hzl task list -P demo']);
   });
 
   it('maps typed task domain errors to invalid input exit code', () => {

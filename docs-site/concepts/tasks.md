@@ -177,11 +177,18 @@ hzl task claim --next -P my-project
 ```bash
 hzl task show <id>
 hzl task show <id> --deep   # Full subtask fields + blocked_by
+hzl task show <id> --view summary
+hzl task show <id> --view standard --json
 ```
 
 Shows title, description, status, dependencies, and checkpoints.
 
 The `--deep` flag expands subtask data from a summary (`task_id`, `title`, `status`) to all Task fields plus a computed `blocked_by` array. This lets agents get complete context on a parent task and all its children in a single call.
+
+Use `--view` to control payload size:
+- `summary` for minimal task fields
+- `standard` for minimal task fields plus `tags`, `due_at`, and `lease_until`
+- `full` for all task fields (default)
 
 ## Updating Tasks
 

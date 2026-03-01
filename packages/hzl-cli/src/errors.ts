@@ -15,17 +15,20 @@ export class CLIError extends Error {
   public readonly exitCode: ExitCode;
   public readonly code: string;
   public readonly details?: unknown;
+  public readonly suggestions?: string[];
 
   constructor(
     message: string,
     exitCode: ExitCode = ExitCode.GeneralError,
     code?: string,
-    details?: unknown
+    details?: unknown,
+    suggestions?: string[]
   ) {
     super(message);
     this.exitCode = exitCode;
     this.code = code ?? codeForExitCode(exitCode);
     this.details = details;
+    this.suggestions = suggestions;
     this.name = 'CLIError';
   }
 }
@@ -33,9 +36,14 @@ export class CLIError extends Error {
 export function handleError(error: unknown, json: boolean = false): void {
   if (error instanceof CLIError) {
     if (json) {
-      console.log(JSON.stringify(createErrorEnvelope(error.code, error.message, error.details)));
+      console.log(JSON.stringify(createErrorEnvelope(error.code, error.message, error.details, error.suggestions)));
     } else {
       console.error(`Error: ${error.message}`);
+      if (error.suggestions && error.suggestions.length > 0) {
+        for (const suggestion of error.suggestions) {
+          console.error(`Hint: ${suggestion}`);
+        }
+      }
     }
     process.exit(error.exitCode);
   }

@@ -28,7 +28,7 @@ export async function runHookDrain(options: RunHookDrainOptions): Promise<HookDr
     const result = await hookDrainService.drain({ limit });
 
     if (json) {
-      console.log(JSON.stringify(result, null, 2));
+      console.log(JSON.stringify(result));
     } else {
       console.log('Hook drain complete');
       console.log(`  Claimed: ${result.claimed}`);

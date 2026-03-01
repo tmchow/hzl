@@ -56,7 +56,7 @@ export function runHistory(options: { services: Services; taskId: string; limit?
   };
 
   if (json) {
-    console.log(JSON.stringify(result, null, 2));
+    console.log(JSON.stringify(result));
   } else {
     if (result.events.length === 0) {
       console.log(`No events found for task: ${taskId}`);

@@ -5,6 +5,7 @@ import path from 'path';
 import os from 'os';
 import { calculateClaimStaggerOffsetMs, runClaim, runClaimNext } from './claim.js';
 import { initializeDbFromPath, closeDb, type Services } from '../../db.js';
+import { CLIError } from '../../errors.js';
 import { TaskStatus } from 'hzl-core/events/types.js';
 
 describe('runClaim', () => {
@@ -56,16 +57,22 @@ describe('runClaim', () => {
     expect(result.lease_until).toBeDefined();
   });
 
-  it('includes hint in error when task is not claimable', () => {
+  it('includes set-status suggestion when task is not claimable', () => {
     const task = services.taskService.createTask({ title: 'Test', project: 'inbox' });
     // Task is in backlog - not claimable
 
-    expect(() => runClaim({
-      services,
-      taskId: task.task_id,
-      agent: 'test-agent',
-      json: false,
-    })).toThrow(/Hint:.*set-status/);
+    try {
+      runClaim({
+        services,
+        taskId: task.task_id,
+        agent: 'test-agent',
+        json: false,
+      });
+      expect.fail('should have thrown');
+    } catch (e) {
+      expect(e).toBeInstanceOf(CLIError);
+      expect((e as CLIError).suggestions).toContainEqual(expect.stringMatching(/set-status/));
+    }
   });
 
   it('claims next eligible task when using next mode', () => {

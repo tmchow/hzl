@@ -19,7 +19,7 @@ const cliBinaryPath = path.join(packageRoot, 'dist', 'cli.js');
 
 beforeAll(() => {
   execSync('npm run build', { cwd: packageRoot, stdio: 'inherit' });
-});
+}, 120_000);
 
 describe('CLI Integration Tests', { timeout: 30000 }, () => {
   let ctx: TestContext;

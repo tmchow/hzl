@@ -6,17 +6,79 @@ import { CLIError, ExitCode, handleError } from '../../errors.js';
 import { GlobalOptionsSchema } from '../../types.js';
 import { resolveId } from '../../resolve-id.js';
 import { createShortId } from '../../short-id.js';
+import { stripEmptyCollections } from '../../strip-empty.js';
 import { TaskStatus } from 'hzl-core/events/types.js';
 import type { Task, Comment, Checkpoint } from 'hzl-core/services/task-service.js';
+
+export type ShowView = 'summary' | 'standard' | 'full';
+const SHOW_VIEWS: readonly ShowView[] = ['summary', 'standard', 'full'];
 
 export type SubtaskSummary = { task_id: string; title: string; status: TaskStatus };
 export type DeepSubtask = Task & { blocked_by: string[] };
 
+interface ShowTaskSummary {
+  task_id: string;
+  title: string;
+  project: string;
+  status: string;
+  priority: number;
+  parent_id: string | null;
+  agent: string | null;
+}
+
+interface ShowTaskStandard extends ShowTaskSummary {
+  due_at: string | null;
+  tags: string[];
+  lease_until: string | null;
+}
+
 export interface ShowResult {
-  task: Task;
+  task: ShowTaskSummary | ShowTaskStandard | Task;
   comments: Array<{ text: string; author?: string; timestamp: string }>;
   checkpoints: Array<{ name: string; data: Record<string, unknown>; timestamp: string }>;
   subtasks?: Array<SubtaskSummary> | Array<DeepSubtask>;
+}
+
+function parseShowView(view?: string): ShowView {
+  const normalized = (view ?? 'full').toLowerCase();
+  if ((SHOW_VIEWS as readonly string[]).includes(normalized)) {
+    return normalized as ShowView;
+  }
+  throw new CLIError(
+    `Invalid --view value: ${view}. Valid options: ${SHOW_VIEWS.join(', ')}`,
+    ExitCode.InvalidInput
+  );
+}
+
+function shapeTaskForView(task: Task, view: ShowView): ShowTaskSummary | ShowTaskStandard | Task {
+  if (view === 'summary') {
+    return {
+      task_id: task.task_id,
+      title: task.title,
+      project: task.project,
+      status: task.status,
+      priority: task.priority,
+      parent_id: task.parent_id,
+      agent: task.agent,
+    };
+  }
+
+  if (view === 'standard') {
+    return {
+      task_id: task.task_id,
+      title: task.title,
+      project: task.project,
+      status: task.status,
+      priority: task.priority,
+      parent_id: task.parent_id,
+      agent: task.agent,
+      due_at: task.due_at,
+      tags: task.tags,
+      lease_until: task.lease_until,
+    };
+  }
+
+  return task;
 }
 
 export function runShow(options: {
@@ -24,17 +86,19 @@ export function runShow(options: {
   taskId: string;
   showSubtasks?: boolean;
   deep?: boolean;
+  view?: ShowView | string;
   json: boolean;
 }): ShowResult {
-  const { services, taskId, showSubtasks = true, deep = false, json } = options;
+  const { services, taskId, showSubtasks = true, deep = false, view, json } = options;
+  const parsedView = parseShowView(view);
 
   const task = services.taskService.getTaskById(taskId);
   if (!task) {
-    throw new CLIError(`Task not found: ${taskId}`, ExitCode.NotFound);
+    throw new CLIError(`Task not found: ${taskId}`, ExitCode.NotFound, undefined, undefined, ['hzl task list']);
   }
 
-  const comments = services.taskService.getComments(taskId);
-  const checkpoints = services.taskService.getCheckpoints(taskId);
+  const comments = parsedView === 'summary' ? [] : services.taskService.getComments(taskId);
+  const checkpoints = parsedView === 'summary' ? [] : services.taskService.getCheckpoints(taskId);
 
   let subtasks: Array<SubtaskSummary> | Array<DeepSubtask> | undefined;
   if (!showSubtasks) {
@@ -56,8 +120,10 @@ export function runShow(options: {
     }));
   }
 
+  const shapedTask = shapeTaskForView(task, parsedView);
+
   const result: ShowResult = {
-    task,
+    task: shapedTask,
     comments: comments.map((c: Comment) => ({
       text: c.text,
       author: c.author,
@@ -72,20 +138,25 @@ export function runShow(options: {
   };
 
   if (json) {
-    console.log(JSON.stringify(result));
+    const output = {
+      ...result,
+      task: stripEmptyCollections(result.task),
+    };
+    console.log(JSON.stringify(output));
   } else {
-    console.log(`Task: ${task.task_id}`);
-    console.log(`Title: ${task.title}`);
-    console.log(`Project: ${task.project}`);
-    console.log(`Status: ${task.status}`);
-    console.log(`Priority: ${task.priority}`);
-    if (task.parent_id) console.log(`Parent: ${task.parent_id}`);
-    if (task.description) console.log(`Description: ${task.description}`);
-    if (task.tags.length > 0) console.log(`Tags: ${task.tags.join(', ')}`);
-    if (task.agent) console.log(`Agent: ${task.agent}`);
-    if (task.progress !== null) console.log(`Progress: ${task.progress}%`);
-    console.log(`Created: ${task.created_at}`);
-    console.log(`Updated: ${task.updated_at}`);
+    const t = shapedTask;
+    console.log(`Task: ${t.task_id}`);
+    console.log(`Title: ${t.title}`);
+    console.log(`Project: ${t.project}`);
+    console.log(`Status: ${t.status}`);
+    console.log(`Priority: ${t.priority}`);
+    if (t.parent_id) console.log(`Parent: ${t.parent_id}`);
+    if ('description' in t && t.description) console.log(`Description: ${t.description}`);
+    if ('tags' in t && t.tags.length > 0) console.log(`Tags: ${t.tags.join(', ')}`);
+    if (t.agent) console.log(`Agent: ${t.agent}`);
+    if ('progress' in t && t.progress !== null) console.log(`Progress: ${t.progress}%`);
+    if ('created_at' in t) console.log(`Created: ${t.created_at}`);
+    if ('updated_at' in t) console.log(`Updated: ${t.updated_at}`);
 
     if (comments.length > 0) {
       console.log(`\nComments (${comments.length}):`);
@@ -130,7 +201,8 @@ export function createShowCommand(): Command {
     .argument('<taskId>', 'Task ID')
     .option('--no-subtasks', 'Hide subtasks in output')
     .option('--deep', 'Include full task fields and blocked_by for each subtask')
-    .action(function (this: Command, rawTaskId: string, opts: { subtasks?: boolean; deep?: boolean }) {
+    .option('--view <view>', 'Response view: summary | standard | full', 'full')
+    .action(function (this: Command, rawTaskId: string, opts: { subtasks?: boolean; deep?: boolean; view?: string }) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
       const services = initializeDb({ eventsDbPath, cacheDbPath });
@@ -141,6 +213,7 @@ export function createShowCommand(): Command {
           taskId,
           showSubtasks: opts.subtasks !== false,
           deep: opts.deep ?? false,
+          view: opts.view,
           json: globalOpts.json ?? false,
         });
       } catch (e) {

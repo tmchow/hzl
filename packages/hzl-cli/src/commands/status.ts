@@ -121,7 +121,7 @@ export function createStatusCommand(): Command {
             });
 
             if (globalOpts.json) {
-                console.log(JSON.stringify(result, null, 2));
+                console.log(JSON.stringify(result));
             }
 
             process.exit(result.success ? 0 : 1);

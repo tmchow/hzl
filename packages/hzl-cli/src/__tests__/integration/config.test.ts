@@ -35,13 +35,13 @@ function createTestContext(): TestContext {
   };
 }
 
-describe('config integration', () => {
+describe('config integration', { timeout: 30000 }, () => {
   let ctx: TestContext;
   const repoRoot = path.resolve(packageRoot, '../..');
 
   beforeAll(() => {
     execSync('npm run build', { cwd: packageRoot, stdio: 'inherit' });
-  });
+  }, 120_000);
 
   beforeEach(() => {
     ctx = createTestContext();

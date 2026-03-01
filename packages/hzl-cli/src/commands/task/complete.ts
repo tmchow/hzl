@@ -18,6 +18,26 @@ interface CompleteCommandOptions {
   comment?: string;
 }
 
+function suggestionsForComplete(taskId: string, status: TaskStatus): string[] {
+  switch (status) {
+    case TaskStatus.Backlog:
+      return [
+        `hzl task set-status ${taskId} ready`,
+        `hzl task claim ${taskId} --agent <name>`,
+      ];
+    case TaskStatus.Ready:
+      return [`hzl task claim ${taskId} --agent <name>`];
+    case TaskStatus.Done:
+    case TaskStatus.Archived:
+      return [
+        `hzl task reopen ${taskId} --status ready`,
+        `hzl task claim ${taskId} --agent <name>`,
+      ];
+    default:
+      return [`hzl task show ${taskId}`];
+  }
+}
+
 export function runComplete(options: {
   services: Services;
   taskId: string;
@@ -31,8 +51,11 @@ export function runComplete(options: {
   const existingTask = services.taskService.getTaskById(taskId);
   if (existingTask && existingTask.status !== TaskStatus.InProgress && existingTask.status !== TaskStatus.Blocked) {
     throw new CLIError(
-      `Cannot complete task ${taskId} (status: ${existingTask.status})\nHint: Claim the task first to start working on it`,
-      ExitCode.InvalidInput
+      `Cannot complete task ${taskId} (status: ${existingTask.status})`,
+      ExitCode.InvalidInput,
+      undefined,
+      undefined,
+      suggestionsForComplete(taskId, existingTask.status)
     );
   }
 

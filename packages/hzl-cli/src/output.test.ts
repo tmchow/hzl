@@ -33,6 +33,26 @@ describe('output envelopes', () => {
     });
   });
 
+  it('creates error envelope with suggestions', () => {
+    const envelope = createErrorEnvelope('not_found', 'Task not found', undefined, [
+      'hzl task list -P demo',
+    ]);
+    expect(envelope).toEqual({
+      schema_version: SCHEMA_VERSION,
+      ok: false,
+      error: {
+        code: 'not_found',
+        message: 'Task not found',
+        suggestions: ['hzl task list -P demo'],
+      },
+    });
+  });
+
+  it('omits suggestions from error envelope when empty', () => {
+    const envelope = createErrorEnvelope('not_found', 'Task not found');
+    expect(envelope.error).not.toHaveProperty('suggestions');
+  });
+
   it('prints success envelope in json mode', () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     createFormatter(true).json({ hello: 'world' });

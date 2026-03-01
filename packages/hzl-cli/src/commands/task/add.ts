@@ -6,6 +6,7 @@ import { CLIError, ExitCode, handleError } from '../../errors.js';
 import { TaskStatus } from 'hzl-core/events/types.js';
 import { GlobalOptionsSchema } from '../../types.js';
 import { resolveId } from '../../resolve-id.js';
+import { stripEmptyCollections } from '../../strip-empty.js';
 import { parseIntegerWithDefault, parseTaskStatus } from '../../parse.js';
 
 export interface AddResult {
@@ -71,7 +72,7 @@ export function runAdd(options: AddOptions): AddResult {
   if (parent) {
     const parentTask = services.taskService.getTaskById(parent);
     if (!parentTask) {
-      throw new CLIError(`Parent task not found: ${parent}`, ExitCode.NotFound);
+      throw new CLIError(`Parent task not found: ${parent}`, ExitCode.NotFound, undefined, undefined, ['hzl task list']);
     }
     if (parentTask.status === TaskStatus.Archived) {
       throw new CLIError(`Cannot create subtask of archived parent: ${parent}`, ExitCode.InvalidInput);
@@ -113,7 +114,7 @@ export function runAdd(options: AddOptions): AddResult {
   };
 
   if (json) {
-    console.log(JSON.stringify(result));
+    console.log(JSON.stringify(stripEmptyCollections(result)));
   } else {
     console.log(`✓ Created task ${task.task_id}: ${task.title}`);
   }
