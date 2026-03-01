@@ -7,16 +7,7 @@ import {
   AmbiguousPrefixError,
   type TaskListItem as CoreTaskListItem,
 } from 'hzl-core';
-import {
-  DASHBOARD_HTML,
-  DASHBOARD_SITE_MANIFEST,
-  DASHBOARD_SERVICE_WORKER,
-  DASHBOARD_FAVICON_PNG_96,
-  DASHBOARD_FAVICON_ICO,
-  DASHBOARD_APPLE_TOUCH_ICON,
-  DASHBOARD_WEB_APP_ICON_192,
-  DASHBOARD_WEB_APP_ICON_512,
-} from './ui-embed.js';
+import { UI_FILES, LEGACY_DASHBOARD_HTML, type EmbeddedFile } from './ui-embed.js';
 
 export interface ServerOptions {
   port: number;
@@ -505,10 +496,16 @@ export function createWebServer(options: ServerOptions): ServerHandle {
     res.on('close', cleanup);
   }
 
-  function handleRoot(res: ServerResponse): void {
-    const csp = allowFraming
-      ? "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'unsafe-inline'; frame-ancestors *"
-      : "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'unsafe-inline'";
+  const useLegacy = process.env.HZL_LEGACY_DASHBOARD === '1';
+
+  function serveHtml(res: ServerResponse, html: string): void {
+    const csp = useLegacy
+      ? (allowFraming
+          ? "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'unsafe-inline'; frame-ancestors *"
+          : "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'unsafe-inline'")
+      : (allowFraming
+          ? "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; frame-ancestors *"
+          : "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'");
 
     const headers: Record<string, string> = {
       'Content-Type': 'text/html; charset=utf-8',
@@ -522,83 +519,38 @@ export function createWebServer(options: ServerOptions): ServerHandle {
     }
 
     res.writeHead(200, headers);
-    res.end(DASHBOARD_HTML);
+    res.end(html);
   }
 
-  function handleSiteManifest(res: ServerResponse): void {
-    text(res, DASHBOARD_SITE_MANIFEST, 'application/manifest+json; charset=utf-8', 200, 'max-age=3600');
+  function serveStaticFile(res: ServerResponse, file: EmbeddedFile, pathname: string): void {
+    let cacheControl: string;
+    if (pathname.startsWith('/assets/')) {
+      // Vite hashed assets are immutable — cache aggressively
+      cacheControl = 'public, max-age=31536000, immutable';
+    } else if (pathname === '/sw.js') {
+      // Service workers must not be cached to ensure updates propagate
+      cacheControl = 'no-cache';
+    } else {
+      cacheControl = 'max-age=3600';
+    }
+    bytes(res, file.content, file.contentType, 200, cacheControl);
   }
 
-  function handleServiceWorker(res: ServerResponse): void {
-    text(res, DASHBOARD_SERVICE_WORKER, 'application/javascript; charset=utf-8', 200, 'no-cache');
-  }
-
-  function handleFaviconPng96(res: ServerResponse): void {
-    bytes(res, DASHBOARD_FAVICON_PNG_96, 'image/png', 200, 'max-age=86400');
-  }
-
-  function handleFaviconIco(res: ServerResponse): void {
-    bytes(res, DASHBOARD_FAVICON_ICO, 'image/x-icon', 200, 'max-age=86400');
-  }
-
-  function handleAppleTouchIcon(res: ServerResponse): void {
-    bytes(res, DASHBOARD_APPLE_TOUCH_ICON, 'image/png', 200, 'max-age=86400');
-  }
-
-  function handleWebAppIcon192(res: ServerResponse): void {
-    bytes(res, DASHBOARD_WEB_APP_ICON_192, 'image/png', 200, 'max-age=86400');
-  }
-
-  function handleWebAppIcon512(res: ServerResponse): void {
-    bytes(res, DASHBOARD_WEB_APP_ICON_512, 'image/png', 200, 'max-age=86400');
-  }
+  // Cache the resolved HTML string to avoid repeated Buffer→string conversion
+  const indexHtml: string = (() => {
+    if (useLegacy) {
+      return LEGACY_DASHBOARD_HTML;
+    }
+    const indexFile = UI_FILES.get('/index.html');
+    return indexFile ? indexFile.content.toString('utf-8') : '<html><body>Dashboard not found.</body></html>';
+  })();
 
   // Request handler
   function handleRequest(req: IncomingMessage, res: ServerResponse): void {
     const { pathname, params } = parseUrl(req.url || '/');
 
     try {
-      // Route matching
-      if (pathname === '/') {
-        handleRoot(res);
-        return;
-      }
-
-      if (pathname === '/site.webmanifest') {
-        handleSiteManifest(res);
-        return;
-      }
-
-      if (pathname === '/sw.js') {
-        handleServiceWorker(res);
-        return;
-      }
-
-      if (pathname === '/favicon-96x96.png') {
-        handleFaviconPng96(res);
-        return;
-      }
-
-      if (pathname === '/favicon.ico') {
-        handleFaviconIco(res);
-        return;
-      }
-
-      if (pathname === '/apple-touch-icon.png') {
-        handleAppleTouchIcon(res);
-        return;
-      }
-
-      if (pathname === '/web-app-manifest-192x192.png') {
-        handleWebAppIcon192(res);
-        return;
-      }
-
-      if (pathname === '/web-app-manifest-512x512.png') {
-        handleWebAppIcon512(res);
-        return;
-      }
-
+      // 1. API routes
       if (pathname === '/api/tasks') {
         handleTasks(params, res);
         return;
@@ -644,7 +596,28 @@ export function createWebServer(options: ServerOptions): ServerHandle {
         return;
       }
 
-      notFound(res);
+      // Catch-all for unknown /api/ paths
+      if (pathname.startsWith('/api/')) {
+        notFound(res);
+        return;
+      }
+
+      // 2. Static files from the UI build
+      const file = UI_FILES.get(pathname);
+      if (file && pathname !== '/index.html' && pathname !== '/legacy.html') {
+        serveStaticFile(res, file, pathname);
+        return;
+      }
+
+      // 3. SPA fallback: serve index.html for navigation-like requests (no file extension).
+      //    Paths with a file extension that weren't matched above are genuine 404s.
+      const lastSegment = pathname.split('/').pop() ?? '';
+      if (lastSegment.includes('.')) {
+        notFound(res);
+        return;
+      }
+
+      serveHtml(res, indexHtml);
     } catch (error) {
       serverError(res, error);
     }

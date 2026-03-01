@@ -1,43 +1,95 @@
-import { accessSync, readFileSync } from 'fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'fs';
 import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import { dirname, join, extname } from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// In development, read from source. In production, this will be the dist folder.
-// For dev, we try the src folder first, then fall back to the build location.
-function resolveUiPath(relativePath: string): string {
-  const paths = [
-    join(__dirname, 'ui', relativePath), // dist/ui/* (prod)
-    join(__dirname, '..', 'src', 'ui', relativePath), // src/ui/* (dev from dist)
+export interface EmbeddedFile {
+  content: Buffer;
+  contentType: string;
+}
+
+const MIME_TYPES: Record<string, string> = {
+  '.html': 'text/html; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.js': 'application/javascript; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.webmanifest': 'application/manifest+json; charset=utf-8',
+  '.png': 'image/png',
+  '.ico': 'image/x-icon',
+  '.svg': 'image/svg+xml',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+  '.txt': 'text/plain; charset=utf-8',
+};
+
+function getMimeType(filePath: string): string {
+  return MIME_TYPES[extname(filePath).toLowerCase()] ?? 'application/octet-stream';
+}
+
+/**
+ * Resolve the ui directory path.
+ * Prefers dist/ui/ (contains Vite-built React app + copied legacy.html).
+ * Falls back to src/ui/ when dist hasn't been built yet.
+ */
+function resolveUiDir(): string {
+  // When running from compiled JS (dist/), __dirname is dist/ so 'ui' = dist/ui/
+  // When running from source (src/) via vitest, __dirname is src/ so we look up to dist/ui/
+  const candidates = [
+    join(__dirname, 'ui'),              // dist/ui/ when running from dist/
+    join(__dirname, '..', 'dist', 'ui'), // dist/ui/ when running from src/ (vitest)
+    join(__dirname, '..', 'src', 'ui'),  // src/ui/ fallback (dev without build)
   ];
 
-  for (const p of paths) {
-    try {
-      accessSync(p);
-      return p;
-    } catch {
-      // Try next path
+  for (const dir of candidates) {
+    if (existsSync(dir)) return dir;
+  }
+
+  throw new Error(`Could not find ui directory - checked: ${candidates.join(', ')}`);
+}
+
+/**
+ * Recursively load all files from a directory into a Map keyed by URL path.
+ * e.g. dist/ui/index.html -> "/index.html", dist/ui/assets/main-abc.js -> "/assets/main-abc.js"
+ */
+function loadDirectory(dir: string, prefix = ''): Map<string, EmbeddedFile> {
+  const files = new Map<string, EmbeddedFile>();
+
+  for (const entry of readdirSync(dir)) {
+    const fullPath = join(dir, entry);
+    const urlPath = prefix + '/' + entry;
+
+    if (statSync(fullPath).isDirectory()) {
+      for (const [k, v] of loadDirectory(fullPath, urlPath)) {
+        files.set(k, v);
+      }
+    } else {
+      files.set(urlPath, {
+        content: readFileSync(fullPath),
+        contentType: getMimeType(fullPath),
+      });
     }
   }
 
-  throw new Error(`Could not find ${relativePath} - checked: ${paths.join(', ')}`);
+  return files;
 }
 
-function loadUiText(relativePath: string): string {
-  return readFileSync(resolveUiPath(relativePath), 'utf-8');
-}
+const uiDir = resolveUiDir();
 
-function loadUiBinary(relativePath: string): Buffer {
-  return readFileSync(resolveUiPath(relativePath));
-}
+/** All files from dist/ui/ keyed by URL path (e.g. "/index.html", "/assets/main-abc.js") */
+export const UI_FILES: Map<string, EmbeddedFile> = loadDirectory(uiDir);
 
-export const DASHBOARD_HTML = loadUiText('index.html');
-export const DASHBOARD_SITE_MANIFEST = loadUiText('site.webmanifest');
-export const DASHBOARD_SERVICE_WORKER = loadUiText('sw.js');
-export const DASHBOARD_FAVICON_PNG_96 = loadUiBinary('favicon-96x96.png');
-export const DASHBOARD_FAVICON_ICO = loadUiBinary('favicon.ico');
-export const DASHBOARD_APPLE_TOUCH_ICON = loadUiBinary('apple-touch-icon.png');
-export const DASHBOARD_WEB_APP_ICON_192 = loadUiBinary('web-app-manifest-192x192.png');
-export const DASHBOARD_WEB_APP_ICON_512 = loadUiBinary('web-app-manifest-512x512.png');
+/** Legacy dashboard HTML for the HZL_LEGACY_DASHBOARD=1 feature toggle */
+export const LEGACY_DASHBOARD_HTML: string = (() => {
+  const legacyPath = join(uiDir, 'legacy.html');
+  if (existsSync(legacyPath)) {
+    return readFileSync(legacyPath, 'utf-8');
+  }
+  // Fallback: try src/ui/legacy.html when running from dist
+  const srcLegacy = join(__dirname, '..', 'src', 'ui', 'legacy.html');
+  if (existsSync(srcLegacy)) {
+    return readFileSync(srcLegacy, 'utf-8');
+  }
+  return '<html><body>Legacy dashboard not found.</body></html>';
+})();
