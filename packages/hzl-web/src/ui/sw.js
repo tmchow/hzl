@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'hzl-shell-v2';
+const CACHE_VERSION = 'hzl-shell-v3';
 const SHELL_CACHE = CACHE_VERSION;
 const SHELL_ASSETS = [
   '/',
@@ -8,6 +8,8 @@ const SHELL_ASSETS = [
   '/apple-touch-icon.png',
   '/web-app-manifest-192x192.png',
   '/web-app-manifest-512x512.png',
+  '/screenshot-wide.png',
+  '/screenshot-mobile.png',
 ];
 
 self.addEventListener('install', (event) => {
