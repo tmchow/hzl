@@ -596,17 +596,12 @@ export class TaskService {
       const task = this.getTaskById(taskId);
       if (!task) throw new TaskNotFoundError(taskId);
 
-      if (task.status !== TaskStatus.Ready) {
-        throw new TaskNotClaimableError(taskId, `status is ${task.status}, must be ready`);
-      }
-
-      const incompleteDeps = this.getIncompleteDepsStmt.all(taskId) as { depends_on_id: string }[];
-      if (incompleteDeps.length > 0) {
-        throw new DependenciesNotDoneError(taskId, incompleteDeps.map(d => d.depends_on_id));
+      if (task.status === TaskStatus.Done || task.status === TaskStatus.Archived) {
+        throw new TaskNotClaimableError(taskId, `status is ${task.status}, must not be done or archived`);
       }
 
       const eventData: StatusChangedData = {
-        from: TaskStatus.Ready,
+        from: task.status,
         to: TaskStatus.InProgress,
       };
       if (opts?.lease_until) eventData.lease_until = opts.lease_until;
