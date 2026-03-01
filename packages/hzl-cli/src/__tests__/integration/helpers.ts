@@ -1,5 +1,5 @@
 // packages/hzl-cli/src/__tests__/integration/helpers.ts
-import { execSync, ExecSyncOptions } from 'child_process';
+import { execSync, ExecSyncOptions, spawnSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -52,11 +52,33 @@ export function hzlJson<T>(ctx: TestContext, args: string): T {
   return JSON.parse(output) as T;
 }
 
-export function hzlMayFail(ctx: TestContext, args: string): { stdout: string; success: boolean } {
+export function hzlExec(
+  ctx: TestContext,
+  args: string
+): { stdout: string; stderr: string; success: boolean; exitCode: number } {
+  const cmd = `node "${cliPath}" --db "${ctx.dbPath}" ${args}`;
+  const result = spawnSync(cmd, {
+    encoding: 'utf-8',
+    env: { ...process.env, HZL_CONFIG: ctx.configPath },
+    shell: true,
+  });
+
+  return {
+    stdout: (result.stdout || '').trim(),
+    stderr: (result.stderr || '').trim(),
+    success: result.status === 0,
+    exitCode: result.status ?? 1,
+  };
+}
+
+export function hzlMayFail(
+  ctx: TestContext,
+  args: string
+): { stdout: string; stderr: string; success: boolean } {
   try {
     const stdout = hzl(ctx, args);
-    return { stdout, success: true };
+    return { stdout, stderr: '', success: true };
   } catch (error: any) {
-    return { stdout: error.stdout || '', success: false };
+    return { stdout: error.stdout || '', stderr: error.stderr || '', success: false };
   }
 }
