@@ -213,6 +213,7 @@ export function createWebServer(options: ServerOptions): ServerHandle {
   function handleTasks(params: URLSearchParams, res: ServerResponse): void {
     const dueMonth = params.get('due_month');
     const project = params.get('project');
+    const tag = params.get('tag') || undefined;
 
     const since = params.get('since') || '3d';
     const validSince = Object.prototype.hasOwnProperty.call(DATE_PRESETS, since);
@@ -232,6 +233,7 @@ export function createWebServer(options: ServerOptions): ServerHandle {
       rows = taskService.listTasks({
         ...(dueMonth ? { dueMonth } : { sinceDays: days }),
         project: project ?? undefined,
+        tag,
       });
     } catch (err) {
       // Only treat dueMonth validation errors as 400; re-throw others (e.g. DB errors → 500)
@@ -432,6 +434,11 @@ export function createWebServer(options: ServerOptions): ServerHandle {
     json(res, response);
   }
 
+  function handleTags(res: ServerResponse): void {
+    const tags = taskService.getTagCounts();
+    json(res, { tags });
+  }
+
   function getLatestEventId(): number {
     const latest = eventStore.getRecentEvents({
       sinceId: 0,
@@ -601,6 +608,11 @@ export function createWebServer(options: ServerOptions): ServerHandle {
 
       if (pathname === '/api/stats') {
         handleStats(res);
+        return;
+      }
+
+      if (pathname === '/api/tags') {
+        handleTags(res);
         return;
       }
 
