@@ -176,7 +176,18 @@ export default function TaskModal({ taskId, onClose }: TaskModalProps) {
               {task.blocked_by && task.blocked_by.length > 0 && (
                 <div className="modal-section">
                   <div className="modal-section-title">Blocked By</div>
-                  <div className="modal-description">{task.blocked_by.join(', ')}</div>
+                  <div className="modal-blocked-list">
+                    {task.blocked_by.map((dep) => (
+                      <button
+                        key={dep.task_id}
+                        type="button"
+                        className="modal-blocked-item"
+                        onClick={() => loadTask(dep.task_id)}
+                      >
+                        {dep.title}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
 

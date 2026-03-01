@@ -44,7 +44,7 @@ export interface TaskDetail {
   lease_until: string | null;
   created_at: string;
   updated_at: string;
-  blocked_by: string[];
+  blocked_by: Array<{ task_id: string; title: string }>;
 }
 
 export interface TaskDetailResponse {

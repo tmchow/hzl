@@ -936,6 +936,32 @@ select:focus {
   height: auto;
 }
 
+/* Blocked-by list */
+.modal-blocked-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.modal-blocked-item {
+  display: block;
+  text-align: left;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px 10px;
+  color: var(--accent);
+  font-size: 13px;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.modal-blocked-item:hover {
+  border-color: var(--accent);
+}
+
 /* Comments */
 .modal-comments {
   display: flex;

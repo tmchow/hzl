@@ -489,6 +489,28 @@ describe('hzl-web server', () => {
       expect(status).toBe(404);
       expect((data as { error: string }).error).toContain('not found');
     });
+
+    it('returns blocked_by as objects with task_id and title', async () => {
+      const blocker = taskService.createTask({
+        title: 'Blocker Task',
+        project: 'test-project',
+      });
+      const blocked = taskService.createTask({
+        title: 'Blocked Task',
+        project: 'test-project',
+        depends_on: [blocker.task_id],
+      });
+      taskService.setStatus(blocked.task_id, TaskStatus.Ready);
+
+      createServer(4623);
+      const { status, data } = await fetchJson(`/api/tasks/${blocked.task_id}`);
+
+      expect(status).toBe(200);
+      const task = (data as { task: { blocked_by: Array<{ task_id: string; title: string }> } }).task;
+      expect(task.blocked_by).toEqual([
+        { task_id: blocker.task_id, title: 'Blocker Task' },
+      ]);
+    });
   });
 
   describe('GET /api/tasks/:id/comments', () => {
