@@ -113,7 +113,7 @@
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
-    "@types/node": "^25.2.1",
+    "@types/node": "^25.3.3",
     "@vitest/coverage-v8": "^4.0.18",
     "fast-check": "^4.5.3",
     "tsx": "^4.19.2",
