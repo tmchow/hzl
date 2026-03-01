@@ -114,7 +114,6 @@ export {
   InvalidProgressError,
   InvalidDueMonthError,
   InvalidStatusTransitionError,
-  VALID_TRANSITIONS,
   type CreateTaskInput,
   type EventContext,
   type Task,

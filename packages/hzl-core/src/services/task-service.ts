@@ -276,26 +276,6 @@ export class InvalidStatusTransitionError extends TaskValidationError {
   }
 }
 
-export const VALID_TRANSITIONS: Record<TaskStatus, ReadonlySet<TaskStatus>> = {
-  [TaskStatus.Backlog]: new Set([TaskStatus.Ready, TaskStatus.Archived]),
-  [TaskStatus.Ready]: new Set([TaskStatus.Backlog, TaskStatus.InProgress, TaskStatus.Archived]),
-  [TaskStatus.InProgress]: new Set([
-    TaskStatus.Ready,
-    TaskStatus.InProgress,
-    TaskStatus.Blocked,
-    TaskStatus.Done,
-    TaskStatus.Archived,
-  ]),
-  [TaskStatus.Blocked]: new Set([
-    TaskStatus.InProgress,
-    TaskStatus.Blocked,
-    TaskStatus.Done,
-    TaskStatus.Archived,
-  ]),
-  [TaskStatus.Done]: new Set([TaskStatus.Ready]),
-  [TaskStatus.Archived]: new Set(),
-};
-
 /**
  * Validate progress value is an integer between 0 and 100.
  * @throws Error if progress is invalid
@@ -649,11 +629,15 @@ export class TaskService {
       const task = this.getTaskById(taskId);
       if (!task) throw new TaskNotFoundError(taskId);
 
-      const allowedTransitions = VALID_TRANSITIONS[task.status];
-      if (!allowedTransitions.has(toStatus)) {
+      if (task.status === TaskStatus.Archived) {
         throw new InvalidStatusTransitionError(
-          `Cannot set status from ${task.status} to ${toStatus}`
+          `Cannot change status: task is archived`
         );
+      }
+
+      // No-op on self-transition
+      if (task.status === toStatus) {
+        return task;
       }
 
       const event = this.eventStore.append({
