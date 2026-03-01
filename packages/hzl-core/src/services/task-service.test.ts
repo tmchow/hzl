@@ -10,7 +10,6 @@ import {
   InvalidDueMonthError,
   InvalidProgressError,
   InvalidStatusTransitionError,
-  VALID_TRANSITIONS,
   TaskNotFoundError,
 } from './task-service.js';
 import { ProjectService, ProjectNotFoundError } from './project-service.js';
@@ -355,7 +354,7 @@ describe('TaskService', () => {
     });
   });
 
-  describe('setStatus transition matrix', () => {
+  describe('setStatus transition rules', () => {
     const allStatuses = Object.values(TaskStatus) as TaskStatus[];
 
     const createTaskInStatus = (status: TaskStatus) => {
@@ -382,13 +381,11 @@ describe('TaskService', () => {
       }
     };
 
-    it('exports transition rules for every status', () => {
-      expect(new Set(Object.keys(VALID_TRANSITIONS))).toEqual(new Set(allStatuses));
-    });
-
-    it('allows every valid status transition', () => {
-      for (const fromStatus of allStatuses) {
-        for (const toStatus of VALID_TRANSITIONS[fromStatus]) {
+    it('allows any transition except from archived', () => {
+      const nonArchived = allStatuses.filter(s => s !== TaskStatus.Archived);
+      for (const fromStatus of nonArchived) {
+        for (const toStatus of allStatuses) {
+          if (fromStatus === toStatus) continue; // skip self-transitions (tested separately)
           const task = createTaskInStatus(fromStatus);
           const updated = taskService.setStatus(task.task_id, toStatus);
           expect(updated.status).toBe(toStatus);
@@ -396,17 +393,24 @@ describe('TaskService', () => {
       }
     });
 
-    it('throws InvalidStatusTransitionError for every invalid transition', () => {
-      for (const fromStatus of allStatuses) {
-        const allowed = VALID_TRANSITIONS[fromStatus];
-        const invalidTargets = allStatuses.filter((status) => !allowed.has(status));
+    it('throws InvalidStatusTransitionError when transitioning from archived', () => {
+      const nonArchived = allStatuses.filter(s => s !== TaskStatus.Archived);
+      for (const toStatus of nonArchived) {
+        const task = createTaskInStatus(TaskStatus.Archived);
+        expect(() => taskService.setStatus(task.task_id, toStatus)).toThrow(
+          InvalidStatusTransitionError
+        );
+      }
+    });
 
-        for (const toStatus of invalidTargets) {
-          const task = createTaskInStatus(fromStatus);
-          expect(() => taskService.setStatus(task.task_id, toStatus)).toThrow(
-            InvalidStatusTransitionError
-          );
-        }
+    it('no-ops on self-transition (returns task, no new event)', () => {
+      for (const status of allStatuses) {
+        const task = createTaskInStatus(status);
+        const eventsBefore = eventStore.getByTaskId(task.task_id);
+        const result = taskService.setStatus(task.task_id, status);
+        const eventsAfter = eventStore.getByTaskId(task.task_id);
+        expect(result.status).toBe(status);
+        expect(eventsAfter.length).toBe(eventsBefore.length);
       }
     });
   });
@@ -457,21 +461,54 @@ describe('TaskService', () => {
       expect(claimed.lease_until).toBe(leaseUntil);
     });
 
-    it('throws if task is not in ready status', () => {
+    it('claims a task from backlog status', () => {
       const task = taskService.createTask({ title: 'Backlog task', project: 'inbox' });
+      const claimed = taskService.claimTask(task.task_id, { author: 'agent-1' });
+      expect(claimed.status).toBe(TaskStatus.InProgress);
+    });
+
+    it('claims a task from in_progress status (re-claim)', () => {
+      const task = taskService.createTask({ title: 'Test', project: 'inbox' });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+      taskService.claimTask(task.task_id, { author: 'agent-1' });
+      const reclaimed = taskService.claimTask(task.task_id, { author: 'agent-2' });
+      expect(reclaimed.status).toBe(TaskStatus.InProgress);
+    });
+
+    it('claims a task from blocked status', () => {
+      const task = taskService.createTask({ title: 'Test', project: 'inbox' });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+      taskService.claimTask(task.task_id, { author: 'agent-1' });
+      taskService.blockTask(task.task_id);
+      const claimed = taskService.claimTask(task.task_id, { author: 'agent-2' });
+      expect(claimed.status).toBe(TaskStatus.InProgress);
+    });
+
+    it('throws when claiming a done task', () => {
+      const task = taskService.createTask({ title: 'Test', project: 'inbox' });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+      taskService.claimTask(task.task_id);
+      taskService.completeTask(task.task_id);
       expect(() => taskService.claimTask(task.task_id)).toThrow(/not claimable/i);
     });
 
-    it('throws if task has incomplete dependencies', () => {
+    it('throws when claiming an archived task', () => {
+      const task = taskService.createTask({ title: 'Test', project: 'inbox' });
+      taskService.archiveTask(task.task_id);
+      expect(() => taskService.claimTask(task.task_id)).toThrow(/not claimable/i);
+    });
+
+    it('allows claiming a task with incomplete dependencies', () => {
       const dep = taskService.createTask({ title: 'Incomplete dep', project: 'inbox' });
       const task = taskService.createTask({
-        title: 'Blocked task',
+        title: 'Dependent task',
         project: 'inbox',
         depends_on: [dep.task_id],
       });
       taskService.setStatus(task.task_id, TaskStatus.Ready);
 
-      expect(() => taskService.claimTask(task.task_id)).toThrow(/dependencies not done/i);
+      const claimed = taskService.claimTask(task.task_id, { author: 'agent-1' });
+      expect(claimed.status).toBe(TaskStatus.InProgress);
     });
   });
 

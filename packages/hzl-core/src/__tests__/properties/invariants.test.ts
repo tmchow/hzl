@@ -290,13 +290,15 @@ describe('Property-Based Tests', { timeout: 30_000 }, () => {
   });
 
   describe('invariant: valid status transitions', () => {
-    it('status transitions follow state machine rules', () => {
+    it('status transitions follow permissive rules (only archived is terminal)', () => {
       fc.assert(
         fc.property(
           fc.array(
             fc.oneof(
               fc.constant('create'),
               fc.constant('setReady'),
+              fc.constant('setDone'),
+              fc.constant('setBacklog'),
               fc.constant('claim'),
               fc.constant('complete'),
               fc.constant('release'),
@@ -322,9 +324,29 @@ describe('Property-Based Tests', { timeout: 30_000 }, () => {
                       if (taskIds.length === 0) break;
                       const taskId = taskIds[Math.floor(Math.random() * taskIds.length)];
                       const currentStatus = taskStates.get(taskId);
-                      if (currentStatus === TaskStatus.Backlog) {
+                      if (currentStatus !== TaskStatus.Archived) {
                         taskService.setStatus(taskId, TaskStatus.Ready);
                         taskStates.set(taskId, TaskStatus.Ready);
+                      }
+                      break;
+                    }
+                    case 'setDone': {
+                      if (taskIds.length === 0) break;
+                      const taskId = taskIds[Math.floor(Math.random() * taskIds.length)];
+                      const currentStatus = taskStates.get(taskId);
+                      if (currentStatus !== TaskStatus.Archived) {
+                        taskService.setStatus(taskId, TaskStatus.Done);
+                        taskStates.set(taskId, TaskStatus.Done);
+                      }
+                      break;
+                    }
+                    case 'setBacklog': {
+                      if (taskIds.length === 0) break;
+                      const taskId = taskIds[Math.floor(Math.random() * taskIds.length)];
+                      const currentStatus = taskStates.get(taskId);
+                      if (currentStatus !== TaskStatus.Archived) {
+                        taskService.setStatus(taskId, TaskStatus.Backlog);
+                        taskStates.set(taskId, TaskStatus.Backlog);
                       }
                       break;
                     }
@@ -332,7 +354,7 @@ describe('Property-Based Tests', { timeout: 30_000 }, () => {
                       if (taskIds.length === 0) break;
                       const taskId = taskIds[Math.floor(Math.random() * taskIds.length)];
                       const currentStatus = taskStates.get(taskId);
-                      if (currentStatus === TaskStatus.Ready) {
+                      if (currentStatus !== TaskStatus.Done && currentStatus !== TaskStatus.Archived) {
                         taskService.claimTask(taskId, { author: 'agent' });
                         taskStates.set(taskId, TaskStatus.InProgress);
                       }
@@ -342,7 +364,7 @@ describe('Property-Based Tests', { timeout: 30_000 }, () => {
                       if (taskIds.length === 0) break;
                       const taskId = taskIds[Math.floor(Math.random() * taskIds.length)];
                       const currentStatus = taskStates.get(taskId);
-                      if (currentStatus === TaskStatus.InProgress) {
+                      if (currentStatus === TaskStatus.InProgress || currentStatus === TaskStatus.Blocked) {
                         taskService.completeTask(taskId);
                         taskStates.set(taskId, TaskStatus.Done);
                       }
@@ -436,8 +458,8 @@ describe('Property-Based Tests', { timeout: 30_000 }, () => {
     });
   });
 
-  describe('invariant: claim requires ready status', () => {
-    it('only ready tasks can be claimed', () => {
+  describe('invariant: claim rejects terminal statuses', () => {
+    it('only done and archived tasks cannot be claimed', () => {
       fc.assert(
         fc.property(
           fc.array(
@@ -456,14 +478,13 @@ describe('Property-Based Tests', { timeout: 30_000 }, () => {
                 const task = taskService.createTask({ title: 'Task', project: 'inbox' });
 
                 try {
-                  if (status !== 'backlog') {
+                  if (status === 'ready') {
                     taskService.setStatus(task.task_id, TaskStatus.Ready);
                   }
                   if (status === 'in_progress') {
                     taskService.claimTask(task.task_id, { author: 'agent' });
                   }
                   if (status === 'done') {
-                    taskService.setStatus(task.task_id, TaskStatus.Ready);
                     taskService.claimTask(task.task_id, { author: 'agent' });
                     taskService.completeTask(task.task_id);
                   }
@@ -474,7 +495,7 @@ describe('Property-Based Tests', { timeout: 30_000 }, () => {
                   continue;
                 }
 
-                const canClaim = status === 'ready';
+                const canClaim = status !== 'done' && status !== 'archived';
                 try {
                   taskService.claimTask(task.task_id, { author: 'new-agent' });
                   if (!canClaim) {

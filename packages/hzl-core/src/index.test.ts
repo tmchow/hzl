@@ -87,16 +87,12 @@ describe('hzl-core public API', () => {
     it('exports error classes', () => {
       expect(hzlCore.TaskNotFoundError).toBeDefined();
       expect(hzlCore.TaskNotClaimableError).toBeDefined();
-      expect(hzlCore.DependenciesNotDoneError).toBeDefined();
       expect(hzlCore.TaskValidationError).toBeDefined();
       expect(hzlCore.InvalidProgressError).toBeDefined();
       expect(hzlCore.InvalidDueMonthError).toBeDefined();
       expect(hzlCore.InvalidStatusTransitionError).toBeDefined();
     });
 
-    it('exports VALID_TRANSITIONS', () => {
-      expect(hzlCore.VALID_TRANSITIONS).toBeDefined();
-    });
   });
 
   describe('utility exports', () => {

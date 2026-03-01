@@ -233,12 +233,6 @@ export class TaskNotClaimableError extends Error {
   }
 }
 
-export class DependenciesNotDoneError extends Error {
-  constructor(taskId: string, pendingDeps: string[]) {
-    super(`Task ${taskId} has dependencies not done: ${pendingDeps.join(', ')}`);
-  }
-}
-
 export class AmbiguousPrefixError extends Error {
   public readonly matches: Array<{ task_id: string; title: string }>;
 
@@ -276,26 +270,6 @@ export class InvalidStatusTransitionError extends TaskValidationError {
   }
 }
 
-export const VALID_TRANSITIONS: Record<TaskStatus, ReadonlySet<TaskStatus>> = {
-  [TaskStatus.Backlog]: new Set([TaskStatus.Ready, TaskStatus.Archived]),
-  [TaskStatus.Ready]: new Set([TaskStatus.Backlog, TaskStatus.InProgress, TaskStatus.Archived]),
-  [TaskStatus.InProgress]: new Set([
-    TaskStatus.Ready,
-    TaskStatus.InProgress,
-    TaskStatus.Blocked,
-    TaskStatus.Done,
-    TaskStatus.Archived,
-  ]),
-  [TaskStatus.Blocked]: new Set([
-    TaskStatus.InProgress,
-    TaskStatus.Blocked,
-    TaskStatus.Done,
-    TaskStatus.Archived,
-  ]),
-  [TaskStatus.Done]: new Set([TaskStatus.Ready]),
-  [TaskStatus.Archived]: new Set(),
-};
-
 /**
  * Validate progress value is an integer between 0 and 100.
  * @throws Error if progress is invalid
@@ -317,7 +291,6 @@ export class TaskService {
   private static readonly PRUNE_JOURNAL_FILENAME = 'prune-journal.json';
   private static readonly ATTACHED_EVENTS_SCHEMA = 'events_src';
 
-  private getIncompleteDepsStmt: Database.Statement;
   private getSubtasksStmt: Database.Statement;
   private getTaskByIdStmt: Database.Statement;
   private resolveTaskIdStmt: Database.Statement;
@@ -335,14 +308,6 @@ export class TaskService {
   ) {
     this.onDoneHook = options?.onDone;
     this.pruneJournalPath = this.resolvePruneJournalPath(options?.pruneJournalPath);
-    this.getIncompleteDepsStmt = db.prepare(`
-      SELECT td.depends_on_id
-      FROM task_dependencies td
-      LEFT JOIN tasks_current tc ON tc.task_id = td.depends_on_id
-      WHERE td.task_id = ?
-        AND (tc.status IS NULL OR tc.status != 'done')
-    `);
-
     this.getSubtasksStmt = db.prepare(`
       SELECT task_id, title, project, status, parent_id, description,
              links, tags, priority, due_at, metadata,
@@ -616,17 +581,12 @@ export class TaskService {
       const task = this.getTaskById(taskId);
       if (!task) throw new TaskNotFoundError(taskId);
 
-      if (task.status !== TaskStatus.Ready) {
-        throw new TaskNotClaimableError(taskId, `status is ${task.status}, must be ready`);
-      }
-
-      const incompleteDeps = this.getIncompleteDepsStmt.all(taskId) as { depends_on_id: string }[];
-      if (incompleteDeps.length > 0) {
-        throw new DependenciesNotDoneError(taskId, incompleteDeps.map(d => d.depends_on_id));
+      if (task.status === TaskStatus.Done || task.status === TaskStatus.Archived) {
+        throw new TaskNotClaimableError(taskId, `status is ${task.status}, must not be done or archived`);
       }
 
       const eventData: StatusChangedData = {
-        from: TaskStatus.Ready,
+        from: task.status,
         to: TaskStatus.InProgress,
       };
       if (opts?.lease_until) eventData.lease_until = opts.lease_until;
@@ -649,10 +609,14 @@ export class TaskService {
       const task = this.getTaskById(taskId);
       if (!task) throw new TaskNotFoundError(taskId);
 
-      const allowedTransitions = VALID_TRANSITIONS[task.status];
-      if (!allowedTransitions.has(toStatus)) {
+      // No-op on self-transition
+      if (task.status === toStatus) {
+        return task;
+      }
+
+      if (task.status === TaskStatus.Archived) {
         throw new InvalidStatusTransitionError(
-          `Cannot set status from ${task.status} to ${toStatus}`
+          `Cannot change status: task is archived`
         );
       }
 
