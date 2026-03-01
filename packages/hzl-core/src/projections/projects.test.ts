@@ -113,4 +113,41 @@ describe('ProjectsProjector', () => {
     };
     expect(count.count).toBe(0);
   });
+
+  it('should re-prepare statements when db reference changes', () => {
+    const firstDb = createTestDb();
+    const secondDb = createTestDb();
+    const localProjector = new ProjectsProjector();
+
+    try {
+      const firstEvent: PersistedEventEnvelope = {
+        rowid: 1,
+        event_id: 'evt-1',
+        task_id: PROJECT_EVENT_TASK_ID,
+        type: EventType.ProjectCreated,
+        data: { name: 'first-project' },
+        timestamp: '2026-01-30T12:00:00.000Z',
+      };
+      localProjector.apply(firstEvent, firstDb);
+
+      const secondEvent: PersistedEventEnvelope = {
+        rowid: 2,
+        event_id: 'evt-2',
+        task_id: PROJECT_EVENT_TASK_ID,
+        type: EventType.ProjectCreated,
+        data: { name: 'second-project' },
+        timestamp: '2026-01-30T12:01:00.000Z',
+      };
+      localProjector.apply(secondEvent, secondDb);
+
+      const row = secondDb
+        .prepare('SELECT * FROM projects WHERE name = ?')
+        .get('second-project') as any;
+      expect(row).toBeDefined();
+      expect(row.name).toBe('second-project');
+    } finally {
+      firstDb.close();
+      secondDb.close();
+    }
+  });
 });

@@ -1,14 +1,14 @@
 // packages/hzl-core/src/projections/comments-checkpoints.ts
 import type Database from 'libsql';
 import type { PersistedEventEnvelope } from '../events/store.js';
-import type { Projector } from './types.js';
+import { CachingProjector } from './types.js';
 import {
   EventType,
   type CheckpointRecordedData,
   type CommentAddedData,
 } from '../events/types.js';
 
-export class CommentsCheckpointsProjector implements Projector {
+export class CommentsCheckpointsProjector extends CachingProjector {
   name = 'comments_checkpoints';
 
   apply(event: PersistedEventEnvelope, db: Database.Database): void {
@@ -29,7 +29,7 @@ export class CommentsCheckpointsProjector implements Projector {
 
   private handleCommentAdded(event: PersistedEventEnvelope, db: Database.Database): void {
     const data = event.data as CommentAddedData;
-    db.prepare(`
+    this.stmt(db, 'insertComment', `
       INSERT INTO task_comments (event_rowid, task_id, author, agent_id, text, timestamp)
       VALUES (?, ?, ?, ?, ?, ?)
     `).run(
@@ -44,7 +44,7 @@ export class CommentsCheckpointsProjector implements Projector {
 
   private handleCheckpointRecorded(event: PersistedEventEnvelope, db: Database.Database): void {
     const data = event.data as CheckpointRecordedData;
-    db.prepare(`
+    this.stmt(db, 'insertCheckpoint', `
       INSERT INTO task_checkpoints (event_rowid, task_id, name, data, timestamp)
       VALUES (?, ?, ?, ?, ?)
     `).run(

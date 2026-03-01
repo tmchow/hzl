@@ -80,5 +80,37 @@ describe('TagsProjector', () => {
       const count = db.prepare('SELECT COUNT(*) as cnt FROM task_tags').get() as any;
       expect(count.cnt).toBe(0);
     });
+
+    it('re-prepares statements when db reference changes', () => {
+      const firstDb = createTestDb();
+      const secondDb = createTestDb();
+      const firstStore = new EventStore(firstDb);
+      const secondStore = new EventStore(secondDb);
+      const localProjector = new TagsProjector();
+
+      try {
+        const firstEvent = firstStore.append({
+          task_id: 'TASK1',
+          type: EventType.TaskCreated,
+          data: { title: 'First', project: 'inbox', tags: ['first'] },
+        });
+        localProjector.apply(firstEvent, firstDb);
+
+        const secondEvent = secondStore.append({
+          task_id: 'TASK2',
+          type: EventType.TaskCreated,
+          data: { title: 'Second', project: 'inbox', tags: ['second'] },
+        });
+        localProjector.apply(secondEvent, secondDb);
+
+        const tags = secondDb
+          .prepare('SELECT tag FROM task_tags WHERE task_id = ? ORDER BY tag')
+          .all('TASK2') as any[];
+        expect(tags.map(t => t.tag)).toEqual(['second']);
+      } finally {
+        firstDb.close();
+        secondDb.close();
+      }
+    });
   });
 });

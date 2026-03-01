@@ -1,12 +1,12 @@
 // packages/hzl-core/src/projections/search.ts
 import type Database from 'libsql';
 import type { PersistedEventEnvelope } from '../events/store.js';
-import type { Projector } from './types.js';
+import { CachingProjector } from './types.js';
 import { EventType, type TaskCreatedData, type TaskUpdatedData } from '../events/types.js';
 
 const SEARCHABLE_FIELDS = new Set(['title', 'description']);
 
-export class SearchProjector implements Projector {
+export class SearchProjector extends CachingProjector {
   name = 'search';
 
   apply(event: PersistedEventEnvelope, db: Database.Database): void {
@@ -26,7 +26,7 @@ export class SearchProjector implements Projector {
 
   private handleTaskCreated(event: PersistedEventEnvelope, db: Database.Database): void {
     const data = event.data as TaskCreatedData;
-    db.prepare(`
+    this.stmt(db, 'insertTaskSearch', `
       INSERT INTO task_search (task_id, title, description)
       VALUES (?, ?, ?)
     `).run(event.task_id, data.title, data.description ?? '');
@@ -37,7 +37,9 @@ export class SearchProjector implements Projector {
     if (!SEARCHABLE_FIELDS.has(data.field)) return;
 
     // Get current values from task_search (avoids N+1 query to tasks_current)
-    const current = db.prepare(
+    const current = this.stmt(
+      db,
+      'selectTaskSearchById',
       'SELECT title, description FROM task_search WHERE task_id = ?'
     ).get(event.task_id) as { title: string; description: string } | undefined;
 
@@ -47,8 +49,10 @@ export class SearchProjector implements Projector {
     const title = data.field === 'title' ? (data.new_value as string) : current.title;
     const description = data.field === 'description' ? (data.new_value as string | null) ?? '' : current.description;
 
-    db.prepare('DELETE FROM task_search WHERE task_id = ?').run(event.task_id);
-    db.prepare(`
+    this.stmt(db, 'deleteTaskSearchById', 'DELETE FROM task_search WHERE task_id = ?').run(
+      event.task_id
+    );
+    this.stmt(db, 'insertTaskSearch', `
       INSERT INTO task_search (task_id, title, description)
       VALUES (?, ?, ?)
     `).run(event.task_id, title, description);

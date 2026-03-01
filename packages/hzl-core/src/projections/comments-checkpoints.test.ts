@@ -84,5 +84,38 @@ describe('CommentsCheckpointsProjector', () => {
       expect(commentCount.cnt).toBe(0);
       expect(checkpointCount.cnt).toBe(0);
     });
+
+    it('re-prepares statements when db reference changes', () => {
+      const firstDb = createTestDb();
+      const secondDb = createTestDb();
+      const firstStore = new EventStore(firstDb);
+      const secondStore = new EventStore(secondDb);
+      const localProjector = new CommentsCheckpointsProjector();
+
+      try {
+        const firstEvent = firstStore.append({
+          task_id: 'TASK1',
+          type: EventType.CommentAdded,
+          data: { text: 'first comment' },
+        });
+        localProjector.apply(firstEvent, firstDb);
+
+        const secondEvent = secondStore.append({
+          task_id: 'TASK2',
+          type: EventType.CommentAdded,
+          data: { text: 'second comment' },
+        });
+        localProjector.apply(secondEvent, secondDb);
+
+        const comment = secondDb
+          .prepare('SELECT * FROM task_comments WHERE task_id = ?')
+          .get('TASK2') as any;
+        expect(comment).toBeDefined();
+        expect(comment.text).toBe('second comment');
+      } finally {
+        firstDb.close();
+        secondDb.close();
+      }
+    });
   });
 });

@@ -1,7 +1,7 @@
 // packages/hzl-core/src/projections/tasks-current.ts
 import type Database from 'libsql';
 import type { PersistedEventEnvelope } from '../events/store.js';
-import type { Projector } from './types.js';
+import { CachingProjector } from './types.js';
 import {
   EventType,
   TaskStatus,
@@ -14,7 +14,7 @@ import {
 
 const JSON_FIELDS = new Set(['tags', 'links', 'metadata']);
 
-export class TasksCurrentProjector implements Projector {
+export class TasksCurrentProjector extends CachingProjector {
   name = 'tasks_current';
 
   apply(event: PersistedEventEnvelope, db: Database.Database): void {
@@ -46,7 +46,7 @@ export class TasksCurrentProjector implements Projector {
 
   private handleTaskCreated(event: PersistedEventEnvelope, db: Database.Database): void {
     const data = event.data as TaskCreatedData;
-    db.prepare(`
+    this.stmt(db, 'taskCreated', `
       INSERT INTO tasks_current (
         task_id, title, project, status, parent_id, description,
         links, tags, priority, due_at, metadata,
@@ -83,7 +83,7 @@ export class TasksCurrentProjector implements Projector {
 
       // Steal case: in_progress → in_progress - always overwrite agent and claimed_at
       if (data.from === TaskStatus.InProgress) {
-        db.prepare(`
+        this.stmt(db, 'statusChangedSteal', `
           UPDATE tasks_current SET
             claimed_at = ?,
             agent = ?,
@@ -101,7 +101,7 @@ export class TasksCurrentProjector implements Projector {
         );
       } else if (data.from === TaskStatus.Blocked) {
         // Unblock case: blocked → in_progress - preserve claimed_at, update agent only if provided
-        db.prepare(`
+        this.stmt(db, 'statusChangedUnblockToInProgress', `
           UPDATE tasks_current SET
             status = ?,
             agent = COALESCE(?, agent),
@@ -119,7 +119,7 @@ export class TasksCurrentProjector implements Projector {
         );
       } else {
         // Normal claim (ready → in_progress) - set claimed_at, preserve agent if no new one
-        db.prepare(`
+        this.stmt(db, 'statusChangedClaimToInProgress', `
           UPDATE tasks_current SET
             status = ?,
             claimed_at = ?,
@@ -140,7 +140,7 @@ export class TasksCurrentProjector implements Projector {
       }
     } else if (data.from === TaskStatus.Blocked && toStatus === TaskStatus.Blocked) {
       // Updating block reason: preserve agent, claimed_at - just update timestamp
-      db.prepare(`
+      this.stmt(db, 'statusChangedBlockedToBlocked', `
         UPDATE tasks_current SET
           updated_at = ?,
           last_event_id = ?
@@ -148,7 +148,7 @@ export class TasksCurrentProjector implements Projector {
       `).run(event.timestamp, event.rowid, event.task_id);
     } else if (toStatus === TaskStatus.Blocked) {
       // Entering blocked state: preserve agent and claimed_at, clear lease_until
-      db.prepare(`
+      this.stmt(db, 'statusChangedToBlocked', `
         UPDATE tasks_current SET
           status = ?,
           lease_until = NULL,
@@ -159,7 +159,7 @@ export class TasksCurrentProjector implements Projector {
     } else if (data.from === TaskStatus.InProgress || data.from === TaskStatus.Blocked) {
       // When leaving in_progress/blocked: clear claimed_at and lease, but PRESERVE agent
       // If transitioning to terminal state, set terminal_at
-      db.prepare(`
+      this.stmt(db, 'statusChangedLeaveInProgressOrBlocked', `
         UPDATE tasks_current SET
           status = ?,
           claimed_at = NULL,
@@ -181,7 +181,7 @@ export class TasksCurrentProjector implements Projector {
     } else {
       // Generic status change (including ready → done, backlog → archived, etc.)
       // If transitioning to terminal state, set terminal_at
-      db.prepare(`
+      this.stmt(db, 'statusChangedGeneric', `
         UPDATE tasks_current SET
           status = ?,
           progress = CASE WHEN ? THEN 100 ELSE progress END,
@@ -203,7 +203,7 @@ export class TasksCurrentProjector implements Projector {
 
   private handleTaskMoved(event: PersistedEventEnvelope, db: Database.Database): void {
     const data = event.data as TaskMovedData;
-    db.prepare(`
+    this.stmt(db, 'taskMoved', `
       UPDATE tasks_current SET
         project = ?,
         updated_at = ?,
@@ -219,7 +219,7 @@ export class TasksCurrentProjector implements Projector {
       ? JSON.stringify(data.new_value)
       : data.new_value;
 
-    db.prepare(`
+    this.stmt(db, `taskUpdated:${field}`, `
       UPDATE tasks_current SET
         ${field} = ?,
         updated_at = ?,
@@ -229,7 +229,7 @@ export class TasksCurrentProjector implements Projector {
   }
 
   private handleTaskArchived(event: PersistedEventEnvelope, db: Database.Database): void {
-    db.prepare(`
+    this.stmt(db, 'taskArchived', `
       UPDATE tasks_current SET
         status = ?,
         terminal_at = ?,
@@ -243,7 +243,7 @@ export class TasksCurrentProjector implements Projector {
     const data = event.data as CheckpointRecordedData;
     // Only update progress if it's present in the checkpoint
     if (data.progress !== undefined) {
-      db.prepare(`
+      this.stmt(db, 'checkpointRecordedProgress', `
         UPDATE tasks_current SET
           progress = ?,
           updated_at = ?,

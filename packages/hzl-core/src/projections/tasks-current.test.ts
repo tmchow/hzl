@@ -432,5 +432,38 @@ describe('TasksCurrentProjector', () => {
       const count = db.prepare('SELECT COUNT(*) as cnt FROM tasks_current').get() as any;
       expect(count.cnt).toBe(0);
     });
+
+    it('re-prepares statements when db reference changes', () => {
+      const firstDb = createTestDb();
+      const secondDb = createTestDb();
+      const firstStore = new EventStore(firstDb);
+      const secondStore = new EventStore(secondDb);
+      const localProjector = new TasksCurrentProjector();
+
+      try {
+        const firstEvent = firstStore.append({
+          task_id: 'TASK1',
+          type: EventType.TaskCreated,
+          data: { title: 'Task 1', project: 'inbox' },
+        });
+        localProjector.apply(firstEvent, firstDb);
+
+        const secondEvent = secondStore.append({
+          task_id: 'TASK2',
+          type: EventType.TaskCreated,
+          data: { title: 'Task 2', project: 'inbox' },
+        });
+        localProjector.apply(secondEvent, secondDb);
+
+        const task = secondDb
+          .prepare('SELECT * FROM tasks_current WHERE task_id = ?')
+          .get('TASK2') as any;
+        expect(task).toBeDefined();
+        expect(task.title).toBe('Task 2');
+      } finally {
+        firstDb.close();
+        secondDb.close();
+      }
+    });
   });
 });

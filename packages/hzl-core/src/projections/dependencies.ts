@@ -1,10 +1,10 @@
 // packages/hzl-core/src/projections/dependencies.ts
 import type Database from 'libsql';
 import type { PersistedEventEnvelope } from '../events/store.js';
-import type { Projector } from './types.js';
+import { CachingProjector } from './types.js';
 import { EventType, type DependencyData, type TaskCreatedData } from '../events/types.js';
 
-export class DependenciesProjector implements Projector {
+export class DependenciesProjector extends CachingProjector {
   name = 'dependencies';
 
   apply(event: PersistedEventEnvelope, db: Database.Database): void {
@@ -30,7 +30,9 @@ export class DependenciesProjector implements Projector {
     const dependsOn = data.depends_on;
     if (!dependsOn || dependsOn.length === 0) return;
 
-    const insertStmt = db.prepare(
+    const insertStmt = this.stmt(
+      db,
+      'insertDependency',
       'INSERT OR IGNORE INTO task_dependencies (task_id, depends_on_id) VALUES (?, ?)'
     );
     for (const depId of dependsOn) {
@@ -40,14 +42,18 @@ export class DependenciesProjector implements Projector {
 
   private handleDependencyAdded(event: PersistedEventEnvelope, db: Database.Database): void {
     const data = event.data as DependencyData;
-    db.prepare(
+    this.stmt(
+      db,
+      'insertDependency',
       'INSERT OR IGNORE INTO task_dependencies (task_id, depends_on_id) VALUES (?, ?)'
     ).run(event.task_id, data.depends_on_id);
   }
 
   private handleDependencyRemoved(event: PersistedEventEnvelope, db: Database.Database): void {
     const data = event.data as DependencyData;
-    db.prepare(
+    this.stmt(
+      db,
+      'deleteDependency',
       'DELETE FROM task_dependencies WHERE task_id = ? AND depends_on_id = ?'
     ).run(event.task_id, data.depends_on_id);
   }
