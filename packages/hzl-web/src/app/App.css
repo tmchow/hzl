@@ -442,7 +442,7 @@ select:focus {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 6px;
-  padding: 10px 12px;
+  padding: 12px 14px;
   cursor: pointer;
   transition: border-color 0.15s;
 }
@@ -456,7 +456,7 @@ select:focus {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 4px;
+  margin-bottom: 8px;
 }
 
 .card-header-left {
@@ -491,6 +491,7 @@ select:focus {
 
 .card-title {
   font-size: 13px;
+  line-height: 1.4;
   color: var(--text-primary);
   display: -webkit-box;
   -webkit-line-clamp: 2;
