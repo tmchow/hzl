@@ -366,7 +366,7 @@ select:focus {
 
 .column {
   flex: 1 1 220px;
-  min-width: 180px;
+  min-width: 220px;
   max-width: 320px;
   background: var(--bg-secondary);
   border-radius: 8px;
@@ -469,8 +469,7 @@ select:focus {
 
 .card-header-right {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
+  align-items: center;
   gap: 4px;
   min-width: 0;
   flex-shrink: 0;
@@ -538,23 +537,42 @@ select:focus {
   color: var(--accent);
 }
 
-.card-assignee.unassigned {
-  color: var(--text-muted);
-  font-weight: 500;
+
+.card-progress-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
 }
 
-.card-progress {
-  color: var(--accent);
-  background: rgba(245, 158, 11, 0.15);
-  padding: 2px 6px;
-  border-radius: 3px;
+.card-progress-track {
+  flex: 1;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--bg-primary);
+  overflow: hidden;
+}
+
+.card-progress-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--accent);
+  transition: width 0.3s;
+}
+
+.card-progress-fill.complete {
+  background: var(--status-done);
+}
+
+.card-progress-label {
   font-size: 10px;
+  color: var(--accent);
   flex-shrink: 0;
+  line-height: 1;
 }
 
-.card-progress.complete {
+.card-progress-label.complete {
   color: var(--status-done);
-  background: rgba(34, 197, 94, 0.15);
 }
 
 .card-subtask-count {
@@ -583,17 +601,6 @@ select:focus {
   border-color: var(--accent);
 }
 
-.card-blocked {
-  font-size: 10px;
-  color: var(--status-blocked);
-  margin-top: 6px;
-}
-
-.card-lease {
-  font-size: 10px;
-  color: var(--text-muted);
-  margin-top: 4px;
-}
 
 /* Empty State */
 .empty-column {
