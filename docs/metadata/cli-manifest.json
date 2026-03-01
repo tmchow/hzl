@@ -1591,6 +1591,16 @@
           "optional": false,
           "defaultValue": null,
           "description": "Include full task fields and blocked_by for each subtask"
+        },
+        {
+          "flags": "--view <view>",
+          "short": null,
+          "long": "--view",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": "full",
+          "description": "Response view: summary | standard | full"
         }
       ],
       "hasSubcommands": false
