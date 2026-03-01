@@ -5,6 +5,7 @@ import {
   EventStore,
   EventType,
   AmbiguousPrefixError,
+  SearchService,
   type TaskListItem as CoreTaskListItem,
 } from 'hzl-core';
 import { UI_FILES, LEGACY_DASHBOARD_HTML, type EmbeddedFile } from './ui-embed.js';
@@ -15,6 +16,7 @@ export interface ServerOptions {
   allowFraming?: boolean; // Allow embedding in iframes (disables X-Frame-Options and adds frame-ancestors *)
   taskService: TaskService;
   eventStore: EventStore;
+  searchService: SearchService;
 }
 
 export interface ServerHandle {
@@ -203,7 +205,7 @@ function writeSseEvent<T extends object>(res: ServerResponse, event: string, dat
 }
 
 export function createWebServer(options: ServerOptions): ServerHandle {
-  const { port, host = '0.0.0.0', allowFraming = false, taskService, eventStore } = options;
+  const { port, host = '0.0.0.0', allowFraming = false, taskService, eventStore, searchService } = options;
   const sockets = new Set<Socket>();
   const activeStreamResponses = new Set<ServerResponse>();
 
@@ -496,6 +498,37 @@ export function createWebServer(options: ServerOptions): ServerHandle {
     res.on('close', cleanup);
   }
 
+  function handleSearch(params: URLSearchParams, res: ServerResponse): void {
+    const q = params.get('q') ?? '';
+    const project = params.get('project') || undefined;
+    const status = params.get('status') || undefined;
+
+    const limitParam = params.get('limit');
+    let limit: number | undefined;
+    if (limitParam !== null) {
+      const parsed = parseStrictNonNegativeInt(limitParam);
+      if (parsed === null || parsed < 1 || parsed > 200) {
+        json(res, { error: 'Invalid limit value. Expected integer 1-200.' }, 400);
+        return;
+      }
+      limit = parsed;
+    }
+
+    const offsetParam = params.get('offset');
+    let offset: number | undefined;
+    if (offsetParam !== null) {
+      const parsed = parseStrictNonNegativeInt(offsetParam);
+      if (parsed === null) {
+        json(res, { error: 'Invalid offset value. Expected non-negative integer.' }, 400);
+        return;
+      }
+      offset = parsed;
+    }
+
+    const result = searchService.search(q, { project, status, limit, offset });
+    json(res, result);
+  }
+
   const useLegacy = process.env.HZL_LEGACY_DASHBOARD === '1';
 
   function serveHtml(res: ServerResponse, html: string): void {
@@ -553,6 +586,11 @@ export function createWebServer(options: ServerOptions): ServerHandle {
       // 1. API routes
       if (pathname === '/api/tasks') {
         handleTasks(params, res);
+        return;
+      }
+
+      if (pathname === '/api/search') {
+        handleSearch(params, res);
         return;
       }
 

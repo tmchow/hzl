@@ -18,7 +18,7 @@ import { ValidationService } from 'hzl-core/services/validation-service.js';
 import { readConfig } from './config.js';
 
 // Schema version: bump when projection table schemas change
-const CURRENT_SCHEMA_VERSION = 3;
+const CURRENT_SCHEMA_VERSION = 4;
 
 /**
  * Check schema version and rebuild projections if needed.

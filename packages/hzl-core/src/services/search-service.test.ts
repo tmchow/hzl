@@ -84,6 +84,34 @@ describe('SearchService', () => {
       expect(page1.total).toBe(5);
     });
 
+    it('finds tasks by tag match', () => {
+      const event = eventStore.append({
+        task_id: 'TASK1',
+        type: EventType.TaskCreated,
+        data: { title: 'Backend work', project: 'project-a', tags: ['api', 'urgent'] },
+      });
+      engine.applyEvent(event);
+
+      const results = searchService.search('urgent');
+      expect(results.tasks).toHaveLength(1);
+      expect(results.tasks[0].task_id).toBe('TASK1');
+    });
+
+    it('finds tasks after tag update', () => {
+      createTask('TASK1', 'Backend work', 'project-a');
+
+      const updateEvent = eventStore.append({
+        task_id: 'TASK1',
+        type: EventType.TaskUpdated,
+        data: { field: 'tags', old_value: [], new_value: ['critical'] },
+      });
+      engine.applyEvent(updateEvent);
+
+      const results = searchService.search('critical');
+      expect(results.tasks).toHaveLength(1);
+      expect(results.tasks[0].task_id).toBe('TASK1');
+    });
+
     it('handles empty query', () => {
       createTask('TASK1', 'Test', 'inbox');
       const results = searchService.search('');

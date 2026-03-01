@@ -15,7 +15,6 @@ interface FilterBarProps {
   searchQuery: string;
   onSearchChange: (value: string) => void;
   searchMatchCount: number;
-  searchTotalCount: number;
   showDateFilter: boolean;
   mobileFiltersOpen: boolean;
   view: ViewMode;
@@ -43,7 +42,6 @@ export default function FilterBar({
   searchQuery,
   onSearchChange,
   searchMatchCount,
-  searchTotalCount,
   showDateFilter,
   mobileFiltersOpen,
   view,
@@ -79,7 +77,7 @@ export default function FilterBar({
   }, [settingsOpen, handleClickOutside]);
 
   const hasSearch = searchQuery.length > 0;
-  const label = searchTotalCount === 1 ? 'task' : 'tasks';
+  const label = searchMatchCount === 1 ? 'task' : 'tasks';
 
   const collapseMetaText = parentCount === 0
     ? 'No parent tasks'
@@ -140,7 +138,7 @@ export default function FilterBar({
           </button>
         )}
         <span className="task-search-meta">
-          {hasSearch ? `${searchMatchCount}/${searchTotalCount} ${label}` : ''}
+          {hasSearch ? `${searchMatchCount} ${label}` : ''}
         </span>
       </div>
       <div className="filter-group settings-group" ref={settingsRef}>
