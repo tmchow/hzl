@@ -5,6 +5,7 @@ import type { Projector } from './types.js';
 import {
   EventType,
   TaskStatus,
+  UPDATABLE_TASK_FIELDS,
   type CheckpointRecordedData,
   type StatusChangedData,
   type TaskCreatedData,
@@ -13,6 +14,9 @@ import {
 } from '../events/types.js';
 
 const JSON_FIELDS = new Set(['tags', 'links', 'metadata']);
+const SAFE_COLUMNS = new Set(
+  UPDATABLE_TASK_FIELDS.map((field) => (field === 'assignee' ? 'agent' : field))
+);
 
 export class TasksCurrentProjector implements Projector {
   name = 'tasks_current';
@@ -215,6 +219,10 @@ export class TasksCurrentProjector implements Projector {
   private handleTaskUpdated(event: PersistedEventEnvelope, db: Database.Database): void {
     const data = event.data as TaskUpdatedData;
     const field = data.field === 'assignee' ? 'agent' : data.field;
+    if (!SAFE_COLUMNS.has(field)) {
+      return;
+    }
+
     const newValue = JSON_FIELDS.has(field)
       ? JSON.stringify(data.new_value)
       : data.new_value;
