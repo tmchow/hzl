@@ -48,6 +48,23 @@ pnpm link --global packages/hzl-cli
 hzl --help
 ```
 
+### Agent-Friendly CLI Usage
+
+HZL should be easy for agents to operate reliably:
+
+- Prefer canonical syntax from `hzl --help` and `hzl <group> --help`.
+- The CLI accepts clear intent even with minor syntax issues (for example `task next`, `--assignee`, `--json`, and some small typo/format variants).
+- When HZL auto-corrects a command, it prints a note with the preferred syntax so future calls can be cleaner.
+- If intent is ambiguous, HZL returns a detailed error with likely fixes and concrete examples.
+
+Use these canonical forms as the baseline:
+
+```bash
+hzl task claim --next --agent <agent_id>
+hzl task list --project <project> --status ready
+hzl task update <task_id> --progress 50
+```
+
 ### Running the Web Dashboard (Worktrees + Dev Mode)
 
 ```bash

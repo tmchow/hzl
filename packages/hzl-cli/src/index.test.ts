@@ -46,4 +46,52 @@ describe('hzl-cli public API', () => {
       'assignee_flag'
     );
   });
+
+  it('normalizes legacy and minor syntax variants', () => {
+    const program = hzlCli.createProgram();
+    const normalized = hzlCli.normalizeInvocationArgs(
+      ['task', 'next', '--assignee', 'agent-1', '--json'],
+      program
+    );
+
+    expect(normalized.args).toEqual(['task', 'claim', '--next', '--agent', 'agent-1']);
+    expect(normalized.notes.length).toBe(3);
+  });
+
+  it('does not rewrite --assignee when --agent is not supported in command scope', () => {
+    const program = hzlCli.createProgram();
+    const normalized = hzlCli.normalizeInvocationArgs(['project', 'list', '--assignee', 'a1'], program);
+
+    expect(normalized.args).toEqual(['project', 'list', '--assignee', 'a1']);
+    expect(normalized.notes).toHaveLength(0);
+  });
+
+  it('normalizes underscored subcommands', () => {
+    const program = hzlCli.createProgram();
+    const normalized = hzlCli.normalizeInvocationArgs(['task', 'add_dep', 'A', 'B'], program);
+
+    expect(normalized.args).toEqual(['task', 'add-dep', 'A', 'B']);
+    expect(normalized.notes).toHaveLength(1);
+  });
+
+  it('builds detailed usage error for unknown option', () => {
+    const program = hzlCli.createProgram();
+    const error = hzlCli.buildUsageError(
+      ['task', 'claim', '--agnt', 'agent-1'],
+      program,
+      "error: unknown option '--agnt'"
+    );
+
+    expect(error.code).toBe('invalid_usage');
+    expect(error.exitCode).toBe(hzlCli.ExitCode.InvalidUsage);
+
+    const details = error.details as {
+      reason: string;
+      did_you_mean?: string[];
+      examples: string[];
+    };
+    expect(details.reason).toContain('--agnt');
+    expect(details.did_you_mean).toContain('--agent');
+    expect(details.examples.length).toBeGreaterThanOrEqual(2);
+  });
 });
