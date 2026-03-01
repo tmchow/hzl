@@ -215,6 +215,7 @@ async function runForeground(port: number, host: string, dbOption?: string, allo
     allowFraming,
     taskService: services.taskService,
     eventStore: services.eventStore,
+    searchService: services.searchService,
   });
 
   // Write PID file for --status to detect

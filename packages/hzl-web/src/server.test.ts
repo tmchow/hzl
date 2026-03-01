@@ -8,8 +8,10 @@ import { TasksCurrentProjector } from 'hzl-core/projections/tasks-current';
 import { DependenciesProjector } from 'hzl-core/projections/dependencies';
 import { CommentsCheckpointsProjector } from 'hzl-core/projections/comments-checkpoints';
 import { ProjectsProjector } from 'hzl-core/projections/projects';
+import { SearchProjector } from 'hzl-core/projections/search';
 import { TaskService } from 'hzl-core/services/task-service';
 import { ProjectService } from 'hzl-core/services/project-service';
+import { SearchService } from 'hzl-core/services/search-service';
 import { TaskStatus } from 'hzl-core/events/types';
 import Database from 'libsql';
 
@@ -19,6 +21,7 @@ describe('hzl-web server', () => {
   let projectionEngine: ProjectionEngine;
   let taskService: TaskService;
   let projectService: ProjectService;
+  let searchService: SearchService;
   let server: ServerHandle;
 
   beforeEach(() => {
@@ -29,12 +32,14 @@ describe('hzl-web server', () => {
     projectionEngine.register(new DependenciesProjector());
     projectionEngine.register(new CommentsCheckpointsProjector());
     projectionEngine.register(new ProjectsProjector());
+    projectionEngine.register(new SearchProjector());
 
     projectService = new ProjectService(db, eventStore, projectionEngine);
     projectService.ensureInboxExists();
     projectService.createProject('test-project');
 
     taskService = new TaskService(db, eventStore, projectionEngine, projectService);
+    searchService = new SearchService(db);
   });
 
   afterEach(async () => {
@@ -45,7 +50,7 @@ describe('hzl-web server', () => {
   });
 
   function createServer(port: number, host = '127.0.0.1', allowFraming = false): ServerHandle {
-    server = createWebServer({ port, host, allowFraming, taskService, eventStore });
+    server = createWebServer({ port, host, allowFraming, taskService, eventStore, searchService });
     return server;
   }
 
@@ -1103,6 +1108,58 @@ describe('hzl-web server', () => {
 
       const res = await globalThis.fetch(`${server.url}/favicon.svg`);
       expect(res.status).toBe(404);
+    });
+  });
+
+  describe('GET /api/search', () => {
+    it('returns matching tasks', async () => {
+      taskService.createTask({ title: 'Implement authentication', project: 'test-project' });
+      taskService.createTask({ title: 'Write documentation', project: 'test-project' });
+      createServer(4620);
+      await new Promise((r) => setTimeout(r, 20));
+
+      const { status, data } = await fetchJson('/api/search?q=authentication');
+      expect(status).toBe(200);
+      const body = data as { tasks: Array<{ title: string }>; total: number };
+      expect(body.tasks).toHaveLength(1);
+      expect(body.tasks[0].title).toBe('Implement authentication');
+      expect(body.total).toBe(1);
+    });
+
+    it('returns empty results for missing q param', async () => {
+      createServer(4621);
+      await new Promise((r) => setTimeout(r, 20));
+
+      const { status, data } = await fetchJson('/api/search');
+      expect(status).toBe(200);
+      const body = data as { tasks: unknown[]; total: number };
+      expect(body.tasks).toHaveLength(0);
+      expect(body.total).toBe(0);
+    });
+
+    it('supports project filter', async () => {
+      taskService.createTask({ title: 'Auth for A', project: 'test-project' });
+      projectService.createProject('other-project');
+      taskService.createTask({ title: 'Auth for B', project: 'other-project' });
+      createServer(4622);
+      await new Promise((r) => setTimeout(r, 20));
+
+      const { status, data } = await fetchJson('/api/search?q=Auth&project=test-project');
+      expect(status).toBe(200);
+      const body = data as { tasks: Array<{ project: string }> };
+      expect(body.tasks).toHaveLength(1);
+      expect(body.tasks[0].project).toBe('test-project');
+    });
+
+    it('finds tasks by tag', async () => {
+      taskService.createTask({ title: 'Backend work', project: 'test-project', tags: ['api', 'urgent'] });
+      createServer(4623);
+      await new Promise((r) => setTimeout(r, 20));
+
+      const { status, data } = await fetchJson('/api/search?q=urgent');
+      expect(status).toBe(200);
+      const body = data as { tasks: unknown[] };
+      expect(body.tasks).toHaveLength(1);
     });
   });
 
