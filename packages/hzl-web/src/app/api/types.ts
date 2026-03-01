@@ -108,3 +108,21 @@ export interface SSEUpdatePayload {
 export interface ApiError {
   error: string;
 }
+
+/** Search result item as returned by GET /api/search */
+export interface SearchTaskResult {
+  task_id: string;
+  title: string;
+  project: string;
+  status: string;
+  description: string | null;
+  priority: number;
+  rank: number;
+}
+
+export interface SearchResponse {
+  tasks: SearchTaskResult[];
+  total: number;
+  limit: number;
+  offset: number;
+}
