@@ -7,6 +7,7 @@ import {
   InvalidDueMonthError,
   InvalidProgressError,
   InvalidStatusTransitionError,
+  VALID_TRANSITIONS,
 } from './task-service.js';
 import { ProjectService, ProjectNotFoundError } from './project-service.js';
 import { createTestDb } from '../db/test-utils.js';
@@ -342,6 +343,62 @@ describe('TaskService', () => {
 
       const moved = taskService.moveTask(task.task_id, 'target');
       expect(moved.project).toBe('target');
+    });
+  });
+
+  describe('setStatus transition matrix', () => {
+    const allStatuses = Object.values(TaskStatus) as TaskStatus[];
+
+    const createTaskInStatus = (status: TaskStatus) => {
+      const task = taskService.createTask({ title: `Status ${status}`, project: 'inbox' });
+
+      switch (status) {
+        case TaskStatus.Backlog:
+          return task;
+        case TaskStatus.Ready:
+          return taskService.setStatus(task.task_id, TaskStatus.Ready);
+        case TaskStatus.InProgress:
+          taskService.setStatus(task.task_id, TaskStatus.Ready);
+          return taskService.claimTask(task.task_id, { author: 'agent-1' });
+        case TaskStatus.Blocked:
+          taskService.setStatus(task.task_id, TaskStatus.Ready);
+          taskService.claimTask(task.task_id, { author: 'agent-1' });
+          return taskService.blockTask(task.task_id);
+        case TaskStatus.Done:
+          taskService.setStatus(task.task_id, TaskStatus.Ready);
+          taskService.claimTask(task.task_id, { author: 'agent-1' });
+          return taskService.completeTask(task.task_id);
+        case TaskStatus.Archived:
+          return taskService.archiveTask(task.task_id);
+      }
+    };
+
+    it('exports transition rules for every status', () => {
+      expect(new Set(Object.keys(VALID_TRANSITIONS))).toEqual(new Set(allStatuses));
+    });
+
+    it('allows every valid status transition', () => {
+      for (const fromStatus of allStatuses) {
+        for (const toStatus of VALID_TRANSITIONS[fromStatus]) {
+          const task = createTaskInStatus(fromStatus);
+          const updated = taskService.setStatus(task.task_id, toStatus);
+          expect(updated.status).toBe(toStatus);
+        }
+      }
+    });
+
+    it('throws InvalidStatusTransitionError for every invalid transition', () => {
+      for (const fromStatus of allStatuses) {
+        const allowed = VALID_TRANSITIONS[fromStatus];
+        const invalidTargets = allStatuses.filter((status) => !allowed.has(status));
+
+        for (const toStatus of invalidTargets) {
+          const task = createTaskInStatus(fromStatus);
+          expect(() => taskService.setStatus(task.task_id, toStatus)).toThrow(
+            InvalidStatusTransitionError
+          );
+        }
+      }
     });
   });
 
@@ -1707,6 +1764,8 @@ describe('TaskService', () => {
 
     it('sets progress to 100 when setStatus transitions task to done', () => {
       const task = taskService.createTask({ title: 'Test', project: 'inbox' });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+      taskService.setStatus(task.task_id, TaskStatus.InProgress);
       taskService.setProgress(task.task_id, 20);
 
       const completed = taskService.setStatus(task.task_id, TaskStatus.Done);
@@ -2341,7 +2400,9 @@ describe('TaskService', () => {
         depends_on: [dep.task_id],
       });
 
-      // Force task to done status directly (bypassing dep check)
+      // Force task to done status directly via setStatus (bypassing dep check)
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+      taskService.setStatus(task.task_id, TaskStatus.InProgress);
       taskService.setStatus(task.task_id, TaskStatus.Done);
 
       const result = taskService.getBlockedByForTasks([task.task_id]);
@@ -2364,6 +2425,7 @@ describe('TaskService', () => {
         project: 'inbox',
         depends_on: [dep.task_id],
       });
+      taskService.setStatus(inProgressTask.task_id, TaskStatus.Ready);
       taskService.setStatus(inProgressTask.task_id, TaskStatus.InProgress);
 
       const result = taskService.getBlockedByForTasks([readyTask.task_id, inProgressTask.task_id]);
@@ -2535,6 +2597,8 @@ describe('TaskService', () => {
       });
 
       const task = hookTaskService.createTask({ title: 'Set status done', project: 'inbox' });
+      hookTaskService.setStatus(task.task_id, TaskStatus.Ready);
+      hookTaskService.setStatus(task.task_id, TaskStatus.InProgress);
       hookTaskService.setStatus(task.task_id, TaskStatus.Done);
 
       const count = (
