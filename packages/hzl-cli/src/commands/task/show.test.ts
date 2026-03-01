@@ -278,7 +278,9 @@ describe('runShow', () => {
         parent_id: parent.task_id,
         depends_on: [dep.task_id],
       });
-      // Mark child as done even though dep is not (using setStatus directly)
+      // Transition child through valid states to done (backlog→ready→in_progress→done)
+      services.taskService.setStatus(child.task_id, TaskStatus.Ready);
+      services.taskService.setStatus(child.task_id, TaskStatus.InProgress);
       services.taskService.setStatus(child.task_id, TaskStatus.Done);
 
       const result = runShow({ services, taskId: parent.task_id, deep: true, json: false });

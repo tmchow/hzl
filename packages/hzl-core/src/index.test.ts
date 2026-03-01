@@ -93,6 +93,10 @@ describe('hzl-core public API', () => {
       expect(hzlCore.InvalidDueMonthError).toBeDefined();
       expect(hzlCore.InvalidStatusTransitionError).toBeDefined();
     });
+
+    it('exports VALID_TRANSITIONS', () => {
+      expect(hzlCore.VALID_TRANSITIONS).toBeDefined();
+    });
   });
 
   describe('utility exports', () => {
