@@ -1,7 +1,8 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import Database from 'libsql';
 import { EventStore } from './store.js';
-import { EventType, TaskStatus } from './types.js';
+import { UpcasterRegistry, type EventUpcaster } from './upcasters.js';
+import { CURRENT_SCHEMA_VERSION, EventType, TaskStatus } from './types.js';
 import { createTestDb } from '../db/test-utils.js';
 
 describe('EventStore', () => {
@@ -30,6 +31,19 @@ describe('EventStore', () => {
       expect(event.type).toBe(EventType.TaskCreated);
       expect(event.timestamp).toBeDefined();
       expect(event.rowid).toBeGreaterThan(0);
+    });
+
+    it('stamps CURRENT_SCHEMA_VERSION in the events table', () => {
+      const event = store.append({
+        task_id: 'TASK_SCHEMA',
+        type: EventType.TaskCreated,
+        data: { title: 'Versioned task', project: 'inbox' },
+      });
+
+      const row = db.prepare('SELECT schema_version FROM events WHERE event_id = ?').get(event.event_id) as {
+        schema_version: number;
+      };
+      expect(row.schema_version).toBe(CURRENT_SCHEMA_VERSION);
     });
 
     it('rejects duplicate event_id', () => {
@@ -120,6 +134,63 @@ describe('EventStore', () => {
 
       const events = store.getByTaskId(taskId, { limit: 5 });
       expect(events).toHaveLength(5);
+    });
+
+    it('upcasts legacy event data before returning envelopes', () => {
+      const upcasters: EventUpcaster[] = [
+        {
+          eventType: EventType.TaskCreated,
+          fromVersion: 0,
+          toVersion: 1,
+          up(data) {
+            const next = { ...data };
+            if ('assignee' in next && typeof next.assignee === 'string' && !('agent' in next)) {
+              next.agent = next.assignee;
+              delete next.assignee;
+            }
+            return next;
+          },
+        },
+      ];
+
+      store = new EventStore(db, new UpcasterRegistry(upcasters));
+      db.prepare(`
+        INSERT INTO events (event_id, task_id, type, data, schema_version, timestamp)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(
+        'EVT_LEGACY',
+        'TASK_LEGACY',
+        EventType.TaskCreated,
+        JSON.stringify({ title: 'Legacy', project: 'inbox', assignee: 'agent-1' }),
+        0,
+        new Date().toISOString()
+      );
+
+      const events = store.getByTaskId('TASK_LEGACY');
+      expect(events).toHaveLength(1);
+      expect(events[0].data).toEqual({ title: 'Legacy', project: 'inbox', agent: 'agent-1' });
+    });
+
+    it('passes through future schema versions unchanged and warns', () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      db.prepare(`
+        INSERT INTO events (event_id, task_id, type, data, schema_version, timestamp)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(
+        'EVT_FUTURE',
+        'TASK_FUTURE',
+        EventType.TaskCreated,
+        JSON.stringify({ title: 'Future', project: 'inbox' }),
+        CURRENT_SCHEMA_VERSION + 1,
+        new Date().toISOString()
+      );
+
+      const events = store.getByTaskId('TASK_FUTURE');
+      expect(events).toHaveLength(1);
+      expect(events[0].data).toEqual({ title: 'Future', project: 'inbox' });
+      expect(warnSpy).toHaveBeenCalledOnce();
+
+      warnSpy.mockRestore();
     });
   });
 

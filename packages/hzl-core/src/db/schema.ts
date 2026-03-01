@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS events (
     task_id          TEXT NOT NULL,
     type             TEXT NOT NULL,
     data             TEXT NOT NULL CHECK (json_valid(data)),
+    schema_version   INTEGER NOT NULL DEFAULT 1,
     author           TEXT,
     agent_id         TEXT,
     session_id       TEXT,

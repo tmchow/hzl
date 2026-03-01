@@ -24,6 +24,8 @@ export enum TaskStatus {
   Archived = 'archived',
 }
 
+export const CURRENT_SCHEMA_VERSION = 1;
+
 export interface EventEnvelope {
   event_id: string;
   task_id: string;
