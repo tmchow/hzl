@@ -8,6 +8,8 @@ nav_order: 3
 
 HZL includes a built-in web dashboard for visual task management. Launch it with `hzl serve`.
 
+![HZL web dashboard – Kanban board view](/dashboard-desktop.png)
+
 ## Starting the Dashboard
 
 ```bash
@@ -65,6 +67,8 @@ The dashboard auto-refreshes when tasks change. You can keep multiple viewers op
 ## Install as an App (PWA)
 
 The dashboard supports installable web app metadata and icons (`HZL`), so you can install it like a native app.
+
+<img src="/dashboard-mobile.png" alt="HZL dashboard – mobile PWA view" width="320" />
 
 Installability requirements:
 - `http://localhost:3456` works for local development.
