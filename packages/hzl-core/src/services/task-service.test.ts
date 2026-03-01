@@ -1173,6 +1173,19 @@ describe('TaskService', () => {
       expect(found).toBeDefined();
       expect(found!.tags).toEqual([]);
     });
+
+    it('listTasks filters by tag', () => {
+      projectService.createProject('test-project');
+      taskService.createTask({ title: 'Bug task', project: 'test-project', tags: ['bug'] });
+      taskService.createTask({ title: 'Feature task', project: 'test-project', tags: ['feature'] });
+      taskService.createTask({ title: 'Both', project: 'test-project', tags: ['bug', 'feature'] });
+
+      const bugTasks = taskService.listTasks({ sinceDays: 7, tag: 'bug' });
+      expect(bugTasks.map((t) => t.title).sort()).toEqual(['Both', 'Bug task']);
+
+      const featureTasks = taskService.listTasks({ sinceDays: 7, tag: 'feature' });
+      expect(featureTasks.map((t) => t.title).sort()).toEqual(['Both', 'Feature task']);
+    });
   });
 
   describe('getBlockedByMap', () => {

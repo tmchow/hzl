@@ -1230,8 +1230,8 @@ export class TaskService {
    * List tasks with optional filtering by date range and project.
    * Used by the web dashboard.
    */
-  listTasks(opts: { sinceDays?: number; project?: string; dueMonth?: string } = {}): TaskListItem[] {
-    const { sinceDays = 3, project, dueMonth } = opts;
+  listTasks(opts: { sinceDays?: number; project?: string; dueMonth?: string; tag?: string } = {}): TaskListItem[] {
+    const { sinceDays = 3, project, dueMonth, tag } = opts;
 
     const conditions: string[] = ["status != 'archived'"];
     const params: (string | number)[] = [];
@@ -1265,6 +1265,11 @@ export class TaskService {
     if (project) {
       conditions.push('project = ?');
       params.push(project);
+    }
+
+    if (tag) {
+      conditions.push('EXISTS (SELECT 1 FROM task_tags WHERE task_id = tasks_current.task_id AND tag = ?)');
+      params.push(tag);
     }
 
     const sql = `
