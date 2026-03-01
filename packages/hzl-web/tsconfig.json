@@ -13,5 +13,6 @@
   "references": [
     { "path": "../hzl-core" }
   ],
-  "include": ["src/**/*"]
+  "include": ["src/**/*"],
+  "exclude": ["src/app/**"]
 }
