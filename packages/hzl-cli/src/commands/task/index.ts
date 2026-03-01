@@ -26,6 +26,19 @@ import { createPruneCommand } from './prune.js';
 
 export function createTaskCommand(): Command {
   const command = new Command('task').description('Task management commands');
+  command.addHelpText(
+    'after',
+    `
+Agent quickstart:
+  hzl task list --project inbox --status ready
+  hzl task claim --next --agent codex
+  hzl task update TASK_ID --progress 50
+
+Input compatibility:
+  HZL may accept minor syntax issues when intent is clear and prints a correction note.
+  Always prefer the canonical command forms shown in help.
+`
+  );
 
   command.addCommand(createAddCommand());
   command.addCommand(createListCommand());
