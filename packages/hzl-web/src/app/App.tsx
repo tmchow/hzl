@@ -167,11 +167,11 @@ export default function App() {
     return filtered;
   }, [tasks, showSubtasks, assignee, collapsedParents, isSearching]);
 
-  // Compute search counts for filter bar
-  const searchCounts = useMemo(() => {
-    if (!isSearching) return { matched: 0, total: 0 };
-    return { matched: searchResults.length, total: searchTotal };
-  }, [isSearching, searchResults.length, searchTotal]);
+  // Compute search match count for filter bar
+  const searchMatchTotal = useMemo(() => {
+    if (!isSearching) return 0;
+    return searchTotal;
+  }, [isSearching, searchTotal]);
 
   // Emoji map
   const emojiMap = useMemo(() => buildEmojiMap(tasks), [tasks]);
@@ -349,8 +349,7 @@ export default function App() {
           onAssigneeChange={setAssignee}
           searchQuery={searchQuery}
           onSearchChange={(v) => setSearchQuery(normalizeSearchQuery(v))}
-          searchMatchCount={searchCounts.matched}
-          searchTotalCount={searchCounts.total}
+          searchMatchCount={searchMatchTotal}
           showDateFilter={view !== 'calendar'}
           mobileFiltersOpen={mobileFiltersOpen}
           view={view}

@@ -31,7 +31,7 @@ export function useSearch(query: string): UseSearchResult {
     const controller = new AbortController();
     abortRef.current = controller;
 
-    fetchJson<SearchResponse>('/api/search', { q })
+    fetchJson<SearchResponse>('/api/search', { q }, { signal: controller.signal })
       .then((data) => {
         if (!controller.signal.aborted) {
           setResults(data.tasks);

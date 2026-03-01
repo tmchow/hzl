@@ -17,6 +17,7 @@ export class FetchError extends Error {
 export async function fetchJson<T>(
   path: string,
   params?: Record<string, string>,
+  options?: { signal?: AbortSignal },
 ): Promise<T> {
   const url = new URL(path, window.location.origin);
   if (params) {
@@ -25,7 +26,7 @@ export async function fetchJson<T>(
     }
   }
 
-  const response = await fetch(url.toString());
+  const response = await fetch(url.toString(), { signal: options?.signal });
 
   if (!response.ok) {
     let message = `HTTP ${response.status}`;
