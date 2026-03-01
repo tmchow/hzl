@@ -88,6 +88,8 @@ hzl task list --group-by-agent --view standard
 hzl task show <taskId>
 hzl task show <taskId> --deep
 hzl task show <taskId> --no-subtasks
+hzl task show <taskId> --view summary
+hzl task show <taskId> --view standard --json
 
 hzl task search "<query>"
 hzl task search "<query>" -P <project>
@@ -105,6 +107,11 @@ hzl task search "<query>" -s <status>
 - `--page`
 - `--limit`
 - `--group-by-agent`
+- `--view summary|standard|full`
+
+`task show` key options:
+- `--no-subtasks`
+- `--deep`
 - `--view summary|standard|full`
 
 ### Claim/complete/recovery

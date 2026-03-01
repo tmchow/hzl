@@ -187,6 +187,29 @@ describe('runShow', () => {
       const result = runShow({ services, taskId: task.task_id, json: false });
       expect(result.task).toHaveProperty('description');
     });
+
+    it('throws invalid input for unsupported view values', () => {
+      const task = services.taskService.createTask({ title: 'Test', project: 'inbox' });
+      expect(() =>
+        runShow({
+          services,
+          taskId: task.task_id,
+          view: 'tiny' as unknown as 'summary',
+          json: false,
+        })
+      ).toThrow('Invalid --view value');
+      try {
+        runShow({
+          services,
+          taskId: task.task_id,
+          view: 'tiny' as unknown as 'summary',
+          json: false,
+        });
+      } catch (e) {
+        expect(e).toBeInstanceOf(CLIError);
+        expect((e as CLIError).exitCode).toBe(ExitCode.InvalidInput);
+      }
+    });
   });
 
   describe('--deep flag', () => {

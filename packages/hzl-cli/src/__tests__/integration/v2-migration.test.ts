@@ -10,7 +10,7 @@ const packageRoot = path.resolve(__dirname, '../../..');
 
 beforeAll(() => {
   execSync('npm run build', { cwd: packageRoot, stdio: 'inherit' });
-});
+}, 120_000);
 
 describe('v2 migration surfaces', { timeout: 30000 }, () => {
   let ctx: TestContext;
@@ -50,4 +50,3 @@ describe('v2 migration surfaces', { timeout: 30000 }, () => {
     expect(payload.error.details.replacement).toBe('Use `--agent`.');
   });
 });
-

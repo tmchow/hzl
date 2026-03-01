@@ -18,6 +18,26 @@ interface CompleteCommandOptions {
   comment?: string;
 }
 
+function suggestionsForComplete(taskId: string, status: TaskStatus): string[] {
+  switch (status) {
+    case TaskStatus.Backlog:
+      return [
+        `hzl task set-status ${taskId} ready`,
+        `hzl task claim ${taskId} --agent <name>`,
+      ];
+    case TaskStatus.Ready:
+      return [`hzl task claim ${taskId} --agent <name>`];
+    case TaskStatus.Done:
+    case TaskStatus.Archived:
+      return [
+        `hzl task reopen ${taskId} --status ready`,
+        `hzl task claim ${taskId} --agent <name>`,
+      ];
+    default:
+      return [`hzl task show ${taskId}`];
+  }
+}
+
 export function runComplete(options: {
   services: Services;
   taskId: string;
@@ -35,7 +55,7 @@ export function runComplete(options: {
       ExitCode.InvalidInput,
       undefined,
       undefined,
-      [`hzl task claim ${taskId} --agent <name>`]
+      suggestionsForComplete(taskId, existingTask.status)
     );
   }
 

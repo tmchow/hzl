@@ -5,6 +5,7 @@ import path from 'path';
 import os from 'os';
 import { runBlock } from './block.js';
 import { initializeDbFromPath, closeDb, type Services } from '../../db.js';
+import { CLIError } from '../../errors.js';
 import { TaskStatus } from 'hzl-core/events/types.js';
 
 describe('runBlock', () => {
@@ -51,5 +52,46 @@ describe('runBlock', () => {
     });
 
     expect(result.agent).toBe('agent-1');
+  });
+
+  it('provides multi-step suggestions when status is backlog', () => {
+    const task = services.taskService.createTask({ title: 'Test', project: 'inbox' });
+
+    try {
+      runBlock({
+        services,
+        taskId: task.task_id,
+        json: false,
+      });
+      expect.fail('should have thrown');
+    } catch (e) {
+      expect(e).toBeInstanceOf(CLIError);
+      const err = e as CLIError;
+      expect(err.suggestions).toEqual([
+        `hzl task set-status ${task.task_id} ready`,
+        `hzl task claim ${task.task_id} --agent <name>`,
+      ]);
+    }
+  });
+
+  it('provides reopen flow suggestions when status is done', () => {
+    const task = services.taskService.createTask({ title: 'Test', project: 'inbox' });
+    services.taskService.setStatus(task.task_id, TaskStatus.Done);
+
+    try {
+      runBlock({
+        services,
+        taskId: task.task_id,
+        json: false,
+      });
+      expect.fail('should have thrown');
+    } catch (e) {
+      expect(e).toBeInstanceOf(CLIError);
+      const err = e as CLIError;
+      expect(err.suggestions).toEqual([
+        `hzl task reopen ${task.task_id} --status ready`,
+        `hzl task claim ${task.task_id} --agent <name>`,
+      ]);
+    }
   });
 });

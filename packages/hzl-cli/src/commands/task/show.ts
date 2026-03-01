@@ -11,6 +11,7 @@ import { TaskStatus } from 'hzl-core/events/types.js';
 import type { Task, Comment, Checkpoint } from 'hzl-core/services/task-service.js';
 
 export type ShowView = 'summary' | 'standard' | 'full';
+const SHOW_VIEWS: readonly ShowView[] = ['summary', 'standard', 'full'];
 
 export type SubtaskSummary = { task_id: string; title: string; status: TaskStatus };
 export type DeepSubtask = Task & { blocked_by: string[] };
@@ -36,6 +37,17 @@ export interface ShowResult {
   comments: Array<{ text: string; author?: string; timestamp: string }>;
   checkpoints: Array<{ name: string; data: Record<string, unknown>; timestamp: string }>;
   subtasks?: Array<SubtaskSummary> | Array<DeepSubtask>;
+}
+
+function parseShowView(view?: string): ShowView {
+  const normalized = (view ?? 'full').toLowerCase();
+  if ((SHOW_VIEWS as readonly string[]).includes(normalized)) {
+    return normalized as ShowView;
+  }
+  throw new CLIError(
+    `Invalid --view value: ${view}. Valid options: ${SHOW_VIEWS.join(', ')}`,
+    ExitCode.InvalidInput
+  );
 }
 
 function shapeTaskForView(task: Task, view: ShowView): ShowTaskSummary | ShowTaskStandard | Task {
@@ -74,18 +86,19 @@ export function runShow(options: {
   taskId: string;
   showSubtasks?: boolean;
   deep?: boolean;
-  view?: ShowView;
+  view?: ShowView | string;
   json: boolean;
 }): ShowResult {
-  const { services, taskId, showSubtasks = true, deep = false, view = 'full', json } = options;
+  const { services, taskId, showSubtasks = true, deep = false, view, json } = options;
+  const parsedView = parseShowView(view);
 
   const task = services.taskService.getTaskById(taskId);
   if (!task) {
     throw new CLIError(`Task not found: ${taskId}`, ExitCode.NotFound, undefined, undefined, ['hzl task list']);
   }
 
-  const comments = view === 'summary' ? [] : services.taskService.getComments(taskId);
-  const checkpoints = view === 'summary' ? [] : services.taskService.getCheckpoints(taskId);
+  const comments = parsedView === 'summary' ? [] : services.taskService.getComments(taskId);
+  const checkpoints = parsedView === 'summary' ? [] : services.taskService.getCheckpoints(taskId);
 
   let subtasks: Array<SubtaskSummary> | Array<DeepSubtask> | undefined;
   if (!showSubtasks) {
@@ -107,7 +120,7 @@ export function runShow(options: {
     }));
   }
 
-  const shapedTask = shapeTaskForView(task, view);
+  const shapedTask = shapeTaskForView(task, parsedView);
 
   const result: ShowResult = {
     task: shapedTask,
@@ -200,7 +213,7 @@ export function createShowCommand(): Command {
           taskId,
           showSubtasks: opts.subtasks !== false,
           deep: opts.deep ?? false,
-          view: (opts.view as ShowView) ?? 'full',
+          view: opts.view,
           json: globalOpts.json ?? false,
         });
       } catch (e) {
