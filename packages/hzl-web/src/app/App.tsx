@@ -363,19 +363,7 @@ export default function App() {
         >
           &#9776;
         </button>
-        <Header
-          view={view}
-          onViewChange={handleViewChange}
-          columnVisibility={columnVisibility}
-          onColumnVisibilityChange={setColumnVisibility}
-          showSubtasks={showSubtasks}
-          onShowSubtasksChange={setShowSubtasks}
-          parentCount={parentIds.length}
-          collapsedCount={collapsedCount}
-          onCollapseAll={handleCollapseAll}
-          onExpandAll={handleExpandAll}
-          onShowShortcuts={() => setShortcutsOpen(true)}
-        />
+        <Header />
         <FilterBar
           since={since}
           onSinceChange={handleSinceChange}
@@ -391,6 +379,17 @@ export default function App() {
           searchTotalCount={searchCounts.total}
           showDateFilter={view !== 'calendar'}
           mobileFiltersOpen={mobileFiltersOpen}
+          view={view}
+          onViewChange={handleViewChange}
+          columnVisibility={columnVisibility}
+          onColumnVisibilityChange={setColumnVisibility}
+          showSubtasks={showSubtasks}
+          onShowSubtasksChange={setShowSubtasks}
+          parentCount={parentIds.length}
+          collapsedCount={collapsedCount}
+          onCollapseAll={handleCollapseAll}
+          onExpandAll={handleExpandAll}
+          onShowShortcuts={() => setShortcutsOpen(true)}
         />
         <div className="header-right">
           <ConnectionStatus state={sseState} />
