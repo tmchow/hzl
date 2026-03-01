@@ -91,5 +91,45 @@ describe('SearchProjector', () => {
       const count = db.prepare('SELECT COUNT(*) as cnt FROM task_search').get() as any;
       expect(count.cnt).toBe(0);
     });
+
+    it('re-prepares statements when db reference changes', () => {
+      const firstDb = createTestDb();
+      const secondDb = createTestDb();
+      const firstStore = new EventStore(firstDb);
+      const secondStore = new EventStore(secondDb);
+      const localProjector = new SearchProjector();
+
+      try {
+        const firstEvent = firstStore.append({
+          task_id: 'TASK1',
+          type: EventType.TaskCreated,
+          data: {
+            title: 'First title',
+            project: 'inbox',
+            description: 'First description',
+          },
+        });
+        localProjector.apply(firstEvent, firstDb);
+
+        const secondEvent = secondStore.append({
+          task_id: 'TASK2',
+          type: EventType.TaskCreated,
+          data: {
+            title: 'Second title',
+            project: 'inbox',
+            description: 'Second description',
+          },
+        });
+        localProjector.apply(secondEvent, secondDb);
+
+        const results = secondDb
+          .prepare("SELECT task_id FROM task_search WHERE task_search MATCH 'Second'")
+          .all() as any[];
+        expect(results.map(r => r.task_id)).toContain('TASK2');
+      } finally {
+        firstDb.close();
+        secondDb.close();
+      }
+    });
   });
 });

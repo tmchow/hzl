@@ -86,6 +86,7 @@ export {
 export { ProjectionEngine } from './projections/engine.js';
 
 export {
+  CachingProjector,
   type Projector,
   type ProjectionState,
 } from './projections/types.js';

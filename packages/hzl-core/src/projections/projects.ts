@@ -1,6 +1,6 @@
 import type Database from 'libsql';
 import type { PersistedEventEnvelope } from '../events/store.js';
-import type { Projector } from './types.js';
+import { CachingProjector } from './types.js';
 import {
   EventType,
   type ProjectCreatedData,
@@ -8,7 +8,7 @@ import {
   type ProjectRenamedData,
 } from '../events/types.js';
 
-export class ProjectsProjector implements Projector {
+export class ProjectsProjector extends CachingProjector {
   name = 'projects';
 
   apply(event: PersistedEventEnvelope, db: Database.Database): void {
@@ -34,7 +34,9 @@ export class ProjectsProjector implements Projector {
     db: Database.Database
   ): void {
     const data = event.data as ProjectCreatedData;
-    db.prepare(
+    this.stmt(
+      db,
+      'insertProject',
       `
       INSERT OR IGNORE INTO projects (name, description, is_protected, created_at, last_event_id)
       VALUES (?, ?, ?, ?, ?)
@@ -54,15 +56,21 @@ export class ProjectsProjector implements Projector {
   ): void {
     const data = event.data as ProjectRenamedData;
 
-    const oldProject = db
-      .prepare('SELECT * FROM projects WHERE name = ?')
-      .get(data.old_name) as
+    const oldProject = this.stmt(
+      db,
+      'selectProjectByName',
+      'SELECT * FROM projects WHERE name = ?'
+    ).get(data.old_name) as
       | { description: string | null; is_protected: number; created_at: string }
       | undefined;
     if (!oldProject) return;
 
-    db.prepare('DELETE FROM projects WHERE name = ?').run(data.old_name);
-    db.prepare(
+    this.stmt(db, 'deleteProjectByName', 'DELETE FROM projects WHERE name = ?').run(
+      data.old_name
+    );
+    this.stmt(
+      db,
+      'insertProjectOnRename',
       `
       INSERT INTO projects (name, description, is_protected, created_at, last_event_id)
       VALUES (?, ?, ?, ?, ?)
@@ -75,7 +83,11 @@ export class ProjectsProjector implements Projector {
       event.rowid
     );
 
-    db.prepare('UPDATE tasks_current SET project = ? WHERE project = ?').run(
+    this.stmt(
+      db,
+      'updateTasksCurrentProjectName',
+      'UPDATE tasks_current SET project = ? WHERE project = ?'
+    ).run(
       data.new_name,
       data.old_name
     );
@@ -86,6 +98,8 @@ export class ProjectsProjector implements Projector {
     db: Database.Database
   ): void {
     const data = event.data as ProjectDeletedData;
-    db.prepare('DELETE FROM projects WHERE name = ?').run(data.name);
+    this.stmt(db, 'deleteProjectByName', 'DELETE FROM projects WHERE name = ?').run(
+      data.name
+    );
   }
 }

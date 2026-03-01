@@ -1,10 +1,10 @@
 // packages/hzl-core/src/projections/tags.ts
 import type Database from 'libsql';
 import type { PersistedEventEnvelope } from '../events/store.js';
-import type { Projector } from './types.js';
+import { CachingProjector } from './types.js';
 import { EventType, type TaskCreatedData, type TaskUpdatedData } from '../events/types.js';
 
-export class TagsProjector implements Projector {
+export class TagsProjector extends CachingProjector {
   name = 'tags';
 
   apply(event: PersistedEventEnvelope, db: Database.Database): void {
@@ -35,14 +35,18 @@ export class TagsProjector implements Projector {
     if (data.field !== 'tags') return;
 
     const newTags = Array.isArray(data.new_value) ? (data.new_value as string[]) : [];
-    db.prepare('DELETE FROM task_tags WHERE task_id = ?').run(event.task_id);
+    this.stmt(db, 'deleteTaskTags', 'DELETE FROM task_tags WHERE task_id = ?').run(
+      event.task_id
+    );
     if (newTags && newTags.length > 0) {
       this.insertTags(db, event.task_id, newTags);
     }
   }
 
   private insertTags(db: Database.Database, taskId: string, tags: string[]): void {
-    const insertStmt = db.prepare(
+    const insertStmt = this.stmt(
+      db,
+      'insertTag',
       'INSERT OR IGNORE INTO task_tags (task_id, tag) VALUES (?, ?)'
     );
     for (const tag of tags) {

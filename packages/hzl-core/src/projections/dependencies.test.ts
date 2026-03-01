@@ -118,5 +118,39 @@ describe('DependenciesProjector', () => {
       const count = db.prepare('SELECT COUNT(*) as cnt FROM task_dependencies').get() as any;
       expect(count.cnt).toBe(0);
     });
+
+    it('re-prepares statements when db reference changes', () => {
+      const firstDb = createTestDb();
+      const secondDb = createTestDb();
+      const firstStore = new EventStore(firstDb);
+      const secondStore = new EventStore(secondDb);
+      const localProjector = new DependenciesProjector();
+
+      try {
+        const firstEvent = firstStore.append({
+          task_id: 'TASK1',
+          type: EventType.DependencyAdded,
+          data: { depends_on_id: 'DEP1' },
+        });
+        localProjector.apply(firstEvent, firstDb);
+
+        const secondEvent = secondStore.append({
+          task_id: 'TASK2',
+          type: EventType.DependencyAdded,
+          data: { depends_on_id: 'DEP2' },
+        });
+        localProjector.apply(secondEvent, secondDb);
+
+        const dep = secondDb
+          .prepare(
+            'SELECT * FROM task_dependencies WHERE task_id = ? AND depends_on_id = ?'
+          )
+          .get('TASK2', 'DEP2');
+        expect(dep).toBeDefined();
+      } finally {
+        firstDb.close();
+        secondDb.close();
+      }
+    });
   });
 });
