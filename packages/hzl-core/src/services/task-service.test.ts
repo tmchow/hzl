@@ -8,6 +8,7 @@ import {
   InvalidProgressError,
   InvalidStatusTransitionError,
   VALID_TRANSITIONS,
+  TaskNotFoundError,
 } from './task-service.js';
 import { ProjectService, ProjectNotFoundError } from './project-service.js';
 import { createTestDb } from '../db/test-utils.js';
@@ -1331,6 +1332,74 @@ describe('TaskService', () => {
 
       const deps = taskService.getBlockingDependencies(task.task_id);
       expect(deps).toEqual([]);
+    });
+  });
+
+  describe('updateTask', () => {
+    it('updates multiple fields and persists task_updated events through service layer', () => {
+      const task = taskService.createTask({
+        title: 'Original',
+        project: 'inbox',
+        description: 'old',
+        links: ['a.md'],
+        tags: ['old'],
+        priority: 0,
+      });
+
+      const updated = taskService.updateTask(
+        task.task_id,
+        {
+          title: 'Updated',
+          description: 'new',
+          links: ['b.md'],
+          tags: ['new'],
+          priority: 2,
+        },
+        { author: 'agent-x' }
+      );
+
+      expect(updated.title).toBe('Updated');
+      expect(updated.description).toBe('new');
+      expect(updated.links).toEqual(['b.md']);
+      expect(updated.tags).toEqual(['new']);
+      expect(updated.priority).toBe(2);
+
+      const updateEvents = eventStore
+        .getByTaskId(task.task_id)
+        .filter((event) => event.type === EventType.TaskUpdated);
+      expect(updateEvents).toHaveLength(5);
+      expect(updateEvents.every((event) => event.author === 'agent-x')).toBe(true);
+    });
+
+    it('skips unchanged values (including arrays)', () => {
+      const task = taskService.createTask({
+        title: 'No change',
+        project: 'inbox',
+        description: 'same',
+        links: ['same.md'],
+        tags: ['same'],
+        priority: 1,
+      });
+
+      const updated = taskService.updateTask(task.task_id, {
+        title: 'No change',
+        description: 'same',
+        links: ['same.md'],
+        tags: ['same'],
+        priority: 1,
+      });
+
+      expect(updated.title).toBe('No change');
+      const updateEvents = eventStore
+        .getByTaskId(task.task_id)
+        .filter((event) => event.type === EventType.TaskUpdated);
+      expect(updateEvents).toHaveLength(0);
+    });
+
+    it('throws TaskNotFoundError for unknown task', () => {
+      expect(() =>
+        taskService.updateTask('TASK_UNKNOWN', { title: 'nope' })
+      ).toThrow(TaskNotFoundError);
     });
   });
 

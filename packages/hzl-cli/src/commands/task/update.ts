@@ -3,8 +3,7 @@ import { Command } from 'commander';
 import { resolveDbPaths } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError, CLIError, ExitCode } from '../../errors.js';
-import { EventType } from 'hzl-core/events/types.js';
-import { withWriteTransaction } from 'hzl-core/db/transaction.js';
+import type { TaskUpdates } from 'hzl-core/services/task-service.js';
 import { GlobalOptionsSchema } from '../../types.js';
 import { resolveId } from '../../resolve-id.js';
 import { parseInteger } from '../../parse.js';
@@ -18,14 +17,7 @@ export interface UpdateResult {
   tags: string[];
 }
 
-export interface TaskUpdates {
-  title?: string;
-  description?: string | null;
-  links?: string[];
-  priority?: number;
-  tags?: string[];
-  parent_id?: string | null;
-}
+export type UpdateInput = TaskUpdates & { parent_id?: string | null };
 
 interface UpdateCommandOptions {
   title?: string;
@@ -40,12 +32,12 @@ interface UpdateCommandOptions {
 export function runUpdate(options: {
   services: Services;
   taskId: string;
-  updates: TaskUpdates;
+  updates: UpdateInput;
   author?: string;
   json: boolean;
 }): UpdateResult {
-  const { services, taskId, updates, author, json } = options;
-  const { eventStore, projectionEngine } = services;
+  const { services, taskId, author, json } = options;
+  const { parent_id, ...taskUpdates } = options.updates;
 
   const task = services.taskService.getTaskById(taskId);
   if (!task) {
@@ -53,9 +45,9 @@ export function runUpdate(options: {
   }
 
   // Handle parent_id update via service layer
-  if (updates.parent_id !== undefined) {
+  if (parent_id !== undefined) {
     try {
-      services.taskService.setParent(taskId, updates.parent_id, { author });
+      services.taskService.setParent(taskId, parent_id, { author });
     } catch (error) {
       if (error instanceof Error) {
         // Map service layer errors to appropriate exit codes
@@ -68,59 +60,7 @@ export function runUpdate(options: {
     }
   }
 
-  // Emit one task_updated event per field change, wrapped in a transaction
-  // so that multi-field updates are atomic (consistent with TaskService patterns).
-  withWriteTransaction(services.cacheDb, () => {
-    if (updates.title !== undefined && updates.title !== task.title) {
-      const event = eventStore.append({
-        task_id: taskId,
-        type: EventType.TaskUpdated,
-        data: { field: 'title', old_value: task.title, new_value: updates.title },
-        author,
-      });
-      projectionEngine.applyEvent(event);
-    }
-
-    if (updates.description !== undefined && updates.description !== task.description) {
-      const event = eventStore.append({
-        task_id: taskId,
-        type: EventType.TaskUpdated,
-        data: { field: 'description', old_value: task.description, new_value: updates.description },
-        author,
-      });
-      projectionEngine.applyEvent(event);
-    }
-
-    if (updates.priority !== undefined && updates.priority !== task.priority) {
-      const event = eventStore.append({
-        task_id: taskId,
-        type: EventType.TaskUpdated,
-        data: { field: 'priority', old_value: task.priority, new_value: updates.priority },
-        author,
-      });
-      projectionEngine.applyEvent(event);
-    }
-
-    if (updates.tags !== undefined) {
-      const event = eventStore.append({
-        task_id: taskId,
-        type: EventType.TaskUpdated,
-        data: { field: 'tags', old_value: task.tags, new_value: updates.tags },
-        author,
-      });
-      projectionEngine.applyEvent(event);
-    }
-
-    if (updates.links !== undefined) {
-      const event = eventStore.append({
-        task_id: taskId,
-        type: EventType.TaskUpdated,
-        data: { field: 'links', old_value: task.links, new_value: updates.links },
-        author,
-      });
-      projectionEngine.applyEvent(event);
-    }
-  });
+  services.taskService.updateTask(taskId, taskUpdates, { author });
 
   // Get updated task
   const updatedTask = services.taskService.getTaskById(taskId)!;
@@ -138,11 +78,11 @@ export function runUpdate(options: {
     console.log(JSON.stringify(result));
   } else {
     console.log(`✓ Updated task ${taskId}`);
-    if (updates.title) console.log(`  Title: ${updatedTask.title}`);
-    if (updates.description) console.log(`  Description: ${updatedTask.description}`);
-    if (updates.links) console.log(`  Links: ${updatedTask.links.join(', ')}`);
-    if (updates.priority !== undefined) console.log(`  Priority: ${updatedTask.priority}`);
-    if (updates.tags) console.log(`  Tags: ${updatedTask.tags.join(', ')}`);
+    if (taskUpdates.title) console.log(`  Title: ${updatedTask.title}`);
+    if (taskUpdates.description) console.log(`  Description: ${updatedTask.description}`);
+    if (taskUpdates.links) console.log(`  Links: ${updatedTask.links.join(', ')}`);
+    if (taskUpdates.priority !== undefined) console.log(`  Priority: ${updatedTask.priority}`);
+    if (taskUpdates.tags) console.log(`  Tags: ${updatedTask.tags.join(', ')}`);
   }
 
   return result;
@@ -165,7 +105,7 @@ export function createUpdateCommand(): Command {
       const services = initializeDb({ eventsDbPath, cacheDbPath });
       try {
         const taskId = resolveId(services, rawTaskId);
-        const updates: TaskUpdates = {};
+        const updates: UpdateInput = {};
         if (opts.title) updates.title = opts.title;
         if (opts.desc !== undefined) {
           updates.description = opts.desc === '' ? null : opts.desc;

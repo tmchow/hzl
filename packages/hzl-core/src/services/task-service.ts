@@ -188,6 +188,14 @@ export interface Task {
   updated_at: string;
 }
 
+export interface TaskUpdates {
+  title?: string;
+  description?: string | null;
+  links?: string[];
+  priority?: number;
+  tags?: string[];
+}
+
 type TaskRow = {
   task_id: string;
   title: string;
@@ -293,6 +301,13 @@ function validateProgress(progress: number): void {
   if (progress < 0 || progress > 100 || !Number.isInteger(progress)) {
     throw new InvalidProgressError();
   }
+}
+
+function arraysEqual<T>(left: T[], right: T[]): boolean {
+  if (left.length !== right.length) {
+    return false;
+  }
+  return left.every((value, index) => value === right[index]);
 }
 
 export class TaskService {
@@ -1532,6 +1547,53 @@ export class TaskService {
           causation_id: opts?.causation_id,
         });
         this.projectionEngine.applyEvent(event);
+      }
+
+      return this.getTaskById(taskId)!;
+    });
+  }
+
+  updateTask(taskId: string, updates: TaskUpdates, ctx?: EventContext): Task {
+    return withWriteTransaction(this.db, () => {
+      const task = this.getTaskById(taskId);
+      if (!task) throw new TaskNotFoundError(taskId);
+
+      const emitFieldUpdate = (
+        field: 'title' | 'description' | 'priority' | 'tags' | 'links',
+        oldValue: string | number | string[] | null,
+        newValue: string | number | string[] | null
+      ): void => {
+        const event = this.eventStore.append({
+          task_id: taskId,
+          type: EventType.TaskUpdated,
+          data: { field, old_value: oldValue, new_value: newValue },
+          author: ctx?.author,
+          agent_id: ctx?.agent_id,
+          session_id: ctx?.session_id,
+          correlation_id: ctx?.correlation_id,
+          causation_id: ctx?.causation_id,
+        });
+        this.projectionEngine.applyEvent(event);
+      };
+
+      if (updates.title !== undefined && updates.title !== task.title) {
+        emitFieldUpdate('title', task.title, updates.title);
+      }
+
+      if (updates.description !== undefined && updates.description !== task.description) {
+        emitFieldUpdate('description', task.description, updates.description);
+      }
+
+      if (updates.priority !== undefined && updates.priority !== task.priority) {
+        emitFieldUpdate('priority', task.priority, updates.priority);
+      }
+
+      if (updates.tags !== undefined && !arraysEqual(updates.tags, task.tags)) {
+        emitFieldUpdate('tags', task.tags, updates.tags);
+      }
+
+      if (updates.links !== undefined && !arraysEqual(updates.links, task.links)) {
+        emitFieldUpdate('links', task.links, updates.links);
       }
 
       return this.getTaskById(taskId)!;
