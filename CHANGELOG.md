@@ -1,3 +1,27 @@
+# [2.4.0](https://github.com/tmchow/hzl/compare/v2.3.0...v2.4.0) (2026-03-01)
+
+
+### Bug Fixes
+
+* **core:** add field whitelist validation to tasks-current projector ([#151](https://github.com/tmchow/hzl/issues/151)) ([f6c12f2](https://github.com/tmchow/hzl/commit/f6c12f2ca296c892c4ab25a1768eec71453f7c80))
+* **web:** move settings gear from header-left to filter bar ([#156](https://github.com/tmchow/hzl/issues/156)) ([a41fffd](https://github.com/tmchow/hzl/commit/a41fffd1ecf29d65ae59f58ba670c0600482ea9b))
+* **web:** resolve PWA manifest icon and screenshot warnings ([#158](https://github.com/tmchow/hzl/issues/158)) ([d466b88](https://github.com/tmchow/hzl/commit/d466b8899031d44f18619d52a763ebf3e0913509))
+
+
+### Features
+
+* **core:** add atomic event pruning with safety triggers ([#146](https://github.com/tmchow/hzl/issues/146)) ([5f8c23b](https://github.com/tmchow/hzl/commit/5f8c23b1e8d3ce0d1f2798ef6e2c39c299694800))
+* **core:** add event schema versioning with upcaster registry ([#145](https://github.com/tmchow/hzl/issues/145)) ([a3dcec2](https://github.com/tmchow/hzl/commit/a3dcec2617b19fdd20ad177bd26e888afe3c9f0b))
+* **core:** add status transition matrix with validation ([#152](https://github.com/tmchow/hzl/issues/152)) ([2f2c7ab](https://github.com/tmchow/hzl/commit/2f2c7abcc93ed73decbe8d539f12510af9335fa8))
+* **web:** add tag chips, filtering, and card redesign ([#159](https://github.com/tmchow/hzl/issues/159)) ([693ea76](https://github.com/tmchow/hzl/commit/693ea767990fdb8ece040adf08e2b8a2f7c4493c))
+* **web:** React + Vite scaffold with build pipeline and API layer ([#154](https://github.com/tmchow/hzl/issues/154)) ([02fb4d6](https://github.com/tmchow/hzl/commit/02fb4d6c99e6ddffe08f03b808300c12682ca206))
+* **web:** wire FTS5 search API to dashboard ([#157](https://github.com/tmchow/hzl/issues/157)) ([43fd26b](https://github.com/tmchow/hzl/commit/43fd26b38e4186114ccdd4c42a1d9d2780aad466))
+
+
+### Performance Improvements
+
+* **core:** replace busy-wait with Atomics.wait in transaction retry ([#150](https://github.com/tmchow/hzl/issues/150)) ([03022e1](https://github.com/tmchow/hzl/commit/03022e1c7327815fb6e1a0a97285742a56dbc359))
+
 # [2.3.0](https://github.com/tmchow/hzl/compare/v2.2.0...v2.3.0) (2026-03-01)
 
 
