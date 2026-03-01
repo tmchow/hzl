@@ -6,6 +6,7 @@ import { handleError, CLIError, ExitCode } from '../../errors.js';
 import { TaskStatus } from 'hzl-core/events/types.js';
 import { GlobalOptionsSchema } from '../../types.js';
 import { createShortId } from '../../short-id.js';
+import { stripEmptyCollections } from '../../strip-empty.js';
 import { parseIntegerWithDefault, parseTaskStatus } from '../../parse.js';
 
 export interface TaskListItem {
@@ -278,7 +279,15 @@ export function runList(options: ListOptions): ListResult {
     };
 
     if (json) {
-      console.log(JSON.stringify(groupedResult));
+      const output = {
+        ...groupedResult,
+        tasks: groupedResult.tasks.map(t => stripEmptyCollections(t)),
+        groups: groupedResult.groups!.map(g => ({
+          ...g,
+          tasks: g.tasks.map(t => stripEmptyCollections(t)),
+        })),
+      };
+      console.log(JSON.stringify(output));
     } else {
       const shortId = createShortId(tasks.map(t => t.task_id));
       if (groups.length === 0) {
@@ -307,7 +316,11 @@ export function runList(options: ListOptions): ListResult {
   };
 
   if (json) {
-    console.log(JSON.stringify(result));
+    const output = {
+      ...result,
+      tasks: result.tasks.map(t => stripEmptyCollections(t)),
+    };
+    console.log(JSON.stringify(output));
   } else {
     if (rows.length === 0) {
       console.log('No tasks found');

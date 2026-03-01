@@ -6,6 +6,7 @@ import { CLIError, ExitCode, handleError } from '../../errors.js';
 import { GlobalOptionsSchema } from '../../types.js';
 import { resolveId } from '../../resolve-id.js';
 import { createShortId } from '../../short-id.js';
+import { stripEmptyCollections } from '../../strip-empty.js';
 import { TaskStatus } from 'hzl-core/events/types.js';
 import type { Task, Comment, Checkpoint } from 'hzl-core/services/task-service.js';
 
@@ -124,7 +125,11 @@ export function runShow(options: {
   };
 
   if (json) {
-    console.log(JSON.stringify(result));
+    const output = {
+      ...result,
+      task: stripEmptyCollections(result.task),
+    };
+    console.log(JSON.stringify(output));
   } else {
     const t = shapedTask;
     console.log(`Task: ${t.task_id}`);

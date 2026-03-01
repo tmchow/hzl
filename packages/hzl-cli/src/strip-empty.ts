@@ -3,7 +3,7 @@
  * Keeps nulls, scalars, non-empty arrays, and non-empty objects.
  * Does not recurse — only strips at the top level.
  */
-export function stripEmptyCollections<T extends Record<string, unknown>>(obj: T): Partial<T> {
+export function stripEmptyCollections<T extends object>(obj: T): Partial<T> {
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(obj)) {
     if (Array.isArray(value) && value.length === 0) continue;

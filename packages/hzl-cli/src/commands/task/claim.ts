@@ -7,6 +7,7 @@ import { CLIError, ExitCode, handleError } from '../../errors.js';
 import { GlobalOptionsSchema } from '../../types.js';
 import { resolveId } from '../../resolve-id.js';
 import { parseOptionalInteger } from '../../parse.js';
+import { stripEmptyCollections } from '../../strip-empty.js';
 import { TaskStatus } from 'hzl-core/events/types.js';
 import {
   DependenciesNotDoneError,
@@ -131,7 +132,11 @@ function shapeTaskForView(task: Task, view: ClaimView): ClaimTaskView {
 
 function printClaimResult(result: ClaimResult, json: boolean): void {
   if (json) {
-    console.log(JSON.stringify(result));
+    const output = {
+      ...result,
+      task: result.task ? stripEmptyCollections(result.task) : null,
+    };
+    console.log(JSON.stringify(output));
     return;
   }
 
