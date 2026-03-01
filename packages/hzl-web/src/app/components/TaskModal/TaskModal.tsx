@@ -6,6 +6,7 @@ import MarkdownContent from './MarkdownContent';
 import CommentsSection from './CommentsSection';
 import CheckpointsSection from './CheckpointsSection';
 import EventTimeline from './EventTimeline';
+import { getTagColor } from '../../utils/tag-color';
 import './TaskModal.css';
 
 interface Comment {
@@ -214,7 +215,13 @@ export default function TaskModal({ taskId, onClose }: TaskModalProps) {
               {task.tags && task.tags.length > 0 && (
                 <div className="modal-section">
                   <div className="modal-section-title">Tags</div>
-                  <div className="modal-description">{task.tags.join(', ')}</div>
+                  <div className="modal-tags">
+                    {task.tags.map((tag) => (
+                      <span key={tag} className="card-tag" style={{ '--tag-color': getTagColor(tag) } as React.CSSProperties}>
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               )}
 

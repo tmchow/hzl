@@ -515,6 +515,7 @@ select:focus {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: 11px;
   background: var(--bg-primary);
   padding: 2px 6px;
   border-radius: 3px;
@@ -938,6 +939,12 @@ select:focus {
 }
 
 /* Blocked-by list */
+.modal-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
 .modal-blocked-list {
   display: flex;
   flex-direction: column;
