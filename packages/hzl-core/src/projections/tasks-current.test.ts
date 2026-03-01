@@ -4,6 +4,7 @@ import Database from 'libsql';
 import { TasksCurrentProjector } from './tasks-current.js';
 import { createTestDb } from '../db/test-utils.js';
 import { EventStore } from '../events/store.js';
+import type { PersistedEventEnvelope } from '../events/store.js';
 import { EventType, TaskStatus } from '../events/types.js';
 
 describe('TasksCurrentProjector', () => {
@@ -354,6 +355,72 @@ describe('TasksCurrentProjector', () => {
 
       const task = db.prepare('SELECT * FROM tasks_current WHERE task_id = ?').get('TASK1') as any;
       expect(JSON.parse(task.tags)).toEqual(['new-tag']);
+    });
+
+    it('skips invalid field names defensively', () => {
+      const createEvent = eventStore.append({
+        task_id: 'TASK1',
+        type: EventType.TaskCreated,
+        data: { title: 'Original', project: 'inbox' },
+      });
+      projector.apply(createEvent, db);
+
+      const before = db.prepare('SELECT title, updated_at, last_event_id FROM tasks_current WHERE task_id = ?')
+        .get('TASK1') as any;
+
+      const invalidUpdateEvent: PersistedEventEnvelope = {
+        rowid: 9999,
+        event_id: 'invalid-field-event',
+        task_id: 'TASK1',
+        type: EventType.TaskUpdated,
+        data: {
+          field: 'title = ?, status = ?',
+          new_value: 'Malicious update',
+        },
+        timestamp: '2026-01-30T12:00:00.000Z',
+      };
+
+      expect(() => projector.apply(invalidUpdateEvent, db)).not.toThrow();
+
+      const task = db.prepare('SELECT title, status, updated_at, last_event_id FROM tasks_current WHERE task_id = ?')
+        .get('TASK1') as any;
+      expect(task.title).toBe('Original');
+      expect(task.status).toBe('backlog');
+      expect(task.updated_at).toBe(before.updated_at);
+      expect(task.last_event_id).toBe(before.last_event_id);
+    });
+
+    it('still applies valid updates after skipping an invalid field', () => {
+      const createEvent = eventStore.append({
+        task_id: 'TASK1',
+        type: EventType.TaskCreated,
+        data: { title: 'Original', project: 'inbox' },
+      });
+      projector.apply(createEvent, db);
+
+      const invalidUpdateEvent: PersistedEventEnvelope = {
+        rowid: 9999,
+        event_id: 'invalid-field-event',
+        task_id: 'TASK1',
+        type: EventType.TaskUpdated,
+        data: {
+          field: 'title = ?, status = ?',
+          new_value: 'Malicious update',
+        },
+        timestamp: '2026-01-30T12:00:00.000Z',
+      };
+      projector.apply(invalidUpdateEvent, db);
+
+      const validUpdateEvent = eventStore.append({
+        task_id: 'TASK1',
+        type: EventType.TaskUpdated,
+        data: { field: 'title', old_value: 'Original', new_value: 'Updated' },
+      });
+      projector.apply(validUpdateEvent, db);
+
+      const task = db.prepare('SELECT title, last_event_id FROM tasks_current WHERE task_id = ?').get('TASK1') as any;
+      expect(task.title).toBe('Updated');
+      expect(task.last_event_id).toBe(validUpdateEvent.rowid);
     });
   });
 
