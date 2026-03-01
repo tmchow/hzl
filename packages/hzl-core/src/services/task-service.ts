@@ -1300,6 +1300,20 @@ export class TaskService {
   }
 
   /**
+   * Get distinct tags with their task counts, excluding archived tasks.
+   */
+  getTagCounts(): Array<{ tag: string; count: number }> {
+    return this.db.prepare(`
+      SELECT tt.tag, COUNT(*) as count
+      FROM task_tags tt
+      JOIN tasks_current tc ON tt.task_id = tc.task_id
+      WHERE tc.status != 'archived'
+      GROUP BY tt.tag
+      ORDER BY tt.tag
+    `).all() as Array<{ tag: string; count: number }>;
+  }
+
+  /**
    * Get a map of task_id -> array of blocking task ids.
    * A task is blocked if it's in 'ready' status but has incomplete dependencies.
    */

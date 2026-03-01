@@ -1188,6 +1188,33 @@ describe('TaskService', () => {
     });
   });
 
+  describe('getTagCounts', () => {
+    it('getTagCounts returns distinct tags with counts', () => {
+      projectService.createProject('test-project');
+      taskService.createTask({ title: 'A', project: 'test-project', tags: ['bug', 'urgent'] });
+      taskService.createTask({ title: 'B', project: 'test-project', tags: ['bug'] });
+      taskService.createTask({ title: 'C', project: 'test-project', tags: ['feature'] });
+
+      const counts = taskService.getTagCounts();
+      expect(counts).toEqual([
+        { tag: 'bug', count: 2 },
+        { tag: 'feature', count: 1 },
+        { tag: 'urgent', count: 1 },
+      ]);
+    });
+
+    it('getTagCounts excludes archived tasks', () => {
+      projectService.createProject('test-project');
+      const id = taskService.createTask({ title: 'A', project: 'test-project', tags: ['old'] });
+      taskService.claimTask(id.task_id);
+      taskService.completeTask(id.task_id);
+      taskService.archiveTask(id.task_id);
+
+      const counts = taskService.getTagCounts();
+      expect(counts.find((c) => c.tag === 'old')).toBeUndefined();
+    });
+  });
+
   describe('getBlockedByMap', () => {
     it('returns empty map when no tasks are blocked', () => {
       taskService.createTask({ title: 'Task', project: 'inbox' });
