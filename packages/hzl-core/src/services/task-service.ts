@@ -609,15 +609,15 @@ export class TaskService {
       const task = this.getTaskById(taskId);
       if (!task) throw new TaskNotFoundError(taskId);
 
+      // No-op on self-transition
+      if (task.status === toStatus) {
+        return task;
+      }
+
       if (task.status === TaskStatus.Archived) {
         throw new InvalidStatusTransitionError(
           `Cannot change status: task is archived`
         );
-      }
-
-      // No-op on self-transition
-      if (task.status === toStatus) {
-        return task;
       }
 
       const event = this.eventStore.append({

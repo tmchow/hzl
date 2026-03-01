@@ -404,8 +404,7 @@ describe('TaskService', () => {
     });
 
     it('no-ops on self-transition (returns task, no new event)', () => {
-      const nonArchived = allStatuses.filter(s => s !== TaskStatus.Archived);
-      for (const status of nonArchived) {
+      for (const status of allStatuses) {
         const task = createTaskInStatus(status);
         const eventsBefore = eventStore.getByTaskId(task.task_id);
         const result = taskService.setStatus(task.task_id, status);
