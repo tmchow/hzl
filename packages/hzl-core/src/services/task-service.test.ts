@@ -1157,6 +1157,62 @@ describe('TaskService', () => {
       expect(() => taskService.listTasks({ dueMonth: 'bad-month' })).toThrow(InvalidDueMonthError);
       expect(() => taskService.listTasks({ dueMonth: '2026-00' })).toThrow(InvalidDueMonthError);
     });
+
+    it('listTasks includes tags', () => {
+      taskService.createTask({ title: 'Tagged task', project: 'project-a', tags: ['bug', 'urgent'] });
+      const tasks = taskService.listTasks({ sinceDays: 7 });
+      const found = tasks.find((t) => t.title === 'Tagged task');
+      expect(found).toBeDefined();
+      expect(found!.tags).toEqual(['bug', 'urgent']);
+    });
+
+    it('listTasks returns empty tags array for untagged tasks', () => {
+      taskService.createTask({ title: 'No tags', project: 'project-a' });
+      const tasks = taskService.listTasks({ sinceDays: 7 });
+      const found = tasks.find((t) => t.title === 'No tags');
+      expect(found).toBeDefined();
+      expect(found!.tags).toEqual([]);
+    });
+
+    it('listTasks filters by tag', () => {
+      projectService.createProject('test-project');
+      taskService.createTask({ title: 'Bug task', project: 'test-project', tags: ['bug'] });
+      taskService.createTask({ title: 'Feature task', project: 'test-project', tags: ['feature'] });
+      taskService.createTask({ title: 'Both', project: 'test-project', tags: ['bug', 'feature'] });
+
+      const bugTasks = taskService.listTasks({ sinceDays: 7, tag: 'bug' });
+      expect(bugTasks.map((t) => t.title).sort()).toEqual(['Both', 'Bug task']);
+
+      const featureTasks = taskService.listTasks({ sinceDays: 7, tag: 'feature' });
+      expect(featureTasks.map((t) => t.title).sort()).toEqual(['Both', 'Feature task']);
+    });
+  });
+
+  describe('getTagCounts', () => {
+    it('getTagCounts returns distinct tags with counts', () => {
+      projectService.createProject('test-project');
+      taskService.createTask({ title: 'A', project: 'test-project', tags: ['bug', 'urgent'] });
+      taskService.createTask({ title: 'B', project: 'test-project', tags: ['bug'] });
+      taskService.createTask({ title: 'C', project: 'test-project', tags: ['feature'] });
+
+      const counts = taskService.getTagCounts();
+      expect(counts).toEqual([
+        { tag: 'bug', count: 2 },
+        { tag: 'feature', count: 1 },
+        { tag: 'urgent', count: 1 },
+      ]);
+    });
+
+    it('getTagCounts excludes archived tasks', () => {
+      projectService.createProject('test-project');
+      const id = taskService.createTask({ title: 'A', project: 'test-project', tags: ['old'] });
+      taskService.claimTask(id.task_id);
+      taskService.completeTask(id.task_id);
+      taskService.archiveTask(id.task_id);
+
+      const counts = taskService.getTagCounts();
+      expect(counts.find((c) => c.tag === 'old')).toBeUndefined();
+    });
   });
 
   describe('getBlockedByMap', () => {

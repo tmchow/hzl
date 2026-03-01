@@ -161,6 +161,7 @@ export interface TaskListItem {
   parent_id: string | null;
   progress: number | null;
   due_at: string | null;
+  tags: string[];
 }
 
 export interface TaskStats {
@@ -1229,8 +1230,8 @@ export class TaskService {
    * List tasks with optional filtering by date range and project.
    * Used by the web dashboard.
    */
-  listTasks(opts: { sinceDays?: number; project?: string; dueMonth?: string } = {}): TaskListItem[] {
-    const { sinceDays = 3, project, dueMonth } = opts;
+  listTasks(opts: { sinceDays?: number; project?: string; dueMonth?: string; tag?: string } = {}): TaskListItem[] {
+    const { sinceDays = 3, project, dueMonth, tag } = opts;
 
     const conditions: string[] = ["status != 'archived'"];
     const params: (string | number)[] = [];
@@ -1266,10 +1267,15 @@ export class TaskService {
       params.push(project);
     }
 
+    if (tag) {
+      conditions.push('EXISTS (SELECT 1 FROM task_tags WHERE task_id = tasks_current.task_id AND tag = ?)');
+      params.push(tag);
+    }
+
     const sql = `
       SELECT task_id, title, project, status, priority,
              agent, progress, lease_until, updated_at,
-             parent_id, due_at
+             parent_id, due_at, tags
       FROM tasks_current
       WHERE ${conditions.join(' AND ')}
       ORDER BY priority DESC, updated_at DESC
@@ -1289,7 +1295,22 @@ export class TaskService {
       parent_id: row.parent_id,
       progress: row.progress,
       due_at: row.due_at,
+      tags: JSON.parse(row.tags) as string[],
     }));
+  }
+
+  /**
+   * Get distinct tags with their task counts, excluding archived tasks.
+   */
+  getTagCounts(): Array<{ tag: string; count: number }> {
+    return this.db.prepare(`
+      SELECT tt.tag, COUNT(*) as count
+      FROM task_tags tt
+      JOIN tasks_current tc ON tt.task_id = tc.task_id
+      WHERE tc.status != 'archived'
+      GROUP BY tt.tag
+      ORDER BY tt.tag
+    `).all() as Array<{ tag: string; count: number }>;
   }
 
   /**

@@ -11,6 +11,7 @@ export interface DashboardPrefs {
   showSubtasks: boolean;
   collapsedParents: string[];
   activeView: string;
+  tagFilter: string;
   activeTab: string;
 }
 
@@ -25,6 +26,7 @@ const DEFAULT_PREFS: DashboardPrefs = {
   showSubtasks: true,
   collapsedParents: [],
   activeView: 'kanban',
+  tagFilter: '',
   activeTab: 'ready',
 };
 

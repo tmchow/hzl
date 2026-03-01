@@ -9,6 +9,7 @@ import { DependenciesProjector } from 'hzl-core/projections/dependencies';
 import { CommentsCheckpointsProjector } from 'hzl-core/projections/comments-checkpoints';
 import { ProjectsProjector } from 'hzl-core/projections/projects';
 import { SearchProjector } from 'hzl-core/projections/search';
+import { TagsProjector } from 'hzl-core/projections/tags';
 import { TaskService } from 'hzl-core/services/task-service';
 import { ProjectService } from 'hzl-core/services/project-service';
 import { SearchService } from 'hzl-core/services/search-service';
@@ -33,6 +34,7 @@ describe('hzl-web server', () => {
     projectionEngine.register(new CommentsCheckpointsProjector());
     projectionEngine.register(new ProjectsProjector());
     projectionEngine.register(new SearchProjector());
+    projectionEngine.register(new TagsProjector());
 
     projectService = new ProjectService(db, eventStore, projectionEngine);
     projectService.ensureInboxExists();
@@ -486,6 +488,28 @@ describe('hzl-web server', () => {
 
       expect(status).toBe(404);
       expect((data as { error: string }).error).toContain('not found');
+    });
+
+    it('returns blocked_by as objects with task_id and title', async () => {
+      const blocker = taskService.createTask({
+        title: 'Blocker Task',
+        project: 'test-project',
+      });
+      const blocked = taskService.createTask({
+        title: 'Blocked Task',
+        project: 'test-project',
+        depends_on: [blocker.task_id],
+      });
+      taskService.setStatus(blocked.task_id, TaskStatus.Ready);
+
+      createServer(4623);
+      const { status, data } = await fetchJson(`/api/tasks/${blocked.task_id}`);
+
+      expect(status).toBe(200);
+      const task = (data as { task: { blocked_by: Array<{ task_id: string; title: string }> } }).task;
+      expect(task.blocked_by).toEqual([
+        { task_id: blocker.task_id, title: 'Blocker Task' },
+      ]);
     });
   });
 
@@ -1176,6 +1200,37 @@ describe('hzl-web server', () => {
       const { data } = await fetchJson('/api/unknown');
 
       expect((data as { error: string }).error).toBe('Not Found');
+    });
+  });
+
+  describe('tags API', () => {
+    it('GET /api/tasks includes tags in response', async () => {
+      taskService.createTask({ title: 'Tagged', project: 'test-project', tags: ['bug', 'urgent'] });
+      const s = createServer(4620);
+      await new Promise((r) => setTimeout(r, 20));
+      const { data } = await fetchJson('/api/tasks?since=30d');
+      const tasks = (data as { tasks: Array<{ title: string; tags: string[] }> }).tasks;
+      const found = tasks.find((t) => t.title === 'Tagged');
+      expect(found?.tags).toEqual(['bug', 'urgent']);
+    });
+
+    it('GET /api/tasks filters by tag', async () => {
+      taskService.createTask({ title: 'Bug', project: 'test-project', tags: ['bug'] });
+      taskService.createTask({ title: 'Feature', project: 'test-project', tags: ['feature'] });
+      const s = createServer(4621);
+      await new Promise((r) => setTimeout(r, 20));
+      const { data } = await fetchJson('/api/tasks?since=30d&tag=bug');
+      const tasks = (data as { tasks: Array<{ title: string }> }).tasks;
+      expect(tasks.map((t) => t.title)).toEqual(['Bug']);
+    });
+
+    it('GET /api/tags returns tag counts', async () => {
+      taskService.createTask({ title: 'A', project: 'test-project', tags: ['bug', 'urgent'] });
+      taskService.createTask({ title: 'B', project: 'test-project', tags: ['bug'] });
+      const s = createServer(4622);
+      await new Promise((r) => setTimeout(r, 20));
+      const { data } = await fetchJson('/api/tags');
+      expect(data).toEqual({ tags: [{ tag: 'bug', count: 2 }, { tag: 'urgent', count: 1 }] });
     });
   });
 

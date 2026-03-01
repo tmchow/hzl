@@ -37,6 +37,7 @@ export default function App() {
   const [since, setSince] = useState(initialUrl.since || initialPrefs.dateFilter || '3d');
   const [project, setProject] = useState(initialUrl.project ?? initialPrefs.projectFilter ?? '');
   const [assignee, setAssignee] = useState(initialUrl.assignee ?? initialPrefs.assigneeFilter ?? '');
+  const [tag, setTag] = useState(initialUrl.tag ?? initialPrefs.tagFilter ?? '');
   const [searchQuery, setSearchQuery] = useState(
     initialUrl.q !== undefined ? normalizeSearchQuery(initialUrl.q) : initialPrefs.taskSearch || '',
   );
@@ -83,6 +84,7 @@ export default function App() {
     since: dueMonth ? undefined : since,
     project: project || undefined,
     dueMonth,
+    tag: tag || undefined,
   });
   const { events, refresh: refreshEvents } = useEvents();
   const { stats, refresh: refreshStats } = useStats();
@@ -115,9 +117,10 @@ export default function App() {
       showSubtasks,
       collapsedParents: Array.from(collapsedParents),
       activeView: view,
+      tagFilter: tag,
       activeTab,
     });
-  }, [since, project, assignee, activityAssignee, activityKeyword, searchQuery,
+  }, [since, project, assignee, tag, activityAssignee, activityKeyword, searchQuery,
       columnVisibility, showSubtasks, collapsedParents, view, activeTab]);
 
   // URL sync
@@ -132,13 +135,14 @@ export default function App() {
       searchQuery,
       showSubtasks,
       activeTab,
+      tag,
       activityOpen,
       activityAssignee,
       activityKeyword,
       selectedTaskId,
     });
   }, [view, since, calendarYear, calendarMonth, project, assignee, searchQuery,
-      showSubtasks, activeTab, activityOpen, activityAssignee, activityKeyword, selectedTaskId]);
+      showSubtasks, activeTab, tag, activityOpen, activityAssignee, activityKeyword, selectedTaskId]);
 
   useEffect(() => {
     persistPrefs();
@@ -201,6 +205,21 @@ export default function App() {
       .sort(([a], [b]) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
       .map(([name, count]) => ({ name, count }));
   }, [tasks, showSubtasks, columnVisibility]);
+
+  // Tag options for filter bar
+  const tagOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const t of tasks) {
+      if (t.tags) {
+        for (const tg of t.tags) {
+          counts.set(tg, (counts.get(tg) ?? 0) + 1);
+        }
+      }
+    }
+    return Array.from(counts.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([name, count]) => ({ name, count }));
+  }, [tasks]);
 
   // Visible board task IDs (without assignee filter) — shared by activity panel memos
   const visibleBoardTaskIds = useMemo(() => {
@@ -355,6 +374,9 @@ export default function App() {
           assignees={assigneeOptions}
           assignee={assignee}
           onAssigneeChange={setAssignee}
+          tags={tagOptions}
+          tag={tag}
+          onTagChange={setTag}
           searchQuery={searchQuery}
           onSearchChange={(v) => setSearchQuery(normalizeSearchQuery(v))}
           searchMatchCount={searchMatchTotal}

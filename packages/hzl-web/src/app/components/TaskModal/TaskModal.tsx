@@ -6,6 +6,7 @@ import MarkdownContent from './MarkdownContent';
 import CommentsSection from './CommentsSection';
 import CheckpointsSection from './CheckpointsSection';
 import EventTimeline from './EventTimeline';
+import { getTagColor } from '../../utils/tag-color';
 import './TaskModal.css';
 
 interface Comment {
@@ -176,7 +177,18 @@ export default function TaskModal({ taskId, onClose }: TaskModalProps) {
               {task.blocked_by && task.blocked_by.length > 0 && (
                 <div className="modal-section">
                   <div className="modal-section-title">Blocked By</div>
-                  <div className="modal-description">{task.blocked_by.join(', ')}</div>
+                  <div className="modal-blocked-list">
+                    {task.blocked_by.map((dep) => (
+                      <button
+                        key={dep.task_id}
+                        type="button"
+                        className="modal-blocked-item"
+                        onClick={() => loadTask(dep.task_id)}
+                      >
+                        {dep.title}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
 
@@ -203,7 +215,13 @@ export default function TaskModal({ taskId, onClose }: TaskModalProps) {
               {task.tags && task.tags.length > 0 && (
                 <div className="modal-section">
                   <div className="modal-section-title">Tags</div>
-                  <div className="modal-description">{task.tags.join(', ')}</div>
+                  <div className="modal-tags">
+                    {task.tags.map((tag) => (
+                      <span key={tag} className="card-tag" style={{ '--tag-color': getTagColor(tag) } as React.CSSProperties}>
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               )}
 

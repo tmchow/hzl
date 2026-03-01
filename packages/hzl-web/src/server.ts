@@ -64,7 +64,7 @@ interface TaskDetailResponse {
   lease_until: string | null;
   created_at: string;
   updated_at: string;
-  blocked_by: string[];
+  blocked_by: Array<{ task_id: string; title: string }>;
 }
 
 interface EventResponse {
@@ -213,6 +213,7 @@ export function createWebServer(options: ServerOptions): ServerHandle {
   function handleTasks(params: URLSearchParams, res: ServerResponse): void {
     const dueMonth = params.get('due_month');
     const project = params.get('project');
+    const tag = params.get('tag') || undefined;
 
     const since = params.get('since') || '3d';
     const validSince = Object.prototype.hasOwnProperty.call(DATE_PRESETS, since);
@@ -232,6 +233,7 @@ export function createWebServer(options: ServerOptions): ServerHandle {
       rows = taskService.listTasks({
         ...(dueMonth ? { dueMonth } : { sinceDays: days }),
         project: project ?? undefined,
+        tag,
       });
     } catch (err) {
       // Only treat dueMonth validation errors as 400; re-throw others (e.g. DB errors → 500)
@@ -289,8 +291,16 @@ export function createWebServer(options: ServerOptions): ServerHandle {
       return;
     }
 
-    // Get blocking dependencies from service
-    const blocked_by = taskService.getBlockingDependencies(resolvedId);
+    // Get blocking dependencies from service and enrich with titles
+    const blockedByIds = taskService.getBlockingDependencies(resolvedId);
+    const blockedByItems = blockedByIds.map((id: string) => {
+      try {
+        const dep = taskService.getTaskById(id);
+        return { task_id: id, title: dep?.title || id };
+      } catch {
+        return { task_id: id, title: id };
+      }
+    });
 
     const taskDetail: TaskDetailResponse = {
       task_id: task.task_id,
@@ -310,7 +320,7 @@ export function createWebServer(options: ServerOptions): ServerHandle {
       lease_until: task.lease_until,
       created_at: task.created_at,
       updated_at: task.updated_at,
-      blocked_by,
+      blocked_by: blockedByItems,
     };
 
     json(res, { task: taskDetail });
@@ -430,6 +440,11 @@ export function createWebServer(options: ServerOptions): ServerHandle {
     };
 
     json(res, response);
+  }
+
+  function handleTags(res: ServerResponse): void {
+    const tags = taskService.getTagCounts();
+    json(res, { tags });
   }
 
   function getLatestEventId(): number {
@@ -601,6 +616,11 @@ export function createWebServer(options: ServerOptions): ServerHandle {
 
       if (pathname === '/api/stats') {
         handleStats(res);
+        return;
+      }
+
+      if (pathname === '/api/tags') {
+        handleTags(res);
         return;
       }
 

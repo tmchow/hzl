@@ -100,6 +100,7 @@ select:focus {
 #dateFilter { min-width: 150px; }
 #projectFilter { min-width: 220px; }
 #assigneeFilter { min-width: 180px; }
+#tagFilter { min-width: 150px; }
 
 .task-search-group {
   gap: 6px;
@@ -365,7 +366,7 @@ select:focus {
 
 .column {
   flex: 1 1 220px;
-  min-width: 180px;
+  min-width: 220px;
   max-width: 320px;
   background: var(--bg-secondary);
   border-radius: 8px;
@@ -441,7 +442,7 @@ select:focus {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 6px;
-  padding: 10px 12px;
+  padding: 12px 14px;
   cursor: pointer;
   transition: border-color 0.15s;
 }
@@ -455,7 +456,7 @@ select:focus {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 4px;
+  margin-bottom: 8px;
 }
 
 .card-header-left {
@@ -468,8 +469,7 @@ select:focus {
 
 .card-header-right {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
+  align-items: center;
   gap: 4px;
   min-width: 0;
   flex-shrink: 0;
@@ -491,6 +491,7 @@ select:focus {
 
 .card-title {
   font-size: 13px;
+  line-height: 1.4;
   color: var(--text-primary);
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -514,6 +515,7 @@ select:focus {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: 11px;
   background: var(--bg-primary);
   padding: 2px 6px;
   border-radius: 3px;
@@ -537,23 +539,79 @@ select:focus {
   color: var(--accent);
 }
 
-.card-assignee.unassigned {
-  color: var(--text-muted);
-  font-weight: 500;
+
+.card-progress-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
 }
 
-.card-progress {
-  color: var(--accent);
-  background: rgba(245, 158, 11, 0.15);
-  padding: 2px 6px;
-  border-radius: 3px;
+.card-progress-track {
+  flex: 1;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--bg-primary);
+  overflow: hidden;
+}
+
+.card-progress-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--accent);
+  transition: width 0.3s;
+}
+
+.card-progress-fill.complete {
+  background: var(--status-done);
+}
+
+.card-progress-label {
   font-size: 10px;
+  color: var(--accent);
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.card-progress-label.complete {
+  color: var(--status-done);
+}
+
+.card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.card-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--tag-color) 15%, transparent);
+  color: var(--tag-color);
+  white-space: nowrap;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-tag::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--tag-color);
   flex-shrink: 0;
 }
 
-.card-progress.complete {
-  color: var(--status-done);
-  background: rgba(34, 197, 94, 0.15);
+.card-tag-overflow {
+  font-size: 10px;
+  color: var(--text-muted);
+  padding: 1px 4px;
 }
 
 .card-subtask-count {
@@ -582,17 +640,6 @@ select:focus {
   border-color: var(--accent);
 }
 
-.card-blocked {
-  font-size: 10px;
-  color: var(--status-blocked);
-  margin-top: 6px;
-}
-
-.card-lease {
-  font-size: 10px;
-  color: var(--text-muted);
-  margin-top: 4px;
-}
 
 /* Empty State */
 .empty-column {
@@ -889,6 +936,38 @@ select:focus {
 .modal-description img {
   max-width: 100%;
   height: auto;
+}
+
+/* Blocked-by list */
+.modal-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.modal-blocked-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.modal-blocked-item {
+  display: block;
+  text-align: left;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px 10px;
+  color: var(--accent);
+  font-size: 13px;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.modal-blocked-item:hover {
+  border-color: var(--accent);
 }
 
 /* Comments */
@@ -1530,7 +1609,8 @@ select:focus {
 
   #dateFilter,
   #projectFilter,
-  #assigneeFilter {
+  #assigneeFilter,
+  #tagFilter {
     min-width: 0;
     width: 100%;
   }

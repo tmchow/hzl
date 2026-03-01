@@ -1,7 +1,8 @@
 import type { TaskListItem } from '../../api/types';
 import type { EmojiInfo } from '../../utils/emoji';
 import { getTaskFamilyColor } from '../../utils/emoji';
-import { getAssigneeValue, truncateCardLabel, formatTimeRemaining } from '../../utils/format';
+import { getAssigneeValue, truncateCardLabel } from '../../utils/format';
+import { getTagColor } from '../../utils/tag-color';
 import './Card.css';
 
 interface CardProps {
@@ -21,7 +22,6 @@ export default function Card({
   onToggleCollapse,
   onClick,
 }: CardProps) {
-  const isBlocked = task.blocked_by && task.blocked_by.length > 0;
   const isParentTask = (task.subtask_total ?? 0) > 0;
   const parentStyle = isParentTask
     ? { '--family-color': getTaskFamilyColor(task.task_id) } as React.CSSProperties
@@ -52,16 +52,34 @@ export default function Card({
           )}
           <span className="card-id">{task.task_id.slice(0, 8)}</span>
         </div>
-        <div className="card-header-right">
-          <span className="card-project" title={task.project}>{task.project}</span>
-          {task.progress != null && task.progress > 0 && (
-            <span className={task.progress >= 100 ? 'card-progress complete' : 'card-progress'}>
-              {task.progress}%
+        <span className="card-project" title={task.project}>{task.project}</span>
+      </div>
+      {task.progress != null && task.progress > 0 && (
+        <div className="card-progress-row">
+          <div className="card-progress-track">
+            <div
+              className={`card-progress-fill${task.progress >= 100 ? ' complete' : ''}`}
+              style={{ width: `${Math.min(task.progress, 100)}%` }}
+            />
+          </div>
+          <span className={`card-progress-label${task.progress >= 100 ? ' complete' : ''}`}>
+            {task.progress}%
+          </span>
+        </div>
+      )}
+      <div className="card-title">{task.title}</div>
+      {task.tags && task.tags.length > 0 && (
+        <div className="card-tags">
+          {task.tags.slice(0, 3).map((tg) => (
+            <span key={tg} className="card-tag" style={{ '--tag-color': getTagColor(tg) } as React.CSSProperties}>
+              {tg}
             </span>
+          ))}
+          {task.tags.length > 3 && (
+            <span className="card-tag-overflow">+{task.tags.length - 3}</span>
           )}
         </div>
-      </div>
-      <div className="card-title">{task.title}</div>
+      )}
       {totalCount > 0 && (
         showSubtasks ? (
           <button
@@ -90,22 +108,14 @@ export default function Card({
           </div>
         )
       )}
-      <div className="card-meta">
-        <span
-          className={hasAssignee ? 'card-assignee assigned' : 'card-assignee unassigned'}
-          title={assigneeText}
-        >
-          {assigneeCardText}
-        </span>
-      </div>
-      {isBlocked && (
-        <div className="card-blocked">
-          Blocked by: {task.blocked_by!.map((id) => id.slice(0, 8)).join(', ')}
-        </div>
-      )}
-      {task.status === 'in_progress' && (task as unknown as { lease_until?: string }).lease_until && (
-        <div className="card-lease">
-          {formatTimeRemaining((task as unknown as { lease_until: string }).lease_until)}
+      {hasAssignee && (
+        <div className="card-meta">
+          <span
+            className="card-assignee assigned"
+            title={assigneeText}
+          >
+            {assigneeCardText}
+          </span>
         </div>
       )}
     </div>
