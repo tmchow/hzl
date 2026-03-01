@@ -100,6 +100,7 @@ select:focus {
 #dateFilter { min-width: 150px; }
 #projectFilter { min-width: 220px; }
 #assigneeFilter { min-width: 180px; }
+#tagFilter { min-width: 150px; }
 
 .task-search-group {
   gap: 6px;
@@ -1530,7 +1531,8 @@ select:focus {
 
   #dateFilter,
   #projectFilter,
-  #assigneeFilter {
+  #assigneeFilter,
+  #tagFilter {
     min-width: 0;
     width: 100%;
   }

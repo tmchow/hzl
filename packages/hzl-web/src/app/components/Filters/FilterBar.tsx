@@ -12,6 +12,9 @@ interface FilterBarProps {
   assignees: Array<{ name: string; count: number }>;
   assignee: string;
   onAssigneeChange: (value: string) => void;
+  tags: Array<{ name: string; count: number }>;
+  tag: string;
+  onTagChange: (value: string) => void;
   searchQuery: string;
   onSearchChange: (value: string) => void;
   searchMatchCount: number;
@@ -39,6 +42,9 @@ export default function FilterBar({
   assignees,
   assignee,
   onAssigneeChange,
+  tags,
+  tag,
+  onTagChange,
   searchQuery,
   onSearchChange,
   searchMatchCount,
@@ -111,6 +117,14 @@ export default function FilterBar({
           <option value="">Any Agent</option>
           {assignees.map((a) => (
             <option key={a.name} value={a.name}>{a.name} ({a.count})</option>
+          ))}
+        </select>
+      </div>
+      <div className="filter-group">
+        <select id="tagFilter" value={tag} onChange={(e) => onTagChange(e.target.value)}>
+          <option value="">All tags</option>
+          {tags.map((t) => (
+            <option key={t.name} value={t.name}>{t.name} ({t.count})</option>
           ))}
         </select>
       </div>

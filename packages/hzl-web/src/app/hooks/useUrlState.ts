@@ -14,6 +14,7 @@ export interface UrlState {
   activity?: string;
   activityAssignee?: string;
   activityQ?: string;
+  tag?: string;
   task?: string;
 }
 
@@ -57,6 +58,9 @@ export function parseUrlState(): UrlState {
   const activityQ = params.get('activity_q');
   if (activityQ !== null) state.activityQ = activityQ;
 
+  const tag = params.get('tag');
+  if (tag !== null) state.tag = tag;
+
   const task = params.get('task');
   if (task) state.task = task;
 
@@ -76,6 +80,7 @@ export interface SyncUrlStateParams {
   activityOpen: boolean;
   activityAssignee: string;
   activityKeyword: string;
+  tag: string;
   selectedTaskId: string | null;
 }
 
@@ -98,6 +103,7 @@ export function syncUrlState(state: SyncUrlStateParams): void {
   if (state.activeTab !== 'ready') params.set('tab', state.activeTab);
   if (state.activityAssignee) params.set('activity_assignee', state.activityAssignee);
   if (state.activityKeyword.trim()) params.set('activity_q', state.activityKeyword.trim());
+  if (state.tag) params.set('tag', state.tag);
   if (state.activityOpen) params.set('activity', '1');
   if (state.selectedTaskId) params.set('task', state.selectedTaskId);
 
