@@ -1,5 +1,22 @@
 import type Database from 'libsql';
 
+const SLEEP_BUFFER = new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT);
+const SLEEP_VIEW = new Int32Array(SLEEP_BUFFER);
+
+function blockingSleep(ms: number): void {
+  if (ms <= 0) {
+    return;
+  }
+  const deadline = Date.now() + ms;
+  while (true) {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) {
+      return;
+    }
+    Atomics.wait(SLEEP_VIEW, 0, 0, remaining);
+  }
+}
+
 /**
  * Execute a function within a write transaction using BEGIN IMMEDIATE.
  * This ensures proper locking for concurrent access from multiple agents.
@@ -29,10 +46,7 @@ export function withWriteTransaction<T>(
       attempt += 1;
       // Simple sleep with exponential backoff
       const sleepTime = busySleepMs * attempt;
-      const start = Date.now();
-      while (Date.now() - start < sleepTime) {
-        // Busy wait (synchronous sleep for better-sqlite3)
-      }
+      blockingSleep(sleepTime);
     }
   }
 }
