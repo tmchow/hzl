@@ -1,5 +1,8 @@
 // packages/hzl-core/src/services/task-service.test.ts
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import Database from 'libsql';
 import {
   TaskService,
@@ -12,6 +15,7 @@ import { ProjectService, ProjectNotFoundError } from './project-service.js';
 import { createTestDb } from '../db/test-utils.js';
 import { EventStore } from '../events/store.js';
 import { EventType, TaskStatus } from '../events/types.js';
+import { CACHE_SCHEMA_V1, EVENTS_SCHEMA_V2, PRAGMAS } from '../db/schema.js';
 import { ProjectionEngine } from '../projections/engine.js';
 import { TasksCurrentProjector } from '../projections/tasks-current.js';
 import { DependenciesProjector } from '../projections/dependencies.js';
@@ -19,6 +23,15 @@ import { TagsProjector } from '../projections/tags.js';
 import { CommentsCheckpointsProjector } from '../projections/comments-checkpoints.js';
 import { SearchProjector } from '../projections/search.js';
 import { ProjectsProjector } from '../projections/projects.js';
+
+function registerProjectors(engine: ProjectionEngine): void {
+  engine.register(new TasksCurrentProjector());
+  engine.register(new DependenciesProjector());
+  engine.register(new TagsProjector());
+  engine.register(new CommentsCheckpointsProjector());
+  engine.register(new SearchProjector());
+  engine.register(new ProjectsProjector());
+}
 
 describe('TaskService', () => {
   let db: Database.Database;
@@ -32,12 +45,7 @@ describe('TaskService', () => {
     // Schema applied by createTestDb
     eventStore = new EventStore(db);
     projectionEngine = new ProjectionEngine(db);
-    projectionEngine.register(new TasksCurrentProjector());
-    projectionEngine.register(new DependenciesProjector());
-    projectionEngine.register(new TagsProjector());
-    projectionEngine.register(new CommentsCheckpointsProjector());
-    projectionEngine.register(new SearchProjector());
-    projectionEngine.register(new ProjectsProjector());
+    registerProjectors(projectionEngine);
     projectService = new ProjectService(db, eventStore, projectionEngine);
     projectService.ensureInboxExists();
     projectService.createProject('project-a');
@@ -2012,11 +2020,24 @@ describe('TaskService', () => {
       );
     });
 
-    it('throws when eventsDb not provided', () => {
-      // taskService doesn't have eventsDb
-      expect(() =>
-        taskService.pruneEligible({ project: 'inbox', olderThanDays: 1 })
-      ).toThrow('eventsDb not provided');
+    it('uses single-DB fallback when eventsDb is not provided', () => {
+      const task = taskService.createTask({ title: 'Single DB prune', project: 'inbox' });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+      taskService.claimTask(task.task_id);
+      taskService.completeTask(task.task_id);
+      db.prepare('UPDATE tasks_current SET terminal_at = ? WHERE task_id = ?').run(
+        '2020-01-01T00:00:00Z',
+        task.task_id
+      );
+
+      const result = taskService.pruneEligible({ project: 'inbox', olderThanDays: 30 });
+      expect(result.count).toBe(1);
+
+      const eventsAfter = db
+        .prepare('SELECT COUNT(*) as cnt FROM events WHERE task_id = ?')
+        .get(task.task_id) as { cnt: number };
+      expect(eventsAfter.cnt).toBe(0);
+      expect(taskService.getTaskById(task.task_id)).toBeNull();
     });
 
     it('returns empty result when no eligible tasks', () => {
@@ -2273,6 +2294,152 @@ describe('TaskService', () => {
       expect(taskServiceWithEventsDb.getTaskById(taskA.task_id)).toBeNull();
       expect(taskServiceWithEventsDb.getTaskById(taskB.task_id)).toBeNull();
       expect(taskServiceWithEventsDb.getTaskById(taskC.task_id)).toBeNull();
+    });
+
+    it('rolls back event deletion when projection deletion fails in split DB attach mode', () => {
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hzl-prune-atomic-'));
+      const cachePath = path.join(tempDir, 'cache.db');
+      const eventsPath = path.join(tempDir, 'events.db');
+      const cacheDb = new Database(cachePath);
+      const eventsDb = new Database(eventsPath);
+
+      try {
+        cacheDb.exec(PRAGMAS);
+        eventsDb.exec(PRAGMAS);
+        cacheDb.exec(CACHE_SCHEMA_V1);
+        eventsDb.exec(EVENTS_SCHEMA_V2);
+
+        const splitEventStore = new EventStore(eventsDb);
+        const splitProjectionEngine = new ProjectionEngine(cacheDb, eventsDb);
+        registerProjectors(splitProjectionEngine);
+        const splitProjectService = new ProjectService(cacheDb, splitEventStore, splitProjectionEngine);
+        splitProjectService.ensureInboxExists();
+        const splitTaskService = new TaskService(
+          cacheDb,
+          splitEventStore,
+          splitProjectionEngine,
+          splitProjectService,
+          eventsDb
+        );
+
+        const task = splitTaskService.createTask({ title: 'Split DB task', project: 'inbox' });
+        splitTaskService.setStatus(task.task_id, TaskStatus.Ready);
+        splitTaskService.claimTask(task.task_id);
+        splitTaskService.completeTask(task.task_id);
+        cacheDb.prepare('UPDATE tasks_current SET terminal_at = ? WHERE task_id = ?').run(
+          '2020-01-01T00:00:00Z',
+          task.task_id
+        );
+
+        const eventsBefore = eventsDb
+          .prepare('SELECT COUNT(*) as cnt FROM events WHERE task_id = ?')
+          .get(task.task_id) as { cnt: number };
+        expect(eventsBefore.cnt).toBeGreaterThan(0);
+
+        const originalDeleteProjections = (splitTaskService as unknown as {
+          deleteTasksFromProjections: (db: Database.Database, ids: string[]) => void;
+        }).deleteTasksFromProjections;
+        (splitTaskService as unknown as {
+          deleteTasksFromProjections: () => never;
+        }).deleteTasksFromProjections = () => {
+          throw new Error('simulated projection failure');
+        };
+
+        expect(() =>
+          splitTaskService.pruneEligible({ project: 'inbox', olderThanDays: 30 })
+        ).toThrow('simulated projection failure');
+
+        (splitTaskService as unknown as {
+          deleteTasksFromProjections: (db: Database.Database, ids: string[]) => void;
+        }).deleteTasksFromProjections = originalDeleteProjections;
+
+        const eventsAfterFailure = eventsDb
+          .prepare('SELECT COUNT(*) as cnt FROM events WHERE task_id = ?')
+          .get(task.task_id) as { cnt: number };
+        expect(eventsAfterFailure.cnt).toBe(eventsBefore.cnt);
+        expect(
+          cacheDb.prepare('SELECT 1 FROM tasks_current WHERE task_id = ?').get(task.task_id)
+        ).toBeDefined();
+      } finally {
+        cacheDb.close();
+        eventsDb.close();
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      }
+    });
+
+    it('recovers projection cleanup from prune journal when fallback path is interrupted', () => {
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hzl-prune-journal-'));
+      const cachePath = path.join(tempDir, 'cache.db');
+      const cacheDb = new Database(cachePath);
+      const eventsDb = new Database(':memory:');
+      const journalPath = path.join(tempDir, 'prune-journal.json');
+
+      try {
+        cacheDb.exec(PRAGMAS);
+        eventsDb.exec(PRAGMAS);
+        cacheDb.exec(CACHE_SCHEMA_V1);
+        eventsDb.exec(EVENTS_SCHEMA_V2);
+
+        const splitEventStore = new EventStore(eventsDb);
+        const splitProjectionEngine = new ProjectionEngine(cacheDb, eventsDb);
+        registerProjectors(splitProjectionEngine);
+        const splitProjectService = new ProjectService(cacheDb, splitEventStore, splitProjectionEngine);
+        splitProjectService.ensureInboxExists();
+        const splitTaskService = new TaskService(
+          cacheDb,
+          splitEventStore,
+          splitProjectionEngine,
+          splitProjectService,
+          eventsDb
+        );
+
+        const task = splitTaskService.createTask({ title: 'Journal fallback task', project: 'inbox' });
+        splitTaskService.setStatus(task.task_id, TaskStatus.Ready);
+        splitTaskService.claimTask(task.task_id);
+        splitTaskService.completeTask(task.task_id);
+        cacheDb.prepare('UPDATE tasks_current SET terminal_at = ? WHERE task_id = ?').run(
+          '2020-01-01T00:00:00Z',
+          task.task_id
+        );
+
+        const originalDeleteProjections = (splitTaskService as unknown as {
+          deleteTasksFromProjections: (db: Database.Database, ids: string[]) => void;
+        }).deleteTasksFromProjections;
+        (splitTaskService as unknown as {
+          deleteTasksFromProjections: () => never;
+        }).deleteTasksFromProjections = () => {
+          throw new Error('simulated crash after events delete');
+        };
+
+        expect(() =>
+          splitTaskService.pruneEligible({ project: 'inbox', olderThanDays: 30 })
+        ).toThrow('simulated crash after events delete');
+
+        (splitTaskService as unknown as {
+          deleteTasksFromProjections: (db: Database.Database, ids: string[]) => void;
+        }).deleteTasksFromProjections = originalDeleteProjections;
+
+        const eventsAfterCrash = eventsDb
+          .prepare('SELECT COUNT(*) as cnt FROM events WHERE task_id = ?')
+          .get(task.task_id) as { cnt: number };
+        expect(eventsAfterCrash.cnt).toBe(0);
+        expect(
+          cacheDb.prepare('SELECT 1 FROM tasks_current WHERE task_id = ?').get(task.task_id)
+        ).toBeDefined();
+        expect(fs.existsSync(journalPath)).toBe(true);
+
+        // Constructor-time recovery should finish projection cleanup.
+        new TaskService(cacheDb, splitEventStore, splitProjectionEngine, splitProjectService, eventsDb);
+
+        expect(
+          cacheDb.prepare('SELECT 1 FROM tasks_current WHERE task_id = ?').get(task.task_id)
+        ).toBeUndefined();
+        expect(fs.existsSync(journalPath)).toBe(false);
+      } finally {
+        cacheDb.close();
+        eventsDb.close();
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      }
     });
   });
 

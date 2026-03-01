@@ -1,5 +1,7 @@
 // packages/hzl-core/src/services/task-service.ts
 import type Database from 'libsql';
+import fs from 'node:fs';
+import path from 'node:path';
 import { EventStore } from '../events/store.js';
 import {
   EventType,
@@ -47,6 +49,7 @@ export interface HookOnDoneConfig {
 
 export interface TaskServiceOptions {
   onDone?: HookOnDoneConfig;
+  pruneJournalPath?: string;
 }
 
 export interface ClaimTaskOptions extends EventContext {
@@ -276,12 +279,16 @@ function validateProgress(progress: number): void {
 }
 
 export class TaskService {
+  private static readonly PRUNE_JOURNAL_FILENAME = 'prune-journal.json';
+  private static readonly ATTACHED_EVENTS_SCHEMA = 'events_src';
+
   private getIncompleteDepsStmt: Database.Statement;
   private getSubtasksStmt: Database.Statement;
   private getTaskByIdStmt: Database.Statement;
   private resolveTaskIdStmt: Database.Statement;
   private hookOutboxAvailable: boolean | null = null;
   private onDoneHook?: HookOnDoneConfig;
+  private pruneJournalPath: string | null;
 
   constructor(
     private db: Database.Database, // cache database
@@ -292,6 +299,7 @@ export class TaskService {
     options?: TaskServiceOptions
   ) {
     this.onDoneHook = options?.onDone;
+    this.pruneJournalPath = this.resolvePruneJournalPath(options?.pruneJournalPath);
     this.getIncompleteDepsStmt = db.prepare(`
       SELECT td.depends_on_id
       FROM task_dependencies td
@@ -322,6 +330,8 @@ export class TaskService {
     this.resolveTaskIdStmt = db.prepare(`
       SELECT task_id, title FROM tasks_current WHERE task_id LIKE ? || '%' ESCAPE '\\'
     `);
+
+    this.recoverPruneJournalIfNeeded();
   }
 
   private emitComment(taskId: string, text: string, ctx?: EventContext): void {
@@ -1720,43 +1730,103 @@ export class TaskService {
    * Recomputes eligibility inside the prune transaction to avoid TOCTOU.
    */
   pruneEligible(opts: PruneOptions): PruneResult {
+    // Single DB mode (combined events+cache database) retains existing behavior.
+    if (!this.eventsDb || this.eventsDb === this.db) {
+      return withWriteTransaction(this.db, () => this.pruneEligibleWithinTransaction(opts, this.db, 'main'));
+    }
+
+    const eventsDbPath = this.getDatabasePath(this.eventsDb);
+    if (!eventsDbPath) {
+      return this.pruneEligibleWithJournalFallback(opts);
+    }
+
+    this.db.prepare(`ATTACH DATABASE ? AS ${TaskService.ATTACHED_EVENTS_SCHEMA}`).run(eventsDbPath);
+    try {
+      return withWriteTransaction(this.db, () =>
+        this.pruneEligibleWithinTransaction(opts, this.db, TaskService.ATTACHED_EVENTS_SCHEMA)
+      );
+    } finally {
+      this.db.exec(`DETACH DATABASE ${TaskService.ATTACHED_EVENTS_SCHEMA}`);
+    }
+  }
+
+  private pruneEligibleWithinTransaction(
+    opts: PruneOptions,
+    txDb: Database.Database,
+    eventsSchema: string
+  ): PruneResult {
+    // Recompute inside transaction to avoid TOCTOU races.
+    const eligibleTasks = this.previewPrunableTasks(opts);
+    if (eligibleTasks.length === 0) {
+      return {
+        pruned: [],
+        count: 0,
+        eventsDeleted: 0,
+      };
+    }
+
+    const taskIds = eligibleTasks.map(t => t.task_id);
+
+    // Delete events first (source of truth), then projections.
+    const eventsDeleted = this.deleteTasksFromEvents(txDb, taskIds, eventsSchema);
+    this.deleteTasksFromProjections(txDb, taskIds);
+
+    return {
+      pruned: eligibleTasks,
+      count: eligibleTasks.length,
+      eventsDeleted,
+    };
+  }
+
+  private pruneEligibleWithJournalFallback(opts: PruneOptions): PruneResult {
     if (!this.eventsDb) {
       throw new Error('TaskService: eventsDb not provided, cannot prune tasks');
     }
+    if (!this.pruneJournalPath) {
+      throw new Error('TaskService: prune journal path unavailable for cross-db fallback');
+    }
 
-    return withWriteTransaction(this.eventsDb, () => {
-      // First, get eligible tasks (recompute to avoid TOCTOU race)
-      const eligibleTasks = this.previewPrunableTasks(opts);
-
-      if (eligibleTasks.length === 0) {
-        return {
-          pruned: [],
-          count: 0,
-          eventsDeleted: 0,
-        };
-      }
-
-      const taskIds = eligibleTasks.map(t => t.task_id);
-
-      // Delete events first (source of truth) - requires trigger bypass
-      // This ordering is intentional: if projection deletion fails after events
-      // are deleted, the projections can be rebuilt from remaining events.
-      // The reverse (projections deleted, events remaining) would leave orphan
-      // events that recreate projections on rebuild.
-      const eventsDeleted = this.deleteTasksFromEvents(taskIds);
-
-      // Delete from projections (cache.db) - derived state, recoverable
-      this.deleteTasksFromProjections(taskIds);
-
+    const eligibleTasks = this.previewPrunableTasks(opts);
+    if (eligibleTasks.length === 0) {
       return {
-        pruned: eligibleTasks,
-        count: eligibleTasks.length,
-        eventsDeleted,
+        pruned: [],
+        count: 0,
+        eventsDeleted: 0,
       };
-    });
+    }
+
+    const taskIds = eligibleTasks.map(t => t.task_id);
+    this.writePruneJournal(taskIds);
+
+    let eventsDeleted = 0;
+    try {
+      eventsDeleted = withWriteTransaction(this.eventsDb, () =>
+        this.deleteTasksFromEvents(this.eventsDb!, taskIds, 'main')
+      );
+    } catch (err) {
+      // Events prune did not complete; do not keep stale recovery journal.
+      this.deletePruneJournal();
+      throw err;
+    }
+
+    try {
+      withWriteTransaction(this.db, () => {
+        this.deleteTasksFromProjections(this.db, taskIds);
+      });
+      this.deletePruneJournal();
+    } catch (err) {
+      // Keep journal for constructor-time recovery on next startup.
+      throw err;
+    }
+
+    return {
+      pruned: eligibleTasks,
+      count: eligibleTasks.length,
+      eventsDeleted,
+    };
   }
 
-  private deleteTasksFromProjections(taskIds: string[]): void {
+  private deleteTasksFromProjections(db: Database.Database, taskIds: string[]): void {
     // Delete from all projection tables in order
     const tables = [
       'task_comments',
@@ -1768,10 +1838,11 @@ export class TaskService {
     ];
 
     // Create temp table once to avoid SQLite parameter limits
-    this.db.exec('CREATE TEMP TABLE IF NOT EXISTS prune_targets (task_id TEXT PRIMARY KEY)');
-    this.db.exec('DELETE FROM prune_targets'); // Clear any previous data
+    const tempTable = 'prune_targets_projection';
+    db.exec(`CREATE TEMP TABLE IF NOT EXISTS ${tempTable} (task_id TEXT PRIMARY KEY)`);
+    db.exec(`DELETE FROM ${tempTable}`); // Clear any previous data
 
-    const insert = this.db.prepare('INSERT INTO prune_targets (task_id) VALUES (?)');
+    const insert = db.prepare(`INSERT INTO ${tempTable} (task_id) VALUES (?)`);
     for (const id of taskIds) {
       insert.run(id);
     }
@@ -1780,74 +1851,192 @@ export class TaskService {
     for (const table of tables) {
       if (table === 'task_dependencies') {
         // Delete both directions
-        this.db.exec(
-          'DELETE FROM task_dependencies WHERE task_id IN (SELECT task_id FROM prune_targets) OR depends_on_id IN (SELECT task_id FROM prune_targets)'
+        db.exec(
+          `DELETE FROM task_dependencies WHERE task_id IN (SELECT task_id FROM ${tempTable}) OR depends_on_id IN (SELECT task_id FROM ${tempTable})`
         );
       } else if (table === 'task_search') {
         // FTS table uses different syntax
-        this.db.exec(
-          'DELETE FROM task_search WHERE task_id IN (SELECT task_id FROM prune_targets)'
+        db.exec(
+          `DELETE FROM task_search WHERE task_id IN (SELECT task_id FROM ${tempTable})`
         );
       } else {
-        this.db.exec(
-          `DELETE FROM ${table} WHERE task_id IN (SELECT task_id FROM prune_targets)`
+        db.exec(
+          `DELETE FROM ${table} WHERE task_id IN (SELECT task_id FROM ${tempTable})`
         );
       }
     }
 
-    this.db.exec('DROP TABLE prune_targets');
+    db.exec(`DROP TABLE IF EXISTS ${tempTable}`);
   }
 
-  private deleteTasksFromEvents(taskIds: string[]): number {
-    const eventsDb = this.eventsDb!; // Non-null assertion safe: checked in pruneEligible
+  private deleteTasksFromEvents(
+    db: Database.Database,
+    taskIds: string[],
+    eventsSchema: string
+  ): number {
+    const triggerPrefix = eventsSchema === 'main' ? '' : `${eventsSchema}.`;
+    const eventsTable = eventsSchema === 'main' ? 'events' : `${eventsSchema}.events`;
+    const tempTable = 'prune_targets_events';
 
     // Disable triggers
-    eventsDb.exec('DROP TRIGGER IF EXISTS events_no_delete');
-    eventsDb.exec('DROP TRIGGER IF EXISTS events_no_update');
+    db.exec(`DROP TRIGGER IF EXISTS ${triggerPrefix}events_no_delete`);
+    db.exec(`DROP TRIGGER IF EXISTS ${triggerPrefix}events_no_update`);
 
     try {
       // Create temp table to avoid SQLite parameter limits on large prune sets
-      eventsDb.exec('CREATE TEMP TABLE prune_targets (task_id TEXT PRIMARY KEY)');
-      const insert = eventsDb.prepare('INSERT INTO prune_targets (task_id) VALUES (?)');
+      db.exec(`CREATE TEMP TABLE IF NOT EXISTS ${tempTable} (task_id TEXT PRIMARY KEY)`);
+      db.exec(`DELETE FROM ${tempTable}`);
+      const insert = db.prepare(`INSERT INTO ${tempTable} (task_id) VALUES (?)`);
       for (const id of taskIds) {
         insert.run(id);
       }
 
-      const result = eventsDb
-        .prepare('DELETE FROM events WHERE task_id IN (SELECT task_id FROM prune_targets)')
+      const result = db
+        .prepare(`DELETE FROM ${eventsTable} WHERE task_id IN (SELECT task_id FROM ${tempTable})`)
         .run();
-      eventsDb.exec('DROP TABLE prune_targets');
 
       // Re-enable triggers
-      this.recreateEventTriggers();
+      this.recreateEventTriggers(db, eventsSchema);
+      db.exec(`DROP TABLE IF EXISTS ${tempTable}`);
 
       return result.changes;
     } catch (err) {
       // Re-enable triggers even on error
-      this.recreateEventTriggers();
+      this.recreateEventTriggers(db, eventsSchema);
+      db.exec(`DROP TABLE IF EXISTS ${tempTable}`);
       throw err;
     }
   }
 
-  private recreateEventTriggers(): void {
-    const eventsDb = this.eventsDb!; // Non-null assertion safe: checked in pruneEligible
+  private recreateEventTriggers(db: Database.Database, eventsSchema: string): void {
+    // In SQLite, `CREATE TRIGGER schema.name BEFORE UPDATE ON table` resolves
+    // `table` within the schema specified by the trigger name prefix.
+    // So `events_src.events_no_update BEFORE UPDATE ON events` correctly targets
+    // the `events` table inside the attached `events_src` database.
+    // Note: the table name in the ON clause MUST be unqualified — SQLite does not
+    // allow schema-qualified table names there (it would be a syntax error).
+    const triggerPrefix = eventsSchema === 'main' ? '' : `${eventsSchema}.`;
 
     const EVENTS_TRIGGERS_SQL = `
       -- Append-only enforcement: prevent UPDATE on events
-      CREATE TRIGGER IF NOT EXISTS events_no_update
+      CREATE TRIGGER IF NOT EXISTS ${triggerPrefix}events_no_update
       BEFORE UPDATE ON events
       BEGIN
           SELECT RAISE(ABORT, 'Events table is append-only: cannot UPDATE');
       END;
 
       -- Append-only enforcement: prevent DELETE on events
-      CREATE TRIGGER IF NOT EXISTS events_no_delete
+      CREATE TRIGGER IF NOT EXISTS ${triggerPrefix}events_no_delete
       BEFORE DELETE ON events
       BEGIN
           SELECT RAISE(ABORT, 'Events table is append-only: cannot DELETE');
       END;
     `;
-    eventsDb.exec(EVENTS_TRIGGERS_SQL);
+    db.exec(EVENTS_TRIGGERS_SQL);
+  }
+
+  private getDatabasePath(db: Database.Database): string | null {
+    const rows = db.prepare('PRAGMA database_list').all() as Array<{
+      name: string;
+      file: string;
+    }>;
+    const mainRow = rows.find(row => row.name === 'main');
+    const filePath = mainRow?.file;
+    if (!filePath || filePath === ':memory:') {
+      return null;
+    }
+    return filePath;
+  }
+
+  private resolvePruneJournalPath(explicitPath?: string): string | null {
+    if (explicitPath) {
+      return explicitPath;
+    }
+    const cachePath = this.getDatabasePath(this.db);
+    if (cachePath) {
+      return path.join(path.dirname(cachePath), TaskService.PRUNE_JOURNAL_FILENAME);
+    }
+    if (this.eventsDb) {
+      const eventsPath = this.getDatabasePath(this.eventsDb);
+      if (eventsPath) {
+        return path.join(path.dirname(eventsPath), TaskService.PRUNE_JOURNAL_FILENAME);
+      }
+    }
+    return null;
+  }
+
+  private writePruneJournal(taskIds: string[]): void {
+    if (!this.pruneJournalPath) {
+      throw new Error('TaskService: prune journal path unavailable');
+    }
+    fs.mkdirSync(path.dirname(this.pruneJournalPath), { recursive: true });
+    fs.writeFileSync(
+      this.pruneJournalPath,
+      JSON.stringify(
+        {
+          taskIds,
+          createdAt: new Date().toISOString(),
+        },
+        null,
+        2
+      ),
+      'utf8'
+    );
+  }
+
+  private deletePruneJournal(): void {
+    if (!this.pruneJournalPath) {
+      return;
+    }
+    if (fs.existsSync(this.pruneJournalPath)) {
+      fs.unlinkSync(this.pruneJournalPath);
+    }
+  }
+
+  private readPruneJournalTaskIds(): string[] | null {
+    if (!this.pruneJournalPath || !fs.existsSync(this.pruneJournalPath)) {
+      return null;
+    }
+    const raw = fs.readFileSync(this.pruneJournalPath, 'utf8');
+    const parsed = JSON.parse(raw) as { taskIds?: unknown };
+    if (!Array.isArray(parsed.taskIds)) {
+      throw new Error('Invalid prune journal payload');
+    }
+    const taskIds = parsed.taskIds.filter((value): value is string => typeof value === 'string');
+    if (taskIds.length === 0) {
+      throw new Error('Invalid prune journal payload');
+    }
+    return taskIds;
+  }
+
+  private recoverPruneJournalIfNeeded(): void {
+    if (!this.pruneJournalPath) {
+      return;
+    }
+
+    let taskIds: string[] | null = null;
+    try {
+      taskIds = this.readPruneJournalTaskIds();
+    } catch {
+      // Invalid journal payload should not block startup.
+      this.deletePruneJournal();
+      return;
+    }
+
+    if (!taskIds || taskIds.length === 0) {
+      this.deletePruneJournal();
+      return;
+    }
+
+    try {
+      const recoveryTaskIds = taskIds;
+      withWriteTransaction(this.db, () => {
+        this.deleteTasksFromProjections(this.db, recoveryTaskIds);
+      });
+      this.deletePruneJournal();
+    } catch {
+      // Keep the journal for next startup retry.
+    }
   }
 
   private rowToTask(row: TaskRow): Task {
