@@ -240,46 +240,12 @@ hzl task progress <id> 75          # Set progress without a checkpoint
 
 HZL sends targeted notifications for high-value transitions — currently only `on_done`. Other lifecycle events (stuck detection, blocking, progress) require polling. This is deliberate: hooks signal when something meaningful happens, agents and orchestrators poll for everything else.
 
-### Setup
+Hooks are configured during installation (see docs-site for setup). As an agent, here's what you need to know operationally:
 
-1. Edit your HZL config file (create if missing):
-
-   - Production: `~/.config/hzl/config.json` (or `$XDG_CONFIG_HOME/hzl/config.json`)
-   - Dev mode: `.config/hzl/config.json` (in repo root)
-
-   ```json
-   {
-     "hooks": {
-       "on_done": {
-         "url": "<OPENCLAW_GATEWAY_URL>/events/inject",
-         "headers": {
-           "Authorization": "Bearer <YOUR_GATEWAY_TOKEN>"
-         }
-       }
-     }
-   }
-   ```
-
-2. Schedule `hzl hook drain` to run every 2–5 minutes. HZL uses a host-process model — no built-in daemon. Without a scheduler, callbacks queue but never fire.
-
-   ```bash
-   # OpenClaw: use your runtime's cron tool
-   # System cron example:
-   */2 * * * * hzl hook drain
-   ```
-
-3. Verify the setup:
-
-   ```bash
-   hzl task add "Hook test" -P <project> -s ready
-   hzl task claim <id> --agent <agent-id>
-   hzl task complete <id>
-   hzl hook drain --json              # Should show delivered: 1
-   ```
-
-### How it works
-
-Payloads include `agent`, `project`, and full event context. Per-agent routing and filtering is the gateway's responsibility, not HZL's — the same notification goes to the configured URL regardless of which agent completed the task.
+- **Only `on_done` fires.** When you `task complete`, HZL queues a webhook. For stuck detection, blocking changes, or progress — poll with `hzl task stuck` or `hzl task list`.
+- **Delivery is not instant.** `hzl hook drain` runs on a cron schedule (typically every 2–5 minutes). Your completion is recorded immediately, but the notification reaches the gateway on the next drain cycle.
+- **Payloads include context.** Each notification carries `agent`, `project`, and full event details. The gateway handles per-agent routing — HZL sends the same payload to one URL regardless of which agent completed the task.
+- **If hooks seem broken**, check `hzl hook drain --json` for delivery failures and `last_error` details.
 
 ---
 
