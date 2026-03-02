@@ -32,6 +32,12 @@ export default defineConfig({
       },
     ],
     ['meta', { name: 'twitter:image', content: 'https://hzl-tasks.com/og-hzl-tasks.png' }],
+    ['script', { async: '', src: 'https://www.googletagmanager.com/gtag/js?id=G-P592XJGT1D' }],
+    [
+      'script',
+      {},
+      "window.dataLayer = window.dataLayer || [];\nfunction gtag(){dataLayer.push(arguments);}\ngtag('js', new Date());\ngtag('config', 'G-P592XJGT1D');",
+    ],
   ],
   cleanUrls: true,
   lastUpdated: true,
