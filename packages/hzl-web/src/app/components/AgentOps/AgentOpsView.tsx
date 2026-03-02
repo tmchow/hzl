@@ -3,7 +3,6 @@ import { useAgents } from '../../hooks/useAgents';
 import { useAgentEvents } from '../../hooks/useAgentEvents';
 import AgentRoster from './AgentRoster';
 import AgentDetail from './AgentDetail';
-import FleetSummary from './FleetSummary';
 import './AgentOps.css';
 
 interface AgentOpsViewProps {
@@ -12,6 +11,8 @@ interface AgentOpsViewProps {
   since: string;
   project: string;
   refreshKey: number;
+  onAgentCounts?: (active: number, idle: number) => void;
+  onTaskClick?: (taskId: string) => void;
 }
 
 export default function AgentOpsView({
@@ -20,6 +21,8 @@ export default function AgentOpsView({
   since,
   project,
   refreshKey,
+  onAgentCounts,
+  onTaskClick,
 }: AgentOpsViewProps) {
   // Data fetching — only runs when this component is mounted (agents view active)
   const { agents, loading: agentsLoading, error: agentsError, refresh: refreshAgents } = useAgents({
@@ -49,6 +52,13 @@ export default function AgentOpsView({
     return () => clearInterval(id);
   }, []);
 
+  // Report agent counts to parent for top-bar display
+  useEffect(() => {
+    if (!onAgentCounts) return;
+    const active = agents.filter((a) => a.isActive).length;
+    onAgentCounts(active, agents.length - active);
+  }, [agents, onAgentCounts]);
+
   const selectedAgentData = useMemo(() => {
     if (!selectedAgent) return null;
     return agents.find((a) => a.agent === selectedAgent) ?? null;
@@ -56,11 +66,6 @@ export default function AgentOpsView({
 
   return (
     <div className="agent-ops">
-      {/* Fleet summary bar — spans full width above both panels */}
-      <div className="agent-ops-fleet-summary">
-        <FleetSummary agents={agents} />
-      </div>
-
       <div className="agent-ops-panels">
         {/* Left panel — agent roster */}
         <div className="agent-ops-roster">
@@ -90,6 +95,7 @@ export default function AgentOpsView({
             total={agentEventsTotal}
             onLoadMore={loadMoreAgentEvents}
             loading={agentEventsLoading}
+            onTaskClick={onTaskClick}
           />
         </div>
       </div>

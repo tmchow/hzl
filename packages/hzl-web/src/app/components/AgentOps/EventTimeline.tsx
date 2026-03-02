@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import type { AgentEvent } from '../../api/types';
 import { formatTime } from '../../utils/format';
 
@@ -7,6 +6,7 @@ interface EventTimelineProps {
   total: number;
   onLoadMore: () => void;
   loading: boolean;
+  onTaskClick?: (taskId: string) => void;
 }
 
 const KNOWN_STATUSES = new Set(['backlog', 'ready', 'in-progress', 'done', 'archived']);
@@ -120,23 +120,13 @@ function getBadgeClass(type: string, data: Record<string, unknown>): string {
   return getConfig(type).badgeClass;
 }
 
-function isExpandable(type: string, data: Record<string, unknown>): boolean {
-  if (type === 'task_created') return true;
-  if (type === 'status_changed') {
-    const to = typeof data.to === 'string' ? data.to : '';
-    return to === 'in_progress';
-  }
-  return false;
-}
-
 export default function EventTimeline({
   events,
   total,
   onLoadMore,
   loading,
+  onTaskClick,
 }: EventTimelineProps) {
-  const [expandedEvents, setExpandedEvents] = useState<Set<number>>(new Set());
-
   if (events === null) {
     return (
       <div className="event-timeline-empty">
@@ -153,18 +143,6 @@ export default function EventTimeline({
     );
   }
 
-  const toggleExpand = (eventId: number) => {
-    setExpandedEvents((prev) => {
-      const next = new Set(prev);
-      if (next.has(eventId)) {
-        next.delete(eventId);
-      } else {
-        next.add(eventId);
-      }
-      return next;
-    });
-  };
-
   const remaining = total - events.length;
 
   return (
@@ -172,14 +150,12 @@ export default function EventTimeline({
       <div className="event-timeline-list">
         {events.map((event) => {
           const config = getConfig(event.type);
-          const expandable = isExpandable(event.type, event.data);
-          const expanded = expandedEvents.has(event.id);
 
           return (
             <div
               key={event.id}
-              className={`event-timeline-row${expandable ? ' expandable' : ''}${expanded ? ' expanded' : ''}`}
-              onClick={expandable ? () => toggleExpand(event.id) : undefined}
+              className="event-timeline-row clickable"
+              onClick={() => onTaskClick?.(event.taskId)}
             >
               <div className="event-timeline-row-main">
                 <span className="event-timeline-time">
@@ -195,24 +171,6 @@ export default function EventTimeline({
                   {event.taskTitle}
                 </span>
               </div>
-              {expanded && (
-                <div className="event-timeline-expanded">
-                  <div className="event-timeline-expanded-row">
-                    <span className="event-timeline-expanded-label">Task</span>
-                    <span className="event-timeline-expanded-value">{event.taskTitle}</span>
-                  </div>
-                  <div className="event-timeline-expanded-row">
-                    <span className="event-timeline-expanded-label">Status</span>
-                    <span className="event-timeline-expanded-value">{event.taskStatus}</span>
-                  </div>
-                  <div className="event-timeline-expanded-row">
-                    <span className="event-timeline-expanded-label">Task ID</span>
-                    <span className="event-timeline-expanded-value event-timeline-mono">
-                      {event.taskId.slice(0, 12)}
-                    </span>
-                  </div>
-                </div>
-              )}
             </div>
           );
         })}

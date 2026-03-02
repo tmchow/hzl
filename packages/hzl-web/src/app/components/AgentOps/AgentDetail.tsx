@@ -1,12 +1,5 @@
 import type { AgentRosterItem, AgentEvent } from '../../api/types';
-import { formatDuration } from '../../utils/format';
 import EventTimeline from './EventTimeline';
-
-function safeDateParse(value: string | null | undefined): number {
-  if (!value) return Date.now();
-  const ts = Date.parse(value);
-  return isNaN(ts) ? Date.now() : ts;
-}
 
 interface AgentDetailProps {
   agent: AgentRosterItem | null;
@@ -14,6 +7,7 @@ interface AgentDetailProps {
   total: number;
   onLoadMore: () => void;
   loading: boolean;
+  onTaskClick?: (taskId: string) => void;
 }
 
 export default function AgentDetail({
@@ -22,6 +16,7 @@ export default function AgentDetail({
   total,
   onLoadMore,
   loading,
+  onTaskClick,
 }: AgentDetailProps) {
   if (!agent) {
     return (
@@ -32,10 +27,7 @@ export default function AgentDetail({
     );
   }
 
-  const now = Date.now();
   const primaryTask = agent.tasks.length > 0 ? agent.tasks[0] : null;
-  const taskDurationMs = primaryTask ? now - safeDateParse(primaryTask.claimedAt) : null;
-  const progress = primaryTask?.progress ?? null;
   const tasksOwned = agent.tasks.length;
 
   return (
@@ -70,6 +62,7 @@ export default function AgentDetail({
           total={total}
           onLoadMore={onLoadMore}
           loading={loading}
+          onTaskClick={onTaskClick}
         />
       </div>
 
@@ -77,30 +70,14 @@ export default function AgentDetail({
       <div className="agent-detail-metrics">
         <div className="agent-detail-section-label">Metrics</div>
         <div className="agent-detail-metrics-grid">
-          {agent.isActive && taskDurationMs !== null && (
-            <div className="agent-detail-metric-card">
-              <span className="agent-detail-metric-label">Task duration</span>
-              <span className="agent-detail-metric-value">
-                {formatDuration(taskDurationMs, '<1m')}
-              </span>
-            </div>
-          )}
+          <div className="agent-detail-metric-card">
+            <span className="agent-detail-metric-label">Tasks owned</span>
+            <span className="agent-detail-metric-value">{tasksOwned}</span>
+          </div>
           <div className="agent-detail-metric-card">
             <span className="agent-detail-metric-label">Events</span>
             <span className="agent-detail-metric-value">{total}</span>
           </div>
-          {progress !== null && (
-            <div className="agent-detail-metric-card">
-              <span className="agent-detail-metric-label">Progress</span>
-              <span className="agent-detail-metric-value">{progress}%</span>
-            </div>
-          )}
-          {tasksOwned > 0 && (
-            <div className="agent-detail-metric-card">
-              <span className="agent-detail-metric-label">Tasks owned</span>
-              <span className="agent-detail-metric-value">{tasksOwned}</span>
-            </div>
-          )}
         </div>
       </div>
     </div>

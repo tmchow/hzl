@@ -5,16 +5,6 @@
   min-height: calc(100vh - 53px);
 }
 
-.agent-ops-fleet-summary {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 0.75rem 1rem;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg-secondary);
-  flex-shrink: 0;
-}
-
 .agent-ops-fleet-label {
   display: flex;
   align-items: center;
@@ -210,11 +200,11 @@
   border-bottom: 1px solid var(--border);
 }
 
-.event-timeline-row.expandable {
+.event-timeline-row.clickable {
   cursor: pointer;
 }
 
-.event-timeline-row.expandable:hover {
+.event-timeline-row.clickable:hover {
   background: var(--bg-secondary);
 }
 
@@ -280,36 +270,6 @@
   flex-shrink: 0;
 }
 
-.event-timeline-expanded {
-  margin-top: 8px;
-  padding: 8px 12px;
-  background: var(--bg-primary);
-  border-radius: 4px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.event-timeline-expanded-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 11px;
-}
-
-.event-timeline-expanded-label {
-  color: var(--text-muted);
-  width: 56px;
-  flex-shrink: 0;
-}
-
-.event-timeline-expanded-value {
-  color: var(--text-primary);
-}
-
-.event-timeline-mono {
-  font-family: var(--font-mono);
-}
 
 .event-timeline-load-more {
   width: 100%;
@@ -563,81 +523,8 @@
 .status-in-progress { color: var(--status-in-progress); }
 .status-done { color: var(--status-done); }
 
-/* Mobile Styles */
+/* Mobile: mobile tabs show, desktop hides */
 @media (max-width: 768px) {
-  .header {
-    flex-wrap: wrap;
-    row-gap: 10px;
-    align-items: center;
-    align-content: flex-start;
-  }
-
-  .header-left {
-    order: 1;
-    flex: 0 0 auto;
-    min-height: 42px;
-  }
-
-  .header-right {
-    order: 2;
-    flex: 0 0 auto;
-    margin-left: auto;
-    min-height: 42px;
-    gap: 8px;
-  }
-
-  .header-filters {
-    order: 3;
-    flex: 0 0 100%;
-    width: 100%;
-    max-width: 100%;
-    min-width: 100%;
-    display: none;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 8px;
-    border-top: 1px solid var(--border);
-    padding-top: 8px;
-  }
-
-  .header-filters.open {
-    display: flex;
-  }
-
-  .filter-group {
-    width: 100%;
-    max-width: 100%;
-  }
-
-  .task-search-group { width: 100%; }
-
-  .task-search-input {
-    flex: 1;
-    width: 100%;
-  }
-
-  #dateFilter,
-  #projectFilter,
-  #assigneeFilter,
-  #tagFilter {
-    min-width: 0;
-    width: 100%;
-  }
-
-  .task-search-meta { display: none; }
-
-  .board { display: none; }
-
-  .graph-container { min-height: calc(100vh - 150px); }
-
-  .agent-ops-panels { flex-direction: column; }
-  .agent-ops-roster {
-    width: 100%;
-    border-right: none;
-    border-bottom: 1px solid var(--border);
-    max-height: 40vh;
-  }
-
   .mobile-tabs {
     display: flex;
     overflow-x: auto;
@@ -679,13 +566,6 @@
   .mobile-cards.active { display: flex; }
 
   .card-assignee { max-width: 110px; }
-
-  .activity-panel {
-    width: 100%;
-    right: -100%;
-  }
-
-  .hamburger { display: block; }
 }
 
 @media (min-width: 769px) {
