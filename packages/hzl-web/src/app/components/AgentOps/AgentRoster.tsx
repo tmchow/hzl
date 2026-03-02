@@ -1,3 +1,5 @@
+import { useState, useCallback, useRef, useEffect } from 'react';
+import type { KeyboardEvent } from 'react';
 import type { AgentRosterItem } from '../../api/types';
 
 interface AgentRosterProps {
@@ -26,6 +28,78 @@ export default function AgentRoster({
   selectedAgent,
   onSelectAgent,
 }: AgentRosterProps) {
+  const [focusedIndex, setFocusedIndex] = useState<number>(-1);
+  const rosterRef = useRef<HTMLDivElement>(null);
+  const rowRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  // Reset focused index when agents list changes
+  useEffect(() => {
+    rowRefs.current = rowRefs.current.slice(0, agents.length);
+  }, [agents.length]);
+
+  // Scroll the focused row into view
+  useEffect(() => {
+    if (focusedIndex >= 0 && focusedIndex < agents.length) {
+      rowRefs.current[focusedIndex]?.scrollIntoView({ block: 'nearest' });
+    }
+  }, [focusedIndex, agents.length]);
+
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent<HTMLDivElement>) => {
+      if (agents.length === 0) return;
+
+      switch (e.key) {
+        case 'ArrowDown': {
+          e.preventDefault();
+          setFocusedIndex((prev) =>
+            prev < 0 ? 0 : (prev + 1) % agents.length
+          );
+          break;
+        }
+        case 'ArrowUp': {
+          e.preventDefault();
+          setFocusedIndex((prev) =>
+            prev <= 0 ? agents.length - 1 : prev - 1
+          );
+          break;
+        }
+        case 'Home': {
+          e.preventDefault();
+          setFocusedIndex(0);
+          break;
+        }
+        case 'End': {
+          e.preventDefault();
+          setFocusedIndex(agents.length - 1);
+          break;
+        }
+        case 'Enter': {
+          e.preventDefault();
+          if (focusedIndex >= 0 && focusedIndex < agents.length) {
+            onSelectAgent(agents[focusedIndex].agent);
+          }
+          break;
+        }
+      }
+    },
+    [agents, focusedIndex, onSelectAgent]
+  );
+
+  // When the roster receives focus and no item is focused, focus the first item
+  const handleFocus = useCallback(() => {
+    if (focusedIndex < 0 && agents.length > 0) {
+      setFocusedIndex(0);
+    }
+  }, [focusedIndex, agents.length]);
+
+  // Clear focused index when roster loses focus
+  const handleBlur = useCallback((e: React.FocusEvent<HTMLDivElement>) => {
+    // Only clear if focus is moving outside the roster entirely
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setFocusedIndex(-1);
+    }
+  }, []);
+
   if (agents.length === 0) {
     return (
       <div className="agent-roster-empty">
@@ -35,16 +109,28 @@ export default function AgentRoster({
   }
 
   return (
-    <div className="agent-roster">
-      {agents.map((agent) => {
+    <div
+      className="agent-roster"
+      role="listbox"
+      aria-label="Agent roster"
+      tabIndex={0}
+      ref={rosterRef}
+      onKeyDown={handleKeyDown}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
+    >
+      {agents.map((agent, index) => {
         const isSelected = selectedAgent === agent.agent;
+        const isFocused = focusedIndex === index;
         const now = Date.now();
 
         return (
-          <button
+          <div
             key={agent.agent}
-            type="button"
-            className={`agent-roster-row${isSelected ? ' selected' : ''}`}
+            role="option"
+            aria-selected={isSelected}
+            ref={(el) => { rowRefs.current[index] = el; }}
+            className={`agent-roster-row${isSelected ? ' selected' : ''}${isFocused ? ' focused' : ''}`}
             onClick={() => onSelectAgent(agent.agent)}
           >
             <span
@@ -79,7 +165,7 @@ export default function AgentRoster({
                 ? formatDuration(now - Date.parse(agent.tasks[0].claimedAt))
                 : ''}
             </span>
-          </button>
+          </div>
         );
       })}
     </div>
