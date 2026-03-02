@@ -14,9 +14,6 @@ hero:
     - theme: brand
       text: Get Started
       link: /getting-started/
-    - theme: alt
-      text: Workflows
-      link: /workflows/
 
 features:
   - title: Shared Task State
