@@ -1229,11 +1229,13 @@ describe('hzl-web server', () => {
       const { status, data } = await fetchJson('/api/agents');
 
       expect(status).toBe(200);
-      const agents = (data as { agents: Array<{ agent: string; isActive: boolean; tasks: unknown[] }> }).agents;
+      const agents = (data as { agents: Array<{ agent: string; isActive: boolean; tasks: unknown[]; lastActivity: string }> }).agents;
       expect(agents).toHaveLength(1);
       expect(agents[0].agent).toBe('claude-beta');
       expect(agents[0].isActive).toBe(false);
       expect(agents[0].tasks).toHaveLength(0);
+      expect(typeof agents[0].lastActivity).toBe('string');
+      expect(new Date(agents[0].lastActivity).getTime()).not.toBeNaN();
     });
 
     it('filters agents by project', async () => {
@@ -1261,9 +1263,11 @@ describe('hzl-web server', () => {
       taskService.claimTask(task.task_id, { agent_id: 'agent-recent' });
 
       createServer(4634);
-      const { status } = await fetchJson('/api/agents?since=7d');
+      const { status, data } = await fetchJson('/api/agents?since=7d');
 
       expect(status).toBe(200);
+      const body = data as { agents: unknown[] };
+      expect(body.agents).toBeDefined();
     });
 
     it('returns 400 for invalid since parameter', async () => {
