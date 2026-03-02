@@ -22,19 +22,23 @@
   padding: 0;
 }
 
+html, body, #root {
+  height: 100%;
+}
+
 body {
   font-family: var(--font-mono);
   font-size: 13px;
   background: var(--bg-primary);
   color: var(--text-primary);
   line-height: 1.5;
-  min-height: 100vh;
+  overflow: hidden;
 }
 
 .app {
   display: flex;
   flex-direction: row;
-  min-height: 100vh;
+  height: 100%;
 }
 
 /* Main area — right of the rail */
@@ -43,7 +47,15 @@ body {
   flex-direction: column;
   flex: 1;
   min-width: 0;
-  min-height: 100vh;
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.main-area::-webkit-scrollbar {
+  display: none;
 }
 
 /* Top bar — replaces the old header */
@@ -199,7 +211,8 @@ select:focus {
   }
 
   .main-area {
-    padding-bottom: 56px;
+    flex: none;
+    height: calc(100% - 56px);
   }
 
   /* Top bar: single compact row */
@@ -227,6 +240,11 @@ select:focus {
     min-width: 0;
   }
 
+  .filter-popover {
+    right: auto;
+    left: 0;
+  }
+
   .task-search-input {
     width: 140px;
   }
@@ -235,7 +253,7 @@ select:focus {
 
   .settings-group { display: none; }
 
-  .graph-wrapper { min-height: calc(100vh - 150px); }
+  .graph-wrapper { min-height: 300px; }
 
   /* Agent ops: stack panels vertically */
   .agent-ops-panels { flex-direction: column; }
@@ -511,7 +529,22 @@ select:focus {
   gap: 12px;
   padding: 16px;
   overflow-x: auto;
-  min-height: calc(100vh - 50px);
+  flex: 1;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.board::-webkit-scrollbar {
+  height: 6px;
+}
+
+.board::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 999px;
+}
+
+.board::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .column {
@@ -522,7 +555,7 @@ select:focus {
   border-radius: 8px;
   display: flex;
   flex-direction: column;
-  max-height: calc(100vh - 80px);
+  max-height: 100%;
 }
 
 .column.hidden {
@@ -559,31 +592,20 @@ select:focus {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-.column-cards::-webkit-scrollbar {
-  width: 0;
-  height: 0;
-}
-
-.column-cards:hover {
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
 }
 
-.column-cards:hover::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+.column-cards::-webkit-scrollbar {
+  width: 6px;
 }
 
-.column-cards:hover::-webkit-scrollbar-thumb {
+.column-cards::-webkit-scrollbar-thumb {
   background: var(--border);
   border-radius: 999px;
 }
 
-.column-cards:hover::-webkit-scrollbar-track {
+.column-cards::-webkit-scrollbar-track {
   background: transparent;
 }
 
@@ -1408,6 +1430,7 @@ select:focus {
   position: relative;
   min-height: 400px;
   background: var(--bg-primary);
+  overflow: hidden;
 }
 
 .graph-container {

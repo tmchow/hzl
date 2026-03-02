@@ -39,12 +39,24 @@
   overflow-y: auto;
   border-right: 1px solid var(--border);
   background: var(--bg-primary);
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.agent-ops-roster::-webkit-scrollbar {
+  display: none;
 }
 
 .agent-ops-detail {
   flex: 1;
   overflow-y: auto;
   background: var(--bg-primary);
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.agent-ops-detail::-webkit-scrollbar {
+  display: none;
 }
 
 .agent-ops-placeholder {
@@ -528,9 +540,15 @@
   .mobile-tabs {
     display: flex;
     overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
     background: var(--bg-secondary);
     border-bottom: 1px solid var(--border);
     padding: 0 8px;
+  }
+
+  .mobile-tabs::-webkit-scrollbar {
+    display: none;
   }
 
   .mobile-tab {
@@ -572,5 +590,35 @@
   .mobile-tabs,
   .mobile-cards-container {
     display: none !important;
+  }
+}
+
+/* Mouse devices: show thin scrollbar on mobile-tabs only on hover */
+@media (max-width: 768px) and (hover: hover) {
+  .mobile-tabs {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+  }
+
+  .mobile-tabs:hover {
+    scrollbar-color: var(--border) transparent;
+  }
+
+  .mobile-tabs::-webkit-scrollbar {
+    display: block;
+    height: 4px;
+  }
+
+  .mobile-tabs::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: 999px;
+  }
+
+  .mobile-tabs:hover::-webkit-scrollbar-thumb {
+    background: var(--border);
+  }
+
+  .mobile-tabs::-webkit-scrollbar-track {
+    background: transparent;
   }
 }
