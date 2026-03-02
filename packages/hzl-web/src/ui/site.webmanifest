@@ -2,7 +2,7 @@
   "id": "/",
   "name": "HZL",
   "short_name": "HZL",
-  "description": "HZL task dashboard",
+  "description": "A durable shared task ledger for multi-agent systems",
   "start_url": "/",
   "scope": "/",
   "icons": [
@@ -37,13 +37,13 @@
       "sizes": "1280x720",
       "type": "image/png",
       "form_factor": "wide",
-      "label": "HZL task dashboard - desktop view"
+      "label": "HZL dashboard - desktop view"
     },
     {
       "src": "/screenshot-mobile.png",
       "sizes": "390x844",
       "type": "image/png",
-      "label": "HZL task dashboard - mobile view"
+      "label": "HZL dashboard - mobile view"
     }
   ],
   "theme_color": "#1a1a1a",
