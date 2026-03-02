@@ -1,0 +1,171 @@
+/* Nav Rail — Left sidebar */
+.nav-rail {
+  width: 140px;
+  min-width: 140px;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  z-index: 110;
+  transition: width 0.15s ease, min-width 0.15s ease;
+}
+
+.nav-rail.collapsed {
+  width: 48px;
+  min-width: 48px;
+}
+
+.nav-rail-top {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Logo — height matches the top-bar (8px padding + 42px controls + 8px padding) */
+.nav-rail-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 58px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.logo-full {
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--accent);
+  letter-spacing: 0.5px;
+}
+
+.logo-mark {
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--accent);
+}
+
+/* Nav items */
+.nav-rail-items {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 6px;
+}
+
+.nav-rail-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: none;
+  border-left: 2px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  border-radius: 0;
+  cursor: pointer;
+  transition: color 0.12s ease, border-color 0.12s ease;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.nav-rail.collapsed .nav-rail-item {
+  justify-content: center;
+  padding: 10px;
+}
+
+.nav-rail-item:hover {
+  color: var(--text-primary);
+}
+
+.nav-rail-item.active {
+  color: var(--text-primary);
+  font-weight: 600;
+  border-left-color: var(--accent);
+}
+
+.nav-rail-icon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.nav-rail-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Collapse toggle */
+.nav-rail-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  border: none;
+  border-top: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color 0.12s ease;
+}
+
+.nav-rail-toggle:hover {
+  color: var(--text-primary);
+}
+
+/* Mobile bottom tab bar — hidden on desktop */
+.nav-bottom-bar {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 56px;
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border);
+  z-index: 110;
+}
+
+.nav-bottom-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  cursor: pointer;
+  padding: 6px 0;
+}
+
+.nav-bottom-item.active {
+  color: var(--accent);
+}
+
+.nav-bottom-icon {
+  display: flex;
+  align-items: center;
+}
+
+.nav-bottom-label {
+  line-height: 1;
+}
+
+@media (max-width: 768px) {
+  .nav-rail {
+    display: none;
+  }
+
+  .nav-bottom-bar {
+    display: flex;
+  }
+}

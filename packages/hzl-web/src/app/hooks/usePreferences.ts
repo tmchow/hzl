@@ -13,6 +13,7 @@ export interface DashboardPrefs {
   activeView: string;
   tagFilter: string;
   activeTab: string;
+  railCollapsed: boolean;
 }
 
 const DEFAULT_PREFS: DashboardPrefs = {
@@ -28,6 +29,7 @@ const DEFAULT_PREFS: DashboardPrefs = {
   activeView: 'kanban',
   tagFilter: '',
   activeTab: 'ready',
+  railCollapsed: false,
 };
 
 export function loadPreferences(): DashboardPrefs {
