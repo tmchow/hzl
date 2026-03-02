@@ -49,9 +49,15 @@ hzl project delete <name>
 ## Agent queries
 
 ```bash
-hzl agent stats
-hzl agent stats -P <project>
-hzl agent stats -P <project> -s <status>
+hzl agent status                          # All agents: who's active, what they're working on
+hzl agent status --agent <name>           # Single agent status
+hzl agent status --stats                  # Include per-agent task count breakdowns
+hzl agent status -P <project>             # Filter by project
+hzl agent status --format md              # Human-readable output
+
+hzl agent log <agent>                     # Activity history for an agent
+hzl agent log <agent> --limit 50          # More events
+hzl agent log <agent> --format md         # Human-readable output
 ```
 
 ## Tasks

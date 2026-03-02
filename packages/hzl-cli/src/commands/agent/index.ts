@@ -1,9 +1,10 @@
 import { Command } from 'commander';
-import { createAgentStatsCommand } from './stats.js';
+import { createAgentStatusCommand } from './status.js';
+import { createAgentLogCommand } from './log.js';
 
 export function createAgentCommand(): Command {
   const command = new Command('agent').description('Agent-oriented query commands');
-  command.addCommand(createAgentStatsCommand());
+  command.addCommand(createAgentStatusCommand());
+  command.addCommand(createAgentLogCommand());
   return command;
 }
-

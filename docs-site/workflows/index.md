@@ -75,4 +75,5 @@ Recommended cadence: every 1-5 minutes.
 - [Session Handoffs](./session-handoffs)
 - [Blocking & Unblocking](./blocking-unblocking)
 - [Human Oversight](./human-oversight)
+- [Agent Observability](./agent-observability)
 - [Project Organization](./project-organization)

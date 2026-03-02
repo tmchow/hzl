@@ -42,10 +42,45 @@
       "hasSubcommands": true
     },
     {
-      "path": "hzl agent stats",
-      "description": "Show counts-only workload summaries by agent",
+      "path": "hzl agent log",
+      "description": "Show activity history for an agent",
+      "arguments": [
+        {
+          "name": "agent",
+          "required": true,
+          "variadic": false,
+          "defaultValue": null
+        }
+      ],
+      "options": [
+        {
+          "flags": "-l, --limit <count>",
+          "short": "-l",
+          "long": "--limit",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Number of events to show (default: 50)"
+        }
+      ],
+      "hasSubcommands": false
+    },
+    {
+      "path": "hzl agent status",
+      "description": "Show active agents, current tasks, and lease state",
       "arguments": [],
       "options": [
+        {
+          "flags": "-a, --agent <name>",
+          "short": "-a",
+          "long": "--agent",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Show status for a single agent"
+        },
         {
           "flags": "-P, --project <project>",
           "short": "-P",
@@ -57,14 +92,14 @@
           "description": "Filter by project"
         },
         {
-          "flags": "-s, --status <status>",
+          "flags": "-s, --stats",
           "short": "-s",
-          "long": "--status",
-          "required": true,
+          "long": "--stats",
+          "required": false,
           "mandatory": false,
           "optional": false,
           "defaultValue": null,
-          "description": "Filter by status"
+          "description": "Include per-agent task count breakdowns"
         }
       ],
       "hasSubcommands": false
@@ -2248,7 +2283,8 @@
     }
   ],
   "leaf_commands": [
-    "hzl agent stats",
+    "hzl agent log",
+    "hzl agent status",
     "hzl config",
     "hzl dep list",
     "hzl doctor",
