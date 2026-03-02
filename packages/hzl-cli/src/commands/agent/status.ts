@@ -4,7 +4,6 @@ import { resolveDbPaths } from '../../config.js';
 import { initializeDb, closeDb, type Services } from '../../db.js';
 import { handleError } from '../../errors.js';
 import { GlobalOptionsSchema } from '../../types.js';
-import { createShortId } from '../../short-id.js';
 import { formatDuration, formatTimeAgo } from '../../format-duration.js';
 
 interface StatusCommandOptions {
@@ -37,9 +36,6 @@ export function runAgentStatus(options: {
 
     const { active, idle } = result.summary;
     console.log(`Agents (${active} active, ${idle} idle):\n`);
-
-    const taskIds = result.agents.flatMap(a => a.tasks.map(t => t.taskId));
-    const shortId = createShortId(taskIds);
 
     for (const entry of result.agents) {
       if (entry.isActive) {
