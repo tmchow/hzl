@@ -1479,6 +1479,28 @@ select:focus {
   font-size: 12px;
 }
 
+.agent-ops-fleet-label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.agent-ops-fleet-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.agent-ops-fleet-separator {
+  color: var(--text-secondary);
+  margin: 0 0.15rem;
+}
+
 .agent-ops-panels {
   display: flex;
   flex: 1;
@@ -1552,6 +1574,14 @@ select:focus {
 
 .agent-roster-row:hover {
   background: var(--bg-secondary);
+}
+
+.agent-roster:focus {
+  outline: none;
+}
+
+.agent-roster-row.focused {
+  box-shadow: inset 0 0 0 2px var(--accent);
 }
 
 .agent-roster-row.selected {

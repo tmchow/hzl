@@ -1,5 +1,9 @@
+import { useMemo } from 'react';
 import { useAgents } from '../../hooks/useAgents';
+import { useAgentEvents } from '../../hooks/useAgentEvents';
 import AgentRoster from './AgentRoster';
+import AgentDetail from './AgentDetail';
+import FleetSummary from './FleetSummary';
 import './AgentOps.css';
 
 interface AgentOpsViewProps {
@@ -20,11 +24,18 @@ export default function AgentOpsView({
     project: project || undefined,
   });
 
+  const { events, total, loading: eventsLoading, loadMore } = useAgentEvents(selectedAgent);
+
+  const selectedAgentData = useMemo(() => {
+    if (!selectedAgent) return null;
+    return agents.find((a) => a.agent === selectedAgent) ?? null;
+  }, [agents, selectedAgent]);
+
   return (
     <div className="agent-ops">
       {/* Fleet summary bar — spans full width above both panels */}
       <div className="agent-ops-fleet-summary">
-        <span className="agent-ops-fleet-placeholder">Fleet summary loading...</span>
+        <FleetSummary agents={agents} />
       </div>
 
       <div className="agent-ops-panels">
@@ -50,13 +61,13 @@ export default function AgentOpsView({
 
         {/* Right panel — agent detail */}
         <div className="agent-ops-detail">
-          <div className="agent-ops-placeholder">
-            {selectedAgent ? (
-              <>Agent detail: {selectedAgent}</>
-            ) : (
-              <>Select an agent to view details</>
-            )}
-          </div>
+          <AgentDetail
+            agent={selectedAgentData}
+            events={events}
+            total={total}
+            onLoadMore={loadMore}
+            loading={eventsLoading}
+          />
         </div>
       </div>
     </div>
