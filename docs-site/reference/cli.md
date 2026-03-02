@@ -128,6 +128,7 @@ hzl task reopen <taskId>
 
 hzl task stuck
 hzl task steal <taskId> --if-expired --agent <name>
+hzl task steal <taskId> --if-expired --agent <name> --lease <minutes>
 ```
 
 ### Notes/progress/history

@@ -40,6 +40,18 @@ describe('runStuck', () => {
     expect(result.tasks[0].task_id).toBe(task.task_id);
   });
 
+  it('includes claimed_at in output', () => {
+    const task = services.taskService.createTask({ title: 'Stuck task', project: 'inbox' });
+    services.taskService.setStatus(task.task_id, TaskStatus.Ready);
+    const pastLease = new Date(Date.now() - 60000).toISOString();
+    services.taskService.claimTask(task.task_id, { author: 'stalled-agent', lease_until: pastLease });
+
+    const result = runStuck({ services, json: false });
+    expect(result.tasks).toHaveLength(1);
+    expect(result.tasks[0].claimed_at).toBeTruthy();
+    expect(typeof result.tasks[0].claimed_at).toBe('string');
+  });
+
   it('filters by project', () => {
     services.projectService.createProject('project-a');
     services.projectService.createProject('project-b');

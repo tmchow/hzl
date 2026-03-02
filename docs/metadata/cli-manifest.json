@@ -1711,6 +1711,16 @@
           "optional": false,
           "defaultValue": null,
           "description": "Only steal if lease has expired"
+        },
+        {
+          "flags": "-l, --lease <minutes>",
+          "short": "-l",
+          "long": "--lease",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Set new lease duration in minutes"
         }
       ],
       "hasSubcommands": false
