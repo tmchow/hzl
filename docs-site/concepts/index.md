@@ -51,6 +51,7 @@ Dependencies can connect tasks across projects. Use `hzl dep list` filters for v
 - [Dependencies](./dependencies)
 - [Checkpoints](./checkpoints)
 - [Claiming & Leases](./claiming-leases)
+- [Lifecycle Hooks](./lifecycle-hooks)
 - [Cloud Sync](./cloud-sync)
 
 ## What HZL does not do
