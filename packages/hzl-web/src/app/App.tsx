@@ -16,6 +16,7 @@ import FilterBar from './components/Filters/FilterBar';
 import Board from './components/Board/Board';
 import CalendarView from './components/CalendarView/CalendarView';
 import GraphView from './components/GraphView/GraphView';
+import AgentOpsView from './components/AgentOps/AgentOpsView';
 import TaskModal from './components/TaskModal/TaskModal';
 import ActivityPanel from './components/ActivityPanel/ActivityPanel';
 import ConnectionStatus from './components/ConnectionStatus/ConnectionStatus';
@@ -448,7 +449,12 @@ export default function App() {
       )}
 
       {view === 'agents' && (
-        <div>Agent Ops placeholder</div>
+        <AgentOpsView
+          selectedAgent={selectedAgent}
+          onSelectAgent={setSelectedAgent}
+          project={project}
+          since={since}
+        />
       )}
 
       {selectedTaskId && (
