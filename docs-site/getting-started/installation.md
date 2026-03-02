@@ -52,6 +52,40 @@ hzl task list
 
 `hzl init` is non-interactive in normal use and creates required local data files. It only prompts when you run destructive reset flags (for example `--force` without `--yes`).
 
+### Optional: Run the web dashboard as a service
+
+HZL includes a web dashboard at `http://localhost:3456`. To run it persistently (survives reboots):
+
+**Linux (systemd):**
+
+```bash
+mkdir -p ~/.config/systemd/user
+hzl serve --print-systemd > ~/.config/systemd/user/hzl-web.service
+systemctl --user daemon-reload
+systemctl --user enable --now hzl-web
+loginctl enable-linger $USER
+```
+
+**macOS (background mode):**
+
+```bash
+hzl serve --background
+```
+
+Verify:
+
+```bash
+# Linux
+systemctl --user status hzl-web
+
+# macOS
+hzl serve --status
+```
+
+The server binds to `0.0.0.0` by default, making it accessible over the network (including Tailscale). Use `--host 127.0.0.1` to restrict to localhost only.
+
+For full dashboard documentation, see [Web Dashboard](../dashboard).
+
 ## Tier 2: OpenClaw integration (instance-specific)
 
 ## 1) Install the OpenClaw HZL skill
