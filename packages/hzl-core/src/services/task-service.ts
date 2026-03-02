@@ -1348,9 +1348,9 @@ export class TaskService {
     }
 
     if (opts?.sinceDays) {
-      const dateOffset = `-${opts.sinceDays} days`;
-      conditions.push("updated_at >= datetime('now', ?)");
-      params.push(dateOffset);
+      const cutoff = new Date(Date.now() - opts.sinceDays * 86_400_000).toISOString();
+      conditions.push('updated_at >= ?');
+      params.push(cutoff);
     }
 
     const agentSql = `
@@ -1362,7 +1362,7 @@ export class TaskService {
       GROUP BY agent
       ORDER BY is_active DESC,
                CASE WHEN MAX(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) = 1
-                    THEN MIN(CASE WHEN status = 'in_progress' THEN updated_at END)
+                    THEN MIN(CASE WHEN status = 'in_progress' THEN claimed_at END)
                     ELSE NULL END ASC,
                last_activity DESC
     `;
@@ -1389,13 +1389,19 @@ export class TaskService {
 
     if (activeAgents.length > 0) {
       const placeholders = activeAgents.map(() => '?').join(',');
+      const taskConditions = [`agent IN (${placeholders})`, "status = 'in_progress'"];
+      const taskParams: (string | number)[] = [...activeAgents];
+      if (opts?.project) {
+        taskConditions.push('project = ?');
+        taskParams.push(opts.project);
+      }
       const taskSql = `
-        SELECT agent, task_id, title, status, progress, updated_at as claimed_at
+        SELECT agent, task_id, title, status, progress, claimed_at
         FROM tasks_current
-        WHERE agent IN (${placeholders}) AND status = 'in_progress'
-        ORDER BY updated_at ASC
+        WHERE ${taskConditions.join(' AND ')}
+        ORDER BY claimed_at ASC
       `;
-      taskRows = this.db.prepare(taskSql).all(...activeAgents) as RosterTaskRow[];
+      taskRows = this.db.prepare(taskSql).all(...taskParams) as RosterTaskRow[];
     }
 
     // Join in JS: group tasks by agent
@@ -1451,14 +1457,17 @@ export class TaskService {
 
     const taskIds = taskRows.map(r => r.task_id);
 
-    // Build a Map for enrichment (step 4)
+    // Build a Map for enrichment
     const taskInfoMap = new Map<string, { title: string; status: string }>();
     for (const row of taskRows) {
       taskInfoMap.set(row.task_id, { title: row.title, status: row.status });
     }
 
-    // Step 2: Get events from events DB
-    const placeholders = taskIds.map(() => '?').join(',');
+    // SQLite has a 999 bind variable limit; truncate if exceeded (unlikely with 2-20 agents)
+    const boundTaskIds = taskIds.length > 900 ? taskIds.slice(0, 900) : taskIds;
+
+    // Step 2: Get events from events DB with window function for total count
+    const placeholders = boundTaskIds.map(() => '?').join(',');
     type EventRow = {
       id: number;
       event_id: string;
@@ -1468,24 +1477,22 @@ export class TaskService {
       author: string | null;
       agent_id: string | null;
       timestamp: string;
+      total_count: number;
     };
     const eventsSql = `
-      SELECT id, event_id, task_id, type, data, author, agent_id, timestamp
+      SELECT id, event_id, task_id, type, data, author, agent_id, timestamp,
+             COUNT(*) OVER() as total_count
       FROM events
       WHERE task_id IN (${placeholders})
       ORDER BY id DESC
       LIMIT ? OFFSET ?
     `;
-    const eventRows = this.eventsDb.prepare(eventsSql).all(...taskIds, limit, offset) as EventRow[];
+    const eventRows = this.eventsDb.prepare(eventsSql).all(...boundTaskIds, limit, offset) as EventRow[];
 
-    // Step 3: Get total count from events DB
-    const countSql = `
-      SELECT COUNT(*) as total FROM events
-      WHERE task_id IN (${placeholders})
-    `;
-    const countRow = this.eventsDb.prepare(countSql).get(...taskIds) as { total: number };
+    // Extract total from first row; if no rows, total is 0
+    const total = eventRows.length > 0 ? eventRows[0].total_count : 0;
 
-    // Step 4: Enrich events with task titles and statuses
+    // Step 3: Enrich events with task titles and statuses
     const events: AgentEvent[] = eventRows.map(row => {
       const taskInfo = taskInfoMap.get(row.task_id);
       return {
@@ -1502,7 +1509,7 @@ export class TaskService {
       };
     });
 
-    return { events, total: countRow.total };
+    return { events, total };
   }
 
   /**

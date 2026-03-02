@@ -3042,13 +3042,13 @@ describe('TaskService', () => {
 
       // Set distinct timestamps so sort order is deterministic
       // (SQLite second-level precision means claims within the same second get identical timestamps)
-      db.prepare("UPDATE tasks_current SET updated_at = '2026-01-01T10:00:00Z' WHERE agent = 'agent-old-active'").run();
-      db.prepare("UPDATE tasks_current SET updated_at = '2026-01-01T11:00:00Z' WHERE agent = 'agent-new-active'").run();
+      db.prepare("UPDATE tasks_current SET claimed_at = '2026-01-01T10:00:00Z' WHERE agent = 'agent-old-active'").run();
+      db.prepare("UPDATE tasks_current SET claimed_at = '2026-01-01T11:00:00Z' WHERE agent = 'agent-new-active'").run();
       db.prepare("UPDATE tasks_current SET updated_at = '2026-01-01T09:00:00Z' WHERE agent = 'agent-idle'").run();
 
       const roster = taskService.getAgentRoster();
       expect(roster).toHaveLength(3);
-      // Active agents first, sorted by oldest claimed_at (updated_at as proxy)
+      // Active agents first, sorted by oldest claimed_at
       expect(roster[0].agent).toBe('agent-old-active');
       expect(roster[0].isActive).toBe(true);
       expect(roster[1].agent).toBe('agent-new-active');
@@ -3092,6 +3092,40 @@ describe('TaskService', () => {
       const roster = taskService.getAgentRoster();
       expect(roster).toHaveLength(1);
       expect(roster[0].tasks[0].progress).toBe(75);
+    });
+
+    it('filters by sinceDays', () => {
+      const t1 = taskService.createTask({ title: 'Old task', project: 'project-a' });
+      taskService.setStatus(t1.task_id, TaskStatus.Ready);
+      taskService.claimTask(t1.task_id, { author: 'old-agent' });
+
+      const t2 = taskService.createTask({ title: 'Recent task', project: 'project-a' });
+      taskService.setStatus(t2.task_id, TaskStatus.Ready);
+      taskService.claimTask(t2.task_id, { author: 'recent-agent' });
+
+      // Backdate old agent's task to 10 days ago
+      db.prepare("UPDATE tasks_current SET updated_at = datetime('now', '-10 days') WHERE agent = ?").run('old-agent');
+
+      const roster = taskService.getAgentRoster({ sinceDays: 3 });
+      const agents = roster.map(r => r.agent);
+      expect(agents).toContain('recent-agent');
+      expect(agents).not.toContain('old-agent');
+    });
+
+    it('claimedAt is stable after progress update', () => {
+      const t = taskService.createTask({ title: 'Progress task', project: 'project-a' });
+      taskService.setStatus(t.task_id, TaskStatus.Ready);
+      taskService.claimTask(t.task_id, { author: 'progress-agent' });
+
+      const before = taskService.getAgentRoster();
+      const claimedAtBefore = before.find(r => r.agent === 'progress-agent')?.tasks[0]?.claimedAt;
+      expect(claimedAtBefore).toBeDefined();
+
+      taskService.setProgress(t.task_id, 50, { author: 'progress-agent' });
+
+      const after = taskService.getAgentRoster();
+      const claimedAtAfter = after.find(r => r.agent === 'progress-agent')?.tasks[0]?.claimedAt;
+      expect(claimedAtAfter).toBe(claimedAtBefore);
     });
   });
 
@@ -3300,10 +3334,20 @@ describe('TaskService', () => {
       expect(typeof event.taskStatus).toBe('string');
     });
 
-    it('defaults to limit 50 when not specified', () => {
+    it('returns empty result for nonexistent agent', () => {
       const result = splitTaskService.getAgentEvents('nonexistent');
       expect(result.events).toEqual([]);
       expect(result.total).toBe(0);
+    });
+
+    it('returns events when agent identity comes from agent_id', () => {
+      const t = splitTaskService.createTask({ title: 'Agent ID task', project: 'project-a' });
+      splitTaskService.setStatus(t.task_id, TaskStatus.Ready);
+      splitTaskService.claimTask(t.task_id, { agent_id: 'agent-via-id' });
+
+      const result = splitTaskService.getAgentEvents('agent-via-id');
+      expect(result.events.length).toBeGreaterThan(0);
+      expect(result.events[0].taskId).toBe(t.task_id);
     });
   });
 });
