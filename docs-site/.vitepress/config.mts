@@ -75,6 +75,7 @@ export default defineConfig({
           { text: 'Pruning', link: '/concepts/pruning' },
           { text: 'Checkpoints', link: '/concepts/checkpoints' },
           { text: 'Claiming & Leases', link: '/concepts/claiming-leases' },
+          { text: 'Lifecycle Hooks', link: '/concepts/lifecycle-hooks' },
           { text: 'Cloud Sync', link: '/concepts/cloud-sync' },
         ],
       },
@@ -84,6 +85,7 @@ export default defineConfig({
         items: [
           { text: 'Overview', link: '/reference/' },
           { text: 'CLI', link: '/reference/cli' },
+          { text: 'Hooks', link: '/reference/hooks' },
           { text: 'Architecture', link: '/reference/architecture' },
         ],
       },
@@ -92,6 +94,7 @@ export default defineConfig({
         collapsed: false,
         items: [
           { text: 'Troubleshooting', link: '/troubleshooting' },
+          { text: 'Uninstall', link: '/uninstall' },
           { text: 'Experimental Integrations', link: '/experimental-integrations' },
         ],
       },

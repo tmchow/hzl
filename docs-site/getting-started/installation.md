@@ -166,7 +166,7 @@ Apply changes via `config.patch`; do not hand-edit `openclaw.json`.
 
 ## 3) Choose project routing model
 
-Why: tasks routed to a project pool (instead of a specific agent) can be claimed by any agent monitoring that pool.
+Why: tasks routed to a project pool (instead of a specific agent) can be claimed by any agent monitoring that pool. See [Projects](/concepts/projects) for how project pools work.
 
 Note: HZL creates a protected `inbox` project automatically on first init. It cannot be deleted. Use it for unrouted tasks, or skip it and create named pools directly.
 
@@ -246,7 +246,7 @@ If option 2 is chosen:
 
 ## 4) Add session-start polling in each agent HEARTBEAT
 
-Why: this ensures each agent checks pending work at session start before doing anything else.
+Why: this ensures each agent checks pending work at session start before doing anything else. See [Claiming & Leases](/concepts/claiming-leases) for how atomic claiming and lease expiry work.
 
 Add the following block to each agent's HEARTBEAT.md, substituting that agent's identity and project pool. For multi-agent setups, repeat for every agent in the roster (skip any exec-denied agents handled via option 2 in step 3).
 
@@ -306,7 +306,7 @@ Decision key: `selected` is `null` when nothing to do; non-null when a task was 
 
 ## 5) Hook delivery (configure endpoint + schedule drain)
 
-Why: when a task completes, HZL queues a callback to your OpenClaw gateway; `hzl hook drain` delivers queued callbacks. Without a scheduler running drain, callbacks accumulate but never fire.
+Why: when a task completes, HZL queues a callback to your OpenClaw gateway; `hzl hook drain` delivers queued callbacks. Without a scheduler running drain, callbacks accumulate but never fire. See [Lifecycle Hooks](/concepts/lifecycle-hooks) for design rationale and [Hooks Reference](/reference/hooks) for payload format and delivery semantics.
 
 Hook config is global at launch (`hooks.on_done`).
 
@@ -571,6 +571,39 @@ chmod +x scripts/upgrade-hzl.sh
 
 If your runtime supports command aliases/intents, map `upgrade hzl` to this script.
 
+## Installation checklist
+
+Use this checklist to verify your setup is complete. Items marked **(required)** must pass. Items marked **(recommended)** are strongly encouraged but may be skipped with justification. Items marked **(optional)** depend on your deployment.
+
+If you deviate from any required or recommended step, document the reason in your integration notes (step 8) so future maintainers understand the decision.
+
+### Tier 1: CLI and infrastructure
+
+- [ ] `hzl --version` returns a version **(required)**
+- [ ] `hzl task list` runs without error **(required)**
+- [ ] Web dashboard accessible at `http://localhost:3456` **(optional)** — only if you set up the service
+
+### Tier 2: OpenClaw integration
+
+- [ ] OpenClaw HZL skill installed (`npx clawhub@latest install hzl`) **(required)**
+- [ ] Agent roster, gateway URL, and scheduler capability discovered and confirmed with operator **(required)**
+- [ ] Sandbox bind mounts configured for any sandboxed agents **(required if sandbox mode is enabled)**
+- [ ] At least one project pool created **(required)**
+- [ ] Exec-denied agents identified and resolved (option 1 or 2) **(required if any agents deny exec)**
+- [ ] HEARTBEAT Task Poll block added for each participating agent **(required)**
+- [ ] `hooks.on_done` configured in `config.json` with correct endpoint and token **(required)**
+- [ ] `hzl hook drain` runs without error (manual test before scheduling) **(required)**
+- [ ] Drain cron job scheduled (every 1–5 minutes) **(required)**
+- [ ] End-to-end verification passed: task add → workflow start → complete → drain **(required)**
+- [ ] Per-agent TOOLS.md HZL section added **(recommended)**
+- [ ] Shared HZL policy block added to TOOLS.md **(optional)**
+- [ ] Integration notes recorded (scheduler IDs, config changes, HEARTBEAT paths) **(recommended)**
+- [ ] Update preference configured (auto / notify / manual) **(recommended)**
+
+### Customization note
+
+These instructions cover the most common OpenClaw deployment pattern. Your environment may differ — for example, different scheduler tooling, non-standard agent configurations, or custom gateway setups. Deviations are fine as long as the core contract holds: agents poll at session start, hooks fire on completion, and drain runs on a schedule. When in doubt, verify with the end-to-end test in step 6.
+
 ## Ongoing maintenance (after initial setup)
 
 Use this section after you are already up and running.
@@ -654,19 +687,6 @@ hzl sync
 ```
 
 For full setup details, see [Cloud Sync](/concepts/cloud-sync).
-
-## Uninstall HZL (CLI footprint only)
-
-HZL uninstall is intentionally narrow:
-
-1. Remove the binary using your package manager.
-2. Optionally remove HZL data/config directories.
-
-Typical default locations:
-- Data: `$XDG_DATA_HOME/hzl` (or `~/.local/share/hzl`)
-- Config: `$XDG_CONFIG_HOME/hzl` (or `~/.config/hzl`)
-
-In repository dev mode, HZL uses local `.local/hzl` and `.config/hzl` paths.
 
 ## Next
 

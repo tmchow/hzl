@@ -49,6 +49,7 @@ Dependencies can connect tasks across projects. Use `hzl dep list` filters for v
 - [Tasks](./tasks)
 - [Subtasks](./subtasks)
 - [Dependencies](./dependencies)
+- [Pruning](./pruning)
 - [Checkpoints](./checkpoints)
 - [Claiming & Leases](./claiming-leases)
 - [Lifecycle Hooks](./lifecycle-hooks)
