@@ -66,6 +66,12 @@ systemctl --user enable --now hzl-web
 loginctl enable-linger $USER
 ```
 
+Note on `--print-systemd` output: The generated service binds to `0.0.0.0:3456` by default. If you're exposing the dashboard via `tailscale serve` (recommended), change this to `--host 127.0.0.1` so the port isn't directly reachable over the network without TLS:
+
+```
+ExecStart=/path/to/hzl serve --port 3456 --host 127.0.0.1 --allow-framing
+```
+
 **macOS (background mode):**
 
 ```bash
@@ -83,6 +89,20 @@ hzl serve --status
 ```
 
 The server binds to `0.0.0.0:3456` by default, making it accessible over the network (including Tailscale). Use `--port` to change the port and `--host 127.0.0.1` to restrict to localhost only.
+
+### Expose over HTTPS on your tailnet (optional, tailnet-only)
+
+If you use Tailscale, you can serve the dashboard over HTTPS within your tailnet without exposing it to the public internet. HTTPS also enables installing the dashboard as a PWA (progressive web app) for a native app experience.
+
+```bash
+tailscale serve --bg --https=3456 http://127.0.0.1:3456
+```
+
+Dashboard is then available at `https://<hostname>.<tailnet>.ts.net:3456`.
+
+Check for port conflicts first — `tailscale serve status` shows what's already mapped. Port 3456 matches the backend port and is a reasonable default, but pick any free port.
+
+`tailscale serve` = tailnet only. `tailscale funnel` = public internet. Use `serve`.
 
 For full dashboard documentation, see [Web Dashboard](../dashboard).
 
