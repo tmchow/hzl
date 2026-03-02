@@ -3094,4 +3094,216 @@ describe('TaskService', () => {
       expect(roster[0].tasks[0].progress).toBe(75);
     });
   });
+
+  describe('getAgentEvents', () => {
+    // These tests use a split-DB setup (separate events DB and cache DB)
+    // to mirror the production architecture where events.db and cache.db
+    // are separate SQLite files.
+    let splitEventsDb: Database.Database;
+    let splitCacheDb: Database.Database;
+    let splitEventStore: EventStore;
+    let splitProjectionEngine: ProjectionEngine;
+    let splitProjectService: ProjectService;
+    let splitTaskService: TaskService;
+
+    beforeEach(() => {
+      const dbs = createTestDatabases();
+      splitEventsDb = dbs.eventsDb;
+      splitCacheDb = dbs.cacheDb;
+      splitEventStore = new EventStore(splitEventsDb);
+      splitProjectionEngine = new ProjectionEngine(splitCacheDb, splitEventsDb);
+      registerProjectors(splitProjectionEngine);
+      splitProjectService = new ProjectService(splitCacheDb, splitEventStore, splitProjectionEngine);
+      splitProjectService.ensureInboxExists();
+      splitProjectService.createProject('project-a');
+      splitTaskService = new TaskService(splitCacheDb, splitEventStore, splitProjectionEngine, splitProjectService, splitEventsDb);
+    });
+
+    afterEach(() => {
+      splitEventsDb.close();
+      splitCacheDb.close();
+    });
+
+    it('returns empty events and total=0 for agent with no tasks', () => {
+      const result = splitTaskService.getAgentEvents('nonexistent-agent');
+
+      expect(result.events).toEqual([]);
+      expect(result.total).toBe(0);
+    });
+
+    it('returns events sorted by id descending, enriched with task titles', () => {
+      const task = splitTaskService.createTask({ title: 'Research API', project: 'inbox' });
+      splitTaskService.setStatus(task.task_id, TaskStatus.Ready);
+      splitTaskService.claimTask(task.task_id, { author: 'agent-alpha' });
+
+      const result = splitTaskService.getAgentEvents('agent-alpha');
+
+      expect(result.events.length).toBeGreaterThan(0);
+      expect(result.total).toBe(result.events.length);
+
+      // Events should be sorted by id descending (newest first)
+      for (let i = 1; i < result.events.length; i++) {
+        expect(result.events[i - 1].id).toBeGreaterThan(result.events[i].id);
+      }
+
+      // Every event should be enriched with the task title
+      for (const event of result.events) {
+        expect(event.taskTitle).toBe('Research API');
+        expect(event.taskId).toBe(task.task_id);
+      }
+    });
+
+    it('paginates with limit and offset', () => {
+      const task = splitTaskService.createTask({ title: 'Paginated task', project: 'inbox' });
+      splitTaskService.setStatus(task.task_id, TaskStatus.Ready);
+      splitTaskService.claimTask(task.task_id, { author: 'agent-page' });
+      splitTaskService.addComment(task.task_id, 'Comment 1');
+      splitTaskService.addComment(task.task_id, 'Comment 2');
+      splitTaskService.addComment(task.task_id, 'Comment 3');
+
+      // Get total count first
+      const all = splitTaskService.getAgentEvents('agent-page');
+      const totalEvents = all.total;
+      expect(totalEvents).toBeGreaterThanOrEqual(5); // created + status_changed + claimed + 3 comments
+
+      // First page: limit 2
+      const page1 = splitTaskService.getAgentEvents('agent-page', { limit: 2, offset: 0 });
+      expect(page1.events).toHaveLength(2);
+      expect(page1.total).toBe(totalEvents);
+
+      // Second page: limit 2, offset 2
+      const page2 = splitTaskService.getAgentEvents('agent-page', { limit: 2, offset: 2 });
+      expect(page2.events).toHaveLength(2);
+      expect(page2.total).toBe(totalEvents);
+
+      // First page has newer events than second page
+      expect(page1.events[0].id).toBeGreaterThan(page2.events[0].id);
+
+      // No overlap between pages
+      const page1Ids = page1.events.map(e => e.id);
+      const page2Ids = page2.events.map(e => e.id);
+      for (const id of page1Ids) {
+        expect(page2Ids).not.toContain(id);
+      }
+    });
+
+    it('returns events from multiple tasks interleaved by id', () => {
+      const task1 = splitTaskService.createTask({ title: 'Task Alpha', project: 'inbox' });
+      splitTaskService.setStatus(task1.task_id, TaskStatus.Ready);
+      splitTaskService.claimTask(task1.task_id, { author: 'agent-multi' });
+
+      const task2 = splitTaskService.createTask({ title: 'Task Beta', project: 'inbox' });
+      splitTaskService.setStatus(task2.task_id, TaskStatus.Ready);
+      splitTaskService.claimTask(task2.task_id, { author: 'agent-multi' });
+
+      const result = splitTaskService.getAgentEvents('agent-multi');
+
+      // Should have events from both tasks
+      const taskIds = new Set(result.events.map(e => e.taskId));
+      expect(taskIds.size).toBe(2);
+      expect(taskIds).toContain(task1.task_id);
+      expect(taskIds).toContain(task2.task_id);
+
+      // Events enriched with correct titles
+      for (const event of result.events) {
+        if (event.taskId === task1.task_id) {
+          expect(event.taskTitle).toBe('Task Alpha');
+        } else {
+          expect(event.taskTitle).toBe('Task Beta');
+        }
+      }
+
+      // Total count should be accurate
+      expect(result.total).toBe(result.events.length);
+    });
+
+    it('total count is accurate across pages', () => {
+      const task = splitTaskService.createTask({ title: 'Count test', project: 'inbox' });
+      splitTaskService.setStatus(task.task_id, TaskStatus.Ready);
+      splitTaskService.claimTask(task.task_id, { author: 'agent-count' });
+      splitTaskService.addComment(task.task_id, 'Note 1');
+      splitTaskService.addComment(task.task_id, 'Note 2');
+
+      const page1 = splitTaskService.getAgentEvents('agent-count', { limit: 2, offset: 0 });
+      const page2 = splitTaskService.getAgentEvents('agent-count', { limit: 2, offset: 2 });
+
+      // Total should be the same on all pages
+      expect(page1.total).toBe(page2.total);
+      expect(page1.total).toBeGreaterThanOrEqual(4); // created + status_changed + claimed + 2 comments
+    });
+
+    it('returns events for agent with done tasks (agent is preserved on completion)', () => {
+      const task = splitTaskService.createTask({ title: 'Completed task', project: 'inbox' });
+      splitTaskService.setStatus(task.task_id, TaskStatus.Ready);
+      splitTaskService.claimTask(task.task_id, { author: 'agent-done' });
+      splitTaskService.completeTask(task.task_id, { author: 'agent-done' });
+
+      const result = splitTaskService.getAgentEvents('agent-done');
+
+      expect(result.events.length).toBeGreaterThan(0);
+      expect(result.total).toBe(result.events.length);
+
+      // Task status should be 'done' in enrichment
+      for (const event of result.events) {
+        expect(event.taskTitle).toBe('Completed task');
+        expect(event.taskStatus).toBe('done');
+      }
+    });
+
+    it('clamps limit to max 200', () => {
+      const task = splitTaskService.createTask({ title: 'Limit test', project: 'inbox' });
+      splitTaskService.setStatus(task.task_id, TaskStatus.Ready);
+      splitTaskService.claimTask(task.task_id, { author: 'agent-limit' });
+
+      // Requesting limit > 200 should not error, just clamp
+      const result = splitTaskService.getAgentEvents('agent-limit', { limit: 500 });
+      expect(result.events.length).toBeGreaterThan(0);
+    });
+
+    it('returns empty results when eventsDb is not provided', () => {
+      // Create a TaskService without eventsDb
+      const noEventsTaskService = new TaskService(splitCacheDb, splitEventStore, splitProjectionEngine, splitProjectService);
+
+      // Create a task via the split service (so it exists in cache)
+      const task = splitTaskService.createTask({ title: 'No events DB', project: 'inbox' });
+      splitTaskService.setStatus(task.task_id, TaskStatus.Ready);
+      splitTaskService.claimTask(task.task_id, { author: 'agent-nodb' });
+
+      const result = noEventsTaskService.getAgentEvents('agent-nodb');
+      expect(result.events).toEqual([]);
+      expect(result.total).toBe(0);
+    });
+
+    it('returns events with correct structure', () => {
+      const task = splitTaskService.createTask({ title: 'Structure test', project: 'inbox' });
+      splitTaskService.setStatus(task.task_id, TaskStatus.Ready);
+      splitTaskService.claimTask(task.task_id, { author: 'agent-struct' });
+
+      const result = splitTaskService.getAgentEvents('agent-struct');
+      expect(result.events.length).toBeGreaterThan(0);
+
+      const event = result.events[0];
+      expect(event).toHaveProperty('id');
+      expect(event).toHaveProperty('eventId');
+      expect(event).toHaveProperty('taskId');
+      expect(event).toHaveProperty('type');
+      expect(event).toHaveProperty('data');
+      expect(event).toHaveProperty('timestamp');
+      expect(event).toHaveProperty('taskTitle');
+      expect(event).toHaveProperty('taskStatus');
+      expect(typeof event.id).toBe('number');
+      expect(typeof event.eventId).toBe('string');
+      expect(typeof event.taskId).toBe('string');
+      expect(typeof event.type).toBe('string');
+      expect(typeof event.timestamp).toBe('string');
+      expect(typeof event.taskTitle).toBe('string');
+      expect(typeof event.taskStatus).toBe('string');
+    });
+
+    it('defaults to limit 50 when not specified', () => {
+      const result = splitTaskService.getAgentEvents('nonexistent');
+      expect(result.events).toEqual([]);
+      expect(result.total).toBe(0);
+    });
+  });
 });

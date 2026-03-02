@@ -134,6 +134,24 @@ export interface AgentRosterItem {
   lastActivity: string;
 }
 
+export interface AgentEvent {
+  id: number;
+  eventId: string;
+  taskId: string;
+  type: string;
+  data: Record<string, unknown>;
+  author?: string;
+  agentId?: string;
+  timestamp: string;
+  taskTitle: string;
+  taskStatus: string;
+}
+
+export interface AgentEventsResult {
+  events: AgentEvent[];
+  total: number;
+}
+
 export interface AvailableTask {
   task_id: string;
   title: string;
@@ -1400,6 +1418,91 @@ export class TaskService {
       tasks: tasksByAgent.get(row.agent) ?? [],
       lastActivity: row.last_activity,
     }));
+  }
+
+  /**
+   * Get paginated events for a specific agent's tasks.
+   * Uses a three-step cross-DB approach because events DB and cache DB are separate SQLite files:
+   * 1. Get task_ids + titles from cache DB (tasks_current)
+   * 2. Get events from events DB with parameterized IN clause
+   * 3. Get total count from events DB
+   * Events are enriched with task titles in JS using a Map.
+   */
+  getAgentEvents(agentId: string, opts?: { limit?: number; offset?: number }): AgentEventsResult {
+    const emptyResult: AgentEventsResult = { events: [], total: 0 };
+
+    // If no events DB reference is available, return empty gracefully
+    if (!this.eventsDb) {
+      return emptyResult;
+    }
+
+    const limit = Math.min(opts?.limit ?? 50, 200);
+    const offset = opts?.offset ?? 0;
+
+    // Step 1: Get task_ids, titles, and statuses from cache DB
+    type TaskInfoRow = { task_id: string; title: string; status: string };
+    const taskRows = this.db.prepare(
+      'SELECT task_id, title, status FROM tasks_current WHERE agent = ?'
+    ).all(agentId) as TaskInfoRow[];
+
+    if (taskRows.length === 0) {
+      return emptyResult;
+    }
+
+    const taskIds = taskRows.map(r => r.task_id);
+
+    // Build a Map for enrichment (step 4)
+    const taskInfoMap = new Map<string, { title: string; status: string }>();
+    for (const row of taskRows) {
+      taskInfoMap.set(row.task_id, { title: row.title, status: row.status });
+    }
+
+    // Step 2: Get events from events DB
+    const placeholders = taskIds.map(() => '?').join(',');
+    type EventRow = {
+      id: number;
+      event_id: string;
+      task_id: string;
+      type: string;
+      data: string;
+      author: string | null;
+      agent_id: string | null;
+      timestamp: string;
+    };
+    const eventsSql = `
+      SELECT id, event_id, task_id, type, data, author, agent_id, timestamp
+      FROM events
+      WHERE task_id IN (${placeholders})
+      ORDER BY id DESC
+      LIMIT ? OFFSET ?
+    `;
+    const eventRows = this.eventsDb.prepare(eventsSql).all(...taskIds, limit, offset) as EventRow[];
+
+    // Step 3: Get total count from events DB
+    const countSql = `
+      SELECT COUNT(*) as total FROM events
+      WHERE task_id IN (${placeholders})
+    `;
+    const countRow = this.eventsDb.prepare(countSql).get(...taskIds) as { total: number };
+
+    // Step 4: Enrich events with task titles and statuses
+    const events: AgentEvent[] = eventRows.map(row => {
+      const taskInfo = taskInfoMap.get(row.task_id);
+      return {
+        id: row.id,
+        eventId: row.event_id,
+        taskId: row.task_id,
+        type: row.type,
+        data: JSON.parse(row.data) as Record<string, unknown>,
+        author: row.author ?? undefined,
+        agentId: row.agent_id ?? undefined,
+        timestamp: row.timestamp,
+        taskTitle: taskInfo?.title ?? '',
+        taskStatus: taskInfo?.status ?? '',
+      };
+    });
+
+    return { events, total: countRow.total };
   }
 
   /**
