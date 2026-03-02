@@ -40,7 +40,7 @@ An agent is in one of two states, derived from event data:
 - **Active** — the agent has at least one in-progress task. The roster shows the task title and how long it has been in progress.
 - **Idle** — the agent has no in-progress tasks. The roster shows "idle since [time]" based on the agent's last event.
 
-Agent identity is derived from `EventEnvelope.agent_id`. Events without agent attribution are excluded from the roster but appear in task-level timelines.
+Agent identity is derived from `tasks_current.agent` — the agent field on the task projection, set when a task is claimed. Events without agent attribution are excluded from the roster but appear in task-level timelines.
 
 ## Requirements
 

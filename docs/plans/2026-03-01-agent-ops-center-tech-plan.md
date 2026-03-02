@@ -8,7 +8,7 @@
 
 Add an Agent Operations Center view to the HZL web dashboard — a split-panel interface where operators can monitor fleet health, see task durations, and investigate individual agent activity. The view is read-only, built entirely from existing event store data with zero new event types or schema changes.
 
-The implementation extends the existing Kanban view architecture: same React SPA patterns, same SSE mechanism, same CSS custom property system. New backend queries join `tasks_current` (for agent roster) with `events` (for agent timelines), exposed via two new API endpoints.
+The implementation extends the existing Kanban view architecture: same React SPA patterns, same SSE mechanism, same CSS custom property system. New backend queries use `tasks_current` (for agent roster) and `events` (for agent timelines) via two-step cross-DB queries, exposed via two new API endpoints.
 
 ## Architecture
 
@@ -59,7 +59,7 @@ The implementation extends the existing Kanban view architecture: same React SPA
 
 **Consistent styling.** The Agent Ops view uses the existing CSS custom properties (`--bg-primary`, `--bg-secondary`, `--bg-card`, `--text-primary`, `--font-mono`, `--status-*`). The design direction document specified different values from a standalone design exploration — the implementation matches the existing dashboard aesthetic for visual consistency across views.
 
-**No new projections.** All data is derived from `tasks_current` + `events` with SQL joins. No new projection tables, no new projectors.
+**No new projections.** All data is derived from `tasks_current` (cache DB) + `events` (events DB) via two-step queries. No new projection tables, no new projectors.
 
 ---
 
@@ -70,18 +70,40 @@ The implementation extends the existing Kanban view architecture: same React SPA
 **Depends on:** none
 **Files:** `packages/hzl-core/src/services/task-service.ts`, `packages/hzl-core/src/services/task-service.test.ts`
 
-Add `getAgentRoster(opts?: { project?: string; sinceDays?: number })` to TaskService. The query derives agent state from `tasks_current`:
+Add `getAgentRoster(opts?: { project?: string; sinceDays?: number })` to TaskService. Uses two simple queries (not a complex GROUP BY with json_group_array):
 
-- Groups by `agent` to get one row per agent
-- Determines active/idle: `MAX(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END)`
-- For active agents: collects the in-progress task(s) info (task_id, title, claimed_at for duration)
-- For all agents: gets `MAX(updated_at)` as last activity time
-- Sorts: active first by longest `claimed_at` (ascending = longest first), then idle by most recent `updated_at` (descending)
-- Filters: `agent IS NOT NULL AND agent != ''`, optional project filter, optional date filter on `updated_at`
+**Query 1 — distinct agents with status:**
+```sql
+SELECT agent,
+       MAX(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as is_active,
+       MAX(updated_at) as last_activity
+FROM tasks_current
+WHERE agent IS NOT NULL AND agent != ''
+  -- optional: AND project = ?
+  -- optional: AND updated_at >= datetime('now', '-N days')
+GROUP BY agent
+ORDER BY is_active DESC,
+         CASE WHEN MAX(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) = 1
+              THEN MIN(CASE WHEN status = 'in_progress' THEN updated_at END)
+              ELSE NULL END ASC,
+         last_activity DESC
+```
+
+**Query 2 — in-progress tasks for active agents:**
+```sql
+SELECT agent, task_id, title, status, progress, updated_at as claimed_at
+FROM tasks_current
+WHERE agent IN (?) AND status = 'in_progress'
+ORDER BY updated_at ASC
+```
+
+Join in JS: group query 2 results by agent, attach as `tasks` array to each agent from query 1. Idle agents get an empty `tasks` array.
 
 Return type: array of `{ agent: string; isActive: boolean; tasks: Array<{ taskId: string; title: string; claimedAt: string; status: string; progress: number | null }>; lastActivity: string }`.
 
-Note: an agent can own multiple in-progress tasks — return all of them in the `tasks` array so the frontend can show the primary one and a count. Follow the same query style as `listTasks()` (parameterized, using the cached statement pattern from `CachingProjector` is not needed here since TaskService prepares statements in constructor).
+The `tasks` array contains only in-progress tasks — this is what the roster needs for displaying task titles and durations. Idle agents have an empty array. An agent can own multiple in-progress tasks — return all of them so the frontend can show the primary one and a count.
+
+Follow the same query style as `listTasks()` (parameterized). Use `IN (${agents.map(() => '?').join(',')})` for the parameterized IN clause in query 2.
 
 **Test scenarios:** (`packages/hzl-core/src/services/task-service.test.ts`)
 - No agents in DB → empty array
@@ -100,32 +122,40 @@ Note: an agent can own multiple in-progress tasks — return all of them in the 
 **Depends on:** none
 **Files:** `packages/hzl-core/src/services/task-service.ts`, `packages/hzl-core/src/services/task-service.test.ts`
 
-Add `getAgentEvents(agentId: string, opts?: { limit?: number; offset?: number })` to TaskService. Queries events on all tasks owned by the given agent:
+Add `getAgentEvents(agentId: string, opts?: { limit?: number; offset?: number })` to TaskService. The events DB and cache DB are separate SQLite files — a direct JOIN across them won't work. Use a three-step approach:
+
+**Step 1 — get task_ids and titles from cache DB:**
+```sql
+SELECT task_id, title, status FROM tasks_current WHERE agent = ?
+```
+Uses `idx_tasks_current_agent`. Returns the task_ids to query in the events DB, plus titles/status for enrichment.
+
+**Step 2 — get events from events DB:**
+If step 1 returned zero task_ids, skip this query and return `{ events: [], total: 0 }` (an `IN ()` clause with zero elements is a SQL error).
 
 ```sql
-SELECT e.id, e.event_id, e.task_id, e.type, e.data, e.author, e.agent_id,
-       e.timestamp, tc.title as task_title, tc.status as task_status
-FROM events e
-JOIN tasks_current tc ON e.task_id = tc.task_id
-WHERE tc.agent = ?
-ORDER BY e.id DESC
+SELECT id, event_id, task_id, type, data, author, agent_id, timestamp
+FROM events
+WHERE task_id IN (${taskIds.map(() => '?').join(',')})
+ORDER BY id DESC
 LIMIT ? OFFSET ?
 ```
+Uses `idx_events_task_id` for the IN clause.
 
-This uses `idx_tasks_current_agent` for the WHERE and `idx_events_task_id` for the JOIN. The join with `tasks_current` enriches each event with the current task title and status for inline task context (R6).
+**Step 3 — get total count from events DB:**
+```sql
+SELECT COUNT(*) as total FROM events
+WHERE task_id IN (${taskIds.map(() => '?').join(',')})
+```
+Same parameterized IN clause as step 2. Needed for "load more" pagination (R7).
 
-Default limit: 50, max: 200. Return total count alongside results for "load more" pagination (R7).
+**Step 4 — enrich in JS:** Build a `Map<taskId, { title, status }>` from step 1, then map over the events array to attach `taskTitle` and `taskStatus` from the map.
+
+Default limit: 50, max: 200.
 
 Return type: `{ events: Array<{ id: number; eventId: string; taskId: string; type: string; data: Record<string, unknown>; author?: string; agentId?: string; timestamp: string; taskTitle: string; taskStatus: string }>; total: number }`.
 
-Note: this query hits the `events` table in the events DB and `tasks_current` in the cache DB. The web server already has access to both (see how `handleTaskEvents` works — it queries the events DB directly). The query uses the cross-database pattern: events are in `eventsDb`, projections in `cacheDb`. TaskService already holds both references. Use `eventsDb` for the events table and a subquery/temp approach for the join, or query in two steps (get task_ids from cache, then get events from eventsDb).
-
-**Important:** The events DB and cache DB are separate SQLite files. A direct JOIN across them won't work. Two-step approach:
-1. Get task_ids: `SELECT task_id FROM tasks_current WHERE agent = ?` (on cacheDb)
-2. Get events: `SELECT * FROM events WHERE task_id IN (?) ORDER BY id DESC LIMIT ? OFFSET ?` (on eventsDb)
-3. Enrich with task titles from step 1 results
-
-Follow the same split-DB pattern used by `ProjectionEngine` (holds `db` and `eventsDb` separately). Look at how `handleTaskEvents` in `server.ts` queries the events store.
+Follow the same split-DB pattern used by `ProjectionEngine` (holds `db` and `eventsDb` separately). Look at how `handleTaskEvents` in `server.ts` queries the events store directly.
 
 **Test scenarios:** (`packages/hzl-core/src/services/task-service.test.ts`)
 - Agent with no tasks → empty events, total=0
@@ -418,7 +448,7 @@ node packages/hzl-cli/dist/cli.js task complete <id1> --agent claude-alpha
 
 | Risk | Mitigation |
 |------|------------|
-| Split-DB query for agent events — events DB and cache DB are separate SQLite files, can't JOIN across them | Two-step query: get task_ids from cache DB, then filter events by task_id in events DB. Verified this pattern works — `handleTaskEvents` already queries events DB directly |
+| Split-DB query for agent events — events DB and cache DB are separate SQLite files, can't JOIN across them | Three-step query: get task_ids + titles from cache DB, get events from events DB with parameterized IN clause, enrich in JS. Empty task_ids list short-circuits to empty result. Verified this pattern works — `handleTaskEvents` already queries events DB directly |
 | Duration display jitter — client-side relative time could drift or flash on re-render | 60-second interval timer for duration updates, not per-second. Relative time format is coarse (minutes/hours) so small drifts are invisible |
 | Large event volumes for prolific agents — agent with 1000+ events across many tasks | Pagination with default limit=50, "load more" pattern. Initial load is fast; operator loads more only when investigating |
 | `tasks_current.agent` field being empty for tasks created before agent tracking | PRD boundary: "agents without IDs are excluded from the roster." The WHERE clause filters `agent IS NOT NULL AND agent != ''` |
