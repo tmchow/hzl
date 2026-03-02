@@ -33,12 +33,12 @@ hzl task list --project myapp
 hzl serve  # Opens at http://localhost:3456
 ```
 
-The dashboard provides:
-- Kanban board view (Backlog → Ready → In Progress → Blocked → Done)
-- Real-time updates
-- Task details on click
-- Project filtering
-- Activity feed
+The [dashboard](/dashboard) provides multiple views:
+- **Kanban board** — task workflow columns (Backlog → Ready → In Progress → Blocked → Done)
+- **Agent Operations** — monitor agent fleet health, task assignments, and event timelines
+- **Graph view** — visualize project structure, task dependencies, and hierarchy
+
+All views share real-time updates, task detail modals, search, and filtering.
 
 ## Providing Guidance
 

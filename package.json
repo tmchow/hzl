@@ -39,6 +39,7 @@
     "eslint": "^9.39.2",
     "globals": "^17.2.0",
     "husky": "^9.0.0",
+    "medium-zoom": "^1.1.0",
     "prettier": "^3.2.0",
     "semantic-release": "^25.0.3",
     "typescript": "^5.3.3",
