@@ -36,6 +36,7 @@ export default defineConfig({
   cleanUrls: true,
   lastUpdated: true,
   appearance: 'dark',
+  sitemap: { hostname: 'https://www.hzl-tasks.com' },
   themeConfig: {
     sidebar: [
       { text: 'Home', link: '/' },
