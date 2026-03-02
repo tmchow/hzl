@@ -130,6 +130,10 @@ export {
   type AgentRosterTask,
   type AgentEvent,
   type AgentEventsResult,
+  type AgentStatusTask,
+  type AgentStatusStats,
+  type AgentStatusItem,
+  type AgentStatusResult,
 } from './services/task-service.js';
 
 export {

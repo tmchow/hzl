@@ -152,6 +152,35 @@ export interface AgentEventsResult {
   total: number;
 }
 
+export interface AgentStatusTask {
+  taskId: string;
+  title: string;
+  project: string;
+  claimedAt: string;
+  progress: number | null;
+  leaseUntil: string | null;
+  leaseExpired: boolean;
+}
+
+export interface AgentStatusStats {
+  total: number;
+  [status: string]: number;
+}
+
+export interface AgentStatusItem {
+  agent: string;
+  isActive: boolean;
+  activeDurationMs: number | null;
+  tasks: AgentStatusTask[];
+  lastActivity: string;
+  stats: AgentStatusStats | null;
+}
+
+export interface AgentStatusResult {
+  agents: AgentStatusItem[];
+  summary: { total: number; active: number; idle: number };
+}
+
 export interface AvailableTask {
   task_id: string;
   title: string;
@@ -1424,6 +1453,148 @@ export class TaskService {
       tasks: tasksByAgent.get(row.agent) ?? [],
       lastActivity: row.last_activity,
     }));
+  }
+
+  /**
+   * Get agent status with active tasks, lease info, and optional per-agent stats.
+   * Unlike getAgentRoster(), this includes lease tracking and a summary envelope.
+   */
+  getAgentStatus(opts?: { agent?: string; project?: string; includeStats?: boolean }): AgentStatusResult {
+    const now = Date.now();
+    const conditions: string[] = ["agent IS NOT NULL AND agent != ''"];
+    const params: (string | number)[] = [];
+
+    if (opts?.agent) {
+      conditions.push('agent = ?');
+      params.push(opts.agent);
+    }
+    if (opts?.project) {
+      conditions.push('project = ?');
+      params.push(opts.project);
+    }
+
+    // Query 1: distinct agents with active status and last activity
+    const agentSql = `
+      SELECT agent,
+             MAX(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as is_active,
+             MAX(updated_at) as last_activity
+      FROM tasks_current
+      WHERE ${conditions.join(' AND ')}
+      GROUP BY agent
+      ORDER BY is_active DESC,
+               CASE WHEN MAX(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) = 1
+                    THEN MIN(CASE WHEN status = 'in_progress' THEN claimed_at END)
+                    ELSE NULL END ASC,
+               last_activity DESC
+    `;
+
+    type AgentRow = { agent: string; is_active: number; last_activity: string };
+    const agentRows = this.db.prepare(agentSql).all(...params) as AgentRow[];
+
+    if (agentRows.length === 0) {
+      return { agents: [], summary: { total: 0, active: 0, idle: 0 } };
+    }
+
+    // Query 2: in-progress tasks for active agents (with lease_until)
+    const activeAgents = agentRows.filter(r => r.is_active === 1).map(r => r.agent);
+    type TaskRow = {
+      agent: string;
+      task_id: string;
+      title: string;
+      project: string;
+      status: string;
+      progress: number | null;
+      claimed_at: string;
+      lease_until: string | null;
+    };
+    let taskRows: TaskRow[] = [];
+
+    if (activeAgents.length > 0) {
+      const placeholders = activeAgents.map(() => '?').join(',');
+      const taskConditions = [`agent IN (${placeholders})`, "status = 'in_progress'"];
+      const taskParams: (string | number)[] = [...activeAgents];
+      if (opts?.project) {
+        taskConditions.push('project = ?');
+        taskParams.push(opts.project);
+      }
+      const taskSql = `
+        SELECT agent, task_id, title, project, status, progress, claimed_at, lease_until
+        FROM tasks_current
+        WHERE ${taskConditions.join(' AND ')}
+        ORDER BY claimed_at ASC
+      `;
+      taskRows = this.db.prepare(taskSql).all(...taskParams) as TaskRow[];
+    }
+
+    // Group tasks by agent
+    const tasksByAgent = new Map<string, AgentStatusTask[]>();
+    for (const row of taskRows) {
+      const tasks = tasksByAgent.get(row.agent) ?? [];
+      const leaseExpired = row.lease_until ? new Date(row.lease_until).getTime() < now : false;
+      tasks.push({
+        taskId: row.task_id,
+        title: row.title,
+        project: row.project,
+        claimedAt: row.claimed_at,
+        progress: row.progress,
+        leaseUntil: row.lease_until,
+        leaseExpired,
+      });
+      tasksByAgent.set(row.agent, tasks);
+    }
+
+    // Query 3 (optional): per-agent stats
+    let statsByAgent: Map<string, AgentStatusStats> | null = null;
+    if (opts?.includeStats) {
+      statsByAgent = new Map();
+      const allAgentNames = agentRows.map(r => r.agent);
+      const placeholders = allAgentNames.map(() => '?').join(',');
+      const statsConditions = [`agent IN (${placeholders})`, "status != 'archived'"];
+      const statsParams: (string | number)[] = [...allAgentNames];
+      if (opts?.project) {
+        statsConditions.push('project = ?');
+        statsParams.push(opts.project);
+      }
+      const statsSql = `
+        SELECT agent, status, COUNT(*) as count
+        FROM tasks_current
+        WHERE ${statsConditions.join(' AND ')}
+        GROUP BY agent, status
+      `;
+      type StatsRow = { agent: string; status: string; count: number };
+      const statsRows = this.db.prepare(statsSql).all(...statsParams) as StatsRow[];
+      for (const row of statsRows) {
+        const entry = statsByAgent.get(row.agent) ?? { total: 0 };
+        entry.total += row.count;
+        entry[row.status] = row.count;
+        statsByAgent.set(row.agent, entry);
+      }
+    }
+
+    // Assemble results
+    let activeCount = 0;
+    let idleCount = 0;
+    const agents: AgentStatusItem[] = agentRows.map(row => {
+      const isActive = row.is_active === 1;
+      if (isActive) activeCount++; else idleCount++;
+      const tasks = tasksByAgent.get(row.agent) ?? [];
+      const activeDurationMs = isActive && tasks.length > 0
+        ? now - new Date(tasks[0].claimedAt).getTime()
+        : null;
+      return {
+        agent: row.agent,
+        isActive,
+        activeDurationMs,
+        tasks,
+        lastActivity: row.last_activity,
+        stats: statsByAgent?.get(row.agent) ?? null,
+      };
+    });
+
+    return {
+      agents,
+      summary: { total: agentRows.length, active: activeCount, idle: idleCount },
+    };
   }
 
   /**

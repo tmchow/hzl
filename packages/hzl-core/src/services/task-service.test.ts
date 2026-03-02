@@ -3350,4 +3350,78 @@ describe('TaskService', () => {
       expect(result.events[0].taskId).toBe(t.task_id);
     });
   });
+
+  describe('getAgentStatus', () => {
+    it('returns active agents with tasks and lease info', () => {
+      const t1 = taskService.createTask({ title: 'Task 1', project: 'project-a' });
+      taskService.setStatus(t1.task_id, TaskStatus.Ready);
+      taskService.claimTask(t1.task_id, { author: 'agent-a', lease_until: new Date(Date.now() + 600_000).toISOString() });
+
+      const result = taskService.getAgentStatus();
+      expect(result.agents).toHaveLength(1);
+      expect(result.agents[0].agent).toBe('agent-a');
+      expect(result.agents[0].isActive).toBe(true);
+      expect(result.agents[0].tasks).toHaveLength(1);
+      expect(result.agents[0].tasks[0].leaseUntil).toBeTruthy();
+      expect(result.agents[0].tasks[0].leaseExpired).toBe(false);
+      expect(result.summary).toEqual({ total: 1, active: 1, idle: 0 });
+    });
+
+    it('marks lease as expired when past lease_until', () => {
+      const t1 = taskService.createTask({ title: 'Task 1', project: 'project-a' });
+      taskService.setStatus(t1.task_id, TaskStatus.Ready);
+      taskService.claimTask(t1.task_id, { author: 'agent-a', lease_until: new Date(Date.now() - 60_000).toISOString() });
+
+      const result = taskService.getAgentStatus();
+      expect(result.agents[0].tasks[0].leaseExpired).toBe(true);
+    });
+
+    it('shows idle agents with lastActivity', () => {
+      const t1 = taskService.createTask({ title: 'Task 1', project: 'project-a' });
+      taskService.setStatus(t1.task_id, TaskStatus.Ready);
+      taskService.claimTask(t1.task_id, { author: 'agent-b' });
+      taskService.completeTask(t1.task_id, { author: 'agent-b' });
+
+      const result = taskService.getAgentStatus();
+      expect(result.agents).toHaveLength(1);
+      expect(result.agents[0].isActive).toBe(false);
+      expect(result.agents[0].tasks).toHaveLength(0);
+      expect(result.agents[0].lastActivity).toBeTruthy();
+    });
+
+    it('filters by agent name', () => {
+      const t1 = taskService.createTask({ title: 'Task 1', project: 'project-a' });
+      const t2 = taskService.createTask({ title: 'Task 2', project: 'project-a' });
+      taskService.setStatus(t1.task_id, TaskStatus.Ready);
+      taskService.setStatus(t2.task_id, TaskStatus.Ready);
+      taskService.claimTask(t1.task_id, { author: 'agent-a' });
+      taskService.claimTask(t2.task_id, { author: 'agent-b' });
+
+      const result = taskService.getAgentStatus({ agent: 'agent-a' });
+      expect(result.agents).toHaveLength(1);
+      expect(result.agents[0].agent).toBe('agent-a');
+    });
+
+    it('includes stats when requested', () => {
+      const t1 = taskService.createTask({ title: 'Task 1', project: 'project-a' });
+      const t2 = taskService.createTask({ title: 'Task 2', project: 'project-a' });
+      taskService.setStatus(t1.task_id, TaskStatus.Ready);
+      taskService.setStatus(t2.task_id, TaskStatus.Ready);
+      taskService.claimTask(t1.task_id, { author: 'agent-a' });
+      taskService.claimTask(t2.task_id, { author: 'agent-a' });
+      taskService.completeTask(t2.task_id, { author: 'agent-a' });
+
+      const result = taskService.getAgentStatus({ includeStats: true });
+      expect(result.agents[0].stats).toEqual({ total: 2, in_progress: 1, done: 1 });
+    });
+
+    it('returns stats as null when not requested', () => {
+      const t1 = taskService.createTask({ title: 'Task 1', project: 'project-a' });
+      taskService.setStatus(t1.task_id, TaskStatus.Ready);
+      taskService.claimTask(t1.task_id, { author: 'agent-a' });
+
+      const result = taskService.getAgentStatus();
+      expect(result.agents[0].stats).toBeNull();
+    });
+  });
 });
