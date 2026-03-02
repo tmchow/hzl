@@ -236,13 +236,13 @@ hzl task progress <id> 75          # Set progress without a checkpoint
 
 ---
 
-## Hook delivery
+## Lifecycle hooks
 
-When a task transitions to `done`, HZL enqueues a callback to your configured endpoint. The drain command delivers queued callbacks.
+HZL sends targeted notifications for high-value transitions — currently only `on_done`. Other lifecycle events (stuck detection, blocking, progress) require polling. This is deliberate: hooks signal when something meaningful happens, agents and orchestrators poll for everything else.
 
 ```bash
 hzl hook drain                     # Deliver all queued callbacks (run on a schedule)
-hzl hook drain --dry-run           # Preview what would be delivered
+hzl hook drain --json              # Machine-readable drain result
 ```
 
 Configure in `~/.config/hzl/config.json` (create if missing):
@@ -260,7 +260,7 @@ Configure in `~/.config/hzl/config.json` (create if missing):
 }
 ```
 
-HZL uses a host-process model — no built-in daemon. In OpenClaw, run `hzl hook drain` as a recurring cron job every 2 minutes. Without a scheduler, callbacks queue but never fire.
+HZL uses a host-process model — no built-in daemon. Run `hzl hook drain` as a recurring cron job (every 2–5 minutes). Without a scheduler, callbacks queue but never fire. Payloads include `agent`, `project`, and event context — per-agent routing and filtering is the gateway's responsibility, not HZL's.
 
 ---
 
