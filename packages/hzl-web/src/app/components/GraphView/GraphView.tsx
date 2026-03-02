@@ -110,6 +110,9 @@ export default function GraphView({ tasks, onTaskClick }: GraphViewProps) {
       return;
     }
 
+    // Component may have unmounted during async imports
+    if (!containerRef.current) return;
+
     initializedRef.current = true;
 
     const RING_RADII: Record<number, number> = { 0: 0, 1: 180, 2: 360, 3: 540 };

@@ -371,7 +371,7 @@ export default function App() {
         >
           &#9776;
         </button>
-        <Header />
+        <Header view={view} onViewChange={handleViewChange} />
         <FilterBar
           since={since}
           onSinceChange={handleSinceChange}
@@ -390,7 +390,6 @@ export default function App() {
           showDateFilter={view !== 'calendar'}
           mobileFiltersOpen={mobileFiltersOpen}
           view={view}
-          onViewChange={handleViewChange}
           columnVisibility={columnVisibility}
           onColumnVisibilityChange={setColumnVisibility}
           showSubtasks={showSubtasks}
