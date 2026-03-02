@@ -1,7 +1,9 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useTasks } from './hooks/useTasks';
 import { useEvents } from './hooks/useEvents';
 import { useStats } from './hooks/useStats';
+import { useAgents } from './hooks/useAgents';
+import { useAgentEvents } from './hooks/useAgentEvents';
 import { useSSE } from './hooks/useSSE';
 import { useSearch } from './hooks/useSearch';
 import { loadPreferences, savePreferences } from './hooks/usePreferences';
@@ -91,17 +93,47 @@ export default function App() {
   const { events, refresh: refreshEvents } = useEvents();
   const { stats, refresh: refreshStats } = useStats();
 
+  // Agent data — lifted here so refresh functions are accessible for SSE
+  const { agents, loading: agentsLoading, error: agentsError, refresh: refreshAgents } = useAgents({
+    since,
+    project: project || undefined,
+  });
+  const {
+    events: agentEvents,
+    total: agentEventsTotal,
+    loading: agentEventsLoading,
+    loadMore: loadMoreAgentEvents,
+    refresh: refreshAgentEvents,
+  } = useAgentEvents(selectedAgent);
+
+  const viewRef = useRef(view);
+  viewRef.current = view;
+
   const refreshAll = useCallback(() => {
     refreshTasks();
     refreshEvents();
     refreshStats();
-  }, [refreshTasks, refreshEvents, refreshStats]);
+    if (viewRef.current === 'agents') {
+      refreshAgents();
+      refreshAgentEvents();
+    }
+  }, [refreshTasks, refreshEvents, refreshStats, refreshAgents, refreshAgentEvents]);
 
   // SSE connection
   useSSE(() => {
     setSseState('live');
     refreshAll();
   });
+
+  // 60-second interval to tick duration displays when viewing agents
+  const [, setDurationTick] = useState(0);
+  useEffect(() => {
+    if (view !== 'agents') return;
+    const interval = setInterval(() => {
+      setDurationTick((n) => n + 1);
+    }, 60_000);
+    return () => clearInterval(interval);
+  }, [view]);
 
   const { results: searchResults, total: searchTotal, searching } = useSearch(searchQuery);
   const isSearching = searchQuery.trim().length >= 2;
@@ -452,8 +484,13 @@ export default function App() {
         <AgentOpsView
           selectedAgent={selectedAgent}
           onSelectAgent={setSelectedAgent}
-          project={project}
-          since={since}
+          agents={agents}
+          agentsLoading={agentsLoading}
+          agentsError={agentsError}
+          agentEvents={agentEvents}
+          agentEventsTotal={agentEventsTotal}
+          agentEventsLoading={agentEventsLoading}
+          onLoadMoreAgentEvents={loadMoreAgentEvents}
         />
       )}
 

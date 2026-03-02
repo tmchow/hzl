@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
-import { useAgents } from '../../hooks/useAgents';
-import { useAgentEvents } from '../../hooks/useAgentEvents';
+import type { AgentRosterItem, AgentEvent } from '../../api/types';
 import AgentRoster from './AgentRoster';
 import AgentDetail from './AgentDetail';
 import FleetSummary from './FleetSummary';
@@ -9,23 +8,26 @@ import './AgentOps.css';
 interface AgentOpsViewProps {
   selectedAgent: string | null;
   onSelectAgent: (agent: string | null) => void;
-  project: string;
-  since: string;
+  agents: AgentRosterItem[];
+  agentsLoading: boolean;
+  agentsError: string | null;
+  agentEvents: AgentEvent[] | null;
+  agentEventsTotal: number;
+  agentEventsLoading: boolean;
+  onLoadMoreAgentEvents: () => void;
 }
 
 export default function AgentOpsView({
   selectedAgent,
   onSelectAgent,
-  project,
-  since,
+  agents,
+  agentsLoading,
+  agentsError,
+  agentEvents,
+  agentEventsTotal,
+  agentEventsLoading,
+  onLoadMoreAgentEvents,
 }: AgentOpsViewProps) {
-  const { agents, loading, error } = useAgents({
-    since,
-    project: project || undefined,
-  });
-
-  const { events, total, loading: eventsLoading, loadMore } = useAgentEvents(selectedAgent);
-
   const selectedAgentData = useMemo(() => {
     if (!selectedAgent) return null;
     return agents.find((a) => a.agent === selectedAgent) ?? null;
@@ -41,12 +43,12 @@ export default function AgentOpsView({
       <div className="agent-ops-panels">
         {/* Left panel — agent roster */}
         <div className="agent-ops-roster">
-          {error ? (
+          {agentsError ? (
             <div className="agent-ops-placeholder">
               <span>Failed to load agents</span>
-              <span className="agent-ops-placeholder-hint">{error}</span>
+              <span className="agent-ops-placeholder-hint">{agentsError}</span>
             </div>
-          ) : loading && agents.length === 0 ? (
+          ) : agentsLoading && agents.length === 0 ? (
             <div className="agent-ops-placeholder">
               <span>Loading agents...</span>
             </div>
@@ -63,10 +65,10 @@ export default function AgentOpsView({
         <div className="agent-ops-detail">
           <AgentDetail
             agent={selectedAgentData}
-            events={events}
-            total={total}
-            onLoadMore={loadMore}
-            loading={eventsLoading}
+            events={agentEvents}
+            total={agentEventsTotal}
+            onLoadMore={onLoadMoreAgentEvents}
+            loading={agentEventsLoading}
           />
         </div>
       </div>
