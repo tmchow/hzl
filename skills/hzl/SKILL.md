@@ -109,6 +109,7 @@ This handles expired-lease recovery and new-task claiming in one command. If a t
 ### Without workflow commands (fallback)
 
 ```bash
+hzl agent status                           # Who's active? What's running?
 hzl task list -P <project> --available     # What's ready?
 hzl task stuck                             # Any expired leases?
 
@@ -255,6 +256,14 @@ Hooks are configured during installation (see docs-site for setup). As an agent,
 # Claim with lease (prevents orphaned work)
 hzl task claim <id> --agent <agent-id> --lease 30       # 30-minute lease
 
+# Fleet status: who's active, what they're working on, how long
+hzl agent status                                        # All agents
+hzl agent status --agent <name>                         # Single agent
+hzl agent status --stats                                # Include task count breakdowns
+
+# Agent activity history
+hzl agent log <agent>                                   # Recent events for an agent
+
 # Monitor for stuck tasks
 hzl task stuck
 
@@ -303,6 +312,12 @@ hzl task list -P <project> --tags <csv>       # Filter by tags
 # Create with options
 hzl task add "<title>" -P <project> --priority 2 --tags backend,auth
 hzl task add "<title>" -P <project> -s in_progress --agent <name>
+
+# Agent fleet status
+hzl agent status                              # Active/idle agents, current tasks, lease state
+hzl agent status --agent <name>               # Single agent
+hzl agent status --stats                      # With task count breakdowns
+hzl agent log <agent>                         # Activity history for an agent
 
 # Web dashboard
 hzl serve                                     # Start on port 3456
