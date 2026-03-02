@@ -602,8 +602,8 @@ export function createWebServer(options: ServerOptions): ServerHandle {
           ? "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'unsafe-inline'; frame-ancestors *"
           : "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'unsafe-inline'")
       : (allowFraming
-          ? "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; frame-ancestors *"
-          : "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'");
+          ? "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-ancestors *"
+          : "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:");
 
     const headers: Record<string, string> = {
       'Content-Type': 'text/html; charset=utf-8',
