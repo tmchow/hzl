@@ -8,15 +8,13 @@ nav_order: 3
 
 HZL includes a built-in web dashboard for visual task management. Launch it with `hzl serve`.
 
-![HZL web dashboard – Kanban board view](/dashboard-desktop.png)
-
 ## Starting the Dashboard
 
 ```bash
 hzl serve
 ```
 
-Opens a Kanban board at `http://localhost:3456`.
+Opens the dashboard at `http://localhost:3456`.
 
 ### Options
 
@@ -40,35 +38,181 @@ hzl serve --stop
 hzl serve --print-systemd > ~/.config/systemd/user/hzl-web.service
 ```
 
-## Features
+## Navigation
+
+The left sidebar (nav rail) provides view switching:
+
+| View | Description |
+|------|-------------|
+| Kanban | Task workflow columns |
+| Agents | Agent fleet monitoring |
+| Graph | Dependency visualization |
+
+The sidebar can be collapsed to icon-only mode using the chevron toggle at the bottom. Collapse state persists across sessions.
+
+On mobile, navigation switches to a fixed bottom tab bar.
+
+## Views
 
 ### Kanban Board
+
+![Kanban board view](/kanban-view.png)
 
 Tasks are displayed in columns by status:
 
 | Column | Tasks Shown |
 |--------|-------------|
+| Backlog | Not yet actionable |
 | Ready | Available to claim |
 | In Progress | Currently being worked on |
 | Blocked | Waiting on dependencies |
 | Done | Completed work |
 
-### Visual Indicators
+Each column header shows the status name and a task count badge. A task marked `ready` but with unmet dependencies automatically appears in the Blocked column.
 
-- **Author badges** - See who's working on each task
-- **Dependency lines** - Visualize task relationships
-- **Progress indicators** - Checkpoint count per task
-- **Project grouping** - Filter by project
+**Task cards** display:
+
+- Emoji marker and truncated task ID (header left)
+- Project name (header right)
+- Progress bar with percentage (when progress > 0)
+- Task title
+- Tags (up to 3 inline, with `+N` overflow)
+- Subtask badge — shows `[N subtasks]` or `[N/M subtasks]` when filtered
+- Assignee chip (when assigned)
+
+**Subtask support:** Toggle "Show subtasks" in settings to reveal child tasks. When enabled, parent cards get a collapse/expand control. When disabled, parent cards show a subtask count badge instead.
+
+On mobile, the multi-column layout is replaced by a tab bar — tap a status to see that column's cards.
+
+### Agent Operations Center
+
+![Agent Operations Center view](/agent-view.png)
+
+A split-panel layout for monitoring your agent fleet.
+
+**Fleet summary bar** (top): Shows active and idle agent counts with colored status dots.
+
+**Agent roster** (left panel): A scrollable, keyboard-navigable list of agents. Each entry shows:
+
+- Status dot (colored for active, grey for idle)
+- Agent ID
+- Current task title and duration (if active), or idle duration (if idle)
+- `(+N more)` suffix when an agent owns multiple tasks
+
+**Agent detail** (right panel): Select an agent from the roster to see:
+
+- Agent ID and status badge (active/idle)
+- Primary task title
+- **Activity** — paginated event timeline showing timestamped entries with event type badges (created, status, updated, commented, checkpoint, moved, dep added/removed, archived) and task context. Click any event to open the task detail modal.
+- **Metrics** — tasks owned count and total event count
+
+Use this view for monitoring fleet health, investigating what an agent has been doing, or auditing agent activity.
+
+### Graph View
+
+![Graph view](/graph-view.png)
+
+A force-directed visualization of projects, tasks, and dependencies rendered on a dark canvas.
+
+**Node types:**
+
+| Type | Description |
+|------|-------------|
+| Root | Central "HZL" node with animated pulsing aura |
+| Project | One node per project, arranged in the first ring |
+| Task | Top-level tasks in the second ring |
+| Subtask | Child tasks in the outer ring |
+
+**Visual elements:**
+
+- Gradient-filled nodes colored by task status
+- Progress arcs drawn around task/subtask nodes showing completion percentage
+- Assignee initials rendered inside task nodes
+- Hover highlights with a glowing aura ring; hover or zoom in to reveal task labels in dark pill backgrounds
+
+**Links:**
+
+- **Hierarchy** links (grey, curved) connect root → project → task → subtask
+- **Dependency** links (red, straight, with arrows) show task dependencies, animated with flowing particles
+
+**Interactive legend** (bottom-left): Five status buttons (Backlog, Ready, In Progress, Blocked, Done). Click one or more to filter — matching nodes stay fully visible while non-matching nodes dim. Ancestor nodes (root/project) dim partially to preserve context.
+
+**Zoom controls** (bottom-right): `+` to zoom in, `-` to zoom out, and a fit-all button to frame the entire graph.
+
+**Click** a task or subtask node to open the task detail modal.
+
+## Global Features
+
+### Search
+
+Press `/` to focus the search input. Type 2+ characters to search across task titles and descriptions. Results filter visible tasks across all views. A match count appears when search is active. Press the `×` button or clear the input to reset.
+
+### Filters
+
+The filter bar appears at the top of the dashboard (hidden in Agent Ops view):
+
+| Filter | Options |
+|--------|---------|
+| Date range | Today, Last 3/7/14/30 days |
+| Project | All projects or a specific project |
+| Assignee | Any agent or a specific agent (with task counts) |
+| Tag | All tags or a specific tag (with task counts) |
+
+Additional settings available via the gear icon:
+
+- **Column visibility** (Kanban only) — toggle individual status columns on/off
+- **Show subtasks** — toggle subtask visibility
+- **Parent view** — collapse all / expand all parent tasks
+
+Filters persist across view switches and sessions via URL parameters and local storage.
+
+On narrow viewports, filter dropdowns collapse behind a funnel icon button with an active-filter count badge.
+
+### Activity Panel
+
+Press `a` to toggle the activity panel (or click the Activity button in the top bar). A slide-in drawer from the right showing recent events:
+
+- Event type badge with relative timestamp
+- Task title
+- Detail string (e.g., "ready → in_progress by agent-name")
+
+**Filters:** Agent/assignee dropdown and keyword search (3+ characters).
+
+Click any event entry to open the task detail modal. Activity respects current column visibility and subtask settings.
+
+### Task Detail Modal
+
+Click any task card (Kanban), graph node (Graph), or event entry (Activity/Agent Ops) to open the detail modal. Shows:
+
+- Task metadata: ID, title, description, assignee, progress, tags, due date
+- Tabbed content: Comments, Checkpoints, Activity
+
+### Keyboard Shortcuts
+
+| Key | Action |
+|-----|--------|
+| `/` | Focus search |
+| `a` | Toggle activity panel |
+| `?` | Show keyboard shortcuts dialog |
+| `Esc` | Close open panels/modals |
+
+Shortcuts are disabled when focus is inside an input field, textarea, or select element.
 
 ### Real-time Updates
 
-The dashboard auto-refreshes when tasks change. You can keep multiple viewers open against the same board.
+The dashboard uses Server-Sent Events (SSE) for live updates — no manual refresh needed. A connection status indicator in the top-right corner shows the current state:
+
+| Status | Indicator |
+|--------|-----------|
+| Live | Green dot |
+| Connecting | Neutral dot |
+| Reconnecting | Red dot |
+
+If the connection drops, it automatically reconnects with exponential backoff. Switching back to the tab triggers an immediate reconnect.
 
 ## Install as an App (PWA)
 
 The dashboard supports installable web app metadata and icons (`HZL`), so you can install it like a native app.
-
-<img src="/dashboard-mobile.png" alt="HZL dashboard – mobile PWA view" width="320" />
 
 Installability requirements:
 - `http://localhost:3456` works for local development.
@@ -122,33 +266,18 @@ The server binds to `0.0.0.0` by default, making it accessible over the network 
 
 **macOS:** systemd is not available. Use `hzl serve --background` or create a launchd plist.
 
-## When to Use the Dashboard
+## When to Use Each View
 
-**Great for:**
-- Getting a visual overview of project status
-- Identifying bottlenecks and blocked work
-- Team standups and progress reviews
-- Monitoring multi-agent workflows
+| View | Best for |
+|------|----------|
+| **Kanban** | Workflow status at a glance, standups, moving tasks through stages |
+| **Agent Ops** | Monitoring agent fleet health, investigating what an agent worked on, auditing activity |
+| **Graph** | Visualizing dependency chains, understanding project structure and hierarchy |
 
 **CLI is better for:**
 - Scripted automation
 - Quick task operations
 - Integration with other tools
-
-## Example Workflow
-
-```bash
-# Set up some work
-hzl project create sprint-1
-hzl task add "Design API" -P sprint-1
-hzl task add "Build endpoints" -P sprint-1 --depends-on 1
-hzl task add "Write tests" -P sprint-1 --depends-on 2
-
-# Open dashboard to visualize
-hzl serve
-```
-
-You'll see three cards showing the dependency chain, with "Design API" in Ready and the others in Blocked.
 
 ## Architecture
 
