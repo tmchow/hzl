@@ -114,7 +114,7 @@ hzl task stuck                             # Any expired leases?
 
 # If stuck tasks exist, read their state before claiming
 hzl task show <stuck-id> --view standard --json
-hzl task steal <stuck-id> --if-expired --agent <agent-id>
+hzl task steal <stuck-id> --if-expired --agent <agent-id> --lease 30
 hzl task show <stuck-id> --view standard --json | jq '.checkpoints[-1]'
 
 # Otherwise claim next available
@@ -236,31 +236,16 @@ hzl task progress <id> 75          # Set progress without a checkpoint
 
 ---
 
-## Hook delivery
+## Lifecycle hooks
 
-When a task transitions to `done`, HZL enqueues a callback to your configured endpoint. The drain command delivers queued callbacks.
+HZL sends targeted notifications for high-value transitions — currently only `on_done`. Other lifecycle events (stuck detection, blocking, progress) require polling. This is deliberate: hooks signal when something meaningful happens, agents and orchestrators poll for everything else.
 
-```bash
-hzl hook drain                     # Deliver all queued callbacks (run on a schedule)
-hzl hook drain --dry-run           # Preview what would be delivered
-```
+Hooks are configured during installation (see docs-site for setup). As an agent, here's what you need to know operationally:
 
-Configure in `~/.config/hzl/config.json` (create if missing):
-
-```json
-{
-  "hooks": {
-    "on_done": {
-      "url": "<OPENCLAW_GATEWAY_URL>/events/inject",
-      "headers": {
-        "Authorization": "Bearer <YOUR_GATEWAY_TOKEN>"
-      }
-    }
-  }
-}
-```
-
-HZL uses a host-process model — no built-in daemon. In OpenClaw, run `hzl hook drain` as a recurring cron job every 2 minutes. Without a scheduler, callbacks queue but never fire.
+- **Only `on_done` fires.** When you `task complete`, HZL queues a webhook. For stuck detection, blocking changes, or progress — poll with `hzl task stuck` or `hzl task list`.
+- **Delivery is not instant.** `hzl hook drain` runs on a cron schedule (typically every 2–5 minutes). Your completion is recorded immediately, but the notification reaches the gateway on the next drain cycle.
+- **Payloads include context.** Each notification carries `agent`, `project`, and full event details. The gateway handles per-agent routing — HZL sends the same payload to one URL regardless of which agent completed the task.
+- **If hooks seem broken**, check `hzl hook drain --json` for delivery failures and `last_error` details.
 
 ---
 
@@ -273,9 +258,9 @@ hzl task claim <id> --agent <agent-id> --lease 30       # 30-minute lease
 # Monitor for stuck tasks
 hzl task stuck
 
-# Recover an abandoned task
+# Recover an abandoned task (steal + set new lease atomically)
 hzl task show <stuck-id> --view standard --json         # Read last checkpoint first
-hzl task steal <stuck-id> --if-expired --agent <agent-id>
+hzl task steal <stuck-id> --if-expired --agent <agent-id> --lease 30
 ```
 
 Use distinct `--agent` IDs per agent (e.g. `henry`, `clara`, `kenji`) so authorship is traceable.

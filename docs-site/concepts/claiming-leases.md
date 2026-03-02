@@ -68,9 +68,11 @@ hzl task stuck
 # Review context
 hzl task show <id>
 
-# Recover task
-hzl task steal <id> --if-expired --agent worker-2
+# Recover task with a new lease
+hzl task steal <id> --if-expired --agent worker-2 --lease 60
 ```
+
+`--lease` sets a new lease atomically with the steal, avoiding a separate claim step.
 
 ## Best Practices
 

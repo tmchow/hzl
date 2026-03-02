@@ -15,6 +15,7 @@ Technical reference documentation for HZL.
 |-----------|-------------|
 | [CLI Reference](./cli) | Complete command documentation |
 | [Architecture](./architecture) | Event sourcing, packages, internals |
+| [Hooks](./hooks) | Hook configuration, payloads, and delivery |
 | [Web Dashboard](../dashboard) | Kanban board and monitoring |
 
 ## Getting Help

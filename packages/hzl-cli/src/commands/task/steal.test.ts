@@ -107,6 +107,46 @@ describe('runSteal', () => {
     expect(stealEvent.author).toBe('clara');
   });
 
+  it('sets new lease when --lease is provided', () => {
+    const task = services.taskService.createTask({ title: 'Test', project: 'inbox' });
+    services.taskService.setStatus(task.task_id, TaskStatus.Ready);
+    const pastLease = new Date(Date.now() - 60000).toISOString();
+    services.taskService.claimTask(task.task_id, { author: 'original-owner', lease_until: pastLease });
+
+    const before = Date.now();
+    const result = runSteal({
+      services,
+      taskId: task.task_id,
+      newAssignee: 'new-owner',
+      ifExpired: true,
+      leaseMinutes: 30,
+      json: false,
+    });
+
+    expect(result.agent).toBe('new-owner');
+    expect(result.lease_until).toBeTruthy();
+    const leaseTime = new Date(result.lease_until!).getTime();
+    // Lease should be ~30 minutes from now (within a few seconds tolerance)
+    expect(leaseTime).toBeGreaterThan(before + 29 * 60000);
+    expect(leaseTime).toBeLessThan(before + 31 * 60000);
+  });
+
+  it('includes lease_until in result', () => {
+    const task = services.taskService.createTask({ title: 'Test', project: 'inbox' });
+    services.taskService.setStatus(task.task_id, TaskStatus.Ready);
+    services.taskService.claimTask(task.task_id, { author: 'original-owner' });
+
+    const result = runSteal({
+      services,
+      taskId: task.task_id,
+      newAssignee: 'new-owner',
+      force: true,
+      json: false,
+    });
+
+    expect(result).toHaveProperty('lease_until');
+  });
+
   it('uses --author as agent when --agent is omitted (legacy)', () => {
     const task = services.taskService.createTask({ title: 'Test', project: 'inbox' });
     services.taskService.setStatus(task.task_id, TaskStatus.Ready);

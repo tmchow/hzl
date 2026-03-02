@@ -12,6 +12,7 @@ export interface StuckTask {
   title: string;
   project: string;
   agent: string | null;
+  claimed_at: string | null;
   lease_until: string;
   expired_for_ms: number;
 }
@@ -41,12 +42,13 @@ export function runStuck(options: {
     title: string;
     project: string;
     agent: string | null;
+    claimed_at: string | null;
     lease_until: string;
   };
 
   // Find tasks with expired leases
   let query = `
-    SELECT task_id, title, project, agent, lease_until
+    SELECT task_id, title, project, agent, claimed_at, lease_until
     FROM tasks_current
     WHERE status = 'in_progress'
       AND lease_until IS NOT NULL
@@ -79,6 +81,7 @@ export function runStuck(options: {
       title: row.title,
       project: row.project,
       agent: row.agent,
+      claimed_at: row.claimed_at,
       lease_until: row.lease_until,
       expired_for_ms: expiredForMs,
     });
