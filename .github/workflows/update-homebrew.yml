@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Tap Repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: tmchow/homebrew-hzl
           token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
