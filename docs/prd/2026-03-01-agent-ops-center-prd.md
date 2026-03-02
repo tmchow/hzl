@@ -96,10 +96,10 @@ The right detail panel uses a **timeline-first** layout: event timeline with inl
 - **No sparklines for v1.** Sparklines require resolving session semantics, time window decisions, and contextual silence classification. Task duration and status dots provide the essential at-a-glance signal without this complexity.
 - **Desktop-first with mobile fallback.** The split-panel interaction model is desktop-oriented. Mobile gets horizontal scroll or a degraded single-column list, not a redesigned experience.
 
-## Open Questions
+## Resolved During Tech Planning
 
-- **[Affects R6]** What defines a "session"? The event store captures `session_id` — is this reliably populated, or should sessions be inferred from event gaps? If session data is reliably available, the detail panel can show session-scoped metrics (session duration, event count). If not, the detail panel shows agent-level metrics only. Tech planning should investigate `session_id` population in practice and propose the appropriate approach.
-- **[Affects R5]** At what point (if ever) do agents age out of the roster? If an agent was last active 3 weeks ago, should it still appear? Suggested default: show all agents seen within the current project/date filter range, plus any currently active agents regardless of filter. Tech planning should evaluate performance implications of unbounded roster queries.
+- **[R6] Session definition:** `session_id` is never populated in practice — the CLI does not pass it, and most service methods don't forward it. The detail panel shows agent-level metrics (events on the agent's tasks, task duration, event count). No session grouping.
+- **[R5] Agent aging:** The roster derives from `tasks_current.agent`, which is already indexed. With project/date filters applied, agents are naturally scoped to the relevant timeframe. For 2-20 agents this is performant without a cutoff. All agents matching the current filters are shown.
 
 ## Next Steps
 
