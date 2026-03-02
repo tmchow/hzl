@@ -164,7 +164,7 @@ export interface AgentStatusTask {
 
 export interface AgentStatusStats {
   total: number;
-  [status: string]: number;
+  counts: Record<string, number>;
 }
 
 export interface AgentStatusItem {
@@ -1564,9 +1564,9 @@ export class TaskService {
       type StatsRow = { agent: string; status: string; count: number };
       const statsRows = this.db.prepare(statsSql).all(...statsParams) as StatsRow[];
       for (const row of statsRows) {
-        const entry = statsByAgent.get(row.agent) ?? { total: 0 };
+        const entry = statsByAgent.get(row.agent) ?? { total: 0, counts: {} };
         entry.total += row.count;
-        entry[row.status] = row.count;
+        entry.counts[row.status] = row.count;
         statsByAgent.set(row.agent, entry);
       }
     }
@@ -1578,6 +1578,7 @@ export class TaskService {
       const isActive = row.is_active === 1;
       if (isActive) activeCount++; else idleCount++;
       const tasks = tasksByAgent.get(row.agent) ?? [];
+      // Duration since oldest in-progress task was claimed (tasks ordered by claimed_at ASC)
       const activeDurationMs = isActive && tasks.length > 0
         ? now - new Date(tasks[0].claimedAt).getTime()
         : null;

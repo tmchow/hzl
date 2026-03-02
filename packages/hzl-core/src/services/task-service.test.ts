@@ -3412,7 +3412,7 @@ describe('TaskService', () => {
       taskService.completeTask(t2.task_id, { author: 'agent-a' });
 
       const result = taskService.getAgentStatus({ includeStats: true });
-      expect(result.agents[0].stats).toEqual({ total: 2, in_progress: 1, done: 1 });
+      expect(result.agents[0].stats).toEqual({ total: 2, counts: { in_progress: 1, done: 1 } });
     });
 
     it('returns stats as null when not requested', () => {
