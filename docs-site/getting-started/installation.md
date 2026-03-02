@@ -134,6 +134,8 @@ Apply changes via `config.patch`; do not hand-edit `openclaw.json`.
 
 Why: tasks routed to a project pool (instead of a specific agent) can be claimed by any agent monitoring that pool.
 
+Note: HZL creates a protected `inbox` project automatically on first init. It cannot be deleted. Use it for unrouted tasks, or skip it and create named pools directly.
+
 ### Small/simple setup
 
 Use one shared queue plus tags:
@@ -159,7 +161,24 @@ Pool routing rule:
 
 ### Exec-denied agents (resolve before HEARTBEAT wiring)
 
-Run this check during discovery and resolve it before step 4.
+Check each agent's exec status during discovery and resolve before step 4.
+
+`openclaw agents list` does not currently expose tool deny status ([openclaw#31510](https://github.com/openclaw/openclaw/issues/31510)). Until that ships, check directly:
+
+```bash
+python3 -c "
+import json, os
+path = os.path.expanduser('~/.openclaw/openclaw.json')
+with open(path) as f:
+    c = json.load(f)
+for a in c.get('agents', {}).get('list', []):
+    deny = a.get('tools', {}).get('deny', [])
+    blocked = 'exec' in deny or 'group:runtime' in deny
+    print(f'{a[\"id\"]}: exec_blocked={blocked}')
+"
+```
+
+All agents should show `exec_blocked=False`. If any show `True`, that agent cannot run HZL commands and HEARTBEAT polling will silently do nothing.
 
 Some agents deny `exec` in `tools.deny`. HZL depends on `exec` for CLI commands, so this is all-or-nothing at the tool level.
 
@@ -200,14 +219,54 @@ Wrap with markers so teardown is easy later:
 ```md
 <!-- hzl:start -->
 ## Task Poll
-Run: hzl workflow run start --agent <agent-id> --project <project>
+Run: hzl workflow run start --agent <agent-id> --project <project> --lease 30
 Output is JSON by default (`--format json`).
-If a task is returned, work on it before continuing the rest of this heartbeat.
-If no task is returned, continue normally.
+If `selected` is non-null, work on the returned task before continuing the rest of this heartbeat.
+If `selected` is null, continue normally.
 <!-- hzl:end -->
 ```
 
 Use each agent's exact identity string.
+
+`--lease 30` sets a 30-minute expiry on the claimed task. Without a lease, the task has no expiry and another agent can never reclaim it if this one crashes. Use `hzl task checkpoint` during work to extend the lease.
+
+Output shapes for `workflow run start`:
+
+No task available:
+```json
+{
+  "workflow": "start",
+  "mode": "none",
+  "selected": null,
+  "filters": { "project": "openclaw" },
+  "in_progress_count": 0,
+  "others_total": 0,
+  "others": []
+}
+```
+
+Task found and resumed:
+```json
+{
+  "workflow": "start",
+  "mode": "resume",
+  "selected": {
+    "task_id": "01KJPVNDGTFGJGXSCAXXEGMWZQ",
+    "title": "...",
+    "project": "openclaw",
+    "status": "in_progress",
+    "priority": 0,
+    "agent": "henry",
+    "lease_until": null
+  },
+  "filters": { "project": "openclaw" },
+  "in_progress_count": 1,
+  "others_total": 0,
+  "others": []
+}
+```
+
+Decision key: `selected` is `null` when nothing to do; non-null when a task was claimed or resumed. `mode` is `"none"` | `"resume"` | `"claim"`.
 
 ## 5) Hook delivery (configure endpoint + schedule drain)
 
@@ -216,35 +275,75 @@ Why: when a task completes, HZL queues a callback to your OpenClaw gateway; `hzl
 Hook config is global at launch (`hooks.on_done`).
 
 Edit your HZL config file directly (there is no `hzl config set` command).
+Default config path is typically `~/.config/hzl/config.json` (or `$XDG_CONFIG_HOME/hzl/config.json`).
 Create the file if missing, then add:
 
 ```json
 {
   "hooks": {
     "on_done": {
-      "url": "<OPENCLAW_GATEWAY_URL>/events/inject",
+      "url": "<OPENCLAW_GATEWAY_URL>/hooks/agent",
       "headers": {
-        "Authorization": "Bearer <YOUR_GATEWAY_TOKEN>"
+        "Authorization": "Bearer <HOOKS_TOKEN>"
+      },
+      "body": {
+        "message": "HZL task completed. Run: hzl workflow run start to resume work.",
+        "agentId": "main",
+        "deliver": false,
+        "wakeMode": "now"
       }
     }
   }
 }
 ```
 
-Default config path is typically `~/.config/hzl/config.json` (or `$XDG_CONFIG_HOME/hzl/config.json`).
-HZL uses a host-process model (no required daemon). Your runtime must schedule drain runs.
+Important details:
+- The endpoint is `/hooks/agent`, not `/events/inject`.
+- `<HOOKS_TOKEN>` is `hooks.token` from `openclaw.json` — this is a separate credential from the gateway auth token (`gateway.auth.token`).
+- `deliver: false` prevents the agent's response from being broadcast to your messaging channel (Discord/Telegram/etc.) on every task completion.
+- `agentId: "main"` routes to the primary agent; multi-agent setups should route by role.
+- Accepted auth header formats: `Authorization: Bearer <token>` or `x-openclaw-token: <token>`.
+- A successful call returns `202 {"ok": true, "runId": "<uuid>"}`.
 
-Recommended cadence: every 1-5 minutes (2 minutes is a good default).
+### Verify hook connectivity before scheduling drain
 
-OpenClaw-specific guidance:
-- Use OpenClaw's cron tool to create a recurring job that runs `hzl hook drain` every 2 minutes.
-- If you cannot access cron tooling, ask the operator to add this scheduler entry.
-
-Command:
+Run a manual drain to confirm the endpoint and token are correct:
 
 ```bash
 hzl hook drain
 ```
+
+- If config is correct and queue is empty: prints delivery summary with 0 delivered.
+- If endpoint is unreachable or token is wrong: prints a connection/auth error.
+
+Do not set up the drain cron until this passes cleanly.
+
+### Schedule drain runs
+
+HZL uses a host-process model (no required daemon). Your runtime must schedule drain runs.
+
+Recommended cadence: every 1-5 minutes (2 minutes is a good default).
+
+OpenClaw-specific guidance — create a cron job with the complete config:
+
+```json5
+{
+  "name": "hzl-hook-drain",
+  "schedule": { "kind": "cron", "expr": "*/2 * * * *", "tz": "UTC" },
+  "sessionTarget": "isolated",
+  "payload": {
+    "kind": "agentTurn",
+    "message": "Run: hzl hook drain\nIf 0 hooks delivered, reply HEARTBEAT_OK. Otherwise summarize what was delivered.",
+    "timeoutSeconds": 60
+  },
+  "delivery": { "mode": "none" }
+}
+```
+
+- `sessionTarget: "isolated"` — the drain doesn't need session history; `"main"` would serialize it against all user messages.
+- `delivery: {mode: "none"}` suppresses the post-run announcement. Without it, every drain posts a summary to your messaging channel every 2 minutes.
+
+If you cannot access cron tooling, ask the operator to add this scheduler entry.
 
 If no scheduler exists, hooks remain queued until you run `hzl hook drain` manually.
 
