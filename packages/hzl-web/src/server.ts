@@ -544,6 +544,56 @@ export function createWebServer(options: ServerOptions): ServerHandle {
     json(res, result);
   }
 
+  function handleAgents(params: URLSearchParams, res: ServerResponse): void {
+    const project = params.get('project') || undefined;
+
+    const sinceParam = params.get('since');
+    let sinceDays: number | undefined;
+    if (sinceParam) {
+      if (!Object.prototype.hasOwnProperty.call(DATE_PRESETS, sinceParam)) {
+        json(
+          res,
+          { error: `Invalid since value: ${sinceParam}. Expected one of: ${Object.keys(DATE_PRESETS).join(', ')}` },
+          400
+        );
+        return;
+      }
+      sinceDays = DATE_PRESETS[sinceParam];
+    }
+
+    const agents = taskService.getAgentRoster({ project, sinceDays });
+    json(res, { agents });
+  }
+
+  function handleAgentEvents(agentId: string, params: URLSearchParams, res: ServerResponse): void {
+    const decodedAgentId = decodeURIComponent(agentId);
+
+    const limitParam = params.get('limit');
+    let limit = 50;
+    if (limitParam !== null) {
+      const parsed = parseStrictNonNegativeInt(limitParam);
+      if (parsed === null || parsed < 1 || parsed > 200) {
+        json(res, { error: 'Invalid limit value. Expected integer 1-200.' }, 400);
+        return;
+      }
+      limit = parsed;
+    }
+
+    const offsetParam = params.get('offset');
+    let offset = 0;
+    if (offsetParam !== null) {
+      const parsed = parseStrictNonNegativeInt(offsetParam);
+      if (parsed === null) {
+        json(res, { error: 'Invalid offset value. Expected non-negative integer.' }, 400);
+        return;
+      }
+      offset = parsed;
+    }
+
+    const result = taskService.getAgentEvents(decodedAgentId, { limit, offset });
+    json(res, { events: result.events, total: result.total });
+  }
+
   const useLegacy = process.env.HZL_LEGACY_DASHBOARD === '1';
 
   function serveHtml(res: ServerResponse, html: string): void {
@@ -651,6 +701,18 @@ export function createWebServer(options: ServerOptions): ServerHandle {
       const taskEventsMatch = pathname.match(/^\/api\/tasks\/([^/]+)\/events$/);
       if (taskEventsMatch) {
         handleTaskEvents(taskEventsMatch[1], params, res);
+        return;
+      }
+
+      // /api/agents routes
+      if (pathname === '/api/agents') {
+        handleAgents(params, res);
+        return;
+      }
+
+      const agentEventsMatch = pathname.match(/^\/api\/agents\/([^/]+)\/events$/);
+      if (agentEventsMatch) {
+        handleAgentEvents(agentEventsMatch[1], params, res);
         return;
       }
 
