@@ -104,7 +104,7 @@ jobs:
         run: pnpm verify:cli-docs
 
       - name: Upload hzl-core dist artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: hzl-core-dist
           path: packages/hzl-core/dist
