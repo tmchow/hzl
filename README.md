@@ -16,9 +16,11 @@ hzl init
 Full docs at **[hzl-tasks.com](https://www.hzl-tasks.com)**
 
 - [Getting Started](https://www.hzl-tasks.com/getting-started/) — installation, quickstart, agent setup
-- [Concepts](https://www.hzl-tasks.com/concepts/) — tasks, checkpoints, dependencies, projects
+- [Concepts](https://www.hzl-tasks.com/concepts/) — tasks, dependencies, claiming & leases, lifecycle hooks, cloud sync
 - [Workflows](https://www.hzl-tasks.com/workflows/) — single-agent, multi-agent, handoffs, oversight
+- [Dashboard](https://www.hzl-tasks.com/dashboard/) — Kanban board, agent operations, graph view
 - [CLI Reference](https://www.hzl-tasks.com/reference/cli/)
+- [Hooks Reference](https://www.hzl-tasks.com/reference/hooks/) — configuration, payloads, delivery semantics
 - [Architecture](https://www.hzl-tasks.com/reference/architecture/)
 - [Troubleshooting](https://www.hzl-tasks.com/troubleshooting/)
 
