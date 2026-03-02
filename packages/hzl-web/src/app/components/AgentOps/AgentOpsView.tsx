@@ -1,3 +1,5 @@
+import { useAgents } from '../../hooks/useAgents';
+import AgentRoster from './AgentRoster';
 import './AgentOps.css';
 
 interface AgentOpsViewProps {
@@ -13,6 +15,11 @@ export default function AgentOpsView({
   project,
   since,
 }: AgentOpsViewProps) {
+  const { agents, loading, error } = useAgents({
+    since,
+    project: project || undefined,
+  });
+
   return (
     <div className="agent-ops">
       {/* Fleet summary bar — spans full width above both panels */}
@@ -23,12 +30,22 @@ export default function AgentOpsView({
       <div className="agent-ops-panels">
         {/* Left panel — agent roster */}
         <div className="agent-ops-roster">
-          <div className="agent-ops-placeholder">
-            Agent roster
-            {project && <span> (project: {project})</span>}
-            <br />
-            <span className="agent-ops-placeholder-hint">Since: {since}</span>
-          </div>
+          {error ? (
+            <div className="agent-ops-placeholder">
+              <span>Failed to load agents</span>
+              <span className="agent-ops-placeholder-hint">{error}</span>
+            </div>
+          ) : loading && agents.length === 0 ? (
+            <div className="agent-ops-placeholder">
+              <span>Loading agents...</span>
+            </div>
+          ) : (
+            <AgentRoster
+              agents={agents}
+              selectedAgent={selectedAgent}
+              onSelectAgent={onSelectAgent}
+            />
+          )}
         </div>
 
         {/* Right panel — agent detail */}

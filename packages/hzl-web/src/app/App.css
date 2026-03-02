@@ -1516,6 +1516,109 @@ select:focus {
   font-size: 11px;
 }
 
+/* Agent Roster */
+.agent-roster {
+  display: flex;
+  flex-direction: column;
+}
+
+.agent-roster-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 200px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.agent-roster-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: none;
+  border-left: 3px solid transparent;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  font-family: inherit;
+  font-size: inherit;
+  transition: background 0.1s;
+}
+
+.agent-roster-row:hover {
+  background: var(--bg-secondary);
+}
+
+.agent-roster-row.selected {
+  background: var(--bg-card);
+  border-left-color: var(--accent);
+}
+
+.agent-roster-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.agent-roster-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.agent-roster-id {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.agent-roster-task {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  min-width: 0;
+}
+
+.agent-roster-task-title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.agent-roster-more {
+  flex-shrink: 0;
+  font-size: 0.7rem;
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.agent-roster-idle {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.agent-roster-duration {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
 /* Shortcuts Modal */
 .shortcuts-modal-overlay {
   position: fixed;
