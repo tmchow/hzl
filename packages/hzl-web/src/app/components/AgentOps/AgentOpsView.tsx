@@ -1,5 +1,6 @@
-import { useMemo } from 'react';
-import type { AgentRosterItem, AgentEvent } from '../../api/types';
+import { useState, useEffect, useMemo } from 'react';
+import { useAgents } from '../../hooks/useAgents';
+import { useAgentEvents } from '../../hooks/useAgentEvents';
 import AgentRoster from './AgentRoster';
 import AgentDetail from './AgentDetail';
 import FleetSummary from './FleetSummary';
@@ -8,26 +9,46 @@ import './AgentOps.css';
 interface AgentOpsViewProps {
   selectedAgent: string | null;
   onSelectAgent: (agent: string | null) => void;
-  agents: AgentRosterItem[];
-  agentsLoading: boolean;
-  agentsError: string | null;
-  agentEvents: AgentEvent[] | null;
-  agentEventsTotal: number;
-  agentEventsLoading: boolean;
-  onLoadMoreAgentEvents: () => void;
+  since: string;
+  project: string;
+  refreshKey: number;
 }
 
 export default function AgentOpsView({
   selectedAgent,
   onSelectAgent,
-  agents,
-  agentsLoading,
-  agentsError,
-  agentEvents,
-  agentEventsTotal,
-  agentEventsLoading,
-  onLoadMoreAgentEvents,
+  since,
+  project,
+  refreshKey,
 }: AgentOpsViewProps) {
+  // Data fetching — only runs when this component is mounted (agents view active)
+  const { agents, loading: agentsLoading, error: agentsError, refresh: refreshAgents } = useAgents({
+    since,
+    project: project || undefined,
+  });
+  const {
+    events: agentEvents,
+    total: agentEventsTotal,
+    loading: agentEventsLoading,
+    loadMore: loadMoreAgentEvents,
+    refresh: refreshAgentEvents,
+  } = useAgentEvents(selectedAgent);
+
+  // SSE-triggered refresh via refreshKey from parent
+  useEffect(() => {
+    if (refreshKey > 0) {
+      refreshAgents();
+      refreshAgentEvents();
+    }
+  }, [refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 60-second tick to update duration displays
+  const [, setDurationTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setDurationTick(n => n + 1), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
   const selectedAgentData = useMemo(() => {
     if (!selectedAgent) return null;
     return agents.find((a) => a.agent === selectedAgent) ?? null;
@@ -67,7 +88,7 @@ export default function AgentOpsView({
             agent={selectedAgentData}
             events={agentEvents}
             total={agentEventsTotal}
-            onLoadMore={onLoadMoreAgentEvents}
+            onLoadMore={loadMoreAgentEvents}
             loading={agentEventsLoading}
           />
         </div>
