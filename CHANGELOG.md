@@ -1,3 +1,15 @@
+# [2.7.0](https://github.com/tmchow/hzl/compare/v2.6.0...v2.7.0) (2026-03-02)
+
+
+### Bug Fixes
+
+* **web:** graph view not using full available viewport height ([#167](https://github.com/tmchow/hzl/issues/167)) ([42ed9a5](https://github.com/tmchow/hzl/commit/42ed9a509862a26e8ed4874430a80311626506f5))
+
+
+### Features
+
+* **web:** graph view visual redesign with interactive controls ([#169](https://github.com/tmchow/hzl/issues/169)) ([76f201f](https://github.com/tmchow/hzl/commit/76f201f94515a8cb44b9c885e1dbfb502b5b13e7))
+
 # [2.6.0](https://github.com/tmchow/hzl/compare/v2.5.0...v2.6.0) (2026-03-02)
 
 
