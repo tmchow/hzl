@@ -250,7 +250,7 @@ hzl serve --stop             # Stop the background server
 
 ## Running as a Service (systemd)
 
-For always-on access (e.g., on an OpenClaw box via Tailscale). Linux only.
+For always-on access (e.g., on an OpenClaw box via Tailscale). Linux only. See also the [Installation guide](./getting-started/installation#optional-run-the-web-dashboard-as-a-service) for the quick setup during initial install.
 
 ```bash
 mkdir -p ~/.config/systemd/user
