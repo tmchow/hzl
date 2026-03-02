@@ -19,9 +19,13 @@ Hooks are configured in `config.json`:
 {
   "hooks": {
     "on_done": {
-      "url": "https://example.com/events/inject",
+      "url": "https://your-endpoint.example.com/hooks/callback",
       "headers": {
         "Authorization": "Bearer <token>"
+      },
+      "body": {
+        "message": "HZL task completed.",
+        "agentId": "main"
       }
     }
   }
@@ -36,6 +40,7 @@ Config file location:
 |-------|------|----------|-------------|
 | `hooks.on_done.url` | string | Yes | HTTP(S) endpoint to receive POST requests |
 | `hooks.on_done.headers` | object | No | Additional headers sent with each request |
+| `hooks.on_done.body` | object | No | Additional JSON fields merged into the POST body |
 
 If `hooks.on_done.url` is not set, no outbox rows are created and `hzl hook drain` is a no-op.
 
