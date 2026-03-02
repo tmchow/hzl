@@ -109,6 +109,45 @@ export interface ApiError {
   error: string;
 }
 
+/** Agent roster item as returned by GET /api/agents */
+export interface AgentRosterTask {
+  taskId: string;
+  title: string;
+  claimedAt: string;
+  status: string;
+  progress: number | null;
+}
+
+export interface AgentRosterItem {
+  agent: string;
+  isActive: boolean;
+  tasks: AgentRosterTask[];
+  lastActivity: string;
+}
+
+export interface AgentRosterResponse {
+  agents: AgentRosterItem[];
+}
+
+/** Agent event as returned by GET /api/agents/:id/events */
+export interface AgentEvent {
+  id: number;
+  eventId: string;
+  taskId: string;
+  type: string;
+  data: Record<string, unknown>;
+  author?: string;
+  agentId?: string;
+  timestamp: string;
+  taskTitle: string;
+  taskStatus: string;
+}
+
+export interface AgentEventsResponse {
+  events: AgentEvent[];
+  total: number;
+}
+
 /** Search result item as returned by GET /api/search */
 export interface SearchTaskResult {
   task_id: string;

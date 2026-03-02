@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { TaskListItem } from '../../api/types';
 import { getStatusColor } from '../../utils/format';
 import './GraphView.css';
@@ -93,124 +93,139 @@ export default function GraphView({ tasks, onTaskClick }: GraphViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const graphRef = useRef<any>(null);
-  const initializedRef = useRef(false);
+  const mountedRef = useRef(true);
+  const [initialized, setInitialized] = useState(false);
+  const tasksRef = useRef(tasks);
+  const onTaskClickRef = useRef(onTaskClick);
+  tasksRef.current = tasks;
+  onTaskClickRef.current = onTaskClick;
 
-  const initGraph = useCallback(async () => {
-    if (!containerRef.current || initializedRef.current) return;
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let ForceGraph: any;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let d3: any;
-    try {
-      const mod = await import('force-graph');
-      ForceGraph = mod.default;
-      d3 = await import('d3');
-    } catch {
-      return;
-    }
-
-    initializedRef.current = true;
-
-    const RING_RADII: Record<number, number> = { 0: 0, 1: 180, 2: 360, 3: 540 };
-    const baseRadius = window.innerWidth < 768 ? 0.6 : 1;
-
-    const graphData = transformTasksToGraph(tasks);
-    for (const node of graphData.nodes) {
-      const radius = (RING_RADII[node.ring] ?? 300) * baseRadius;
-      node.x = Math.cos(node.angle || 0) * radius;
-      node.y = Math.sin(node.angle || 0) * radius;
-    }
-
-    const graph = ForceGraph()(containerRef.current)
-      .graphData(graphData)
-      .backgroundColor('#1a1a1a')
-      .nodeLabel((n: GraphNode) => n.name)
-      .nodeColor((n: GraphNode) => getStatusColor(n.status, n.type))
-      .nodeVal((n: GraphNode) => getNodeSize(n))
-      .linkColor((l: GraphLink) => l.type === 'dependency' ? '#e57373' : '#40404080')
-      .linkWidth((l: GraphLink) => l.type === 'dependency' ? 2 : 1)
-      .linkLabel((l: GraphLink) => l.type === 'dependency' ? 'blocks' : '')
-      .linkDirectionalArrowLength((l: GraphLink) => l.type === 'dependency' ? 6 : 0)
-      .linkDirectionalArrowRelPos(1)
-      .onNodeClick((n: GraphNode) => {
-        if (n.type !== 'root' && n.type !== 'project') {
-          onTaskClick(n.id);
-        }
-      })
-      .d3Force('x', d3.forceX((d: GraphNode) => {
-        const radius = (RING_RADII[d.ring] ?? 300) * baseRadius;
-        return Math.cos(d.angle || 0) * radius;
-      }).strength(0.3))
-      .d3Force('y', d3.forceY((d: GraphNode) => {
-        const radius = (RING_RADII[d.ring] ?? 300) * baseRadius;
-        return Math.sin(d.angle || 0) * radius;
-      }).strength(0.3))
-      .d3Force('collision', d3.forceCollide((d: GraphNode) => getNodeSize(d) + 15))
-      .d3Force('charge', d3.forceManyBody().strength(-50))
-      .d3Force('link', d3.forceLink().strength(0.1))
-      .linkDirectionalParticles((l: GraphLink) => l.type === 'dependency' ? 3 : 0)
-      .linkDirectionalParticleWidth(3)
-      .linkDirectionalParticleSpeed(0.005)
-      .linkDirectionalParticleColor(() => '#e57373')
-      .nodeCanvasObject((node: GraphNode, ctx: CanvasRenderingContext2D, globalScale: number) => {
-        if (node.type === 'root') {
-          const pulse = Math.sin(Date.now() / 500) * 0.3 + 0.7;
-          ctx.beginPath();
-          ctx.arc(node.x!, node.y!, 25 * pulse, 0, 2 * Math.PI);
-          ctx.fillStyle = `rgba(245, 158, 11, ${0.3 * pulse})`;
-          ctx.fill();
-        }
-        const size = getNodeSize(node);
-        ctx.beginPath();
-        ctx.arc(node.x!, node.y!, size, 0, 2 * Math.PI);
-        ctx.fillStyle = getStatusColor(node.status, node.type);
-        ctx.fill();
-        if (node.type === 'root') {
-          ctx.font = `bold ${11 / globalScale}px ui-monospace`;
-          ctx.fillStyle = '#1a1a1a';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText('HZL', node.x!, node.y! + 1);
-        }
-        if (node.type === 'project' && globalScale > 0.5) {
-          ctx.font = `${10 / globalScale}px ui-monospace`;
-          ctx.fillStyle = '#e5e5e5';
-          ctx.textAlign = 'center';
-          ctx.fillText(node.name, node.x!, node.y! + size + 12);
-        }
-      })
-      .nodePointerAreaPaint((node: GraphNode, color: string, ctx: CanvasRenderingContext2D) => {
-        const size = getNodeSize(node);
-        ctx.beginPath();
-        ctx.arc(node.x!, node.y!, size + 4, 0, 2 * Math.PI);
-        ctx.fillStyle = color;
-        ctx.fill();
-      });
-
-    graphRef.current = graph;
-
-    setTimeout(() => {
-      if (graphRef.current) {
-        graphRef.current.zoomToFit(400, 50);
-      }
-    }, 500);
-  }, [tasks, onTaskClick]);
-
+  // Init graph once on mount — no deps on tasks/onTaskClick to avoid teardown/reinit races
   useEffect(() => {
-    initGraph();
+    mountedRef.current = true;
+    let zoomTimer: ReturnType<typeof setTimeout>;
+
+    (async () => {
+      if (!containerRef.current) return;
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let ForceGraph: any;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let d3: any;
+      try {
+        const mod = await import('force-graph');
+        ForceGraph = mod.default;
+        d3 = await import('d3');
+      } catch {
+        return;
+      }
+
+      if (!mountedRef.current || !containerRef.current) return;
+
+      const RING_RADII: Record<number, number> = { 0: 0, 1: 180, 2: 360, 3: 540 };
+      const baseRadius = window.innerWidth < 768 ? 0.6 : 1;
+
+      const graphData = transformTasksToGraph(tasksRef.current);
+      for (const node of graphData.nodes) {
+        const radius = (RING_RADII[node.ring] ?? 300) * baseRadius;
+        node.x = Math.cos(node.angle || 0) * radius;
+        node.y = Math.sin(node.angle || 0) * radius;
+      }
+
+      const graph = ForceGraph()(containerRef.current)
+        .graphData(graphData)
+        .backgroundColor('#1a1a1a')
+        .nodeLabel((n: GraphNode) => n.name)
+        .nodeColor((n: GraphNode) => getStatusColor(n.status, n.type))
+        .nodeVal((n: GraphNode) => getNodeSize(n))
+        .linkColor((l: GraphLink) => l.type === 'dependency' ? '#e57373' : '#40404080')
+        .linkWidth((l: GraphLink) => l.type === 'dependency' ? 2 : 1)
+        .linkLabel((l: GraphLink) => l.type === 'dependency' ? 'blocks' : '')
+        .linkDirectionalArrowLength((l: GraphLink) => l.type === 'dependency' ? 6 : 0)
+        .linkDirectionalArrowRelPos(1)
+        .onNodeClick((n: GraphNode) => {
+          if (n.type !== 'root' && n.type !== 'project') {
+            onTaskClickRef.current(n.id);
+          }
+        })
+        .d3Force('x', d3.forceX((d: GraphNode) => {
+          const radius = (RING_RADII[d.ring] ?? 300) * baseRadius;
+          return Math.cos(d.angle || 0) * radius;
+        }).strength(0.3))
+        .d3Force('y', d3.forceY((d: GraphNode) => {
+          const radius = (RING_RADII[d.ring] ?? 300) * baseRadius;
+          return Math.sin(d.angle || 0) * radius;
+        }).strength(0.3))
+        .d3Force('collision', d3.forceCollide((d: GraphNode) => getNodeSize(d) + 15))
+        .d3Force('charge', d3.forceManyBody().strength(-50))
+        .d3Force('link', d3.forceLink().strength(0.1))
+        .linkDirectionalParticles((l: GraphLink) => l.type === 'dependency' ? 3 : 0)
+        .linkDirectionalParticleWidth(3)
+        .linkDirectionalParticleSpeed(0.005)
+        .linkDirectionalParticleColor(() => '#e57373')
+        .nodeCanvasObject((node: GraphNode, ctx: CanvasRenderingContext2D, globalScale: number) => {
+          if (node.type === 'root') {
+            const pulse = Math.sin(Date.now() / 500) * 0.3 + 0.7;
+            ctx.beginPath();
+            ctx.arc(node.x!, node.y!, 25 * pulse, 0, 2 * Math.PI);
+            ctx.fillStyle = `rgba(245, 158, 11, ${0.3 * pulse})`;
+            ctx.fill();
+          }
+          const size = getNodeSize(node);
+          ctx.beginPath();
+          ctx.arc(node.x!, node.y!, size, 0, 2 * Math.PI);
+          ctx.fillStyle = getStatusColor(node.status, node.type);
+          ctx.fill();
+          if (node.type === 'root') {
+            ctx.font = `bold ${11 / globalScale}px ui-monospace`;
+            ctx.fillStyle = '#1a1a1a';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('HZL', node.x!, node.y! + 1);
+          }
+          if (node.type === 'project' && globalScale > 0.5) {
+            ctx.font = `${10 / globalScale}px ui-monospace`;
+            ctx.fillStyle = '#e5e5e5';
+            ctx.textAlign = 'center';
+            ctx.fillText(node.name, node.x!, node.y! + size + 12);
+          }
+        })
+        .nodePointerAreaPaint((node: GraphNode, color: string, ctx: CanvasRenderingContext2D) => {
+          const size = getNodeSize(node);
+          ctx.beginPath();
+          ctx.arc(node.x!, node.y!, size + 4, 0, 2 * Math.PI);
+          ctx.fillStyle = color;
+          ctx.fill();
+        });
+
+      if (!mountedRef.current) {
+        graph._destructor?.();
+        return;
+      }
+
+      graphRef.current = graph;
+      setInitialized(true);
+
+      zoomTimer = setTimeout(() => {
+        if (graphRef.current && mountedRef.current) {
+          graphRef.current.zoomToFit(400, 50);
+        }
+      }, 500);
+    })();
+
     return () => {
+      mountedRef.current = false;
+      clearTimeout(zoomTimer);
       if (graphRef.current) {
         graphRef.current._destructor?.();
         graphRef.current = null;
       }
-      initializedRef.current = false;
     };
-  }, [initGraph]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Update graph data when tasks change
+  // Update graph data when tasks change (no teardown — just swap data)
   useEffect(() => {
-    if (!graphRef.current || !initializedRef.current) return;
+    if (!graphRef.current) return;
 
     const currentData = graphRef.current.graphData();
     const positionMap = new Map<string, { x: number; y: number; vx?: number; vy?: number }>();
@@ -235,8 +250,9 @@ export default function GraphView({ tasks, onTaskClick }: GraphViewProps) {
   }, [tasks]);
 
   return (
-    <div className="graph-container" ref={containerRef}>
-      {!initializedRef.current && (
+    <div className="graph-wrapper">
+      <div className="graph-container" ref={containerRef} />
+      {!initialized && (
         <div className="graph-loading">
           <div className="spinner" />
           <span>Loading graph...</span>

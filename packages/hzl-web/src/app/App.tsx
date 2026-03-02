@@ -11,11 +11,12 @@ import type { ActivityEvent } from './api/types';
 import { buildEmojiMap } from './utils/emoji';
 import { getAssigneeValue, getBoardStatus } from './utils/format';
 import { COLUMNS } from './utils/board';
-import Header from './components/Header/Header';
+import NavRail from './components/NavRail/NavRail';
 import FilterBar from './components/Filters/FilterBar';
 import Board from './components/Board/Board';
 import CalendarView from './components/CalendarView/CalendarView';
 import GraphView from './components/GraphView/GraphView';
+import AgentOpsView from './components/AgentOps/AgentOpsView';
 import TaskModal from './components/TaskModal/TaskModal';
 import ActivityPanel from './components/ActivityPanel/ActivityPanel';
 import ConnectionStatus from './components/ConnectionStatus/ConnectionStatus';
@@ -59,9 +60,12 @@ export default function App() {
     initialUrl.activityQ ?? initialPrefs.activityKeywordFilter ?? '',
   );
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(initialUrl.task ?? null);
+  const [selectedAgent, setSelectedAgent] = useState<string | null>(initialUrl.selectedAgent ?? null);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [sseState, setSseState] = useState<SSEState>('connecting');
+  const [railCollapsed, setRailCollapsed] = useState(initialPrefs.railCollapsed);
+  const [agentCounts, setAgentCounts] = useState<{ active: number; idle: number } | null>(null);
 
   // Calendar state
   const parsedMonth = useMemo(() => {
@@ -95,10 +99,14 @@ export default function App() {
     refreshStats();
   }, [refreshTasks, refreshEvents, refreshStats]);
 
+  // SSE-triggered refresh key — AgentOpsView watches this to refresh its own data
+  const [refreshKey, setRefreshKey] = useState(0);
+
   // SSE connection
   useSSE(() => {
     setSseState('live');
     refreshAll();
+    setRefreshKey(k => k + 1);
   });
 
   const { results: searchResults, total: searchTotal, searching } = useSearch(searchQuery);
@@ -119,9 +127,10 @@ export default function App() {
       activeView: view,
       tagFilter: tag,
       activeTab,
+      railCollapsed,
     });
   }, [since, project, assignee, tag, activityAssignee, activityKeyword, searchQuery,
-      columnVisibility, showSubtasks, collapsedParents, view, activeTab]);
+      columnVisibility, showSubtasks, collapsedParents, view, activeTab, railCollapsed]);
 
   // URL sync
   const syncUrl = useCallback(() => {
@@ -140,9 +149,10 @@ export default function App() {
       activityAssignee,
       activityKeyword,
       selectedTaskId,
+      selectedAgent,
     });
   }, [view, since, calendarYear, calendarMonth, project, assignee, searchQuery,
-      showSubtasks, activeTab, tag, activityOpen, activityAssignee, activityKeyword, selectedTaskId]);
+      showSubtasks, activeTab, tag, activityOpen, activityAssignee, activityKeyword, selectedTaskId, selectedAgent]);
 
   useEffect(() => {
     persistPrefs();
@@ -356,94 +366,122 @@ export default function App() {
   const projects = stats?.projects ?? [];
 
   return (
-    <div className="app">
-      <header className="header">
-        <button
-          className="hamburger"
-          onClick={() => setMobileFiltersOpen(!mobileFiltersOpen)}
-        >
-          &#9776;
-        </button>
-        <Header />
-        <FilterBar
-          since={since}
-          onSinceChange={handleSinceChange}
-          projects={projects}
-          project={project}
-          onProjectChange={handleProjectChange}
-          assignees={assigneeOptions}
-          assignee={assignee}
-          onAssigneeChange={setAssignee}
-          tags={tagOptions}
-          tag={tag}
-          onTagChange={setTag}
-          searchQuery={searchQuery}
-          onSearchChange={(v) => setSearchQuery(normalizeSearchQuery(v))}
-          searchMatchCount={searchMatchTotal}
-          showDateFilter={view !== 'calendar'}
-          mobileFiltersOpen={mobileFiltersOpen}
-          view={view}
-          onViewChange={handleViewChange}
-          columnVisibility={columnVisibility}
-          onColumnVisibilityChange={setColumnVisibility}
-          showSubtasks={showSubtasks}
-          onShowSubtasksChange={setShowSubtasks}
-          parentCount={parentIds.length}
-          collapsedCount={collapsedCount}
-          onCollapseAll={handleCollapseAll}
-          onExpandAll={handleExpandAll}
-          onShowShortcuts={() => setShortcutsOpen(true)}
-        />
-        <div className="header-right">
-          <ConnectionStatus state={sseState} />
-          <button className="activity-btn" onClick={() => setActivityOpen(true)}>
-            Activity
-          </button>
-        </div>
-      </header>
+    <div className={`app${railCollapsed ? ' rail-collapsed' : ''}`}>
+      <NavRail
+        view={view}
+        onViewChange={handleViewChange}
+        collapsed={railCollapsed}
+        onToggleCollapse={() => setRailCollapsed((prev) => !prev)}
+      />
 
-      {view === 'kanban' && (
-        <>
-          <MobileTabs
-            tasks={filteredTasks}
-            emojiMap={emojiMap}
-            showSubtasks={showSubtasks}
-            collapsedParents={collapsedParents}
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
-            onToggleCollapse={handleToggleCollapse}
-            onCardClick={setSelectedTaskId}
+      <div className="main-area">
+        <header className="top-bar">
+          {view === 'agents' && agentCounts && (
+            <span className="agent-ops-fleet-label">
+              <span
+                className="agent-ops-fleet-dot"
+                style={{ background: 'var(--status-in-progress)' }}
+              />
+              {agentCounts.active} active
+              <span className="agent-ops-fleet-separator">&middot;</span>
+              <span
+                className="agent-ops-fleet-dot"
+                style={{ background: 'var(--status-backlog)' }}
+              />
+              {agentCounts.idle} idle
+            </span>
+          )}
+          <FilterBar
+            since={since}
+            onSinceChange={handleSinceChange}
+            projects={projects}
+            project={project}
+            onProjectChange={handleProjectChange}
+            assignees={assigneeOptions}
+            assignee={assignee}
+            onAssigneeChange={setAssignee}
+            tags={tagOptions}
+            tag={tag}
+            onTagChange={setTag}
             searchQuery={searchQuery}
-          />
-          <Board
-            tasks={filteredTasks}
-            emojiMap={emojiMap}
-            showSubtasks={showSubtasks}
-            collapsedParents={collapsedParents}
+            onSearchChange={(v) => setSearchQuery(normalizeSearchQuery(v))}
+            searchMatchCount={searchMatchTotal}
+            showDateFilter={view !== 'calendar'}
+            mobileFiltersOpen={mobileFiltersOpen}
+            view={view}
             columnVisibility={columnVisibility}
-            searchQuery={searchQuery}
-            onToggleCollapse={handleToggleCollapse}
-            onCardClick={setSelectedTaskId}
+            onColumnVisibilityChange={setColumnVisibility}
+            showSubtasks={showSubtasks}
+            onShowSubtasksChange={setShowSubtasks}
+            parentCount={parentIds.length}
+            collapsedCount={collapsedCount}
+            onCollapseAll={handleCollapseAll}
+            onExpandAll={handleExpandAll}
+            onShowShortcuts={() => setShortcutsOpen(true)}
           />
-        </>
-      )}
+          <div className="top-bar-right">
+            <ConnectionStatus state={sseState} />
+            <button className="activity-btn" onClick={() => setActivityOpen(true)}>
+              Activity
+            </button>
+          </div>
+        </header>
 
-      {view === 'calendar' && (
-        <CalendarView
-          tasks={tasks}
-          year={calendarYear}
-          month={calendarMonth}
-          onNavigate={handleCalendarNavigate}
-          onTaskClick={setSelectedTaskId}
-        />
-      )}
+        {view === 'kanban' && (
+          <>
+            <MobileTabs
+              tasks={filteredTasks}
+              emojiMap={emojiMap}
+              showSubtasks={showSubtasks}
+              collapsedParents={collapsedParents}
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+              onToggleCollapse={handleToggleCollapse}
+              onCardClick={setSelectedTaskId}
+              searchQuery={searchQuery}
+            />
+            <Board
+              tasks={filteredTasks}
+              emojiMap={emojiMap}
+              showSubtasks={showSubtasks}
+              collapsedParents={collapsedParents}
+              columnVisibility={columnVisibility}
+              searchQuery={searchQuery}
+              onToggleCollapse={handleToggleCollapse}
+              onCardClick={setSelectedTaskId}
+            />
+          </>
+        )}
 
-      {view === 'graph' && (
-        <GraphView
-          tasks={tasks}
-          onTaskClick={setSelectedTaskId}
-        />
-      )}
+        {view === 'calendar' && (
+          <CalendarView
+            tasks={tasks}
+            year={calendarYear}
+            month={calendarMonth}
+            onNavigate={handleCalendarNavigate}
+            onTaskClick={setSelectedTaskId}
+          />
+        )}
+
+        {view === 'graph' && (
+          <GraphView
+            tasks={tasks}
+            onTaskClick={setSelectedTaskId}
+          />
+        )}
+
+        {view === 'agents' && (
+          <AgentOpsView
+            selectedAgent={selectedAgent}
+            onSelectAgent={setSelectedAgent}
+            since={since}
+            project={project}
+            refreshKey={refreshKey}
+            onAgentCounts={(active, idle) => setAgentCounts({ active, idle })}
+            onTaskClick={setSelectedTaskId}
+          />
+        )}
+      </div>
 
       {selectedTaskId && (
         <TaskModal

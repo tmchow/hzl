@@ -119,6 +119,39 @@ export interface PruneResult {
   eventsDeleted: number;
 }
 
+export interface AgentRosterTask {
+  taskId: string;
+  title: string;
+  claimedAt: string;
+  status: string;
+  progress: number | null;
+}
+
+export interface AgentRosterItem {
+  agent: string;
+  isActive: boolean;
+  tasks: AgentRosterTask[];
+  lastActivity: string;
+}
+
+export interface AgentEvent {
+  id: number;
+  eventId: string;
+  taskId: string;
+  type: string;
+  data: Record<string, unknown>;
+  author?: string;
+  agentId?: string;
+  timestamp: string;
+  taskTitle: string;
+  taskStatus: string;
+}
+
+export interface AgentEventsResult {
+  events: AgentEvent[];
+  total: number;
+}
+
 export interface AvailableTask {
   task_id: string;
   title: string;
@@ -1297,6 +1330,186 @@ export class TaskService {
       due_at: row.due_at,
       tags: JSON.parse(row.tags) as string[],
     }));
+  }
+
+  /**
+   * Get agent roster: distinct agents with their activity status and in-progress tasks.
+   * Active agents (those with in-progress tasks) are sorted by oldest claimed_at first,
+   * followed by idle agents sorted by most recent updated_at.
+   */
+  getAgentRoster(opts?: { project?: string; sinceDays?: number }): AgentRosterItem[] {
+    // Query 1: distinct agents with status
+    const conditions: string[] = ["agent IS NOT NULL AND agent != ''"];
+    const params: (string | number)[] = [];
+
+    if (opts?.project) {
+      conditions.push('project = ?');
+      params.push(opts.project);
+    }
+
+    if (opts?.sinceDays) {
+      const cutoff = new Date(Date.now() - opts.sinceDays * 86_400_000).toISOString();
+      conditions.push('updated_at >= ?');
+      params.push(cutoff);
+    }
+
+    const agentSql = `
+      SELECT agent,
+             MAX(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as is_active,
+             MAX(updated_at) as last_activity
+      FROM tasks_current
+      WHERE ${conditions.join(' AND ')}
+      GROUP BY agent
+      ORDER BY is_active DESC,
+               CASE WHEN MAX(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) = 1
+                    THEN MIN(CASE WHEN status = 'in_progress' THEN claimed_at END)
+                    ELSE NULL END ASC,
+               last_activity DESC
+    `;
+
+    type AgentQueryRow = { agent: string; is_active: number; last_activity: string };
+    const agentRows = this.db.prepare(agentSql).all(...params) as AgentQueryRow[];
+
+    if (agentRows.length === 0) {
+      return [];
+    }
+
+    // Query 2: in-progress tasks for active agents
+    const activeAgents = agentRows.filter(r => r.is_active === 1).map(r => r.agent);
+
+    type RosterTaskRow = {
+      agent: string;
+      task_id: string;
+      title: string;
+      status: string;
+      progress: number | null;
+      claimed_at: string;
+    };
+    let taskRows: RosterTaskRow[] = [];
+
+    if (activeAgents.length > 0) {
+      const placeholders = activeAgents.map(() => '?').join(',');
+      const taskConditions = [`agent IN (${placeholders})`, "status = 'in_progress'"];
+      const taskParams: (string | number)[] = [...activeAgents];
+      if (opts?.project) {
+        taskConditions.push('project = ?');
+        taskParams.push(opts.project);
+      }
+      const taskSql = `
+        SELECT agent, task_id, title, status, progress, claimed_at
+        FROM tasks_current
+        WHERE ${taskConditions.join(' AND ')}
+        ORDER BY claimed_at ASC
+      `;
+      taskRows = this.db.prepare(taskSql).all(...taskParams) as RosterTaskRow[];
+    }
+
+    // Join in JS: group tasks by agent
+    const tasksByAgent = new Map<string, AgentRosterTask[]>();
+    for (const row of taskRows) {
+      const tasks = tasksByAgent.get(row.agent) ?? [];
+      tasks.push({
+        taskId: row.task_id,
+        title: row.title,
+        claimedAt: row.claimed_at,
+        status: row.status,
+        progress: row.progress,
+      });
+      tasksByAgent.set(row.agent, tasks);
+    }
+
+    return agentRows.map(row => ({
+      agent: row.agent,
+      isActive: row.is_active === 1,
+      tasks: tasksByAgent.get(row.agent) ?? [],
+      lastActivity: row.last_activity,
+    }));
+  }
+
+  /**
+   * Get paginated events for a specific agent's tasks.
+   * Uses a three-step cross-DB approach because events DB and cache DB are separate SQLite files:
+   * 1. Get task_ids + titles from cache DB (tasks_current)
+   * 2. Get events from events DB with parameterized IN clause
+   * 3. Get total count from events DB
+   * Events are enriched with task titles in JS using a Map.
+   */
+  getAgentEvents(agentId: string, opts?: { limit?: number; offset?: number }): AgentEventsResult {
+    const emptyResult: AgentEventsResult = { events: [], total: 0 };
+
+    // If no events DB reference is available, return empty gracefully
+    if (!this.eventsDb) {
+      return emptyResult;
+    }
+
+    const limit = Math.min(opts?.limit ?? 50, 200);
+    const offset = opts?.offset ?? 0;
+
+    // Step 1: Get task_ids, titles, and statuses from cache DB
+    type TaskInfoRow = { task_id: string; title: string; status: string };
+    const taskRows = this.db.prepare(
+      'SELECT task_id, title, status FROM tasks_current WHERE agent = ?'
+    ).all(agentId) as TaskInfoRow[];
+
+    if (taskRows.length === 0) {
+      return emptyResult;
+    }
+
+    const taskIds = taskRows.map(r => r.task_id);
+
+    // Build a Map for enrichment
+    const taskInfoMap = new Map<string, { title: string; status: string }>();
+    for (const row of taskRows) {
+      taskInfoMap.set(row.task_id, { title: row.title, status: row.status });
+    }
+
+    // SQLite has a 999 bind variable limit; truncate if exceeded (unlikely with 2-20 agents)
+    const boundTaskIds = taskIds.length > 900 ? taskIds.slice(0, 900) : taskIds;
+
+    // Step 2: Get events from events DB with window function for total count
+    const placeholders = boundTaskIds.map(() => '?').join(',');
+    type EventRow = {
+      id: number;
+      event_id: string;
+      task_id: string;
+      type: string;
+      data: string;
+      author: string | null;
+      agent_id: string | null;
+      timestamp: string;
+      total_count: number;
+    };
+    const eventsSql = `
+      SELECT id, event_id, task_id, type, data, author, agent_id, timestamp,
+             COUNT(*) OVER() as total_count
+      FROM events
+      WHERE task_id IN (${placeholders})
+      ORDER BY id DESC
+      LIMIT ? OFFSET ?
+    `;
+    const eventRows = this.eventsDb.prepare(eventsSql).all(...boundTaskIds, limit, offset) as EventRow[];
+
+    // Extract total from first row; if no rows, total is 0
+    const total = eventRows.length > 0 ? eventRows[0].total_count : 0;
+
+    // Step 3: Enrich events with task titles and statuses
+    const events: AgentEvent[] = eventRows.map(row => {
+      const taskInfo = taskInfoMap.get(row.task_id);
+      return {
+        id: row.id,
+        eventId: row.event_id,
+        taskId: row.task_id,
+        type: row.type,
+        data: JSON.parse(row.data) as Record<string, unknown>,
+        author: row.author ?? undefined,
+        agentId: row.agent_id ?? undefined,
+        timestamp: row.timestamp,
+        taskTitle: taskInfo?.title ?? '',
+        taskStatus: taskInfo?.status ?? '',
+      };
+    });
+
+    return { events, total };
   }
 
   /**

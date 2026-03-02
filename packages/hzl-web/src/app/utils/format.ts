@@ -12,6 +12,7 @@ export function formatTime(isoString: string | null | undefined): string {
   if (diff < MS_PER_MINUTE) return 'just now';
   if (diff < MS_PER_HOUR) return `${Math.floor(diff / MS_PER_MINUTE)}m ago`;
   if (diff < MS_PER_DAY) return `${Math.floor(diff / MS_PER_HOUR)}h ago`;
+  if (diff < 7 * MS_PER_DAY) return `${Math.floor(diff / MS_PER_DAY)}d ago`;
   return date.toLocaleDateString();
 }
 
@@ -140,6 +141,22 @@ export function getBoardStatus(task: {
 }): string {
   const isBlocked = task.blocked_by && task.blocked_by.length > 0;
   return isBlocked && task.status === 'ready' ? 'blocked' : task.status;
+}
+
+/**
+ * Format a duration in milliseconds as a compact human-readable string.
+ * Returns "Nm", "Nh", or "Nh Nm".
+ * The `zeroLabel` controls what to show for values below one minute (default: "just now").
+ */
+export function formatDuration(ms: number, zeroLabel = 'just now'): string {
+  if (ms < 0) return zeroLabel;
+  const totalMinutes = Math.floor(ms / 60_000);
+  if (totalMinutes < 1) return zeroLabel;
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours === 0) return `${minutes}m`;
+  if (minutes === 0) return `${hours}h`;
+  return `${hours}h ${minutes}m`;
 }
 
 /** Status color for graph nodes */

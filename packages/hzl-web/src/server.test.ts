@@ -40,7 +40,7 @@ describe('hzl-web server', () => {
     projectService.ensureInboxExists();
     projectService.createProject('test-project');
 
-    taskService = new TaskService(db, eventStore, projectionEngine, projectService);
+    taskService = new TaskService(db, eventStore, projectionEngine, projectService, db);
     searchService = new SearchService(db);
   });
 
@@ -1184,6 +1184,194 @@ describe('hzl-web server', () => {
       expect(status).toBe(200);
       const body = data as { tasks: unknown[] };
       expect(body.tasks).toHaveLength(1);
+    });
+  });
+
+  describe('GET /api/agents', () => {
+    it('returns empty agents list when no agents exist', async () => {
+      createServer(4630);
+      const { status, data } = await fetchJson('/api/agents');
+
+      expect(status).toBe(200);
+      expect(data).toEqual({ agents: [] });
+    });
+
+    it('returns agents with in-progress tasks', async () => {
+      const task = taskService.createTask({
+        title: 'Active Task',
+        project: 'test-project',
+      });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+      taskService.claimTask(task.task_id, { agent_id: 'claude-alpha' });
+
+      createServer(4631);
+      const { status, data } = await fetchJson('/api/agents');
+
+      expect(status).toBe(200);
+      const agents = (data as { agents: Array<{ agent: string; isActive: boolean; tasks: Array<{ taskId: string; title: string }> }> }).agents;
+      expect(agents).toHaveLength(1);
+      expect(agents[0].agent).toBe('claude-alpha');
+      expect(agents[0].isActive).toBe(true);
+      expect(agents[0].tasks).toHaveLength(1);
+      expect(agents[0].tasks[0].title).toBe('Active Task');
+    });
+
+    it('returns idle agents with completed tasks', async () => {
+      const task = taskService.createTask({
+        title: 'Done Task',
+        project: 'test-project',
+      });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+      taskService.claimTask(task.task_id, { agent_id: 'claude-beta' });
+      taskService.completeTask(task.task_id, { agent_id: 'claude-beta' });
+
+      createServer(4632);
+      const { status, data } = await fetchJson('/api/agents');
+
+      expect(status).toBe(200);
+      const agents = (data as { agents: Array<{ agent: string; isActive: boolean; tasks: unknown[]; lastActivity: string }> }).agents;
+      expect(agents).toHaveLength(1);
+      expect(agents[0].agent).toBe('claude-beta');
+      expect(agents[0].isActive).toBe(false);
+      expect(agents[0].tasks).toHaveLength(0);
+      expect(typeof agents[0].lastActivity).toBe('string');
+      expect(new Date(agents[0].lastActivity).getTime()).not.toBeNaN();
+    });
+
+    it('filters agents by project', async () => {
+      projectService.createProject('other-project');
+
+      const task1 = taskService.createTask({ title: 'Task A', project: 'test-project' });
+      taskService.setStatus(task1.task_id, TaskStatus.Ready);
+      taskService.claimTask(task1.task_id, { agent_id: 'agent-a' });
+
+      const task2 = taskService.createTask({ title: 'Task B', project: 'other-project' });
+      taskService.setStatus(task2.task_id, TaskStatus.Ready);
+      taskService.claimTask(task2.task_id, { agent_id: 'agent-b' });
+
+      createServer(4633);
+      const { data } = await fetchJson('/api/agents?project=test-project');
+
+      const agents = (data as { agents: Array<{ agent: string }> }).agents;
+      expect(agents).toHaveLength(1);
+      expect(agents[0].agent).toBe('agent-a');
+    });
+
+    it('accepts valid since parameter', async () => {
+      const task = taskService.createTask({ title: 'Recent Task', project: 'test-project' });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+      taskService.claimTask(task.task_id, { agent_id: 'agent-recent' });
+
+      createServer(4634);
+      const { status, data } = await fetchJson('/api/agents?since=7d');
+
+      expect(status).toBe(200);
+      const body = data as { agents: unknown[] };
+      expect(body.agents).toBeDefined();
+    });
+
+    it('returns 400 for invalid since parameter', async () => {
+      createServer(4635);
+      const { status, data } = await fetchJson('/api/agents?since=99d');
+
+      expect(status).toBe(400);
+      expect((data as { error: string }).error).toContain('Invalid since value');
+    });
+  });
+
+  describe('GET /api/agents/:id/events', () => {
+    it('returns events for an agent with tasks', async () => {
+      const task = taskService.createTask({
+        title: 'Agent Task',
+        project: 'test-project',
+      });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+      taskService.claimTask(task.task_id, { agent_id: 'claude-alpha' });
+
+      createServer(4636);
+      const { status, data } = await fetchJson('/api/agents/claude-alpha/events');
+
+      expect(status).toBe(200);
+      const body = data as { events: Array<{ taskId: string; type: string; taskTitle: string; taskStatus: string }>; total: number };
+      expect(body.events.length).toBeGreaterThan(0);
+      expect(body.total).toBeGreaterThan(0);
+      // Events should be enriched with task title
+      expect(body.events[0].taskTitle).toBe('Agent Task');
+    });
+
+    it('returns empty events for unknown agent', async () => {
+      createServer(4637);
+      const { status, data } = await fetchJson('/api/agents/nonexistent-agent/events');
+
+      expect(status).toBe(200);
+      const body = data as { events: unknown[]; total: number };
+      expect(body.events).toHaveLength(0);
+      expect(body.total).toBe(0);
+    });
+
+    it('supports limit and offset pagination', async () => {
+      const task = taskService.createTask({
+        title: 'Paginated Task',
+        project: 'test-project',
+      });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+      taskService.claimTask(task.task_id, { agent_id: 'paging-agent' });
+      taskService.addCheckpoint(task.task_id, 'cp1', { progress: 25 });
+      taskService.addCheckpoint(task.task_id, 'cp2', { progress: 50 });
+
+      createServer(4638);
+
+      // Get first page with limit 2
+      const { data: page1 } = await fetchJson('/api/agents/paging-agent/events?limit=2&offset=0');
+      const body1 = page1 as { events: unknown[]; total: number };
+      expect(body1.events).toHaveLength(2);
+      expect(body1.total).toBeGreaterThan(2);
+
+      // Get second page
+      const { data: page2 } = await fetchJson('/api/agents/paging-agent/events?limit=2&offset=2');
+      const body2 = page2 as { events: unknown[]; total: number };
+      expect(body2.events.length).toBeGreaterThan(0);
+      expect(body2.total).toBe(body1.total);
+    });
+
+    it('decodes URL-encoded agent IDs', async () => {
+      const task = taskService.createTask({
+        title: 'Special Agent Task',
+        project: 'test-project',
+      });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+      taskService.claimTask(task.task_id, { agent_id: 'agent/special chars' });
+
+      createServer(4639);
+      const { status, data } = await fetchJson(`/api/agents/${encodeURIComponent('agent/special chars')}/events`);
+
+      expect(status).toBe(200);
+      const body = data as { events: unknown[]; total: number };
+      expect(body.events.length).toBeGreaterThan(0);
+    });
+
+    it('returns 400 for invalid limit parameter', async () => {
+      createServer(4640);
+      const { status, data } = await fetchJson('/api/agents/some-agent/events?limit=abc');
+
+      expect(status).toBe(400);
+      expect((data as { error: string }).error).toContain('Invalid limit');
+    });
+
+    it('returns 400 for out-of-range limit parameter', async () => {
+      createServer(4641);
+      const { status, data } = await fetchJson('/api/agents/some-agent/events?limit=201');
+
+      expect(status).toBe(400);
+      expect((data as { error: string }).error).toContain('Invalid limit');
+    });
+
+    it('returns 400 for invalid offset parameter', async () => {
+      createServer(4642);
+      const { status, data } = await fetchJson('/api/agents/some-agent/events?offset=abc');
+
+      expect(status).toBe(400);
+      expect((data as { error: string }).error).toContain('Invalid offset');
     });
   });
 

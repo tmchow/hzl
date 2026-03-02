@@ -13,7 +13,7 @@ import {
   TaskNotFoundError,
 } from './task-service.js';
 import { ProjectService, ProjectNotFoundError } from './project-service.js';
-import { createTestDb } from '../db/test-utils.js';
+import { createTestDb, createTestDatabases } from '../db/test-utils.js';
 import { EventStore } from '../events/store.js';
 import { EventType, TaskStatus } from '../events/types.js';
 import { CACHE_SCHEMA_V1, EVENTS_SCHEMA_V2, PRAGMAS } from '../db/schema.js';
@@ -2954,6 +2954,400 @@ describe('TaskService', () => {
       ).count;
 
       expect(count).toBe(1);
+    });
+  });
+
+  describe('getAgentRoster', () => {
+    it('returns empty array when no agents in DB', () => {
+      const roster = taskService.getAgentRoster();
+      expect(roster).toEqual([]);
+    });
+
+    it('returns agent with one in-progress task as active', () => {
+      const task = taskService.createTask({ title: 'Active work', project: 'project-a' });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+      taskService.claimTask(task.task_id, { author: 'agent-alpha' });
+
+      const roster = taskService.getAgentRoster();
+      expect(roster).toHaveLength(1);
+      expect(roster[0].agent).toBe('agent-alpha');
+      expect(roster[0].isActive).toBe(true);
+      expect(roster[0].tasks).toHaveLength(1);
+      expect(roster[0].tasks[0].taskId).toBe(task.task_id);
+      expect(roster[0].tasks[0].title).toBe('Active work');
+      expect(roster[0].tasks[0].claimedAt).toBeDefined();
+      expect(roster[0].tasks[0].status).toBe('in_progress');
+      expect(roster[0].lastActivity).toBeDefined();
+    });
+
+    it('returns agent with completed task only as idle with empty tasks', () => {
+      const task = taskService.createTask({ title: 'Done work', project: 'project-a' });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+      taskService.claimTask(task.task_id, { author: 'agent-beta' });
+      taskService.completeTask(task.task_id);
+
+      const roster = taskService.getAgentRoster();
+      expect(roster).toHaveLength(1);
+      expect(roster[0].agent).toBe('agent-beta');
+      expect(roster[0].isActive).toBe(false);
+      expect(roster[0].tasks).toEqual([]);
+      expect(roster[0].lastActivity).toBeDefined();
+    });
+
+    it('returns agent with multiple in-progress tasks', () => {
+      const task1 = taskService.createTask({ title: 'Task 1', project: 'project-a' });
+      const task2 = taskService.createTask({ title: 'Task 2', project: 'project-a' });
+      taskService.setStatus(task1.task_id, TaskStatus.Ready);
+      taskService.claimTask(task1.task_id, { author: 'agent-multi' });
+      taskService.setStatus(task2.task_id, TaskStatus.Ready);
+      taskService.claimTask(task2.task_id, { author: 'agent-multi' });
+
+      const roster = taskService.getAgentRoster();
+      expect(roster).toHaveLength(1);
+      expect(roster[0].agent).toBe('agent-multi');
+      expect(roster[0].isActive).toBe(true);
+      expect(roster[0].tasks).toHaveLength(2);
+      expect(roster[0].tasks.map(t => t.taskId).sort()).toEqual(
+        [task1.task_id, task2.task_id].sort()
+      );
+    });
+
+    it('filters by project', () => {
+      const taskA = taskService.createTask({ title: 'Task A', project: 'project-a' });
+      const taskB = taskService.createTask({ title: 'Task B', project: 'project-b' });
+      taskService.setStatus(taskA.task_id, TaskStatus.Ready);
+      taskService.claimTask(taskA.task_id, { author: 'agent-a' });
+      taskService.setStatus(taskB.task_id, TaskStatus.Ready);
+      taskService.claimTask(taskB.task_id, { author: 'agent-b' });
+
+      const roster = taskService.getAgentRoster({ project: 'project-a' });
+      expect(roster).toHaveLength(1);
+      expect(roster[0].agent).toBe('agent-a');
+    });
+
+    it('sorts active agents by oldest claimed_at first, then idle by most recent updated_at', () => {
+      // Create two active agents and one idle
+      const task1 = taskService.createTask({ title: 'Older active', project: 'project-a' });
+      taskService.setStatus(task1.task_id, TaskStatus.Ready);
+      taskService.claimTask(task1.task_id, { author: 'agent-old-active' });
+
+      const task2 = taskService.createTask({ title: 'Newer active', project: 'project-a' });
+      taskService.setStatus(task2.task_id, TaskStatus.Ready);
+      taskService.claimTask(task2.task_id, { author: 'agent-new-active' });
+
+      const task3 = taskService.createTask({ title: 'Done task', project: 'project-a' });
+      taskService.setStatus(task3.task_id, TaskStatus.Ready);
+      taskService.claimTask(task3.task_id, { author: 'agent-idle' });
+      taskService.completeTask(task3.task_id);
+
+      // Set distinct timestamps so sort order is deterministic
+      // (SQLite second-level precision means claims within the same second get identical timestamps)
+      db.prepare("UPDATE tasks_current SET claimed_at = '2026-01-01T10:00:00Z' WHERE agent = 'agent-old-active'").run();
+      db.prepare("UPDATE tasks_current SET claimed_at = '2026-01-01T11:00:00Z' WHERE agent = 'agent-new-active'").run();
+      db.prepare("UPDATE tasks_current SET updated_at = '2026-01-01T09:00:00Z' WHERE agent = 'agent-idle'").run();
+
+      const roster = taskService.getAgentRoster();
+      expect(roster).toHaveLength(3);
+      // Active agents first, sorted by oldest claimed_at
+      expect(roster[0].agent).toBe('agent-old-active');
+      expect(roster[0].isActive).toBe(true);
+      expect(roster[1].agent).toBe('agent-new-active');
+      expect(roster[1].isActive).toBe(true);
+      // Idle agents last
+      expect(roster[2].agent).toBe('agent-idle');
+      expect(roster[2].isActive).toBe(false);
+    });
+
+    it('excludes tasks where agent is null or empty', () => {
+      // Create a task without an agent
+      taskService.createTask({ title: 'No agent task', project: 'project-a' });
+
+      const roster = taskService.getAgentRoster();
+      expect(roster).toEqual([]);
+    });
+
+    it('reflects current agent after reassignment, not history', () => {
+      // agent-original claims, then agent-new re-claims (steal)
+      const task = taskService.createTask({ title: 'Reassigned', project: 'project-a' });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+      taskService.claimTask(task.task_id, { author: 'agent-original' });
+      // Re-claim by a different agent
+      taskService.claimTask(task.task_id, { author: 'agent-new' });
+
+      const roster = taskService.getAgentRoster();
+      // Only agent-new should appear as active with this task
+      const activeAgents = roster.filter(r => r.isActive);
+      expect(activeAgents).toHaveLength(1);
+      expect(activeAgents[0].agent).toBe('agent-new');
+      expect(activeAgents[0].tasks).toHaveLength(1);
+      expect(activeAgents[0].tasks[0].taskId).toBe(task.task_id);
+    });
+
+    it('returns progress in task entries when set', () => {
+      const task = taskService.createTask({ title: 'With progress', project: 'project-a' });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+      taskService.claimTask(task.task_id, { author: 'agent-progress' });
+      taskService.setProgress(task.task_id, 75);
+
+      const roster = taskService.getAgentRoster();
+      expect(roster).toHaveLength(1);
+      expect(roster[0].tasks[0].progress).toBe(75);
+    });
+
+    it('filters by sinceDays', () => {
+      const t1 = taskService.createTask({ title: 'Old task', project: 'project-a' });
+      taskService.setStatus(t1.task_id, TaskStatus.Ready);
+      taskService.claimTask(t1.task_id, { author: 'old-agent' });
+
+      const t2 = taskService.createTask({ title: 'Recent task', project: 'project-a' });
+      taskService.setStatus(t2.task_id, TaskStatus.Ready);
+      taskService.claimTask(t2.task_id, { author: 'recent-agent' });
+
+      // Backdate old agent's task to 10 days ago
+      db.prepare("UPDATE tasks_current SET updated_at = datetime('now', '-10 days') WHERE agent = ?").run('old-agent');
+
+      const roster = taskService.getAgentRoster({ sinceDays: 3 });
+      const agents = roster.map(r => r.agent);
+      expect(agents).toContain('recent-agent');
+      expect(agents).not.toContain('old-agent');
+    });
+
+    it('claimedAt is stable after progress update', () => {
+      const t = taskService.createTask({ title: 'Progress task', project: 'project-a' });
+      taskService.setStatus(t.task_id, TaskStatus.Ready);
+      taskService.claimTask(t.task_id, { author: 'progress-agent' });
+
+      const before = taskService.getAgentRoster();
+      const claimedAtBefore = before.find(r => r.agent === 'progress-agent')?.tasks[0]?.claimedAt;
+      expect(claimedAtBefore).toBeDefined();
+
+      taskService.setProgress(t.task_id, 50, { author: 'progress-agent' });
+
+      const after = taskService.getAgentRoster();
+      const claimedAtAfter = after.find(r => r.agent === 'progress-agent')?.tasks[0]?.claimedAt;
+      expect(claimedAtAfter).toBe(claimedAtBefore);
+    });
+  });
+
+  describe('getAgentEvents', () => {
+    // These tests use a split-DB setup (separate events DB and cache DB)
+    // to mirror the production architecture where events.db and cache.db
+    // are separate SQLite files.
+    let splitEventsDb: Database.Database;
+    let splitCacheDb: Database.Database;
+    let splitEventStore: EventStore;
+    let splitProjectionEngine: ProjectionEngine;
+    let splitProjectService: ProjectService;
+    let splitTaskService: TaskService;
+
+    beforeEach(() => {
+      const dbs = createTestDatabases();
+      splitEventsDb = dbs.eventsDb;
+      splitCacheDb = dbs.cacheDb;
+      splitEventStore = new EventStore(splitEventsDb);
+      splitProjectionEngine = new ProjectionEngine(splitCacheDb, splitEventsDb);
+      registerProjectors(splitProjectionEngine);
+      splitProjectService = new ProjectService(splitCacheDb, splitEventStore, splitProjectionEngine);
+      splitProjectService.ensureInboxExists();
+      splitProjectService.createProject('project-a');
+      splitTaskService = new TaskService(splitCacheDb, splitEventStore, splitProjectionEngine, splitProjectService, splitEventsDb);
+    });
+
+    afterEach(() => {
+      splitEventsDb.close();
+      splitCacheDb.close();
+    });
+
+    it('returns empty events and total=0 for agent with no tasks', () => {
+      const result = splitTaskService.getAgentEvents('nonexistent-agent');
+
+      expect(result.events).toEqual([]);
+      expect(result.total).toBe(0);
+    });
+
+    it('returns events sorted by id descending, enriched with task titles', () => {
+      const task = splitTaskService.createTask({ title: 'Research API', project: 'inbox' });
+      splitTaskService.setStatus(task.task_id, TaskStatus.Ready);
+      splitTaskService.claimTask(task.task_id, { author: 'agent-alpha' });
+
+      const result = splitTaskService.getAgentEvents('agent-alpha');
+
+      expect(result.events.length).toBeGreaterThan(0);
+      expect(result.total).toBe(result.events.length);
+
+      // Events should be sorted by id descending (newest first)
+      for (let i = 1; i < result.events.length; i++) {
+        expect(result.events[i - 1].id).toBeGreaterThan(result.events[i].id);
+      }
+
+      // Every event should be enriched with the task title
+      for (const event of result.events) {
+        expect(event.taskTitle).toBe('Research API');
+        expect(event.taskId).toBe(task.task_id);
+      }
+    });
+
+    it('paginates with limit and offset', () => {
+      const task = splitTaskService.createTask({ title: 'Paginated task', project: 'inbox' });
+      splitTaskService.setStatus(task.task_id, TaskStatus.Ready);
+      splitTaskService.claimTask(task.task_id, { author: 'agent-page' });
+      splitTaskService.addComment(task.task_id, 'Comment 1');
+      splitTaskService.addComment(task.task_id, 'Comment 2');
+      splitTaskService.addComment(task.task_id, 'Comment 3');
+
+      // Get total count first
+      const all = splitTaskService.getAgentEvents('agent-page');
+      const totalEvents = all.total;
+      expect(totalEvents).toBeGreaterThanOrEqual(5); // created + status_changed + claimed + 3 comments
+
+      // First page: limit 2
+      const page1 = splitTaskService.getAgentEvents('agent-page', { limit: 2, offset: 0 });
+      expect(page1.events).toHaveLength(2);
+      expect(page1.total).toBe(totalEvents);
+
+      // Second page: limit 2, offset 2
+      const page2 = splitTaskService.getAgentEvents('agent-page', { limit: 2, offset: 2 });
+      expect(page2.events).toHaveLength(2);
+      expect(page2.total).toBe(totalEvents);
+
+      // First page has newer events than second page
+      expect(page1.events[0].id).toBeGreaterThan(page2.events[0].id);
+
+      // No overlap between pages
+      const page1Ids = page1.events.map(e => e.id);
+      const page2Ids = page2.events.map(e => e.id);
+      for (const id of page1Ids) {
+        expect(page2Ids).not.toContain(id);
+      }
+    });
+
+    it('returns events from multiple tasks interleaved by id', () => {
+      const task1 = splitTaskService.createTask({ title: 'Task Alpha', project: 'inbox' });
+      splitTaskService.setStatus(task1.task_id, TaskStatus.Ready);
+      splitTaskService.claimTask(task1.task_id, { author: 'agent-multi' });
+
+      const task2 = splitTaskService.createTask({ title: 'Task Beta', project: 'inbox' });
+      splitTaskService.setStatus(task2.task_id, TaskStatus.Ready);
+      splitTaskService.claimTask(task2.task_id, { author: 'agent-multi' });
+
+      const result = splitTaskService.getAgentEvents('agent-multi');
+
+      // Should have events from both tasks
+      const taskIds = new Set(result.events.map(e => e.taskId));
+      expect(taskIds.size).toBe(2);
+      expect(taskIds).toContain(task1.task_id);
+      expect(taskIds).toContain(task2.task_id);
+
+      // Events enriched with correct titles
+      for (const event of result.events) {
+        if (event.taskId === task1.task_id) {
+          expect(event.taskTitle).toBe('Task Alpha');
+        } else {
+          expect(event.taskTitle).toBe('Task Beta');
+        }
+      }
+
+      // Total count should be accurate
+      expect(result.total).toBe(result.events.length);
+    });
+
+    it('total count is accurate across pages', () => {
+      const task = splitTaskService.createTask({ title: 'Count test', project: 'inbox' });
+      splitTaskService.setStatus(task.task_id, TaskStatus.Ready);
+      splitTaskService.claimTask(task.task_id, { author: 'agent-count' });
+      splitTaskService.addComment(task.task_id, 'Note 1');
+      splitTaskService.addComment(task.task_id, 'Note 2');
+
+      const page1 = splitTaskService.getAgentEvents('agent-count', { limit: 2, offset: 0 });
+      const page2 = splitTaskService.getAgentEvents('agent-count', { limit: 2, offset: 2 });
+
+      // Total should be the same on all pages
+      expect(page1.total).toBe(page2.total);
+      expect(page1.total).toBeGreaterThanOrEqual(4); // created + status_changed + claimed + 2 comments
+    });
+
+    it('returns events for agent with done tasks (agent is preserved on completion)', () => {
+      const task = splitTaskService.createTask({ title: 'Completed task', project: 'inbox' });
+      splitTaskService.setStatus(task.task_id, TaskStatus.Ready);
+      splitTaskService.claimTask(task.task_id, { author: 'agent-done' });
+      splitTaskService.completeTask(task.task_id, { author: 'agent-done' });
+
+      const result = splitTaskService.getAgentEvents('agent-done');
+
+      expect(result.events.length).toBeGreaterThan(0);
+      expect(result.total).toBe(result.events.length);
+
+      // Task status should be 'done' in enrichment
+      for (const event of result.events) {
+        expect(event.taskTitle).toBe('Completed task');
+        expect(event.taskStatus).toBe('done');
+      }
+    });
+
+    it('clamps limit to max 200', () => {
+      const task = splitTaskService.createTask({ title: 'Limit test', project: 'inbox' });
+      splitTaskService.setStatus(task.task_id, TaskStatus.Ready);
+      splitTaskService.claimTask(task.task_id, { author: 'agent-limit' });
+
+      // Requesting limit > 200 should not error, just clamp
+      const result = splitTaskService.getAgentEvents('agent-limit', { limit: 500 });
+      expect(result.events.length).toBeGreaterThan(0);
+    });
+
+    it('returns empty results when eventsDb is not provided', () => {
+      // Create a TaskService without eventsDb
+      const noEventsTaskService = new TaskService(splitCacheDb, splitEventStore, splitProjectionEngine, splitProjectService);
+
+      // Create a task via the split service (so it exists in cache)
+      const task = splitTaskService.createTask({ title: 'No events DB', project: 'inbox' });
+      splitTaskService.setStatus(task.task_id, TaskStatus.Ready);
+      splitTaskService.claimTask(task.task_id, { author: 'agent-nodb' });
+
+      const result = noEventsTaskService.getAgentEvents('agent-nodb');
+      expect(result.events).toEqual([]);
+      expect(result.total).toBe(0);
+    });
+
+    it('returns events with correct structure', () => {
+      const task = splitTaskService.createTask({ title: 'Structure test', project: 'inbox' });
+      splitTaskService.setStatus(task.task_id, TaskStatus.Ready);
+      splitTaskService.claimTask(task.task_id, { author: 'agent-struct' });
+
+      const result = splitTaskService.getAgentEvents('agent-struct');
+      expect(result.events.length).toBeGreaterThan(0);
+
+      const event = result.events[0];
+      expect(event).toHaveProperty('id');
+      expect(event).toHaveProperty('eventId');
+      expect(event).toHaveProperty('taskId');
+      expect(event).toHaveProperty('type');
+      expect(event).toHaveProperty('data');
+      expect(event).toHaveProperty('timestamp');
+      expect(event).toHaveProperty('taskTitle');
+      expect(event).toHaveProperty('taskStatus');
+      expect(typeof event.id).toBe('number');
+      expect(typeof event.eventId).toBe('string');
+      expect(typeof event.taskId).toBe('string');
+      expect(typeof event.type).toBe('string');
+      expect(typeof event.timestamp).toBe('string');
+      expect(typeof event.taskTitle).toBe('string');
+      expect(typeof event.taskStatus).toBe('string');
+    });
+
+    it('returns empty result for nonexistent agent', () => {
+      const result = splitTaskService.getAgentEvents('nonexistent');
+      expect(result.events).toEqual([]);
+      expect(result.total).toBe(0);
+    });
+
+    it('returns events when agent identity comes from agent_id', () => {
+      const t = splitTaskService.createTask({ title: 'Agent ID task', project: 'project-a' });
+      splitTaskService.setStatus(t.task_id, TaskStatus.Ready);
+      splitTaskService.claimTask(t.task_id, { agent_id: 'agent-via-id' });
+
+      const result = splitTaskService.getAgentEvents('agent-via-id');
+      expect(result.events.length).toBeGreaterThan(0);
+      expect(result.events[0].taskId).toBe(t.task_id);
     });
   });
 });

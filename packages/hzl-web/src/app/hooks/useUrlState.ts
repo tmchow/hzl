@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 
-export type ViewMode = 'kanban' | 'calendar' | 'graph';
+export type ViewMode = 'kanban' | 'calendar' | 'graph' | 'agents';
 
 export interface UrlState {
   view?: ViewMode;
@@ -16,6 +16,7 @@ export interface UrlState {
   activityQ?: string;
   tag?: string;
   task?: string;
+  selectedAgent?: string;
 }
 
 /** Parse URL params into a structured state object */
@@ -24,7 +25,7 @@ export function parseUrlState(): UrlState {
   const state: UrlState = {};
 
   const view = params.get('view');
-  if (view === 'kanban' || view === 'calendar' || view === 'graph') {
+  if (view === 'kanban' || view === 'calendar' || view === 'graph' || view === 'agents') {
     state.view = view;
   }
 
@@ -64,6 +65,9 @@ export function parseUrlState(): UrlState {
   const task = params.get('task');
   if (task) state.task = task;
 
+  const agent = params.get('agent');
+  if (agent) state.selectedAgent = agent;
+
   return state;
 }
 
@@ -82,6 +86,7 @@ export interface SyncUrlStateParams {
   activityKeyword: string;
   tag: string;
   selectedTaskId: string | null;
+  selectedAgent: string | null;
 }
 
 /** Sync current state to URL params */
@@ -106,6 +111,7 @@ export function syncUrlState(state: SyncUrlStateParams): void {
   if (state.tag) params.set('tag', state.tag);
   if (state.activityOpen) params.set('activity', '1');
   if (state.selectedTaskId) params.set('task', state.selectedTaskId);
+  if (state.selectedAgent) params.set('agent', state.selectedAgent);
 
   const query = params.toString();
   const nextUrl = `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash || ''}`;
