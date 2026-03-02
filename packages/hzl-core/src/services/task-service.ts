@@ -119,6 +119,21 @@ export interface PruneResult {
   eventsDeleted: number;
 }
 
+export interface AgentRosterTask {
+  taskId: string;
+  title: string;
+  claimedAt: string;
+  status: string;
+  progress: number | null;
+}
+
+export interface AgentRosterItem {
+  agent: string;
+  isActive: boolean;
+  tasks: AgentRosterTask[];
+  lastActivity: string;
+}
+
 export interface AvailableTask {
   task_id: string;
   title: string;
@@ -1296,6 +1311,94 @@ export class TaskService {
       progress: row.progress,
       due_at: row.due_at,
       tags: JSON.parse(row.tags) as string[],
+    }));
+  }
+
+  /**
+   * Get agent roster: distinct agents with their activity status and in-progress tasks.
+   * Active agents (those with in-progress tasks) are sorted by oldest claimed_at first,
+   * followed by idle agents sorted by most recent updated_at.
+   */
+  getAgentRoster(opts?: { project?: string; sinceDays?: number }): AgentRosterItem[] {
+    // Query 1: distinct agents with status
+    const conditions: string[] = ["agent IS NOT NULL AND agent != ''"];
+    const params: (string | number)[] = [];
+
+    if (opts?.project) {
+      conditions.push('project = ?');
+      params.push(opts.project);
+    }
+
+    if (opts?.sinceDays) {
+      const dateOffset = `-${opts.sinceDays} days`;
+      conditions.push("updated_at >= datetime('now', ?)");
+      params.push(dateOffset);
+    }
+
+    const agentSql = `
+      SELECT agent,
+             MAX(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as is_active,
+             MAX(updated_at) as last_activity
+      FROM tasks_current
+      WHERE ${conditions.join(' AND ')}
+      GROUP BY agent
+      ORDER BY is_active DESC,
+               CASE WHEN MAX(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) = 1
+                    THEN MIN(CASE WHEN status = 'in_progress' THEN updated_at END)
+                    ELSE NULL END ASC,
+               last_activity DESC
+    `;
+
+    type AgentQueryRow = { agent: string; is_active: number; last_activity: string };
+    const agentRows = this.db.prepare(agentSql).all(...params) as AgentQueryRow[];
+
+    if (agentRows.length === 0) {
+      return [];
+    }
+
+    // Query 2: in-progress tasks for active agents
+    const activeAgents = agentRows.filter(r => r.is_active === 1).map(r => r.agent);
+
+    type RosterTaskRow = {
+      agent: string;
+      task_id: string;
+      title: string;
+      status: string;
+      progress: number | null;
+      claimed_at: string;
+    };
+    let taskRows: RosterTaskRow[] = [];
+
+    if (activeAgents.length > 0) {
+      const placeholders = activeAgents.map(() => '?').join(',');
+      const taskSql = `
+        SELECT agent, task_id, title, status, progress, updated_at as claimed_at
+        FROM tasks_current
+        WHERE agent IN (${placeholders}) AND status = 'in_progress'
+        ORDER BY updated_at ASC
+      `;
+      taskRows = this.db.prepare(taskSql).all(...activeAgents) as RosterTaskRow[];
+    }
+
+    // Join in JS: group tasks by agent
+    const tasksByAgent = new Map<string, AgentRosterTask[]>();
+    for (const row of taskRows) {
+      const tasks = tasksByAgent.get(row.agent) ?? [];
+      tasks.push({
+        taskId: row.task_id,
+        title: row.title,
+        claimedAt: row.claimed_at,
+        status: row.status,
+        progress: row.progress,
+      });
+      tasksByAgent.set(row.agent, tasks);
+    }
+
+    return agentRows.map(row => ({
+      agent: row.agent,
+      isActive: row.is_active === 1,
+      tasks: tasksByAgent.get(row.agent) ?? [],
+      lastActivity: row.last_activity,
     }));
   }
 

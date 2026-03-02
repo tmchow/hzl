@@ -126,6 +126,8 @@ export {
   type Checkpoint,
   type TaskListItem,
   type TaskStats,
+  type AgentRosterItem,
+  type AgentRosterTask,
 } from './services/task-service.js';
 
 export {
