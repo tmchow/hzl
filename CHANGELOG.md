@@ -1,3 +1,12 @@
+# [2.8.0](https://github.com/tmchow/hzl/compare/v2.7.0...v2.8.0) (2026-03-02)
+
+
+### Features
+
+* add agent status and log commands ([#180](https://github.com/tmchow/hzl/issues/180)) ([72743c4](https://github.com/tmchow/hzl/commit/72743c4829992b7b57c57fe99b0f8e177e257b0b))
+* add Google Analytics to docs site ([#177](https://github.com/tmchow/hzl/issues/177)) ([ad1aba6](https://github.com/tmchow/hzl/commit/ad1aba64120ed47b6f5a51c3d28e3377ebdced4f))
+* auto-backup cache.db before schema migration rebuild ([#171](https://github.com/tmchow/hzl/issues/171)) ([4613308](https://github.com/tmchow/hzl/commit/46133085f3f0d833d89aae4bcf544c2918cb1381))
+
 # [2.7.0](https://github.com/tmchow/hzl/compare/v2.6.0...v2.7.0) (2026-03-02)
 
 
