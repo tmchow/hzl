@@ -16,7 +16,7 @@ Programmatic fleet monitoring for orchestrators and supervisory agents.
 Check what's running, what's idle, and what's stuck:
 
 ```bash
-hzl agent status --json
+hzl agent status
 ```
 
 ```json
@@ -62,7 +62,7 @@ hzl agent status --json
 Human-readable output (for logs or debugging):
 
 ```bash
-hzl agent status
+hzl agent status --format md
 ```
 
 ```
@@ -78,13 +78,13 @@ Agents (2 active, 1 idle):
 
 ```bash
 # Single agent
-hzl agent status --agent clara --json
+hzl agent status --agent clara
 
 # Single project
-hzl agent status --project writing --json
+hzl agent status --project writing
 
 # Include per-agent task count breakdowns
-hzl agent status --stats --json
+hzl agent status --stats
 ```
 
 With `--stats`, each agent includes a breakdown:
@@ -100,7 +100,7 @@ With `--stats`, each agent includes a breakdown:
 Inspect what a specific agent has been doing:
 
 ```bash
-hzl agent log clara --json
+hzl agent log clara
 ```
 
 ```json
@@ -126,7 +126,7 @@ hzl agent log clara --json
 
 ```bash
 # Show more history (default: 50)
-hzl agent log clara --limit 100 --json
+hzl agent log clara --limit 100
 ```
 
 ## Detecting stuck agents
@@ -139,10 +139,10 @@ An agent is likely stuck when its lease has expired and no recent activity appea
 # 2. For each active agent where leaseExpired is true, check activity
 # 3. If no recent events, recover the task
 
-hzl agent status --json
+hzl agent status
 # → find agents with leaseExpired: true
 
-hzl agent log kenji --limit 5 --json
+hzl agent log kenji --limit 5
 # → confirm no recent activity
 
 hzl task steal <task-id> --if-expired --agent backup-agent --lease 60
@@ -159,7 +159,7 @@ An orchestrator can poll fleet state on a schedule and take action:
 
 ```bash
 # Every 5 minutes, check fleet health
-hzl agent status --json | process_fleet_health
+hzl agent status | process_fleet_health
 
 # If an agent has been active > 2 hours with no progress change, alert
 # If a lease expired > 30 minutes ago, auto-steal and reassign
@@ -170,7 +170,7 @@ hzl agent status --json | process_fleet_health
 After an agent session ends, review what happened:
 
 ```bash
-hzl agent log clara --limit 20 --json
+hzl agent log clara --limit 20
 ```
 
 Useful for verifying that the agent completed its assigned work, created appropriate follow-on tasks, and didn't leave tasks in a bad state.
@@ -180,7 +180,7 @@ Useful for verifying that the agent completed its assigned work, created appropr
 Use `--stats` to inform whether to spin up or wind down agents:
 
 ```bash
-hzl agent status --project writing --stats --json
+hzl agent status --project writing --stats
 # → If many ready tasks and few active agents, scale up
 # → If no ready tasks and agents are idle, scale down
 ```
@@ -189,9 +189,9 @@ hzl agent status --project writing --stats --json
 
 | Need | Tool |
 |------|------|
-| Orchestrator checking fleet state | `hzl agent status --json` |
-| Orchestrator investigating one agent | `hzl agent log <agent> --json` |
-| Orchestrator finding stale tasks | `hzl task stuck --json` |
-| Human checking fleet at a glance | `hzl agent status` (no `--json`) |
+| Orchestrator checking fleet state | `hzl agent status` |
+| Orchestrator investigating one agent | `hzl agent log <agent>` |
+| Orchestrator finding stale tasks | `hzl task stuck` |
+| Human checking fleet at a glance | `hzl agent status --format md` |
 | Human investigating visually | Web dashboard Agent Operations view |
 | Human asking conversationally | Ask your primary agent |

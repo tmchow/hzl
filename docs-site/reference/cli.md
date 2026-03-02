@@ -53,11 +53,11 @@ hzl agent status                          # All agents: who's active, what they'
 hzl agent status --agent <name>           # Single agent status
 hzl agent status --stats                  # Include per-agent task count breakdowns
 hzl agent status -P <project>             # Filter by project
-hzl agent status --json                   # Machine-readable output
+hzl agent status --format md              # Human-readable output
 
 hzl agent log <agent>                     # Activity history for an agent
 hzl agent log <agent> --limit 50          # More events
-hzl agent log <agent> --json              # Machine-readable output
+hzl agent log <agent> --format md         # Human-readable output
 ```
 
 ## Tasks
