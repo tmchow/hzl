@@ -1,5 +1,7 @@
 // packages/hzl-cli/src/db.ts
 import type Database from 'libsql';
+import fs from 'fs';
+import path from 'path';
 import { createDatastore, type Datastore } from 'hzl-core/db/datastore.js';
 import { CACHE_SCHEMA_V1 } from 'hzl-core/db/schema.js';
 import { EventStore } from 'hzl-core/events/store.js';
@@ -21,13 +23,29 @@ import { readConfig } from './config.js';
 const CURRENT_SCHEMA_VERSION = 4;
 
 /**
+ * Back up cache.db before a destructive schema migration.
+ * Checkpoints WAL first so the .db file is self-contained.
+ */
+function backupCacheDb(cacheDb: Database.Database, cacheDbPath: string, schemaVersion: number): void {
+  const ext = path.extname(cacheDbPath);
+  const base = cacheDbPath.slice(0, -ext.length);
+  const backupPath = `${base}.v${schemaVersion}.bak`;
+
+  // Checkpoint WAL so the .db file contains all committed data
+  cacheDb.exec('PRAGMA wal_checkpoint(TRUNCATE)');
+  fs.copyFileSync(cacheDbPath, backupPath);
+  console.error(`  Backed up cache.db → ${path.basename(backupPath)}`);
+}
+
+/**
  * Check schema version and rebuild projections if needed.
  * Returns true if migration was performed.
  */
 function checkAndMigrateSchema(
   cacheDb: Database.Database,
   eventsDb: Database.Database,
-  projectionEngine: ProjectionEngine
+  projectionEngine: ProjectionEngine,
+  cacheDbPath: string
 ): boolean {
   // Get current version from hzl_local_meta
   const row = cacheDb.prepare(
@@ -42,7 +60,7 @@ function checkAndMigrateSchema(
   // Count events for progress indicator
   const eventCount = (eventsDb.prepare('SELECT COUNT(*) as count FROM events').get() as { count: number }).count;
 
-  // No events: rebuild cache schema without replay
+  // No events: rebuild cache schema without replay (no backup needed — nothing to lose)
   if (eventCount === 0) {
     cacheDb.exec('BEGIN IMMEDIATE');
     try {
@@ -93,6 +111,12 @@ function checkAndMigrateSchema(
   }
 
   console.error(`Upgrading database schema (v${currentVersion} → v${CURRENT_SCHEMA_VERSION})...`);
+
+  // Back up cache.db before destructive rebuild (skip for in-memory test databases)
+  if (cacheDbPath !== ':memory:') {
+    backupCacheDb(cacheDb, cacheDbPath, currentVersion);
+  }
+
   console.error(`  Replaying ${eventCount.toLocaleString()} events...`);
 
   // Wrap entire rebuild in transaction for atomicity
@@ -188,7 +212,7 @@ export function initializeDb(options: InitializeDbOptions): Services {
   projectionEngine.register(new ProjectsProjector());
 
   // Check and perform schema migration if needed
-  checkAndMigrateSchema(cacheDb, eventsDb, projectionEngine);
+  checkAndMigrateSchema(cacheDb, eventsDb, projectionEngine, cacheDbPath);
 
   const projectService = new ProjectService(cacheDb, eventStore, projectionEngine);
   const config = readConfig();

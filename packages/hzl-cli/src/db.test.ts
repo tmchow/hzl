@@ -300,6 +300,105 @@ describe('db.ts schema migration', () => {
         stderrSpy.mockRestore();
       }
     });
+
+    it('creates a backup of cache.db before migration', () => {
+      const eventsDb = new Database(dbPath);
+      const cacheDb = new Database(cachePath);
+
+      eventsDb.exec(PRAGMAS);
+      eventsDb.exec(EVENTS_SCHEMA_V2);
+      cacheDb.exec(PRAGMAS);
+      cacheDb.exec(CACHE_SCHEMA_V1);
+
+      // Add an event so the rebuild-with-replay path fires (not the zero-event path)
+      eventsDb.prepare(`
+        INSERT INTO events (event_id, task_id, type, data, timestamp)
+        VALUES ('evt-1', 'task-1', 'TaskCreated', '{"title":"Test","project":"inbox","status":"ready"}', datetime('now'))
+      `).run();
+
+      eventsDb.close();
+      cacheDb.close();
+
+      // No schema_version → defaults to 1 → triggers migration
+      const stderrSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      let services: Services | undefined;
+      try {
+        services = initializeDbFromPath(dbPath);
+
+        // Backup should exist with the pre-migration version number
+        const backupPath = path.join(testDir, 'cache.v1.bak');
+        expect(fs.existsSync(backupPath)).toBe(true);
+
+        // Backup should be a valid SQLite database
+        const backupDb = new Database(backupPath);
+        const tables = backupDb.prepare(
+          "SELECT name FROM sqlite_master WHERE type='table'"
+        ).all() as { name: string }[];
+        expect(tables.map(t => t.name)).toContain('tasks_current');
+        backupDb.close();
+
+        // Stderr should mention the backup
+        const backupCalls = stderrSpy.mock.calls.filter(
+          call => String(call[0]).includes('Backed up')
+        );
+        expect(backupCalls).toHaveLength(1);
+      } finally {
+        if (services) closeDb(services);
+        stderrSpy.mockRestore();
+      }
+    });
+
+    it('does not create a backup when zero events exist (nothing to lose)', () => {
+      // Create old cache schema (no schema_version) but no events
+      const eventsDb = new Database(dbPath);
+      const cacheDb = new Database(cachePath);
+
+      eventsDb.exec(PRAGMAS);
+      eventsDb.exec(EVENTS_SCHEMA_V2);
+      cacheDb.exec(PRAGMAS);
+      cacheDb.exec(`
+        CREATE TABLE hzl_local_meta (
+          key TEXT PRIMARY KEY,
+          value TEXT NOT NULL
+        );
+
+        CREATE TABLE tasks_current (
+          task_id TEXT PRIMARY KEY,
+          title TEXT NOT NULL,
+          project TEXT NOT NULL,
+          status TEXT NOT NULL,
+          parent_id TEXT,
+          description TEXT,
+          links TEXT NOT NULL DEFAULT '[]',
+          tags TEXT NOT NULL DEFAULT '[]',
+          priority INTEGER NOT NULL DEFAULT 0,
+          due_at TEXT,
+          metadata TEXT NOT NULL DEFAULT '{}',
+          claimed_at TEXT,
+          assignee TEXT,
+          progress INTEGER,
+          lease_until TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          last_event_id INTEGER NOT NULL
+        );
+      `);
+
+      eventsDb.close();
+      cacheDb.close();
+
+      let services: Services | undefined;
+      try {
+        services = initializeDbFromPath(dbPath);
+
+        // No backup for the zero-event path
+        const backupPath = path.join(testDir, 'cache.v1.bak');
+        expect(fs.existsSync(backupPath)).toBe(false);
+      } finally {
+        if (services) closeDb(services);
+      }
+    });
   });
 
   describe('database with current schema version', () => {

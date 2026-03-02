@@ -202,7 +202,7 @@ pnpm --filter hzl-core test src/__tests__/concurrency/stress.test.ts
 
 ## Commits and Releases
 
-This repo uses [Conventional Commits](https://www.conventionalcommits.org/) enforced by commitlint. Commits must follow the format:
+This repo uses [Conventional Commits](https://www.conventionalcommits.org/) enforced by commitlint. Commits must follow the format. **PR titles must also follow this format** — CI validates them with `action-semantic-pull-request`:
 
 ```
 type(scope): description
