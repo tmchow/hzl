@@ -128,33 +128,35 @@ export default function FilterBar({
           ))}
         </select>
       </div>
-      <div className={`filter-group task-search-group${hasSearch ? ' active' : ''}`}>
-        <input
-          ref={searchRef}
-          type="search"
-          id="taskSearchInput"
-          className="task-search-input"
-          placeholder="Find task (/)"
-          aria-label="Search tasks"
-          value={searchQuery}
-          onChange={(e) => onSearchChange(e.target.value)}
-        />
-        {hasSearch && (
-          <button
-            type="button"
-            className="task-search-clear"
-            onClick={() => {
-              onSearchChange('');
-              searchRef.current?.focus();
-            }}
-          >
-            &times;
-          </button>
-        )}
-        <span className="task-search-meta">
-          {hasSearch ? `${searchMatchCount} ${label}` : ''}
-        </span>
-      </div>
+      {view !== 'agents' && (
+        <div className={`filter-group task-search-group${hasSearch ? ' active' : ''}`}>
+          <input
+            ref={searchRef}
+            type="search"
+            id="taskSearchInput"
+            className="task-search-input"
+            placeholder="Find task (/)"
+            aria-label="Search tasks"
+            value={searchQuery}
+            onChange={(e) => onSearchChange(e.target.value)}
+          />
+          {hasSearch && (
+            <button
+              type="button"
+              className="task-search-clear"
+              onClick={() => {
+                onSearchChange('');
+                searchRef.current?.focus();
+              }}
+            >
+              &times;
+            </button>
+          )}
+          <span className="task-search-meta">
+            {hasSearch ? `${searchMatchCount} ${label}` : ''}
+          </span>
+        </div>
+      )}
       <div className="filter-group settings-group" ref={settingsRef}>
         <button
           className="settings-toggle"
@@ -182,60 +184,65 @@ export default function FilterBar({
                 <option value="kanban">Kanban</option>
                 <option value="calendar">Calendar</option>
                 <option value="graph">Graph</option>
+                <option value="agents">Agents</option>
               </select>
             </div>
-            <div className="settings-section">
-              <label className="settings-label">Columns</label>
-              <div className="column-checkboxes">
-                {COLUMNS.map((col) => (
-                  <label className="column-checkbox" key={col}>
+            {view !== 'agents' && (
+              <>
+                <div className="settings-section">
+                  <label className="settings-label">Columns</label>
+                  <div className="column-checkboxes">
+                    {COLUMNS.map((col) => (
+                      <label className="column-checkbox" key={col}>
+                        <input
+                          type="checkbox"
+                          checked={columnVisibility.includes(col)}
+                          onChange={() => {
+                            const next = columnVisibility.includes(col)
+                              ? columnVisibility.filter((c) => c !== col)
+                              : [...columnVisibility, col];
+                            onColumnVisibilityChange(next);
+                          }}
+                        />
+                        {STATUS_LABELS[col]}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div className="settings-section">
+                  <label className="column-checkbox">
                     <input
                       type="checkbox"
-                      checked={columnVisibility.includes(col)}
-                      onChange={() => {
-                        const next = columnVisibility.includes(col)
-                          ? columnVisibility.filter((c) => c !== col)
-                          : [...columnVisibility, col];
-                        onColumnVisibilityChange(next);
-                      }}
+                      checked={showSubtasks}
+                      onChange={(e) => onShowSubtasksChange(e.target.checked)}
                     />
-                    {STATUS_LABELS[col]}
+                    Show subtasks
                   </label>
-                ))}
-              </div>
-            </div>
-            <div className="settings-section">
-              <label className="column-checkbox">
-                <input
-                  type="checkbox"
-                  checked={showSubtasks}
-                  onChange={(e) => onShowSubtasksChange(e.target.checked)}
-                />
-                Show subtasks
-              </label>
-            </div>
-            <div className="settings-section">
-              <label className="settings-label">Parent View</label>
-              <div className="collapse-parents-actions">
-                <button
-                  type="button"
-                  className="collapse-parents-btn"
-                  disabled={!showSubtasks || parentCount === 0 || collapsedCount === parentCount}
-                  onClick={onCollapseAll}
-                >
-                  Collapse all
-                </button>
-                <button
-                  type="button"
-                  className="collapse-parents-btn"
-                  disabled={!showSubtasks || collapsedCount === 0}
-                  onClick={onExpandAll}
-                >
-                  Expand all
-                </button>
-              </div>
-              <div className="collapse-parents-meta">{collapseMetaText}</div>
-            </div>
+                </div>
+                <div className="settings-section">
+                  <label className="settings-label">Parent View</label>
+                  <div className="collapse-parents-actions">
+                    <button
+                      type="button"
+                      className="collapse-parents-btn"
+                      disabled={!showSubtasks || parentCount === 0 || collapsedCount === parentCount}
+                      onClick={onCollapseAll}
+                    >
+                      Collapse all
+                    </button>
+                    <button
+                      type="button"
+                      className="collapse-parents-btn"
+                      disabled={!showSubtasks || collapsedCount === 0}
+                      onClick={onExpandAll}
+                    >
+                      Expand all
+                    </button>
+                  </div>
+                  <div className="collapse-parents-meta">{collapseMetaText}</div>
+                </div>
+              </>
+            )}
             <div className="settings-section">
               <button
                 type="button"

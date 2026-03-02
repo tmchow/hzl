@@ -59,6 +59,7 @@ export default function App() {
     initialUrl.activityQ ?? initialPrefs.activityKeywordFilter ?? '',
   );
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(initialUrl.task ?? null);
+  const [selectedAgent, setSelectedAgent] = useState<string | null>(initialUrl.selectedAgent ?? null);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [sseState, setSseState] = useState<SSEState>('connecting');
@@ -140,9 +141,10 @@ export default function App() {
       activityAssignee,
       activityKeyword,
       selectedTaskId,
+      selectedAgent,
     });
   }, [view, since, calendarYear, calendarMonth, project, assignee, searchQuery,
-      showSubtasks, activeTab, tag, activityOpen, activityAssignee, activityKeyword, selectedTaskId]);
+      showSubtasks, activeTab, tag, activityOpen, activityAssignee, activityKeyword, selectedTaskId, selectedAgent]);
 
   useEffect(() => {
     persistPrefs();
@@ -443,6 +445,10 @@ export default function App() {
           tasks={tasks}
           onTaskClick={setSelectedTaskId}
         />
+      )}
+
+      {view === 'agents' && (
+        <div>Agent Ops placeholder</div>
       )}
 
       {selectedTaskId && (
