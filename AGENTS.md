@@ -258,17 +258,15 @@ The documentation is organized into three folders:
 
 | Source | Purpose | When accessed |
 |--------|---------|---------------|
-| `snippets/AGENT-POLICY.md` | Minimal policy (when to use HZL) | Installer/instruction-file guidance |
 | `snippets/HZL-GUIDE.md` | Full workflow guide | Via `hzl guide` command |
 | `skills/hzl/SKILL.md` | OpenClaw skill reference | During OpenClaw agent operation |
 | `docs-site/getting-started/installation.md` | OpenClaw-specific setup and runtime policy | During OpenClaw install/maintenance |
 
-Agents get the minimal HZL policy in AGENTS.md, then run `hzl guide` for full workflow documentation.
+Agents get the HZL skill loaded by OpenClaw, then run `hzl guide` for full workflow documentation.
 
 ### Snippet Source Files
 
 Reusable HZL source content lives in `/snippets/`:
-- `snippets/AGENT-POLICY.md` — Minimal policy used by installer messaging and instruction-file guidance.
 - `snippets/HZL-GUIDE.md` — Source for `hzl guide` content generation.
 
 ### ⚠️ Documentation to Update When CLI Changes
@@ -280,7 +278,6 @@ When adding or modifying CLI commands, flags, or workflows, update **all** of th
 | Document | Path | What to update |
 |----------|------|----------------|
 | **README** | `README.md` | CLI reference section |
-| **Agent policy snippet** | `snippets/AGENT-POLICY.md` | Key commands list |
 | **OpenClaw skill** | `skills/hzl/SKILL.md` | Quick reference, patterns, examples |
 | **Docs site - Tasks** | `docs-site/concepts/tasks.md` | Task creation flags, update options, workflows |
 | **Docs site - Other** | `docs-site/concepts/*.md` | Check if other concept pages are affected |
