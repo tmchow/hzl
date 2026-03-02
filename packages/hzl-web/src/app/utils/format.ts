@@ -159,16 +159,22 @@ export function formatDuration(ms: number, zeroLabel = 'just now'): string {
   return `${hours}h ${minutes}m`;
 }
 
+/** Ordered status entries — single source of truth for colors and labels */
+export const STATUS_ENTRIES: ReadonlyArray<{ key: string; label: string; color: string }> = [
+  { key: 'backlog', label: 'Backlog', color: '#6b7280' },
+  { key: 'ready', label: 'Ready', color: '#3b82f6' },
+  { key: 'in_progress', label: 'In Progress', color: '#f59e0b' },
+  { key: 'blocked', label: 'Blocked', color: '#ef4444' },
+  { key: 'done', label: 'Done', color: '#22c55e' },
+];
+
+const STATUS_COLOR_MAP: Record<string, string> = Object.fromEntries(
+  STATUS_ENTRIES.map(e => [e.key, e.color]),
+);
+
 /** Status color for graph nodes */
 export function getStatusColor(status: string | undefined, type?: string): string {
   if (type === 'root') return '#f59e0b';
   if (type === 'project') return '#e5e5e5';
-  const colors: Record<string, string> = {
-    backlog: '#6b7280',
-    ready: '#3b82f6',
-    in_progress: '#f59e0b',
-    blocked: '#ef4444',
-    done: '#22c55e',
-  };
-  return colors[status ?? ''] ?? '#6b7280';
+  return STATUS_COLOR_MAP[status ?? ''] ?? '#6b7280';
 }

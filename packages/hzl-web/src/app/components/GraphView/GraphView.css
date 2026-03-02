@@ -1,1 +1,100 @@
-/* GraphView styles are in App.css (global theme) */
+/* Graph legend */
+.graph-legend {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  background: rgba(37, 37, 37, 0.92);
+  border: 1px solid #404040;
+  border-radius: 8px;
+  font: 11px ui-monospace, monospace;
+  color: #a3a3a3;
+  z-index: 10;
+}
+
+.graph-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #a3a3a3;
+  font: 11px ui-monospace, monospace;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, opacity 0.15s;
+}
+
+.graph-legend-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #e5e5e5;
+}
+
+.graph-legend-item.active {
+  background: rgba(255, 255, 255, 0.12);
+  color: #e5e5e5;
+}
+
+.graph-legend-item.dimmed {
+  opacity: 0.4;
+}
+
+.graph-legend-item.dimmed:hover {
+  opacity: 0.8;
+}
+
+.graph-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Graph zoom controls */
+.graph-controls {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 10;
+}
+
+.graph-control-btn {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(37, 37, 37, 0.92);
+  border: 1px solid #404040;
+  color: #a3a3a3;
+  font: 16px ui-monospace, monospace;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.graph-control-btn:first-child {
+  border-radius: 6px 6px 0 0;
+}
+
+.graph-control-btn:last-child {
+  border-radius: 0 0 6px 6px;
+}
+
+.graph-control-btn:hover {
+  background: rgba(64, 64, 64, 0.95);
+  color: #e5e5e5;
+}
+
+.graph-control-btn:active {
+  background: rgba(80, 80, 80, 0.95);
+}
+
+.graph-control-btn svg {
+  display: block;
+}
