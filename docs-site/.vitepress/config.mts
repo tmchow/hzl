@@ -5,6 +5,8 @@ export default defineConfig({
   description:
     'HZL is the shared task ledger for OpenClaw, with durable task state, atomic claiming, and session-safe handoffs.',
   head: [
+    ['link', { rel: 'icon', href: '/favicon.ico' }],
+    ['link', { rel: 'icon', type: 'image/png', sizes: '96x96', href: '/favicon-96x96.png' }],
     ['meta', { property: 'og:type', content: 'website' }],
     ['meta', { property: 'og:site_name', content: 'HZL' }],
     ['meta', { property: 'og:title', content: 'HZL | Shared Task Ledger for OpenClaw' }],
