@@ -12,6 +12,7 @@ export function formatTime(isoString: string | null | undefined): string {
   if (diff < MS_PER_MINUTE) return 'just now';
   if (diff < MS_PER_HOUR) return `${Math.floor(diff / MS_PER_MINUTE)}m ago`;
   if (diff < MS_PER_DAY) return `${Math.floor(diff / MS_PER_HOUR)}h ago`;
+  if (diff < 7 * MS_PER_DAY) return `${Math.floor(diff / MS_PER_DAY)}d ago`;
   return date.toLocaleDateString();
 }
 
