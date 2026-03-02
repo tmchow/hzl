@@ -82,7 +82,7 @@ systemctl --user status hzl-web
 hzl serve --status
 ```
 
-The server binds to `0.0.0.0` by default, making it accessible over the network (including Tailscale). Use `--host 127.0.0.1` to restrict to localhost only.
+The server binds to `0.0.0.0:3456` by default, making it accessible over the network (including Tailscale). Use `--port` to change the port and `--host 127.0.0.1` to restrict to localhost only.
 
 For full dashboard documentation, see [Web Dashboard](../dashboard).
 
