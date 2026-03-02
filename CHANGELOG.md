@@ -1,3 +1,17 @@
+# [2.6.0](https://github.com/tmchow/hzl/compare/v2.5.0...v2.6.0) (2026-03-02)
+
+
+### Bug Fixes
+
+* **web:** allow data URI images in CSP ([#166](https://github.com/tmchow/hzl/issues/166)) ([175220a](https://github.com/tmchow/hzl/commit/175220a6aeb391272e23256fad08b5ca5f050113))
+* **web:** register service worker in React app ([219e8c9](https://github.com/tmchow/hzl/commit/219e8c9446d1c95bc82fafee10029dda88e1dc85))
+* **web:** update PWA manifest description and bust SW cache ([1e8af38](https://github.com/tmchow/hzl/commit/1e8af38b8a91ed0c5e1485a6d3eb03da85fa6166))
+
+
+### Features
+
+* **web:** add collapsible nav rail and agent ops improvements ([#165](https://github.com/tmchow/hzl/issues/165)) ([5182239](https://github.com/tmchow/hzl/commit/51822395495c511716491369eba8a0ba8673f916))
+
 # [2.5.0](https://github.com/tmchow/hzl/compare/v2.4.0...v2.5.0) (2026-03-02)
 
 
