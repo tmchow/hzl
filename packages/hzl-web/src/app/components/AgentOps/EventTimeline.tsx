@@ -9,96 +9,117 @@ interface EventTimelineProps {
   loading: boolean;
 }
 
-/** Map event type to a short human-readable badge label */
-function getBadgeLabel(type: string): string {
-  const labels: Record<string, string> = {
-    task_created: 'created',
-    status_changed: 'status',
-    task_updated: 'updated',
-    comment_added: 'commented',
-    checkpoint_recorded: 'checkpoint',
-    task_moved: 'moved',
-    dependency_added: 'dep added',
-    dependency_removed: 'dep removed',
-    task_archived: 'archived',
-    project_created: 'project',
-    project_renamed: 'renamed',
-    project_deleted: 'deleted',
-  };
-  return labels[type] ?? type.replace(/_/g, ' ');
+const KNOWN_STATUSES = new Set(['backlog', 'ready', 'in-progress', 'done', 'archived']);
+
+interface EventTypeConfig {
+  label: string;
+  badgeClass: string;
+  description: (data: Record<string, unknown>) => string;
 }
 
-/** Get CSS class for event type badge coloring */
+const EVENT_CONFIG: Record<string, EventTypeConfig> = {
+  task_created: {
+    label: 'created',
+    badgeClass: 'event-badge-created',
+    description: (data) => {
+      const project = typeof data.project === 'string' ? data.project : null;
+      return project ? `created in ${project}` : 'task created';
+    },
+  },
+  status_changed: {
+    label: 'status',
+    badgeClass: 'event-badge-default',
+    description: (data) => {
+      const from = typeof data.from === 'string' ? data.from : null;
+      const to = typeof data.to === 'string' ? data.to : null;
+      if (from && to) return `${from} \u2192 ${to}`;
+      return '';
+    },
+  },
+  task_updated: {
+    label: 'updated',
+    badgeClass: 'event-badge-updated',
+    description: (data) => {
+      const field = typeof data.field === 'string' ? data.field : null;
+      const oldVal = data.old_value != null ? String(data.old_value) : null;
+      const newVal = data.new_value != null ? String(data.new_value) : null;
+      if (field && oldVal != null && newVal != null) {
+        return `${field}: ${oldVal} \u2192 ${newVal}`;
+      }
+      if (field) return `${field} updated`;
+      return 'task updated';
+    },
+  },
+  comment_added: {
+    label: 'commented',
+    badgeClass: 'event-badge-comment',
+    description: (data) => {
+      const text = typeof data.text === 'string' ? data.text : '';
+      if (text.length > 80) return `${text.slice(0, 80)}...`;
+      return text;
+    },
+  },
+  checkpoint_recorded: {
+    label: 'checkpoint',
+    badgeClass: 'event-badge-checkpoint',
+    description: (data) => {
+      const name = typeof data.name === 'string' ? data.name : null;
+      return name ? `checkpoint: ${name}` : 'checkpoint recorded';
+    },
+  },
+  task_moved: {
+    label: 'moved',
+    badgeClass: 'event-badge-moved',
+    description: (data) => {
+      const from = typeof data.from_project === 'string' ? data.from_project : null;
+      const to = typeof data.to_project === 'string' ? data.to_project : null;
+      if (from && to) return `${from} \u2192 ${to}`;
+      return 'task moved';
+    },
+  },
+  dependency_added: {
+    label: 'dep added',
+    badgeClass: 'event-badge-dep',
+    description: (data) => {
+      const depId = typeof data.depends_on_id === 'string' ? data.depends_on_id : null;
+      return depId ? `depends on ${depId.slice(0, 8)}` : 'dependency added';
+    },
+  },
+  dependency_removed: {
+    label: 'dep removed',
+    badgeClass: 'event-badge-dep',
+    description: (data) => {
+      const depId = typeof data.depends_on_id === 'string' ? data.depends_on_id : null;
+      return depId ? `removed dep on ${depId.slice(0, 8)}` : 'dependency removed';
+    },
+  },
+  task_archived: {
+    label: 'archived',
+    badgeClass: 'event-badge-archived',
+    description: () => 'task archived',
+  },
+};
+
+function getConfig(type: string): EventTypeConfig {
+  return EVENT_CONFIG[type] ?? {
+    label: type.replace(/_/g, ' '),
+    badgeClass: 'event-badge-default',
+    description: () => '',
+  };
+}
+
 function getBadgeClass(type: string, data: Record<string, unknown>): string {
   if (type === 'status_changed') {
     const to = typeof data.to === 'string' ? data.to : '';
-    if (to) return `event-badge-${to.replace(/_/g, '-')}`;
-  }
-  const classMap: Record<string, string> = {
-    task_created: 'event-badge-created',
-    comment_added: 'event-badge-comment',
-    checkpoint_recorded: 'event-badge-checkpoint',
-    task_updated: 'event-badge-updated',
-    task_moved: 'event-badge-moved',
-    task_archived: 'event-badge-archived',
-    dependency_added: 'event-badge-dep',
-    dependency_removed: 'event-badge-dep',
-  };
-  return classMap[type] ?? 'event-badge-default';
-}
-
-/** Build a human-readable description from event data */
-function getEventDescription(type: string, data: Record<string, unknown>): string {
-  if (type === 'status_changed') {
-    const from = typeof data.from === 'string' ? data.from : null;
-    const to = typeof data.to === 'string' ? data.to : null;
-    if (from && to) return `${from} \u2192 ${to}`;
-    return '';
-  }
-  if (type === 'task_created') {
-    const project = typeof data.project === 'string' ? data.project : null;
-    return project ? `created in ${project}` : 'task created';
-  }
-  if (type === 'comment_added') {
-    const text = typeof data.text === 'string' ? data.text : '';
-    if (text.length > 80) return `${text.slice(0, 80)}...`;
-    return text;
-  }
-  if (type === 'task_updated') {
-    const field = typeof data.field === 'string' ? data.field : null;
-    const oldVal = data.old != null ? String(data.old) : null;
-    const newVal = data.new != null ? String(data.new) : null;
-    if (field && oldVal != null && newVal != null) {
-      return `${field}: ${oldVal} \u2192 ${newVal}`;
+    const sanitized = to.replace(/[^a-zA-Z0-9-]/g, '');
+    if (sanitized && KNOWN_STATUSES.has(sanitized)) {
+      return `event-badge-${sanitized}`;
     }
-    if (field) return `${field} updated`;
-    return 'task updated';
+    return 'event-badge-default';
   }
-  if (type === 'checkpoint_recorded') {
-    const name = typeof data.name === 'string' ? data.name : null;
-    return name ? `checkpoint: ${name}` : 'checkpoint recorded';
-  }
-  if (type === 'task_moved') {
-    const from = typeof data.from_project === 'string' ? data.from_project : null;
-    const to = typeof data.to_project === 'string' ? data.to_project : null;
-    if (from && to) return `${from} \u2192 ${to}`;
-    return 'task moved';
-  }
-  if (type === 'dependency_added') {
-    const depId = typeof data.depends_on_id === 'string' ? data.depends_on_id : null;
-    return depId ? `depends on ${depId.slice(0, 8)}` : 'dependency added';
-  }
-  if (type === 'dependency_removed') {
-    const depId = typeof data.depends_on_id === 'string' ? data.depends_on_id : null;
-    return depId ? `removed dep on ${depId.slice(0, 8)}` : 'dependency removed';
-  }
-  if (type === 'task_archived') {
-    return 'task archived';
-  }
-  return '';
+  return getConfig(type).badgeClass;
 }
 
-/** Check if an event is expandable (task-related events that may show details) */
 function isExpandable(type: string, data: Record<string, unknown>): boolean {
   if (type === 'task_created') return true;
   if (type === 'status_changed') {
@@ -150,6 +171,7 @@ export default function EventTimeline({
     <div className="event-timeline">
       <div className="event-timeline-list">
         {events.map((event) => {
+          const config = getConfig(event.type);
           const expandable = isExpandable(event.type, event.data);
           const expanded = expandedEvents.has(event.id);
 
@@ -164,10 +186,10 @@ export default function EventTimeline({
                   {formatTime(event.timestamp)}
                 </span>
                 <span className={`event-timeline-badge ${getBadgeClass(event.type, event.data)}`}>
-                  {getBadgeLabel(event.type)}
+                  {config.label}
                 </span>
                 <span className="event-timeline-desc">
-                  {getEventDescription(event.type, event.data)}
+                  {config.description(event.data)}
                 </span>
                 <span className="event-timeline-task-ctx">
                   {event.taskTitle}

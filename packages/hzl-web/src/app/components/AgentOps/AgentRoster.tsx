@@ -3,6 +3,12 @@ import type { KeyboardEvent } from 'react';
 import type { AgentRosterItem } from '../../api/types';
 import { formatDuration } from '../../utils/format';
 
+function safeDateParse(value: string | null | undefined): number {
+  if (!value) return Date.now();
+  const ts = Date.parse(value);
+  return isNaN(ts) ? Date.now() : ts;
+}
+
 interface AgentRosterProps {
   agents: AgentRosterItem[];
   selectedAgent: string | null;
@@ -142,13 +148,13 @@ export default function AgentRoster({
                 </span>
               ) : (
                 <span className="agent-roster-idle">
-                  idle since {formatDuration(now - Date.parse(agent.lastActivity))}
+                  idle since {formatDuration(now - safeDateParse(agent.lastActivity))}
                 </span>
               )}
             </div>
             <span className="agent-roster-duration">
               {agent.isActive && agent.tasks.length > 0
-                ? formatDuration(now - Date.parse(agent.tasks[0].claimedAt))
+                ? formatDuration(now - safeDateParse(agent.tasks[0].claimedAt))
                 : ''}
             </span>
           </div>

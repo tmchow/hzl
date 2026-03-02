@@ -553,7 +553,7 @@ export function createWebServer(options: ServerOptions): ServerHandle {
       if (!Object.prototype.hasOwnProperty.call(DATE_PRESETS, sinceParam)) {
         json(
           res,
-          { error: `Invalid since value: ${sinceParam}. Expected one of: ${Object.keys(DATE_PRESETS).join(', ')}` },
+          { error: `Invalid since value. Expected one of: ${Object.keys(DATE_PRESETS).join(', ')}` },
           400
         );
         return;

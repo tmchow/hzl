@@ -2,6 +2,12 @@ import type { AgentRosterItem, AgentEvent } from '../../api/types';
 import { formatDuration } from '../../utils/format';
 import EventTimeline from './EventTimeline';
 
+function safeDateParse(value: string | null | undefined): number {
+  if (!value) return Date.now();
+  const ts = Date.parse(value);
+  return isNaN(ts) ? Date.now() : ts;
+}
+
 interface AgentDetailProps {
   agent: AgentRosterItem | null;
   events: AgentEvent[] | null;
@@ -28,7 +34,7 @@ export default function AgentDetail({
 
   const now = Date.now();
   const primaryTask = agent.tasks.length > 0 ? agent.tasks[0] : null;
-  const taskDurationMs = primaryTask ? now - Date.parse(primaryTask.claimedAt) : null;
+  const taskDurationMs = primaryTask ? now - safeDateParse(primaryTask.claimedAt) : null;
   const progress = primaryTask?.progress ?? null;
   const tasksOwned = agent.tasks.length;
 
