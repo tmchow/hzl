@@ -1,26 +1,12 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import type { KeyboardEvent } from 'react';
 import type { AgentRosterItem } from '../../api/types';
+import { formatDuration } from '../../utils/format';
 
 interface AgentRosterProps {
   agents: AgentRosterItem[];
   selectedAgent: string | null;
   onSelectAgent: (agent: string | null) => void;
-}
-
-/**
- * Format a duration in milliseconds as a human-readable relative time.
- * <1m -> "just now", minutes -> "Nm", hours -> "Nh Nm"
- */
-function formatDuration(ms: number): string {
-  if (ms < 0) return 'just now';
-  const totalMinutes = Math.floor(ms / 60_000);
-  if (totalMinutes < 1) return 'just now';
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  if (hours === 0) return `${minutes}m`;
-  if (minutes === 0) return `${hours}h`;
-  return `${hours}h ${minutes}m`;
 }
 
 export default function AgentRoster({

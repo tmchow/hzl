@@ -142,6 +142,22 @@ export function getBoardStatus(task: {
   return isBlocked && task.status === 'ready' ? 'blocked' : task.status;
 }
 
+/**
+ * Format a duration in milliseconds as a compact human-readable string.
+ * Returns "Nm", "Nh", or "Nh Nm".
+ * The `zeroLabel` controls what to show for values below one minute (default: "just now").
+ */
+export function formatDuration(ms: number, zeroLabel = 'just now'): string {
+  if (ms < 0) return zeroLabel;
+  const totalMinutes = Math.floor(ms / 60_000);
+  if (totalMinutes < 1) return zeroLabel;
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours === 0) return `${minutes}m`;
+  if (minutes === 0) return `${hours}h`;
+  return `${hours}h ${minutes}m`;
+}
+
 /** Status color for graph nodes */
 export function getStatusColor(status: string | undefined, type?: string): string {
   if (type === 'root') return '#f59e0b';

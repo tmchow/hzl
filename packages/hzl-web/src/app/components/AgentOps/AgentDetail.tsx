@@ -1,4 +1,5 @@
 import type { AgentRosterItem, AgentEvent } from '../../api/types';
+import { formatDuration } from '../../utils/format';
 import EventTimeline from './EventTimeline';
 
 interface AgentDetailProps {
@@ -7,20 +8,6 @@ interface AgentDetailProps {
   total: number;
   onLoadMore: () => void;
   loading: boolean;
-}
-
-/**
- * Format a duration in milliseconds as "Xh Ym" for the metrics display.
- */
-function formatMetricDuration(ms: number): string {
-  if (ms < 0) return '0m';
-  const totalMinutes = Math.floor(ms / 60_000);
-  if (totalMinutes < 1) return '<1m';
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  if (hours === 0) return `${minutes}m`;
-  if (minutes === 0) return `${hours}h`;
-  return `${hours}h ${minutes}m`;
 }
 
 export default function AgentDetail({
@@ -88,7 +75,7 @@ export default function AgentDetail({
             <div className="agent-detail-metric-card">
               <span className="agent-detail-metric-label">Task duration</span>
               <span className="agent-detail-metric-value">
-                {formatMetricDuration(taskDurationMs)}
+                {formatDuration(taskDurationMs, '<1m')}
               </span>
             </div>
           )}

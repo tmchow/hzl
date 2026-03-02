@@ -1474,11 +1474,6 @@ select:focus {
   flex-shrink: 0;
 }
 
-.agent-ops-fleet-placeholder {
-  color: var(--text-secondary);
-  font-size: 12px;
-}
-
 .agent-ops-fleet-label {
   display: flex;
   align-items: center;
