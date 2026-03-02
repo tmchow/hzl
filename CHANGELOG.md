@@ -1,3 +1,10 @@
+# [2.5.0](https://github.com/tmchow/hzl/compare/v2.4.0...v2.5.0) (2026-03-02)
+
+
+### Features
+
+* add --lease to steal and improve hooks documentation ([#164](https://github.com/tmchow/hzl/issues/164)) ([656523f](https://github.com/tmchow/hzl/commit/656523f81ef8f459ae978dcee30e5b609c79e11c))
+
 # [2.4.0](https://github.com/tmchow/hzl/compare/v2.3.0...v2.4.0) (2026-03-01)
 
 
