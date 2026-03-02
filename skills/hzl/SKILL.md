@@ -114,7 +114,7 @@ hzl task stuck                             # Any expired leases?
 
 # If stuck tasks exist, read their state before claiming
 hzl task show <stuck-id> --view standard --json
-hzl task steal <stuck-id> --if-expired --agent <agent-id>
+hzl task steal <stuck-id> --if-expired --agent <agent-id> --lease 30
 hzl task show <stuck-id> --view standard --json | jq '.checkpoints[-1]'
 
 # Otherwise claim next available
@@ -273,9 +273,9 @@ hzl task claim <id> --agent <agent-id> --lease 30       # 30-minute lease
 # Monitor for stuck tasks
 hzl task stuck
 
-# Recover an abandoned task
+# Recover an abandoned task (steal + set new lease atomically)
 hzl task show <stuck-id> --view standard --json         # Read last checkpoint first
-hzl task steal <stuck-id> --if-expired --agent <agent-id>
+hzl task steal <stuck-id> --if-expired --agent <agent-id> --lease 30
 ```
 
 Use distinct `--agent` IDs per agent (e.g. `henry`, `clara`, `kenji`) so authorship is traceable.

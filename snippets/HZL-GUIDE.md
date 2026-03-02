@@ -51,7 +51,7 @@ hzl hook drain
 
 ```bash
 hzl task stuck
-hzl task steal <id> --if-expired --agent <agent-name>
+hzl task steal <id> --if-expired --agent <agent-name> --lease 30
 ```
 
 ## Hook delivery model
