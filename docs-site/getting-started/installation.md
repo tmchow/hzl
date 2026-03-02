@@ -214,6 +214,8 @@ If option 2 is chosen:
 
 Why: this ensures each agent checks pending work at session start before doing anything else.
 
+Add the following block to each agent's HEARTBEAT.md, substituting that agent's identity and project pool. For multi-agent setups, repeat for every agent in the roster (skip any exec-denied agents handled via option 2 in step 3).
+
 Wrap with markers so teardown is easy later:
 
 ```md
