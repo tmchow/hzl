@@ -138,7 +138,8 @@ export default function AgentRoster({
               <span className="agent-roster-id">{agent.agent}</span>
               {agent.isActive && agent.tasks.length > 0 ? (
                 <span className="agent-roster-task">
-                  <span className="agent-roster-task-title">
+                  <span className={`agent-roster-task-title${agent.tasks[0].stale ? ' stale' : ''}`}>
+                    {agent.tasks[0].stale && <span className="agent-roster-stale-dot" />}
                     {agent.tasks[0].title}
                   </span>
                   {agent.tasks.length > 1 && (

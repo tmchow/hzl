@@ -37,7 +37,7 @@ export default function Card({
 
   return (
     <div
-      className={`card${isParentTask ? ' card-parent' : ''}`}
+      className={`card${isParentTask ? ' card-parent' : ''}${task.stale ? ' card-stale' : ''}`}
       style={parentStyle}
       onClick={() => onClick(task.task_id)}
     >

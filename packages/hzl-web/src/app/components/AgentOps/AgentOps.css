@@ -179,6 +179,20 @@
   color: var(--text-muted);
 }
 
+.agent-roster-stale-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--status-in-progress);
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+.agent-roster-task-title.stale {
+  color: var(--status-in-progress);
+}
+
 .agent-roster-duration {
   flex-shrink: 0;
   font-family: var(--font-mono);

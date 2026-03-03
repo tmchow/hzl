@@ -70,4 +70,58 @@ describe('runStuck', () => {
     expect(result.tasks).toHaveLength(1);
     expect(result.tasks[0].project).toBe('project-a');
   });
+
+  describe('--stale flag', () => {
+    it('does not include stale tasks by default', () => {
+      const task = services.taskService.createTask({ title: 'Silent claim', project: 'inbox' });
+      services.taskService.setStatus(task.task_id, TaskStatus.Ready);
+      services.taskService.claimTask(task.task_id, { author: 'agent-1' });
+
+      const result = runStuck({ services, json: false });
+      expect(result.tasks).toHaveLength(0);
+    });
+
+    it('includes stale tasks when --stale is set', () => {
+      const task = services.taskService.createTask({ title: 'Silent claim', project: 'inbox' });
+      services.taskService.setStatus(task.task_id, TaskStatus.Ready);
+      services.taskService.claimTask(task.task_id, { author: 'agent-1' });
+
+      const result = runStuck({ services, json: false, stale: true, staleThresholdMinutes: 0 });
+      expect(result.tasks.length).toBeGreaterThanOrEqual(1);
+      const found = result.tasks.find(t => t.task_id === task.task_id);
+      expect(found).toBeDefined();
+      expect(found!.reason).toBe('stale');
+    });
+
+    it('separates stuck and stale tasks in result', () => {
+      // Create a stuck task (expired lease)
+      const stuckTask = services.taskService.createTask({ title: 'Stuck task', project: 'inbox' });
+      services.taskService.setStatus(stuckTask.task_id, TaskStatus.Ready);
+      const pastLease = new Date(Date.now() - 60000).toISOString();
+      services.taskService.claimTask(stuckTask.task_id, { author: 'agent-1', lease_until: pastLease });
+
+      // Create a stale task (no checkpoint, no lease)
+      const staleTask = services.taskService.createTask({ title: 'Stale task', project: 'inbox' });
+      services.taskService.setStatus(staleTask.task_id, TaskStatus.Ready);
+      services.taskService.claimTask(staleTask.task_id, { author: 'agent-2' });
+
+      const result = runStuck({ services, json: false, stale: true, staleThresholdMinutes: 0 });
+      const stuck = result.tasks.find(t => t.task_id === stuckTask.task_id);
+      const stale = result.tasks.find(t => t.task_id === staleTask.task_id);
+
+      expect(stuck?.reason).toBe('lease_expired');
+      expect(stale?.reason).toBe('stale');
+    });
+
+    it('does not flag stale task that has checkpoints', () => {
+      const task = services.taskService.createTask({ title: 'Active task', project: 'inbox' });
+      services.taskService.setStatus(task.task_id, TaskStatus.Ready);
+      services.taskService.claimTask(task.task_id, { author: 'agent-1' });
+      services.taskService.addCheckpoint(task.task_id, 'started', {});
+
+      const result = runStuck({ services, json: false, stale: true, staleThresholdMinutes: 0 });
+      const found = result.tasks.find(t => t.task_id === task.task_id);
+      expect(found).toBeUndefined();
+    });
+  });
 });

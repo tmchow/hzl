@@ -114,6 +114,7 @@ hzl task search "<query>" -s <status>
 - `--limit`
 - `--group-by-agent`
 - `--view summary|standard|full`
+- `--stale-threshold <minutes>` (default 10, 0 to disable) — flag in-progress tasks with no checkpoints as stale
 
 `task show` key options:
 - `--no-subtasks`
@@ -133,6 +134,8 @@ hzl task release <taskId>
 hzl task reopen <taskId>
 
 hzl task stuck
+hzl task stuck --stale                                    # Include stale tasks (no checkpoints)
+hzl task stuck --stale --stale-threshold 15               # Custom threshold (default 10 min)
 hzl task steal <taskId> --if-expired --agent <name>
 hzl task steal <taskId> --if-expired --agent <name> --lease <minutes>
 ```

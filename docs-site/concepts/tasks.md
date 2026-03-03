@@ -142,6 +142,26 @@ hzl task unblock <id>
 
 See [Blocking & Unblocking](/workflows/blocking-unblocking) for the full workflow.
 
+## Stale Tasks
+
+A task is **stale** when it's `in_progress` but has had no checkpoints for longer than a threshold (default 10 minutes). This is distinct from **stuck** (lease expired): stuck means the agent's lease ran out, while stale means the agent hasn't posted proof of life.
+
+```bash
+# List tasks with stale detection (enabled by default at 10 min)
+hzl task list -P my-project
+
+# Custom threshold
+hzl task list --stale-threshold 15
+
+# Disable stale detection
+hzl task list --stale-threshold 0
+
+# Include stale tasks in stuck report
+hzl task stuck --stale
+```
+
+In `task list` output, stale tasks show a warning indicator and `[stale Nm]` suffix. In JSON output, each task includes `stale` (boolean) and `stale_minutes` (number or null).
+
 ## Completing Tasks
 
 When done:
