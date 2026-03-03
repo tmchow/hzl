@@ -44,8 +44,10 @@ hzl hook drain
 ## Routing model
 
 - Use projects as role pools.
+- `--project` is required on `workflow run start`; use `--any-project` to scan all pools.
 - Omit `--agent` to create pool-routed tasks.
-- Use `--agent` only when assignment must be explicit.
+- Use `--agent` on task creation to pre-route to a specific agent — other agents skip it when claiming.
+- Tasks with no agent assignment are available to everyone.
 
 ## Recovery model
 

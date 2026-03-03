@@ -106,6 +106,8 @@ Claiming:
 - Records who is working on it
 - Prevents other agents from claiming
 
+When using `claim --next`, agent routing applies: tasks assigned to a different agent are skipped. Tasks with no agent assignment are available to everyone.
+
 See [Claiming & Leases](./claiming-leases) for atomic claiming, agent IDs, and lease-based recovery.
 
 ## Recording Progress
