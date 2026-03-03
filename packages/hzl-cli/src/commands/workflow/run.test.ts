@@ -39,6 +39,7 @@ describe('workflow run commands', () => {
     const result = runWorkflowStart({
       services,
       agent: 'agent-1',
+      project: 'inbox',
       json: false,
     });
 

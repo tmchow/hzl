@@ -2182,7 +2182,17 @@
           "mandatory": false,
           "optional": false,
           "defaultValue": null,
-          "description": "Project filter for resume/claim"
+          "description": "Project pool to claim from"
+        },
+        {
+          "flags": "--any-project",
+          "short": null,
+          "long": "--any-project",
+          "required": false,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Scan all projects instead of a specific one"
         },
         {
           "flags": "--tags <tags>",
