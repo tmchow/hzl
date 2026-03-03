@@ -1,3 +1,16 @@
+# [2.9.0](https://github.com/tmchow/hzl/compare/v2.8.1...v2.9.0) (2026-03-03)
+
+
+### Bug Fixes
+
+* sync agent roster focus outline with selected agent ([#182](https://github.com/tmchow/hzl/issues/182)) ([62edffe](https://github.com/tmchow/hzl/commit/62edffeeaf73933ab973027d3e6513c0c0b68e2e))
+
+
+### Features
+
+* add stale claim detection for in-progress tasks with no checkpoints ([#184](https://github.com/tmchow/hzl/issues/184)) ([e7cc13c](https://github.com/tmchow/hzl/commit/e7cc13c8af3279d0a36989ea9877fb974551aa4d))
+* require --project on workflow run start and add agent routing ([#183](https://github.com/tmchow/hzl/issues/183)) ([f80b5c1](https://github.com/tmchow/hzl/commit/f80b5c1494731c46df72ffc612cf51983e77841a))
+
 ## [2.8.1](https://github.com/tmchow/hzl/compare/v2.8.0...v2.8.1) (2026-03-03)
 
 
