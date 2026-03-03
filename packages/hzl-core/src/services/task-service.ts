@@ -1471,6 +1471,50 @@ export class TaskService {
   }
 
   /**
+   * Get in-progress tasks with zero checkpoints that have been claimed
+   * longer than `thresholdMinutes` ago.
+   * Returns a Map of task_id -> stale_minutes (how long since claimed_at).
+   */
+  getStaleTasks(opts: { thresholdMinutes: number; project?: string }): Map<string, number> {
+    const { thresholdMinutes, project } = opts;
+    const now = Date.now();
+
+    const conditions: string[] = [
+      "t.status = 'in_progress'",
+      't.claimed_at IS NOT NULL',
+      'NOT EXISTS (SELECT 1 FROM task_checkpoints c WHERE c.task_id = t.task_id)',
+    ];
+    const params: (string | number)[] = [];
+
+    if (thresholdMinutes > 0) {
+      const cutoff = new Date(now - thresholdMinutes * 60_000).toISOString();
+      conditions.push('t.claimed_at < ?');
+      params.push(cutoff);
+    }
+
+    if (project) {
+      conditions.push('t.project = ?');
+      params.push(project);
+    }
+
+    const sql = `
+      SELECT t.task_id, t.claimed_at
+      FROM tasks_current t
+      WHERE ${conditions.join(' AND ')}
+    `;
+
+    const rows = this.db.prepare(sql).all(...params) as Array<{ task_id: string; claimed_at: string }>;
+
+    const result = new Map<string, number>();
+    for (const row of rows) {
+      const claimedMs = new Date(row.claimed_at).getTime();
+      const staleMinutes = Math.round((now - claimedMs) / 60_000);
+      result.set(row.task_id, staleMinutes);
+    }
+    return result;
+  }
+
+  /**
    * Get agent status with active tasks, lease info, and optional per-agent stats.
    * Unlike getAgentRoster(), this includes lease tracking and a summary envelope.
    */

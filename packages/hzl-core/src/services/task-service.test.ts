@@ -3532,4 +3532,64 @@ describe('TaskService', () => {
       expect(result.agents[0].stats).toBeNull();
     });
   });
+
+  describe('stale task detection', () => {
+    it('returns empty set when no in-progress tasks', () => {
+      const result = taskService.getStaleTasks({ thresholdMinutes: 10 });
+      expect(result).toEqual(new Map());
+    });
+
+    it('does not flag in-progress task with checkpoints as stale', () => {
+      const task = taskService.createTask({ title: 'Active task', project: 'project-a' });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+      taskService.claimTask(task.task_id, { author: 'agent-1' });
+      taskService.addCheckpoint(task.task_id, 'started', {});
+
+      const result = taskService.getStaleTasks({ thresholdMinutes: 0 });
+      expect(result.has(task.task_id)).toBe(false);
+    });
+
+    it('flags in-progress task with zero checkpoints past threshold as stale', () => {
+      const task = taskService.createTask({ title: 'Silent task', project: 'project-a' });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+      taskService.claimTask(task.task_id, { author: 'agent-1' });
+
+      // With threshold 0 minutes, any claimed task with no checkpoints is stale
+      const result = taskService.getStaleTasks({ thresholdMinutes: 0 });
+      expect(result.has(task.task_id)).toBe(true);
+      expect(result.get(task.task_id)).toBeGreaterThanOrEqual(0);
+    });
+
+    it('does not flag task within threshold window', () => {
+      const task = taskService.createTask({ title: 'Fresh claim', project: 'project-a' });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+      taskService.claimTask(task.task_id, { author: 'agent-1' });
+
+      // With 60 min threshold, a just-claimed task should not be stale
+      const result = taskService.getStaleTasks({ thresholdMinutes: 60 });
+      expect(result.has(task.task_id)).toBe(false);
+    });
+
+    it('does not flag non-in-progress tasks', () => {
+      const task = taskService.createTask({ title: 'Ready task', project: 'project-a' });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+
+      const result = taskService.getStaleTasks({ thresholdMinutes: 0 });
+      expect(result.has(task.task_id)).toBe(false);
+    });
+
+    it('filters by project when specified', () => {
+      const t1 = taskService.createTask({ title: 'Stale A', project: 'project-a' });
+      taskService.setStatus(t1.task_id, TaskStatus.Ready);
+      taskService.claimTask(t1.task_id, { author: 'agent-1' });
+
+      const t2 = taskService.createTask({ title: 'Stale B', project: 'project-b' });
+      taskService.setStatus(t2.task_id, TaskStatus.Ready);
+      taskService.claimTask(t2.task_id, { author: 'agent-2' });
+
+      const result = taskService.getStaleTasks({ thresholdMinutes: 0, project: 'project-a' });
+      expect(result.has(t1.task_id)).toBe(true);
+      expect(result.has(t2.task_id)).toBe(false);
+    });
+  });
 });
