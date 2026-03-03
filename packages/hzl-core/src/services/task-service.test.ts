@@ -611,6 +611,57 @@ describe('TaskService', () => {
       expect(claimed).not.toBeNull();
       expect(claimed!.task_id).toBe(highPriorityUnassigned.task_id);
     });
+
+    it('skips tasks assigned to a different agent', () => {
+      const forAda = taskService.createTask({
+        title: 'For Ada',
+        project: 'inbox',
+        priority: 3,
+        agent: 'ada',
+      });
+      const unassigned = taskService.createTask({
+        title: 'Unassigned',
+        project: 'inbox',
+        priority: 1,
+      });
+
+      taskService.setStatus(forAda.task_id, TaskStatus.Ready);
+      taskService.setStatus(unassigned.task_id, TaskStatus.Ready);
+
+      const claimed = taskService.claimNext({ agent: 'bob', author: 'bob' });
+
+      expect(claimed).not.toBeNull();
+      expect(claimed!.task_id).toBe(unassigned.task_id);
+    });
+
+    it('claims tasks assigned to the requesting agent', () => {
+      const forAda = taskService.createTask({
+        title: 'For Ada',
+        project: 'inbox',
+        priority: 3,
+        agent: 'ada',
+      });
+      taskService.setStatus(forAda.task_id, TaskStatus.Ready);
+
+      const claimed = taskService.claimNext({ agent: 'ada', author: 'ada' });
+
+      expect(claimed).not.toBeNull();
+      expect(claimed!.task_id).toBe(forAda.task_id);
+    });
+
+    it('returns null when all tasks are assigned to other agents', () => {
+      const forAda = taskService.createTask({
+        title: 'For Ada',
+        project: 'inbox',
+        priority: 3,
+        agent: 'ada',
+      });
+      taskService.setStatus(forAda.task_id, TaskStatus.Ready);
+
+      const claimed = taskService.claimNext({ agent: 'bob', author: 'bob' });
+
+      expect(claimed).toBeNull();
+    });
   });
 
   describe('release', () => {
@@ -842,6 +893,63 @@ describe('TaskService', () => {
 
       const tasks = taskService.getAvailableTasks({});
       expect(tasks[0].task_id).toBe(high.task_id);
+    });
+
+    it('filters out tasks assigned to a different agent', () => {
+      const forAda = taskService.createTask({
+        title: 'For Ada',
+        project: 'inbox',
+        priority: 3,
+        agent: 'ada',
+      });
+      const unassigned = taskService.createTask({
+        title: 'Unassigned',
+        project: 'inbox',
+        priority: 1,
+      });
+      taskService.setStatus(forAda.task_id, TaskStatus.Ready);
+      taskService.setStatus(unassigned.task_id, TaskStatus.Ready);
+
+      const tasks = taskService.getAvailableTasks({ agent: 'bob' });
+      expect(tasks.map(t => t.task_id)).toEqual([unassigned.task_id]);
+    });
+
+    it('includes tasks assigned to the requesting agent', () => {
+      const forAda = taskService.createTask({
+        title: 'For Ada',
+        project: 'inbox',
+        priority: 3,
+        agent: 'ada',
+      });
+      const unassigned = taskService.createTask({
+        title: 'Unassigned',
+        project: 'inbox',
+        priority: 1,
+      });
+      taskService.setStatus(forAda.task_id, TaskStatus.Ready);
+      taskService.setStatus(unassigned.task_id, TaskStatus.Ready);
+
+      const tasks = taskService.getAvailableTasks({ agent: 'ada' });
+      expect(tasks.map(t => t.task_id)).toEqual([forAda.task_id, unassigned.task_id]);
+    });
+
+    it('returns all tasks when agent is not specified', () => {
+      const forAda = taskService.createTask({
+        title: 'For Ada',
+        project: 'inbox',
+        priority: 3,
+        agent: 'ada',
+      });
+      const unassigned = taskService.createTask({
+        title: 'Unassigned',
+        project: 'inbox',
+        priority: 1,
+      });
+      taskService.setStatus(forAda.task_id, TaskStatus.Ready);
+      taskService.setStatus(unassigned.task_id, TaskStatus.Ready);
+
+      const tasks = taskService.getAvailableTasks({});
+      expect(tasks).toHaveLength(2);
     });
   });
 

@@ -208,14 +208,15 @@ hzl workflow show delegate
 ### Run
 
 ```bash
-hzl workflow run start --agent <name>
+hzl workflow run start --agent <name> --project <project>
 hzl workflow run handoff --from <taskId> --title "<title>" -P <project>
 hzl workflow run delegate --from <taskId> --title "<title>" -P <project>
 ```
 
 `workflow run start` options:
 - `--agent <name>` (required)
-- `-P, --project <project>`
+- `-P, --project <project>` (required unless `--any-project`)
+- `--any-project` — scan all projects instead of a specific one
 - `--tags <csv>`
 - `-l, --lease <minutes>`
 - `--resume-policy first|latest|priority`
@@ -224,6 +225,8 @@ hzl workflow run delegate --from <taskId> --title "<title>" -P <project>
 - `--op-id <key>`
 
 Important: `--auto-op-id` is intentionally unsupported for `workflow run start` because repeated polling calls may legitimately return different results over time.
+
+Agent routing: when claiming, tasks assigned to other agents are skipped. Tasks with no agent are available to everyone.
 
 `workflow run handoff` options:
 - `--from <taskId>` (required)

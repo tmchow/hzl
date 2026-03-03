@@ -66,6 +66,7 @@ describe('WorkflowService', () => {
 
       const result = workflowService.runStart({
         agent: 'agent-1',
+        project: 'inbox',
         resume_policy: 'priority',
       });
 
@@ -82,6 +83,7 @@ describe('WorkflowService', () => {
 
       const result = workflowService.runStart({
         agent: 'agent-2',
+        project: 'inbox',
         resume_policy: 'priority',
       });
 
@@ -108,6 +110,7 @@ describe('WorkflowService', () => {
 
       const result = workflowService.runStart({
         agent: 'agent-tags',
+        project: 'inbox',
         tags: ['alpha'],
       });
 
@@ -139,6 +142,7 @@ describe('WorkflowService', () => {
       const before = Date.now();
       const result = workflowService.runStart({
         agent: 'agent-lease',
+        project: 'inbox',
         lease_minutes: 15,
       });
       const after = Date.now();
@@ -173,6 +177,7 @@ describe('WorkflowService', () => {
 
       const result = workflowService.runStart({
         agent: 'agent-resume',
+        project: 'inbox',
         resume_policy: 'first',
       });
 
@@ -204,6 +209,7 @@ describe('WorkflowService', () => {
 
       const result = workflowService.runStart({
         agent: 'agent-latest',
+        project: 'inbox',
         resume_policy: 'latest',
       });
 
@@ -229,6 +235,7 @@ describe('WorkflowService', () => {
 
       const result = workflowService.runStart({
         agent: 'agent-others',
+        project: 'inbox',
         resume_policy: 'priority',
         include_others: false,
       });
@@ -271,6 +278,7 @@ describe('WorkflowService', () => {
 
       const result = workflowService.runStart({
         agent: 'agent-limit',
+        project: 'inbox',
         resume_policy: 'priority',
         others_limit: 2,
       });
@@ -294,8 +302,8 @@ describe('WorkflowService', () => {
         db
       );
 
-      const first = workflowService.runStart({ agent: 'race-a' });
-      const second = workflowServiceTwo.runStart({ agent: 'race-b' });
+      const first = workflowService.runStart({ agent: 'race-a', project: 'inbox' });
+      const second = workflowServiceTwo.runStart({ agent: 'race-b', project: 'inbox' });
 
       expect(first.selected).not.toBeNull();
       expect(second.selected).not.toBeNull();
@@ -306,9 +314,69 @@ describe('WorkflowService', () => {
       expect(() =>
         workflowService.runStart({
           agent: 'agent-1',
+          project: 'inbox',
           auto_op_id: true,
         })
       ).toThrow(/auto-op-id is not supported/i);
+    });
+
+    it('omitting project scans all projects', () => {
+      projectService.createProject('project-a');
+      projectService.createProject('project-b');
+      const taskA = taskService.createTask({ title: 'A', project: 'project-a', priority: 1 });
+      const taskB = taskService.createTask({ title: 'B', project: 'project-b', priority: 3 });
+      taskService.setStatus(taskA.task_id, TaskStatus.Ready);
+      taskService.setStatus(taskB.task_id, TaskStatus.Ready);
+
+      const result = workflowService.runStart({
+        agent: 'agent-wildcard',
+      });
+
+      expect(result.mode).toBe('claim_next');
+      expect(result.selected?.task_id).toBe(taskB.task_id);
+    });
+
+    it('skips tasks assigned to a different agent when claiming', () => {
+      const forAda = taskService.createTask({
+        title: 'For Ada',
+        project: 'inbox',
+        priority: 3,
+        agent: 'ada',
+      });
+      const unassigned = taskService.createTask({
+        title: 'Unassigned',
+        project: 'inbox',
+        priority: 1,
+      });
+      taskService.setStatus(forAda.task_id, TaskStatus.Ready);
+      taskService.setStatus(unassigned.task_id, TaskStatus.Ready);
+
+      const result = workflowService.runStart({
+        agent: 'bob',
+        project: 'inbox',
+      });
+
+      expect(result.mode).toBe('claim_next');
+      expect(result.selected?.task_id).toBe(unassigned.task_id);
+      expect(taskService.getTaskById(forAda.task_id)?.status).toBe(TaskStatus.Ready);
+    });
+
+    it('claims tasks assigned to the requesting agent', () => {
+      const forAda = taskService.createTask({
+        title: 'For Ada',
+        project: 'inbox',
+        priority: 3,
+        agent: 'ada',
+      });
+      taskService.setStatus(forAda.task_id, TaskStatus.Ready);
+
+      const result = workflowService.runStart({
+        agent: 'ada',
+        project: 'inbox',
+      });
+
+      expect(result.mode).toBe('claim_next');
+      expect(result.selected?.task_id).toBe(forAda.task_id);
     });
   });
 

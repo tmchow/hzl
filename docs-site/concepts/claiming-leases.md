@@ -49,6 +49,23 @@ hzl task claim <id> --agent worker-1 --agent-id run-2026-02-27-01
 
 If two agents call it concurrently, they get different tasks (or one gets no candidate) without double-claiming the same task.
 
+## Agent Routing
+
+When a task has `--agent` set at creation time, only that agent can claim it via `--next`. Tasks with no agent assignment are available to everyone.
+
+```bash
+# Pre-route to kenji
+hzl task add "Review PR" -P coding -s ready --agent kenji
+
+# kenji gets it
+hzl task claim --next -P coding --agent kenji   # ✓
+
+# ada skips it — assigned to kenji
+hzl task claim --next -P coding --agent ada     # skipped
+```
+
+Explicit `task claim <id>` bypasses agent routing — any agent can claim a specific task by ID.
+
 ## Leases
 
 Leases add expiry to ownership so stuck work can be recovered.

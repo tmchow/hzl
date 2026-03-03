@@ -92,7 +92,20 @@ hzl task add "Research competitor pricing" -P research -s ready
 hzl task claim --next -P research --agent kenji
 ```
 
-Only use `--agent` when you specifically want one person. Use `--project` when any eligible agent should pick it up.
+**Agent routing:** when `--agent` is set at task creation, only that agent (or agents with no assignment) can claim it via `--next`. Tasks with no agent are available to everyone.
+
+```bash
+# Pre-route a task to a specific agent
+hzl task add "Review Clara's PR" -P coding -s ready --agent kenji
+
+# Kenji claims it (matches agent)
+hzl task claim --next -P coding --agent kenji   # ✓ returns it
+
+# Ada tries — skipped because it's assigned to kenji
+hzl task claim --next -P coding --agent ada     # ✗ skips it
+```
+
+Use `--agent` on task creation when you specifically want one person. Omit it when any eligible agent in the pool should pick it up.
 
 ---
 
@@ -104,7 +117,9 @@ Only use `--agent` when you specifically want one person. Use `--project` when a
 hzl workflow run start --agent <agent-id> --project <project> --json
 ```
 
-This handles expired-lease recovery and new-task claiming in one command. If a task is returned, work on it. If nothing is returned, the queue is empty.
+`--project` is required — agents must scope to their assigned pool. Use `--any-project` to intentionally scan all projects (e.g. coordination agents).
+
+This handles expired-lease recovery and new-task claiming in one command. If a task is returned, work on it. If nothing is returned, the queue is empty. Agent routing applies: tasks assigned to other agents are skipped.
 
 ### Without workflow commands (fallback)
 

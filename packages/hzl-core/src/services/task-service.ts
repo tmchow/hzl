@@ -730,6 +730,14 @@ export class TaskService {
   claimNext(opts: ClaimNextOptions = {}): Task | null {
     return withWriteTransaction(this.db, () => {
       let candidate: TaskIdRow | undefined;
+      const assigneeForPriority = opts.agent ?? opts.assignee ?? opts.author ?? opts.agent_id ?? '';
+
+      // Agent routing: skip tasks where agent is set to a different value.
+      // Tasks with no agent (NULL/'') are available to everyone.
+      const agentRouting = assigneeForPriority
+        ? " AND (tc.agent IS NULL OR tc.agent = '' OR tc.agent = ?)"
+        : '';
+      const agentRoutingParams: string[] = assigneeForPriority ? [assigneeForPriority] : [];
 
       if (opts.tags && opts.tags.length > 0) {
         const tagPlaceholders = opts.tags.map(() => '?').join(', ');
@@ -751,12 +759,12 @@ export class TaskService {
           query += ' AND tc.project = ?';
           params.push(opts.project);
         }
-        const assigneeForPriority = opts.agent ?? opts.assignee ?? opts.author ?? opts.agent_id ?? '';
+        query += agentRouting;
+        params.push(...agentRoutingParams);
         query += ' ORDER BY tc.priority DESC, (tc.agent = ?) DESC, (tc.due_at IS NULL) ASC, tc.due_at ASC, tc.created_at ASC, tc.task_id ASC LIMIT 1';
         params.push(assigneeForPriority);
         candidate = this.db.prepare(query).get(...params) as TaskIdRow | undefined;
       } else if (opts.project) {
-        const assigneeForPriority = opts.agent ?? opts.assignee ?? opts.author ?? opts.agent_id ?? '';
         candidate = this.db.prepare(`
           SELECT tc.task_id FROM tasks_current tc
           WHERE tc.status = 'ready' AND tc.project = ?
@@ -765,10 +773,10 @@ export class TaskService {
               JOIN tasks_current dep ON td.depends_on_id = dep.task_id
               WHERE td.task_id = tc.task_id AND dep.status != 'done'
             )
+            ${agentRouting}
           ORDER BY tc.priority DESC, (tc.agent = ?) DESC, (tc.due_at IS NULL) ASC, tc.due_at ASC, tc.created_at ASC, tc.task_id ASC LIMIT 1
-        `).get(opts.project, assigneeForPriority) as TaskIdRow | undefined;
+        `).get(opts.project, ...agentRoutingParams, assigneeForPriority) as TaskIdRow | undefined;
       } else {
-        const assigneeForPriority = opts.agent ?? opts.assignee ?? opts.author ?? opts.agent_id ?? '';
         candidate = this.db.prepare(`
           SELECT tc.task_id FROM tasks_current tc
           WHERE tc.status = 'ready'
@@ -777,8 +785,9 @@ export class TaskService {
               JOIN tasks_current dep ON td.depends_on_id = dep.task_id
               WHERE td.task_id = tc.task_id AND dep.status != 'done'
             )
+            ${agentRouting}
           ORDER BY tc.priority DESC, (tc.agent = ?) DESC, (tc.due_at IS NULL) ASC, tc.due_at ASC, tc.created_at ASC, tc.task_id ASC LIMIT 1
-        `).get(assigneeForPriority) as TaskIdRow | undefined;
+        `).get(...agentRoutingParams, assigneeForPriority) as TaskIdRow | undefined;
       }
 
       if (!candidate) return null;
@@ -1046,7 +1055,7 @@ export class TaskService {
     return this.areAllDepsDone(taskId);
   }
 
-  getAvailableTasks(opts: { project?: string; tagsAny?: string[]; tagsAll?: string[]; limit?: number; leafOnly?: boolean }): AvailableTask[] {
+  getAvailableTasks(opts: { project?: string; tagsAny?: string[]; tagsAll?: string[]; limit?: number; leafOnly?: boolean; agent?: string }): AvailableTask[] {
     let query = `
       SELECT tc.task_id, tc.title, tc.project, tc.status, tc.priority, tc.created_at, tc.tags, tc.parent_id
       FROM tasks_current tc
@@ -1069,6 +1078,12 @@ export class TaskService {
     if (opts.project) {
       query += ' AND tc.project = ?';
       params.push(opts.project);
+    }
+
+    // Agent routing: skip tasks where agent is set to a different value.
+    if (opts.agent) {
+      query += " AND (tc.agent IS NULL OR tc.agent = '' OR tc.agent = ?)";
+      params.push(opts.agent);
     }
 
     if (opts.tagsAny?.length) {

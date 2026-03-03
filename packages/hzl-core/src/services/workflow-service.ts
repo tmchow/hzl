@@ -134,7 +134,7 @@ const WORKFLOW_DEFINITIONS: Record<WorkflowName, WorkflowDefinition> = {
     supports_auto_op_id: false,
     args: [
       { name: '--agent <name>', required: true, description: 'Agent identity to resume/claim for.' },
-      { name: '--project <project>', required: false, description: 'Optional project filter.' },
+      { name: '--project <project>', required: false, description: 'Project pool to claim from. Required unless --any-project is set.' },
       { name: '--tags <csv>', required: false, description: 'Optional required tags filter.' },
       { name: '--lease <minutes>', required: false, description: 'Optional lease refresh/claim duration.' },
       {
@@ -263,6 +263,7 @@ export class WorkflowService {
           project: input.project,
           tagsAll: input.tags,
           leafOnly: true,
+          agent: input.agent,
         });
 
         let claimedTask: Task | null = null;

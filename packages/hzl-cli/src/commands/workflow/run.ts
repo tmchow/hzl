@@ -16,6 +16,7 @@ import { parseInteger, parseOptionalInteger } from '../../parse.js';
 interface WorkflowStartCommandOptions {
   agent?: string;
   project?: string;
+  anyProject?: boolean;
   tags?: string;
   lease?: string;
   resumePolicy?: 'first' | 'latest' | 'priority';
@@ -209,7 +210,8 @@ export function createWorkflowRunCommand(): Command {
     .command('start')
     .description('Resume in-progress work for an agent, otherwise claim next')
     .requiredOption('--agent <name>', 'Agent identity for resume/claim')
-    .option('-P, --project <project>', 'Project filter for resume/claim')
+    .option('-P, --project <project>', 'Project pool to claim from')
+    .option('--any-project', 'Scan all projects instead of a specific one')
     .option('--tags <tags>', 'Required tags, comma-separated')
     .option('-l, --lease <minutes>', 'Lease duration in minutes')
     .option('--resume-policy <policy>', 'Resume policy: first | latest | priority', 'priority')
@@ -226,6 +228,15 @@ export function createWorkflowRunCommand(): Command {
         assertNoConflictingOpFlags(opts);
         if (!opts.agent) {
           throw new CLIError('--agent is required', ExitCode.InvalidUsage);
+        }
+        if (opts.project && opts.anyProject) {
+          throw new CLIError('Cannot use --project and --any-project together.', ExitCode.InvalidInput);
+        }
+        if (!opts.project && !opts.anyProject) {
+          throw new CLIError(
+            '--project is required. Agents should claim tasks from their assigned project pool.\nUse --any-project to intentionally scan all projects.',
+            ExitCode.InvalidInput
+          );
         }
         runWorkflowStart({
           services,
