@@ -656,6 +656,10 @@ select:focus {
   box-shadow: 0 0 0 1px var(--family-color);
 }
 
+.card-stale {
+  border-left: 3px solid var(--status-in-progress);
+}
+
 .card-id {
   font-size: 10px;
   color: var(--text-muted);
@@ -1108,6 +1112,16 @@ select:focus {
 .modal-description img {
   max-width: 100%;
   height: auto;
+}
+
+.task-modal-stale-warning {
+  padding: 8px 12px;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 4px;
+  color: #f59e0b;
+  font-size: 13px;
+  margin-bottom: 12px;
 }
 
 /* Blocked-by list */

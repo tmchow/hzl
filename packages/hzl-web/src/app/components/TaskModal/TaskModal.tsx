@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { fetchJson } from '../../api/client';
 import type { TaskDetail, TaskDetailResponse, TaskEvent, TaskEventListResponse } from '../../api/types';
-import { formatTime, getAssigneeValue } from '../../utils/format';
+import { formatTime, formatDuration, getAssigneeValue } from '../../utils/format';
 import MarkdownContent from './MarkdownContent';
 import CommentsSection from './CommentsSection';
 import CheckpointsSection from './CheckpointsSection';
@@ -173,6 +173,12 @@ export default function TaskModal({ taskId, onClose }: TaskModalProps) {
                   )}
                 </div>
               </div>
+
+              {task.status === 'in_progress' && checkpoints.length === 0 && task.claimed_at && (
+                <div className="task-modal-stale-warning">
+                  &#x26A0; Stale — claimed {formatDuration(Date.now() - new Date(task.claimed_at).getTime())} ago with no checkpoints
+                </div>
+              )}
 
               {task.blocked_by && task.blocked_by.length > 0 && (
                 <div className="modal-section">

@@ -16,6 +16,8 @@ export interface TaskListItem {
   blocked_by: string[] | null;
   subtask_count: number;
   subtask_total: number;
+  stale: boolean;
+  stale_minutes: number | null;
 }
 
 export interface TaskListResponse {
@@ -116,6 +118,8 @@ export interface AgentRosterTask {
   claimedAt: string;
   status: string;
   progress: number | null;
+  stale: boolean;
+  stale_minutes: number | null;
 }
 
 export interface AgentRosterItem {

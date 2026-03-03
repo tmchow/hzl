@@ -44,6 +44,8 @@ interface TaskListItemResponse extends CoreTaskListItem {
   blocked_by: string[] | null;
   subtask_count: number;
   subtask_total: number;
+  stale: boolean;
+  stale_minutes: number | null;
 }
 
 interface TaskDetailResponse {
@@ -256,12 +258,25 @@ export function createWebServer(options: ServerOptions): ServerHandle {
     });
     const subtaskTotals = taskService.getSubtaskCounts();
 
-    // Merge blocked info and subtask counts into tasks
+    // Compute stale indicators
+    const staleThresholdParam = params.get('staleThreshold');
+    const staleThreshold = staleThresholdParam !== null
+      ? parseInt(staleThresholdParam, 10)
+      : 10;
+
+    const staleMap = taskService.getStaleTasks({
+      thresholdMinutes: isNaN(staleThreshold) ? 10 : staleThreshold,
+      project: project ?? undefined,
+    });
+
+    // Merge blocked info, subtask counts, and stale info into tasks
     const tasks: TaskListItemResponse[] = rows.map((row) => ({
       ...row,
       blocked_by: blockedMap.get(row.task_id) ?? null,
       subtask_count: subtaskCounts.get(row.task_id) ?? 0,
       subtask_total: subtaskTotals.get(row.task_id) ?? 0,
+      stale: staleMap.has(row.task_id),
+      stale_minutes: staleMap.get(row.task_id) ?? null,
     }));
 
     json(res, { tasks, since: dueMonth ? undefined : since, project, due_month: dueMonth ?? undefined });
@@ -562,7 +577,19 @@ export function createWebServer(options: ServerOptions): ServerHandle {
     }
 
     const agents = taskService.getAgentRoster({ project, sinceDays });
-    json(res, { agents });
+
+    // Annotate agent tasks with stale info
+    const staleMap = taskService.getStaleTasks({ thresholdMinutes: 10 });
+    const annotatedAgents = agents.map((agent) => ({
+      ...agent,
+      tasks: agent.tasks.map((t) => ({
+        ...t,
+        stale: staleMap.has(t.taskId),
+        stale_minutes: staleMap.get(t.taskId) ?? null,
+      })),
+    }));
+
+    json(res, { agents: annotatedAgents });
   }
 
   function handleAgentEvents(agentId: string, params: URLSearchParams, res: ServerResponse): void {
