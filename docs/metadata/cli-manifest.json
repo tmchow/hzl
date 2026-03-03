@@ -1274,6 +1274,16 @@
           "optional": false,
           "defaultValue": "summary",
           "description": "Response view: summary | standard | full"
+        },
+        {
+          "flags": "--stale-threshold <minutes>",
+          "short": null,
+          "long": "--stale-threshold",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": "10",
+          "description": "Flag in-progress tasks with no checkpoints older than N minutes as stale (0 to disable)"
         }
       ],
       "hasSubcommands": false
@@ -1784,6 +1794,26 @@
           "optional": false,
           "defaultValue": "0",
           "description": "Only show tasks expired for more than N minutes"
+        },
+        {
+          "flags": "--stale",
+          "short": null,
+          "long": "--stale",
+          "required": false,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": false,
+          "description": "Also include stale tasks (claimed, no checkpoints)"
+        },
+        {
+          "flags": "--stale-threshold <minutes>",
+          "short": null,
+          "long": "--stale-threshold",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": "10",
+          "description": "Threshold for stale detection (default: 10)"
         }
       ],
       "hasSubcommands": false
