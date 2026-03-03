@@ -13,8 +13,10 @@ export interface StuckTask {
   project: string;
   agent: string | null;
   claimed_at: string | null;
-  lease_until: string;
-  expired_for_ms: number;
+  lease_until: string | null;
+  expired_for_ms: number | null;
+  reason: 'lease_expired' | 'stale';
+  stale_minutes?: number;
 }
 
 export interface StuckResult {
@@ -25,15 +27,19 @@ export interface StuckResult {
 interface StuckCommandOptions {
   project?: string;
   olderThan?: string;
+  stale?: boolean;
+  staleThreshold?: string;
 }
 
 export function runStuck(options: {
   services: Services;
   project?: string;
   olderThanMinutes?: number;
+  stale?: boolean;
+  staleThresholdMinutes?: number;
   json: boolean;
 }): StuckResult {
-  const { services, project, olderThanMinutes = 0, json } = options;
+  const { services, project, olderThanMinutes = 0, stale, staleThresholdMinutes, json } = options;
   const db = services.cacheDb;
   const now = new Date();
 
@@ -84,7 +90,36 @@ export function runStuck(options: {
       claimed_at: row.claimed_at,
       lease_until: row.lease_until,
       expired_for_ms: expiredForMs,
+      reason: 'lease_expired',
     });
+  }
+
+  // If --stale is set, also find stale tasks (claimed, no checkpoints)
+  if (stale) {
+    const staleTasks = services.taskService.getStaleTasks({
+      thresholdMinutes: staleThresholdMinutes ?? 10,
+      project,
+    });
+    const existingIds = new Set(tasks.map(t => t.task_id));
+    for (const [taskId, staleMinutes] of staleTasks) {
+      if (existingIds.has(taskId)) continue;
+      const taskRow = db.prepare(
+        'SELECT task_id, title, project, agent, claimed_at FROM tasks_current WHERE task_id = ?'
+      ).get(taskId) as { task_id: string; title: string; project: string; agent: string | null; claimed_at: string | null } | undefined;
+      if (taskRow) {
+        tasks.push({
+          task_id: taskRow.task_id,
+          title: taskRow.title,
+          project: taskRow.project,
+          agent: taskRow.agent,
+          claimed_at: taskRow.claimed_at,
+          lease_until: null,
+          expired_for_ms: null,
+          reason: 'stale',
+          stale_minutes: staleMinutes,
+        });
+      }
+    }
   }
 
   const result: StuckResult = {
@@ -99,11 +134,25 @@ export function runStuck(options: {
       console.log('No stuck tasks found');
     } else {
       const shortId = createShortId(tasks.map(t => t.task_id));
-      console.log(`Stuck tasks (${tasks.length}):`);
-      for (const task of tasks) {
-        const expiredMinutes = Math.round(task.expired_for_ms / 60000);
-        console.log(`  [${shortId(task.task_id)}] ${task.title} (${task.project})`);
-        console.log(`    Agent: ${task.agent ?? 'unknown'} | Expired: ${expiredMinutes}m ago`);
+      const leaseExpired = tasks.filter(t => t.reason === 'lease_expired');
+      const staleTasks = tasks.filter(t => t.reason === 'stale');
+
+      if (leaseExpired.length > 0) {
+        console.log(`Stuck tasks (${leaseExpired.length}):`);
+        for (const task of leaseExpired) {
+          const expiredMinutes = Math.round((task.expired_for_ms ?? 0) / 60000);
+          console.log(`  [${shortId(task.task_id)}] ${task.title} (${task.project})`);
+          console.log(`    Agent: ${task.agent ?? 'unknown'} | Expired: ${expiredMinutes}m ago`);
+        }
+      }
+
+      if (staleTasks.length > 0) {
+        if (leaseExpired.length > 0) console.log('');
+        console.log(`Stale tasks — no checkpoints (${staleTasks.length}):`);
+        for (const task of staleTasks) {
+          console.log(`  [${shortId(task.task_id)}] ${task.title} (${task.project})`);
+          console.log(`    Agent: ${task.agent ?? 'unknown'} | Claimed: ${task.stale_minutes}m ago, 0 checkpoints`);
+        }
       }
     }
   }
@@ -116,6 +165,8 @@ export function createStuckCommand(): Command {
     .description('List tasks with expired leases')
     .option('-P, --project <project>', 'Filter by project')
     .option('--older-than <minutes>', 'Only show tasks expired for more than N minutes', '0')
+    .option('--stale', 'Also include stale tasks (claimed, no checkpoints)', false)
+    .option('--stale-threshold <minutes>', 'Threshold for stale detection (default: 10)', '10')
     .action(function (this: Command, opts: StuckCommandOptions) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
@@ -125,6 +176,8 @@ export function createStuckCommand(): Command {
           services,
           project: opts.project,
           olderThanMinutes: parseIntegerWithDefault(opts.olderThan, 'older-than', 0, { min: 0 }),
+          stale: opts.stale,
+          staleThresholdMinutes: parseIntegerWithDefault(opts.staleThreshold, 'stale-threshold', 10, { min: 0 }),
           json: globalOpts.json ?? false,
         });
       } catch (e) {
