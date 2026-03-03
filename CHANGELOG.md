@@ -1,3 +1,10 @@
+## [2.8.1](https://github.com/tmchow/hzl/compare/v2.8.0...v2.8.1) (2026-03-03)
+
+
+### Bug Fixes
+
+* pwa layout and scrollbar fixes for mobile and desktop ([#181](https://github.com/tmchow/hzl/issues/181)) ([8572761](https://github.com/tmchow/hzl/commit/8572761f42c86405e582be2cd1a89ebf36017fde))
+
 # [2.8.0](https://github.com/tmchow/hzl/compare/v2.7.0...v2.8.0) (2026-03-02)
 
 
