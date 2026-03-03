@@ -73,9 +73,21 @@ describe('runAdd', () => {
       json: false,
     });
 
+    expect(result.agent).toBe('kenji');
     const task = services.taskService.getTaskById(result.task_id);
     expect(task?.status).toBe('backlog');
     expect(task?.agent).toBe('kenji');
+  });
+
+  it('returns null agent when none specified', () => {
+    const result = runAdd({
+      services,
+      project: 'inbox',
+      title: 'No agent task',
+      json: false,
+    });
+
+    expect(result.agent).toBeNull();
   });
 
   it('records author separately from agent on create', () => {

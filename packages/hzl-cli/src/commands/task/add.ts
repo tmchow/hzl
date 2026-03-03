@@ -17,6 +17,7 @@ export interface AddResult {
   priority: number;
   tags: string[];
   parent_id: string | null;
+  agent: string | null;
 }
 
 export interface AddOptions {
@@ -111,6 +112,7 @@ export function runAdd(options: AddOptions): AddResult {
     priority: task.priority,
     tags: task.tags,
     parent_id: task.parent_id ?? null,
+    agent: task.agent ?? null,
   };
 
   if (json) {
