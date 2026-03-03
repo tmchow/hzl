@@ -213,6 +213,16 @@ Pool routing rule:
 - Create tasks in the target project without `--agent`.
 - Any matching agent can claim with `hzl task claim --next -P <project> --agent <id>`.
 
+Setting `--agent <name>` on `task add` pre-routes the task — only that agent can claim it via `--next`. Omit `--agent` when any eligible agent in the pool should pick it up. This is distinct from `--author`, which is attribution only and has no effect on claiming.
+
+```bash
+# Pool-routed — any agent in the research pool can claim
+hzl task add "Research competitor pricing" -P research -s ready
+
+# Pre-routed — only kenji can claim via --next
+hzl task add "Review this draft" -P research -s ready --agent kenji
+```
+
 ### Exec-denied agents (resolve before HEARTBEAT wiring)
 
 Check each agent's exec status during discovery and resolve before step 4.
@@ -285,6 +295,20 @@ If `selected` is null, continue normally.
 ```
 
 Use each agent's exact identity string.
+
+For orchestrator or coordination agents that triage across all projects, use `--any-project` instead of `--project`:
+
+```md
+<!-- hzl:start -->
+## Task Poll
+Run: hzl workflow run start --agent <agent-id> --any-project --lease 30
+Output is JSON by default (`--format json`).
+If `selected` is non-null, work on the returned task before continuing the rest of this heartbeat.
+If `selected` is null, continue normally.
+<!-- hzl:end -->
+```
+
+`--project` and `--any-project` are mutually exclusive. Worker agents use `--project <their-pool>`. Orchestrators use `--any-project`.
 
 `--lease 30` sets a 30-minute expiry on the claimed task. Without a lease, the task has no expiry and another agent can never reclaim it if this one crashes. Use `hzl task checkpoint` during work to extend the lease.
 
@@ -460,8 +484,9 @@ hzl workflow run delegate --from <id> --title "<delegated task>" --project <proj
 ## Multi-agent routing
 
 - Prefer project pools for role queues.
-- Omit `--agent` when creating pool-routed tasks.
+- Omit `--agent` when creating pool-routed tasks; set `--agent <name>` to pre-route to a specific agent.
 - Claim with `hzl task claim --next -P <project> --agent <id>`.
+- Orchestrator agents use `--any-project` instead of `--project` in `workflow run start`.
 
 ## Agent roster changes (standing instruction)
 
