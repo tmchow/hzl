@@ -263,6 +263,7 @@ export class WorkflowService {
           project: input.project,
           tagsAll: input.tags,
           leafOnly: true,
+          agent: input.agent,
         });
 
         let claimedTask: Task | null = null;

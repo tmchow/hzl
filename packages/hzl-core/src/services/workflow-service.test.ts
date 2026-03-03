@@ -335,6 +335,49 @@ describe('WorkflowService', () => {
       expect(result.mode).toBe('claim_next');
       expect(result.selected?.task_id).toBe(taskB.task_id);
     });
+
+    it('skips tasks assigned to a different agent when claiming', () => {
+      const forAda = taskService.createTask({
+        title: 'For Ada',
+        project: 'inbox',
+        priority: 3,
+        agent: 'ada',
+      });
+      const unassigned = taskService.createTask({
+        title: 'Unassigned',
+        project: 'inbox',
+        priority: 1,
+      });
+      taskService.setStatus(forAda.task_id, TaskStatus.Ready);
+      taskService.setStatus(unassigned.task_id, TaskStatus.Ready);
+
+      const result = workflowService.runStart({
+        agent: 'bob',
+        project: 'inbox',
+      });
+
+      expect(result.mode).toBe('claim_next');
+      expect(result.selected?.task_id).toBe(unassigned.task_id);
+      expect(taskService.getTaskById(forAda.task_id)?.status).toBe(TaskStatus.Ready);
+    });
+
+    it('claims tasks assigned to the requesting agent', () => {
+      const forAda = taskService.createTask({
+        title: 'For Ada',
+        project: 'inbox',
+        priority: 3,
+        agent: 'ada',
+      });
+      taskService.setStatus(forAda.task_id, TaskStatus.Ready);
+
+      const result = workflowService.runStart({
+        agent: 'ada',
+        project: 'inbox',
+      });
+
+      expect(result.mode).toBe('claim_next');
+      expect(result.selected?.task_id).toBe(forAda.task_id);
+    });
   });
 
   describe('handoff', () => {
