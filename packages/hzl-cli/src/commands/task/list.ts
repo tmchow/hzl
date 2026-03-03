@@ -23,6 +23,8 @@ export interface TaskListItem {
   links?: string[];
   metadata?: Record<string, unknown>;
   created_at: string;
+  stale?: boolean;
+  stale_minutes?: number | null;
 }
 
 export interface ListResult {
@@ -53,6 +55,7 @@ export interface ListOptions {
   view?: 'summary' | 'standard' | 'full';
   groupByAgent?: boolean;
   json: boolean;
+  staleThreshold?: number | null;
 }
 
 interface ListCommandOptions {
@@ -67,6 +70,7 @@ interface ListCommandOptions {
   limit?: string;
   view?: 'summary' | 'standard' | 'full';
   groupByAgent?: boolean;
+  staleThreshold?: string;
 }
 
 function globToLikePattern(glob: string): string {
@@ -159,6 +163,7 @@ export function runList(options: ListOptions): ListResult {
     view = 'summary',
     groupByAgent = false,
     json,
+    staleThreshold,
   } = options;
   const db = services.cacheDb;
 
@@ -243,7 +248,22 @@ export function runList(options: ListOptions): ListResult {
   const rows = db.prepare(query).all(...params, limit, offset) as Array<
     TaskListItem & { due_at: string | null; tags: string; description: string | null; links: string; metadata: string }
   >;
-  const tasks = rows.map((row) => shapeTaskForView(row, view));
+  let staleMap: Map<string, number> | null = null;
+  if (staleThreshold !== null && staleThreshold !== undefined) {
+    staleMap = services.taskService.getStaleTasks({
+      thresholdMinutes: staleThreshold,
+      project,
+    });
+  }
+
+  const tasks = rows.map((row) => {
+    const shaped = shapeTaskForView(row, view);
+    if (staleMap) {
+      shaped.stale = staleMap.has(row.task_id);
+      shaped.stale_minutes = staleMap.get(row.task_id) ?? null;
+    }
+    return shaped;
+  });
   const hasMore = offset + rows.length < totalRow.total;
 
   if (groupByAgent) {
@@ -296,8 +316,14 @@ export function runList(options: ListOptions): ListResult {
         for (const group of groups) {
           console.log(`Agent: ${group.agent ?? 'unassigned'} (${group.total})`);
           for (const task of group.tasks) {
-            const statusIcon = task.status === 'done' ? '✓' : task.status === 'in_progress' ? '→' : '○';
-            console.log(`  ${statusIcon} [${shortId(task.task_id)}] ${task.title} (${task.project})`);
+            const isStale = staleMap?.has(task.task_id) ?? false;
+            const staleMinutes = staleMap?.get(task.task_id);
+            const statusIcon = task.status === 'done' ? '✓'
+              : isStale ? '⚠'
+              : task.status === 'in_progress' ? '→'
+              : '○';
+            const staleSuffix = isStale ? `  [stale ${staleMinutes}m]` : '';
+            console.log(`  ${statusIcon} [${shortId(task.task_id)}] ${task.title} (${task.project})${staleSuffix}`);
           }
           console.log('');
         }
@@ -328,8 +354,14 @@ export function runList(options: ListOptions): ListResult {
       const shortId = createShortId(rows.map(t => t.task_id));
       console.log('Tasks:');
       for (const task of rows) {
-        const statusIcon = task.status === 'done' ? '✓' : task.status === 'in_progress' ? '→' : '○';
-        console.log(`  ${statusIcon} [${shortId(task.task_id)}] ${task.title} (${task.project})`);
+        const isStale = staleMap?.has(task.task_id) ?? false;
+        const staleMinutes = staleMap?.get(task.task_id);
+        const statusIcon = task.status === 'done' ? '✓'
+          : isStale ? '⚠'
+          : task.status === 'in_progress' ? '→'
+          : '○';
+        const staleSuffix = isStale ? `  [stale ${staleMinutes}m]` : '';
+        console.log(`  ${statusIcon} [${shortId(task.task_id)}] ${task.title} (${task.project})${staleSuffix}`);
       }
     }
   }
@@ -351,12 +383,14 @@ export function createListCommand(): Command {
     .option('--group-by-agent', 'Group task details by agent')
     .option('-l, --limit <n>', 'Limit results', '50')
     .option('--view <view>', 'Response view: summary | standard | full', 'summary')
+    .option('--stale-threshold <minutes>', 'Flag in-progress tasks with no checkpoints older than N minutes as stale (0 to disable)', '10')
     .action(function (this: Command, opts: ListCommandOptions) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
       const services = initializeDb({ eventsDbPath, cacheDbPath });
       try {
         const status = parseTaskStatus(opts.status);
+        const parsedStaleThreshold = parseIntegerWithDefault(opts.staleThreshold, 'stale-threshold', 10, { min: 0 });
         runList({
           services,
           project: opts.project,
@@ -371,6 +405,7 @@ export function createListCommand(): Command {
           groupByAgent: opts.groupByAgent,
           limit: parseIntegerWithDefault(opts.limit, 'Limit', 50, { min: 1 }),
           json: globalOpts.json ?? false,
+          staleThreshold: parsedStaleThreshold === 0 ? null : parsedStaleThreshold,
         });
       } catch (e) {
         handleError(e, globalOpts.json);

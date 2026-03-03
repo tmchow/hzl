@@ -236,4 +236,50 @@ describe('runList', () => {
     expect(result.tasks[0].metadata).toEqual({ owner: 'agent-a' });
     expect(result.tasks[0].tags).toEqual(['urgent']);
   });
+
+  describe('stale indicators', () => {
+    it('marks in-progress task with no checkpoints as stale when past threshold', () => {
+      const task = services.taskService.createTask({ title: 'Silent claim', project: 'inbox' });
+      services.taskService.setStatus(task.task_id, TaskStatus.Ready);
+      services.taskService.claimTask(task.task_id, { author: 'agent-1' });
+
+      // threshold 0 means any claimed task with no checkpoints is stale
+      const result = runList({ services, json: true, staleThreshold: 0 });
+      const found = result.tasks.find(t => t.task_id === task.task_id);
+      expect(found?.stale).toBe(true);
+      expect(found?.stale_minutes).toBeGreaterThanOrEqual(0);
+    });
+
+    it('does not mark in-progress task with checkpoints as stale', () => {
+      const task = services.taskService.createTask({ title: 'Active task', project: 'inbox' });
+      services.taskService.setStatus(task.task_id, TaskStatus.Ready);
+      services.taskService.claimTask(task.task_id, { author: 'agent-1' });
+      services.taskService.addCheckpoint(task.task_id, 'working', {});
+
+      const result = runList({ services, json: true, staleThreshold: 0 });
+      const found = result.tasks.find(t => t.task_id === task.task_id);
+      expect(found?.stale).toBe(false);
+      expect(found?.stale_minutes).toBeNull();
+    });
+
+    it('does not mark non-in-progress tasks as stale', () => {
+      services.taskService.createTask({ title: 'Backlog task', project: 'inbox' });
+
+      const result = runList({ services, json: true, staleThreshold: 0 });
+      for (const task of result.tasks) {
+        expect(task.stale).toBe(false);
+      }
+    });
+
+    it('disables stale indicators when staleThreshold is null', () => {
+      const task = services.taskService.createTask({ title: 'Silent claim', project: 'inbox' });
+      services.taskService.setStatus(task.task_id, TaskStatus.Ready);
+      services.taskService.claimTask(task.task_id, { author: 'agent-1' });
+
+      const result = runList({ services, json: true, staleThreshold: null });
+      const found = result.tasks.find(t => t.task_id === task.task_id);
+      expect(found?.stale).toBeUndefined();
+      expect(found?.stale_minutes).toBeUndefined();
+    });
+  });
 });
