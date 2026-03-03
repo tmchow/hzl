@@ -14,6 +14,9 @@ hero:
     - theme: brand
       text: Get Started
       link: /getting-started/
+    - theme: alt
+      text: GitHub
+      link: https://github.com/tmchow/hzl
 
 features:
   - title: Shared Task State
