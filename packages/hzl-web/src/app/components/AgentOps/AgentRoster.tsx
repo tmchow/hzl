@@ -77,12 +77,13 @@ export default function AgentRoster({
     [agents, focusedIndex, onSelectAgent]
   );
 
-  // When the roster receives focus and no item is focused, focus the first item
+  // When the roster receives focus and no item is focused, focus the selected item (or first)
   const handleFocus = useCallback(() => {
     if (focusedIndex < 0 && agents.length > 0) {
-      setFocusedIndex(0);
+      const selectedIdx = agents.findIndex((a) => a.agent === selectedAgent);
+      setFocusedIndex(selectedIdx >= 0 ? selectedIdx : 0);
     }
-  }, [focusedIndex, agents.length]);
+  }, [focusedIndex, agents.length, selectedAgent]);
 
   // Clear focused index when roster loses focus
   const handleBlur = useCallback((e: React.FocusEvent<HTMLDivElement>) => {
@@ -123,7 +124,7 @@ export default function AgentRoster({
             aria-selected={isSelected}
             ref={(el) => { rowRefs.current[index] = el; }}
             className={`agent-roster-row${isSelected ? ' selected' : ''}${isFocused ? ' focused' : ''}`}
-            onClick={() => onSelectAgent(agent.agent)}
+            onClick={() => { setFocusedIndex(index); onSelectAgent(agent.agent); }}
           >
             <span
               className="agent-roster-dot"
