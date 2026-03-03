@@ -127,6 +127,7 @@ This handles expired-lease recovery and new-task claiming in one command. If a t
 hzl agent status                           # Who's active? What's running?
 hzl task list -P <project> --available     # What's ready?
 hzl task stuck                             # Any expired leases?
+hzl task stuck --stale                     # Also check for stale tasks (no checkpoints)
 
 # If stuck tasks exist, read their state before claiming
 hzl task show <stuck-id> --view standard --json
@@ -258,7 +259,7 @@ HZL sends targeted notifications for high-value transitions — currently only `
 
 Hooks are configured during installation (see docs-site for setup). As an agent, here's what you need to know operationally:
 
-- **Only `on_done` fires.** When you `task complete`, HZL queues a webhook. For stuck detection, blocking changes, or progress — poll with `hzl task stuck` or `hzl task list`.
+- **Only `on_done` fires.** When you `task complete`, HZL queues a webhook. For stuck detection, stale detection, blocking changes, or progress — poll with `hzl task stuck --stale` or `hzl task list`.
 - **Delivery is not instant.** `hzl hook drain` runs on a cron schedule (typically every 2–5 minutes). Your completion is recorded immediately, but the notification reaches the gateway on the next drain cycle.
 - **Payloads include context.** Each notification carries `agent`, `project`, and full event details. The gateway handles per-agent routing — HZL sends the same payload to one URL regardless of which agent completed the task.
 - **If hooks seem broken**, check `hzl hook drain --json` for delivery failures and `last_error` details.
@@ -281,6 +282,10 @@ hzl agent log <agent>                                   # Recent events for an a
 
 # Monitor for stuck tasks
 hzl task stuck
+
+# Monitor for stuck AND stale tasks (no checkpoints for 10+ min)
+hzl task stuck --stale
+hzl task stuck --stale --stale-threshold 15               # Custom threshold
 
 # Recover an abandoned task (steal + set new lease atomically)
 hzl task show <stuck-id> --view standard --json         # Read last checkpoint first
