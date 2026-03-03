@@ -200,4 +200,4 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Validate commit messages
-        run: pnpm exec commitlint --from origin/${{ github.base_ref }} --to HEAD --config commitlint.config.mjs
+        run: pnpm exec commitlint --from origin/${{ github.base_ref }} --to HEAD --config commitlint.config.js

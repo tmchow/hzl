@@ -1,1 +1,1 @@
-node "$(node -e "console.log(require.resolve('@commitlint/cli/cli.js'))")" --edit $1
+npx --no -- commitlint --edit $1
