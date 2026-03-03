@@ -1,3 +1,10 @@
+## [2.9.1](https://github.com/tmchow/hzl/compare/v2.9.0...v2.9.1) (2026-03-03)
+
+
+### Bug Fixes
+
+* include agent in task add JSON response ([#185](https://github.com/tmchow/hzl/issues/185)) ([8caae28](https://github.com/tmchow/hzl/commit/8caae28fb7ab66dd95b63ab5d761154f0535c742))
+
 # [2.9.0](https://github.com/tmchow/hzl/compare/v2.8.1...v2.9.0) (2026-03-03)
 
 
