@@ -28,8 +28,8 @@ Tasks require a title and project:
 | `-t, --tags` | Comma-separated tags for filtering |
 | `-p, --priority` | Priority level 0-3 (higher = more important) |
 | `-s, --status` | Initial status (backlog, ready, in_progress, blocked, done) |
-| `--agent` | Initial agent (free-form string, no identity lookup) |
-| `--author` | Optional actor attribution for task creation events |
+| `--agent` | Routing intent: only this agent can claim via `--next`; omit to let any pool agent claim |
+| `--author` | Attribution only: who created the task (no routing effect) |
 | `--depends-on` | Comma-separated task IDs this depends on |
 | `--parent` | Parent task ID (creates a subtask) |
 
@@ -65,12 +65,25 @@ hzl task add "Investigate flaky auth test" -P myapp -s ready \
   --author clara
 ```
 
-## Ownership vs Authorship
+## Agent Routing vs Authorship
 
-HZL separates task ownership from action attribution:
+`--agent` and `--author` on `task add` serve different purposes:
 
-- **Agent (`--agent`)**: who currently owns the task.
-- **Author (`--author`)**: who performed a specific mutation event.
+| Flag | Where | Meaning |
+|------|--------|---------|
+| `--agent <name>` on `task add` | Routing intent | Only this agent can claim via `--next`; tasks with no agent are claimable by anyone in the pool |
+| `--agent <name>` on `task claim` | Attribution | Who is claiming; routing filter also applies |
+| `--author <name>` on `task add` | Attribution only | Who created the task; no routing effect |
+
+Omit `--agent` when any eligible agent in the pool should pick up the task. Set it when the task is specifically for one agent.
+
+```bash
+# Pool-routed — any researcher can claim
+hzl task add "Research competitor pricing" -P research -s ready
+
+# Pre-routed — only kenji can claim via --next
+hzl task add "Review Clara's draft" -P research -s ready --agent kenji
+```
 
 `--author` is optional. Use it when one actor is operating on behalf of another (delegation, handoffs, audits). Skip it for solo/self-tracking flows.
 

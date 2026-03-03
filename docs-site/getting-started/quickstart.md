@@ -24,7 +24,7 @@ hzl task add "Triage new bugs"
 hzl task add "Write daily status summary" --priority 1
 
 # Start a stateless session loop (resume or claim)
-hzl workflow run start --agent agent-1
+hzl workflow run start --agent agent-1 --project inbox
 
 # Record progress and finish
 hzl task checkpoint <task-id> "Triage pass complete; 3 bugs prioritized"
