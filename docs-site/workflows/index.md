@@ -24,7 +24,7 @@ hzl workflow show delegate
 
 | Session state | Command | Outcome |
 |---|---|---|
-| Agent already has in-progress work | `hzl workflow run start --agent <id>` | Resumes one task and reports alternates |
+| Agent already has in-progress work | `hzl workflow run start --agent <id> -P <project>` | Resumes one task and reports alternates |
 | Agent has no in-progress work | `hzl workflow run start --agent <id> -P <project>` | Claims next eligible task |
 | Work is complete and should continue elsewhere | `hzl workflow run handoff ...` | Completes source, creates follow-on with carried context |
 | Work needs another agent/subtask | `hzl workflow run delegate ...` | Creates delegated task, adds dependency by default |

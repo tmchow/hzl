@@ -40,8 +40,8 @@ hzl task add "Implement auth middleware" -P backend -s ready
 ## Session Start (resume or claim)
 
 ```bash
-# Global
-hzl workflow run start --agent my-agent
+# Global (inbox)
+hzl workflow run start --agent my-agent --project inbox
 
 # Scoped
 hzl workflow run start --agent my-agent --project backend
@@ -66,6 +66,14 @@ hzl task block <id> --comment "Waiting for security review"
 ```bash
 hzl task list --status in_progress --agent my-agent
 hzl task show <id>
+```
+
+## Notes
+
+`--project` is required on `workflow run start`. Use `--any-project` if the agent operates across all pools (e.g. a coordination agent):
+
+```bash
+hzl workflow run start --agent coordinator --any-project
 ```
 
 ## Best Practices
