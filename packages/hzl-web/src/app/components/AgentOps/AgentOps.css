@@ -399,6 +399,96 @@
   font-weight: 500;
 }
 
+/* Agent Detail — Assigned Tasks */
+.agent-detail-tasks {
+  flex-shrink: 0;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.agent-detail-tasks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.agent-detail-tasks-empty {
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 8px 0;
+}
+
+.agent-detail-task-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.agent-detail-task-group-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 4px 0;
+}
+
+.agent-detail-task-group-count {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.agent-detail-task-status-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-dot-in_progress { background: var(--status-in-progress); }
+.status-dot-blocked { background: var(--status-blocked); }
+.status-dot-ready { background: var(--status-ready); }
+.status-dot-backlog { background: var(--status-backlog); }
+
+.agent-detail-task-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px 5px 20px;
+  border-radius: 4px;
+  transition: background 0.1s;
+}
+
+.agent-detail-task-row.clickable {
+  cursor: pointer;
+}
+
+.agent-detail-task-row.clickable:hover {
+  background: var(--bg-secondary);
+}
+
+.agent-detail-task-title {
+  font-size: 12px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex: 1;
+}
+
+.agent-detail-task-project {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 .agent-detail-timeline {
   flex: 1;
   min-height: 0;
@@ -418,7 +508,7 @@
 .agent-detail-metrics {
   flex-shrink: 0;
   padding: 12px 16px;
-  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
   background: var(--bg-secondary);
 }
 
