@@ -127,11 +127,37 @@ export interface AgentRosterTask {
   progress: number | null;
 }
 
+export interface AgentRosterTaskCounts {
+  backlog: number;
+  ready: number;
+  in_progress: number;
+  blocked: number;
+  done: number;
+}
+
 export interface AgentRosterItem {
   agent: string;
   isActive: boolean;
   tasks: AgentRosterTask[];
   lastActivity: string;
+  taskCounts: AgentRosterTaskCounts;
+}
+
+export interface AgentTaskSummary {
+  taskId: string;
+  title: string;
+  project: string;
+  status: string;
+  priority: number;
+  progress: number | null;
+  claimedAt: string | null;
+  stale: boolean;
+  staleMinutes: number | null;
+}
+
+export interface AgentTasksResult {
+  tasks: AgentTaskSummary[];
+  counts: AgentRosterTaskCounts;
 }
 
 export interface AgentEvent {
@@ -1462,12 +1488,116 @@ export class TaskService {
       tasksByAgent.set(row.agent, tasks);
     }
 
+    // Query 3: per-agent task counts by status (non-archived)
+    const allAgentNames = agentRows.map(r => r.agent);
+    const countPlaceholders = allAgentNames.map(() => '?').join(',');
+    const countConditions = [`agent IN (${countPlaceholders})`, "status != 'archived'"];
+    const countParams: (string | number)[] = [...allAgentNames];
+    if (opts?.project) {
+      countConditions.push('project = ?');
+      countParams.push(opts.project);
+    }
+    const countSql = `
+      SELECT agent, status, COUNT(*) as count
+      FROM tasks_current
+      WHERE ${countConditions.join(' AND ')}
+      GROUP BY agent, status
+    `;
+    type CountRow = { agent: string; status: string; count: number };
+    const countRows = this.db.prepare(countSql).all(...countParams) as CountRow[];
+
+    const countsByAgent = new Map<string, AgentRosterTaskCounts>();
+    for (const row of countRows) {
+      const counts = countsByAgent.get(row.agent) ?? { backlog: 0, ready: 0, in_progress: 0, blocked: 0, done: 0 };
+      if (row.status in counts) {
+        counts[row.status as keyof AgentRosterTaskCounts] = row.count;
+      }
+      countsByAgent.set(row.agent, counts);
+    }
+
     return agentRows.map(row => ({
       agent: row.agent,
       isActive: row.is_active === 1,
       tasks: tasksByAgent.get(row.agent) ?? [],
       lastActivity: row.last_activity,
+      taskCounts: countsByAgent.get(row.agent) ?? { backlog: 0, ready: 0, in_progress: 0, blocked: 0, done: 0 },
     }));
+  }
+
+  /**
+   * Get all non-done tasks assigned to a specific agent, plus per-status counts.
+   * Used by the agent detail view to show the agent's full task picture.
+   */
+  getAgentTasks(agentId: string, opts?: { project?: string }): AgentTasksResult {
+    const conditions: string[] = ['agent = ?', "status != 'archived'"];
+    const params: (string | number)[] = [agentId];
+
+    if (opts?.project) {
+      conditions.push('project = ?');
+      params.push(opts.project);
+    }
+
+    // Get all non-done tasks with full details
+    const taskSql = `
+      SELECT task_id, title, project, status, priority, progress, claimed_at
+      FROM tasks_current
+      WHERE ${conditions.join(' AND ')} AND status != 'done'
+      ORDER BY
+        CASE status
+          WHEN 'in_progress' THEN 0
+          WHEN 'blocked' THEN 1
+          WHEN 'ready' THEN 2
+          WHEN 'backlog' THEN 3
+          ELSE 4
+        END,
+        priority DESC,
+        updated_at DESC
+    `;
+
+    type TaskRow = {
+      task_id: string;
+      title: string;
+      project: string;
+      status: string;
+      priority: number;
+      progress: number | null;
+      claimed_at: string | null;
+    };
+    const taskRows = this.db.prepare(taskSql).all(...params) as TaskRow[];
+
+    // Get stale info for in_progress tasks
+    const staleMap = this.getStaleTasks({ thresholdMinutes: 10, project: opts?.project });
+
+    const tasks: AgentTaskSummary[] = taskRows.map(row => ({
+      taskId: row.task_id,
+      title: row.title,
+      project: row.project,
+      status: row.status,
+      priority: row.priority,
+      progress: row.progress,
+      claimedAt: row.claimed_at,
+      stale: staleMap.has(row.task_id),
+      staleMinutes: staleMap.get(row.task_id) ?? null,
+    }));
+
+    // Get per-status counts (including done)
+    const countSql = `
+      SELECT status, COUNT(*) as count
+      FROM tasks_current
+      WHERE ${conditions.join(' AND ')}
+      GROUP BY status
+    `;
+    type CountRow = { status: string; count: number };
+    const countRows = this.db.prepare(countSql).all(...params) as CountRow[];
+
+    const counts: AgentRosterTaskCounts = { backlog: 0, ready: 0, in_progress: 0, blocked: 0, done: 0 };
+    for (const row of countRows) {
+      if (row.status in counts) {
+        counts[row.status as keyof AgentRosterTaskCounts] = row.count;
+      }
+    }
+
+    return { tasks, counts };
   }
 
   /**
@@ -1697,7 +1827,7 @@ export class TaskService {
     // SQLite has a 999 bind variable limit; truncate if exceeded (unlikely with 2-20 agents)
     const boundTaskIds = taskIds.length > 900 ? taskIds.slice(0, 900) : taskIds;
 
-    // Step 2: Get events from events DB with window function for total count
+    // Step 2: Get events authored by this agent on their tasks
     const placeholders = boundTaskIds.map(() => '?').join(',');
     type EventRow = {
       id: number;
@@ -1715,10 +1845,11 @@ export class TaskService {
              COUNT(*) OVER() as total_count
       FROM events
       WHERE task_id IN (${placeholders})
+        AND (agent_id = ? OR author = ?)
       ORDER BY id DESC
       LIMIT ? OFFSET ?
     `;
-    const eventRows = this.eventsDb.prepare(eventsSql).all(...boundTaskIds, limit, offset) as EventRow[];
+    const eventRows = this.eventsDb.prepare(eventsSql).all(...boundTaskIds, agentId, agentId, limit, offset) as EventRow[];
 
     // Extract total from first row; if no rows, total is 0
     const total = eventRows.length > 0 ? eventRows[0].total_count : 0;
