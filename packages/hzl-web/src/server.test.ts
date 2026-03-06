@@ -1313,11 +1313,11 @@ describe('hzl-web server', () => {
       const task = taskService.createTask({
         title: 'Paginated Task',
         project: 'test-project',
-      });
-      taskService.setStatus(task.task_id, TaskStatus.Ready);
-      taskService.claimTask(task.task_id, { agent_id: 'paging-agent' });
-      taskService.addCheckpoint(task.task_id, 'cp1', { progress: 25 });
-      taskService.addCheckpoint(task.task_id, 'cp2', { progress: 50 });
+      }, { author: 'paging-agent' });
+      taskService.setStatus(task.task_id, TaskStatus.Ready, { author: 'paging-agent' });
+      taskService.claimTask(task.task_id, { agent_id: 'paging-agent', author: 'paging-agent' });
+      taskService.addCheckpoint(task.task_id, 'cp1', undefined, { progress: 25, author: 'paging-agent' });
+      taskService.addCheckpoint(task.task_id, 'cp2', undefined, { progress: 50, author: 'paging-agent' });
 
       createServer(4638);
 

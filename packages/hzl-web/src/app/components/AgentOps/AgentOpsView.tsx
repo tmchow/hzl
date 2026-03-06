@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAgents } from '../../hooks/useAgents';
 import { useAgentEvents } from '../../hooks/useAgentEvents';
+import { useAgentTasks } from '../../hooks/useAgentTasks';
 import AgentRoster from './AgentRoster';
 import AgentDetail from './AgentDetail';
 import './AgentOps.css';
@@ -36,12 +37,18 @@ export default function AgentOpsView({
     loadMore: loadMoreAgentEvents,
     refresh: refreshAgentEvents,
   } = useAgentEvents(selectedAgent);
+  const {
+    tasks: agentTasks,
+    counts: agentTaskCounts,
+    refresh: refreshAgentTasks,
+  } = useAgentTasks(selectedAgent);
 
   // SSE-triggered refresh via refreshKey from parent
   useEffect(() => {
     if (refreshKey > 0) {
       refreshAgents();
       refreshAgentEvents();
+      refreshAgentTasks();
     }
   }, [refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -95,6 +102,8 @@ export default function AgentOpsView({
             total={agentEventsTotal}
             onLoadMore={loadMoreAgentEvents}
             loading={agentEventsLoading}
+            agentTasks={agentTasks}
+            agentTaskCounts={agentTaskCounts}
             onTaskClick={onTaskClick}
           />
         </div>

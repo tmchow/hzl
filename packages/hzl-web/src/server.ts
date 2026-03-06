@@ -621,6 +621,13 @@ export function createWebServer(options: ServerOptions): ServerHandle {
     json(res, { events: result.events, total: result.total });
   }
 
+  function handleAgentTasks(agentId: string, params: URLSearchParams, res: ServerResponse): void {
+    const decodedAgentId = decodeURIComponent(agentId);
+    const project = params.get('project') || undefined;
+    const result = taskService.getAgentTasks(decodedAgentId, { project });
+    json(res, result);
+  }
+
   const useLegacy = process.env.HZL_LEGACY_DASHBOARD === '1';
 
   function serveHtml(res: ServerResponse, html: string): void {
@@ -734,6 +741,12 @@ export function createWebServer(options: ServerOptions): ServerHandle {
       // /api/agents routes
       if (pathname === '/api/agents') {
         handleAgents(params, res);
+        return;
+      }
+
+      const agentTasksMatch = pathname.match(/^\/api\/agents\/([^/]+)\/tasks$/);
+      if (agentTasksMatch) {
+        handleAgentTasks(agentTasksMatch[1], params, res);
         return;
       }
 

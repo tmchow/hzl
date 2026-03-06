@@ -122,11 +122,20 @@ export interface AgentRosterTask {
   stale_minutes: number | null;
 }
 
+export interface AgentRosterTaskCounts {
+  backlog: number;
+  ready: number;
+  in_progress: number;
+  blocked: number;
+  done: number;
+}
+
 export interface AgentRosterItem {
   agent: string;
   isActive: boolean;
   tasks: AgentRosterTask[];
   lastActivity: string;
+  taskCounts: AgentRosterTaskCounts;
 }
 
 export interface AgentRosterResponse {
@@ -150,6 +159,24 @@ export interface AgentEvent {
 export interface AgentEventsResponse {
   events: AgentEvent[];
   total: number;
+}
+
+/** Agent task as returned by GET /api/agents/:id/tasks */
+export interface AgentTaskSummary {
+  taskId: string;
+  title: string;
+  project: string;
+  status: string;
+  priority: number;
+  progress: number | null;
+  claimedAt: string | null;
+  stale: boolean;
+  staleMinutes: number | null;
+}
+
+export interface AgentTasksResponse {
+  tasks: AgentTaskSummary[];
+  counts: AgentRosterTaskCounts;
 }
 
 /** Search result item as returned by GET /api/search */
