@@ -1,3 +1,10 @@
+# [2.10.0](https://github.com/tmchow/hzl/compare/v2.9.1...v2.10.0) (2026-03-06)
+
+
+### Features
+
+* add agent task summary to dashboard ([#192](https://github.com/tmchow/hzl/issues/192)) ([bc07d0f](https://github.com/tmchow/hzl/commit/bc07d0f753c3baaa79bee399f29fcc79cf912854))
+
 ## [2.9.1](https://github.com/tmchow/hzl/compare/v2.9.0...v2.9.1) (2026-03-03)
 
 
