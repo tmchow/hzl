@@ -3296,12 +3296,12 @@ describe('TaskService', () => {
     });
 
     it('paginates with limit and offset', () => {
-      const task = splitTaskService.createTask({ title: 'Paginated task', project: 'inbox' });
-      splitTaskService.setStatus(task.task_id, TaskStatus.Ready);
+      const task = splitTaskService.createTask({ title: 'Paginated task', project: 'inbox' }, { author: 'agent-page' });
+      splitTaskService.setStatus(task.task_id, TaskStatus.Ready, { author: 'agent-page' });
       splitTaskService.claimTask(task.task_id, { author: 'agent-page' });
-      splitTaskService.addComment(task.task_id, 'Comment 1');
-      splitTaskService.addComment(task.task_id, 'Comment 2');
-      splitTaskService.addComment(task.task_id, 'Comment 3');
+      splitTaskService.addComment(task.task_id, 'Comment 1', { author: 'agent-page' });
+      splitTaskService.addComment(task.task_id, 'Comment 2', { author: 'agent-page' });
+      splitTaskService.addComment(task.task_id, 'Comment 3', { author: 'agent-page' });
 
       // Get total count first
       const all = splitTaskService.getAgentEvents('agent-page');
@@ -3360,11 +3360,11 @@ describe('TaskService', () => {
     });
 
     it('total count is accurate across pages', () => {
-      const task = splitTaskService.createTask({ title: 'Count test', project: 'inbox' });
-      splitTaskService.setStatus(task.task_id, TaskStatus.Ready);
+      const task = splitTaskService.createTask({ title: 'Count test', project: 'inbox' }, { author: 'agent-count' });
+      splitTaskService.setStatus(task.task_id, TaskStatus.Ready, { author: 'agent-count' });
       splitTaskService.claimTask(task.task_id, { author: 'agent-count' });
-      splitTaskService.addComment(task.task_id, 'Note 1');
-      splitTaskService.addComment(task.task_id, 'Note 2');
+      splitTaskService.addComment(task.task_id, 'Note 1', { author: 'agent-count' });
+      splitTaskService.addComment(task.task_id, 'Note 2', { author: 'agent-count' });
 
       const page1 = splitTaskService.getAgentEvents('agent-count', { limit: 2, offset: 0 });
       const page2 = splitTaskService.getAgentEvents('agent-count', { limit: 2, offset: 2 });
