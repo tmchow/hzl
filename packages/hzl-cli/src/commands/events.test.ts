@@ -3,9 +3,9 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { initializeDbFromPath, closeDb, type Services } from '../db.js';
-import { runEvents } from './events.js';
+import { streamEvents } from './events.js';
 
-describe('runEvents', () => {
+describe('streamEvents', () => {
   let tempDir: string;
   let dbPath: string;
   let services: Services;
@@ -26,7 +26,7 @@ describe('runEvents', () => {
     services.taskService.createTask({ title: 'Task 2', project: 'inbox' });
 
     const lines: string[] = [];
-    const result = await runEvents({
+    const result = await streamEvents({
       services,
       writeLine: (line) => {
         lines.push(line);
@@ -47,7 +47,7 @@ describe('runEvents', () => {
     services.taskService.createTask({ title: 'Task 3', project: 'inbox' });
 
     const lines: string[] = [];
-    const result = await runEvents({
+    const result = await streamEvents({
       services,
       fromId: 1,
       limit: 2,
@@ -68,7 +68,7 @@ describe('runEvents', () => {
     const controller = new AbortController();
     let sleepCalls = 0;
 
-    await runEvents({
+    await streamEvents({
       services,
       follow: true,
       signal: controller.signal,
@@ -100,7 +100,7 @@ describe('runEvents', () => {
     const controller = new AbortController();
     let sleepCalls = 0;
 
-    await runEvents({
+    await streamEvents({
       services,
       fromId: 0,
       limit: 1,
@@ -122,5 +122,47 @@ describe('runEvents', () => {
     const events = lines.map((line) => JSON.parse(line) as { rowid: number; data: { title?: string } });
     expect(events.map((event) => event.rowid)).toEqual([1, 2, 3, 4, 5]);
     expect(events.at(-1)?.data.title).toBe('Task 4');
+  });
+
+  it('stops gracefully on EPIPE from writeLine', async () => {
+    services.taskService.createTask({ title: 'Task 1', project: 'inbox' });
+    services.taskService.createTask({ title: 'Task 2', project: 'inbox' });
+
+    let writeCount = 0;
+    const result = await streamEvents({
+      services,
+      writeLine: () => {
+        writeCount += 1;
+        if (writeCount >= 2) {
+          const error = new Error('write EPIPE') as Error & { code: string };
+          error.code = 'EPIPE';
+          throw error;
+        }
+      },
+    });
+
+    expect(writeCount).toBe(2);
+    expect(result.count).toBe(1);
+  });
+
+  it('stops gracefully on AbortError from writeLine', async () => {
+    services.taskService.createTask({ title: 'Task 1', project: 'inbox' });
+    services.taskService.createTask({ title: 'Task 2', project: 'inbox' });
+
+    let writeCount = 0;
+    const result = await streamEvents({
+      services,
+      writeLine: () => {
+        writeCount += 1;
+        if (writeCount >= 2) {
+          const error = new Error('Aborted');
+          error.name = 'AbortError';
+          throw error;
+        }
+      },
+    });
+
+    expect(writeCount).toBe(2);
+    expect(result.count).toBe(1);
   });
 });

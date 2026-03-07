@@ -99,34 +99,6 @@ interface TaskEventResponse {
   timestamp: string;
 }
 
-interface StatsResponse {
-  window: string;
-  generated_at: string;
-  projects: string[];
-  queue: {
-    backlog: number;
-    ready: number;
-    in_progress: number;
-    blocked: number;
-    done: number;
-    archived: number;
-    available: number;
-    stale: number;
-    expired_leases: number;
-  };
-  completions: {
-    total: number;
-    by_agent: Record<string, number>;
-  };
-  execution_time_ms: {
-    count: number;
-    min: number | null;
-    max: number | null;
-    mean: number | null;
-    excluded_without_start: number;
-  };
-}
-
 interface StreamReadyResponse {
   live: true;
   latest_event_id: number;
@@ -492,16 +464,8 @@ export function createWebServer(options: ServerOptions): ServerHandle {
       windowMinutes,
       windowLabel: normalizeDurationLabel(windowParam) ?? '24h',
     });
-    const response: StatsResponse = {
-      window: stats.window,
-      generated_at: stats.generated_at,
-      projects: stats.projects,
-      queue: stats.queue,
-      completions: stats.completions,
-      execution_time_ms: stats.execution_time_ms,
-    };
 
-    json(res, response);
+    json(res, stats);
   }
 
   function handleTags(res: ServerResponse): void {

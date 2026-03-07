@@ -290,6 +290,25 @@ describe('runUpdate', () => {
     })).toThrow(/max.*level|subtask of a subtask/i);
   });
 
+  it('last stale_after_minutes wins when both set and clear are provided', () => {
+    const task = services.taskService.createTask({
+      title: 'Test',
+      project: 'inbox',
+      stale_after_minutes: 90,
+    });
+
+    // When stale_after_minutes: null is the final value, it clears
+    runUpdate({
+      services,
+      taskId: task.task_id,
+      updates: { stale_after_minutes: null },
+      json: false,
+    });
+
+    const updated = services.taskService.getTaskById(task.task_id);
+    expect(updated?.stale_after_minutes).toBeNull();
+  });
+
   it('errors when task has children (cannot make parent into subtask)', () => {
     services.projectService.createProject('myproject');
     const parent = services.taskService.createTask({ title: 'Parent', project: 'myproject' });

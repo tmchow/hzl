@@ -1,6 +1,8 @@
+const DURATION_RE = /^(\d+)([mhd])?$/;
+
 export function parseDurationToMinutes(raw: string): number | null {
   const trimmed = raw.trim();
-  const match = /^(\d+)([mhd])?$/.exec(trimmed);
+  const match = DURATION_RE.exec(trimmed);
 
   if (!match) {
     return null;
@@ -14,7 +16,7 @@ export function parseDurationToMinutes(raw: string): number | null {
 
 export function normalizeDurationLabel(raw: string): string | null {
   const trimmed = raw.trim();
-  const match = /^(\d+)([mhd])?$/.exec(trimmed);
+  const match = DURATION_RE.exec(trimmed);
   if (!match) {
     return null;
   }

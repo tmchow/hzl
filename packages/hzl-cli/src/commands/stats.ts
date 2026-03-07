@@ -1,38 +1,13 @@
 import { Command } from 'commander';
 import { normalizeDurationLabel } from 'hzl-core/utils/duration.js';
+import type { StatsSnapshot } from 'hzl-core/services/stats-service.js';
 import { resolveDbPaths } from '../config.js';
 import { initializeDb, closeDb, type Services } from '../db.js';
 import { handleError } from '../errors.js';
 import { parseDurationMinutes } from '../parse.js';
 import { GlobalOptionsSchema } from '../types.js';
 
-export interface StatsResult {
-  window: string;
-  generated_at: string;
-  projects: string[];
-  queue: {
-    backlog: number;
-    ready: number;
-    in_progress: number;
-    blocked: number;
-    done: number;
-    archived: number;
-    available: number;
-    stale: number;
-    expired_leases: number;
-  };
-  completions: {
-    total: number;
-    by_agent: Record<string, number>;
-  };
-  execution_time_ms: {
-    count: number;
-    mean: number | null;
-    min: number | null;
-    max: number | null;
-    excluded_without_start: number;
-  };
-}
+export type StatsResult = StatsSnapshot;
 
 interface StatsCommandOptions {
   project?: string;

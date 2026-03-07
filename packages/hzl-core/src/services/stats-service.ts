@@ -261,8 +261,8 @@ export class StatsService {
         : {
             count: durations.length,
             mean: durations.reduce((sum, duration) => sum + duration, 0) / durations.length,
-            min: Math.min(...durations),
-            max: Math.max(...durations),
+            min: durations.reduce((m, d) => (d < m ? d : m), Infinity),
+            max: durations.reduce((m, d) => (d > m ? d : m), -Infinity),
             excluded_without_start: excludedWithoutStart,
           };
 

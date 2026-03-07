@@ -148,18 +148,18 @@ export async function streamEvents(options: RunEventsOptions): Promise<EventsRes
     return { count, lastEventId };
   }
 
-  while (!signal?.aborted) {
-    await sleep(pollIntervalMs, signal);
-    if (signal?.aborted) break;
-    const completed = await emitBatch();
-    if (!completed) break;
+  try {
+    while (!signal?.aborted) {
+      await sleep(pollIntervalMs, signal);
+      if (signal?.aborted) break;
+      const completed = await emitBatch();
+      if (!completed) break;
+    }
+  } catch (error) {
+    if (!isAbortError(error)) throw error;
   }
 
   return { count, lastEventId };
-}
-
-export async function runEvents(options: RunEventsOptions): Promise<EventsResult> {
-  return streamEvents(options);
 }
 
 export function createEventsCommand(): Command {
@@ -183,7 +183,7 @@ export function createEventsCommand(): Command {
         services = initializeDb({ eventsDbPath, cacheDbPath });
         process.on('SIGINT', onSigint);
 
-        await runEvents({
+        await streamEvents({
           services,
           fromId: parseOptionalInteger(opts.from, 'from', { min: 0 }),
           limit: parseOptionalInteger(opts.limit, 'limit', { min: 1 }),

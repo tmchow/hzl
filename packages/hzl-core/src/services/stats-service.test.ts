@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createDatastore, type Datastore } from '../db/datastore.js';
+import { resetSeedCounter, seedCompletedTask as seedCompletedTaskShared } from '../db/test-seed.js';
 import { EventStore } from '../events/store.js';
 import { ProjectionEngine } from '../projections/engine.js';
 import { TasksCurrentProjector } from '../projections/tasks-current.js';
@@ -11,7 +12,7 @@ import { ProjectsProjector } from '../projections/projects.js';
 import { ProjectService } from './project-service.js';
 import { StatsService } from './stats-service.js';
 import { TaskService } from './task-service.js';
-import { EventType, TaskStatus } from '../events/types.js';
+import { TaskStatus } from '../events/types.js';
 
 describe('StatsService', () => {
   let datastore: Datastore;
@@ -22,7 +23,7 @@ describe('StatsService', () => {
   let statsService: StatsService;
 
   beforeEach(() => {
-    seededEventCounter = 0;
+    resetSeedCounter();
     datastore = createDatastore({
       events: { path: ':memory:', syncMode: 'offline', readYourWrites: true },
       cache: { path: ':memory:' },
@@ -53,100 +54,8 @@ describe('StatsService', () => {
     datastore.close();
   });
 
-  let seededEventCounter = 0;
-
-  function seedEvent(input: {
-    taskId: string;
-    type: EventType;
-    data: Record<string, unknown>;
-    timestamp: string;
-    author?: string;
-    agentId?: string;
-  }): void {
-    seededEventCounter += 1;
-    const eventId = `seed-event-${seededEventCounter}`;
-    const payload = {
-      rowid: 0,
-      event_id: eventId,
-      task_id: input.taskId,
-      type: input.type,
-      data: input.data,
-      author: input.author,
-      agent_id: input.agentId,
-      timestamp: input.timestamp,
-    };
-
-    datastore.eventsDb.prepare(`
-      INSERT INTO events (
-        event_id, task_id, type, data, schema_version, author, agent_id, timestamp
-      ) VALUES (?, ?, ?, ?, 1, ?, ?, ?)
-    `).run(
-      eventId,
-      input.taskId,
-      input.type,
-      JSON.stringify(input.data),
-      input.author ?? null,
-      input.agentId ?? null,
-      input.timestamp
-    );
-
-    const row = datastore.eventsDb
-      .prepare('SELECT id FROM events WHERE event_id = ?')
-      .get(eventId) as { id: number };
-
-    projectionEngine.applyEvent({ ...payload, rowid: row.id });
-  }
-
-  function seedCompletedTask(input: {
-    taskId: string;
-    title: string;
-    project: string;
-    agent: string;
-    readyAt: string;
-    startedAt: string;
-    doneAt: string;
-  }): void {
-    seedEvent({
-      taskId: input.taskId,
-      type: EventType.TaskCreated,
-      timestamp: input.readyAt,
-      data: {
-        title: input.title,
-        project: input.project,
-        agent: input.agent,
-      },
-    });
-    seedEvent({
-      taskId: input.taskId,
-      type: EventType.StatusChanged,
-      timestamp: input.readyAt,
-      author: input.agent,
-      data: {
-        from: TaskStatus.Backlog,
-        to: TaskStatus.Ready,
-      },
-    });
-    seedEvent({
-      taskId: input.taskId,
-      type: EventType.StatusChanged,
-      timestamp: input.startedAt,
-      author: input.agent,
-      data: {
-        from: TaskStatus.Ready,
-        to: TaskStatus.InProgress,
-        agent: input.agent,
-      },
-    });
-    seedEvent({
-      taskId: input.taskId,
-      type: EventType.StatusChanged,
-      timestamp: input.doneAt,
-      author: input.agent,
-      data: {
-        from: TaskStatus.InProgress,
-        to: TaskStatus.Done,
-      },
-    });
+  function seedCompletedTask(input: Parameters<typeof seedCompletedTaskShared>[2]): void {
+    seedCompletedTaskShared(datastore.eventsDb, projectionEngine, input);
   }
 
   it('returns the canonical empty stats shape', () => {
@@ -282,6 +191,8 @@ describe('StatsService', () => {
     expect(stats.execution_time_ms.min).not.toBeNull();
     expect(stats.execution_time_ms.max).not.toBeNull();
     expect(stats.execution_time_ms.mean).not.toBeNull();
+    expect(stats.execution_time_ms.min!).toBeLessThanOrEqual(stats.execution_time_ms.mean!);
+    expect(stats.execution_time_ms.mean!).toBeLessThanOrEqual(stats.execution_time_ms.max!);
   });
 
   it('excludes completions and durations outside the requested window', () => {

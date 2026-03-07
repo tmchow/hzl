@@ -14,11 +14,11 @@ import { TaskService } from 'hzl-core/services/task-service';
 import { ProjectService } from 'hzl-core/services/project-service';
 import { SearchService } from 'hzl-core/services/search-service';
 import { StatsService } from 'hzl-core/services/stats-service';
-import { EventType, TaskStatus } from 'hzl-core/events/types';
+import { TaskStatus } from 'hzl-core/events/types';
+import { resetSeedCounter, seedCompletedTask as seedCompletedTaskShared } from 'hzl-core/db/test-seed';
 import Database from 'libsql';
 
 describe('hzl-web server', () => {
-  let seededEventCounter = 0;
   let db: Database.Database;
   let eventStore: EventStore;
   let projectionEngine: ProjectionEngine;
@@ -29,7 +29,7 @@ describe('hzl-web server', () => {
   let server: ServerHandle;
 
   beforeEach(() => {
-    seededEventCounter = 0;
+    resetSeedCounter();
     db = createTestDb();
     eventStore = new EventStore(db);
     projectionEngine = new ProjectionEngine(db);
@@ -73,95 +73,8 @@ describe('hzl-web server', () => {
     return { status: res.status, body };
   }
 
-  function seedEvent(input: {
-    taskId: string;
-    type: EventType;
-    data: Record<string, unknown>;
-    timestamp: string;
-    author?: string;
-    agentId?: string;
-  }): void {
-    seededEventCounter += 1;
-    const eventId = `seed-event-${seededEventCounter}`;
-    const payload = {
-      rowid: 0,
-      event_id: eventId,
-      task_id: input.taskId,
-      type: input.type,
-      data: input.data,
-      author: input.author,
-      agent_id: input.agentId,
-      timestamp: input.timestamp,
-    };
-
-    db.prepare(`
-      INSERT INTO events (
-        event_id, task_id, type, data, schema_version, author, agent_id, timestamp
-      ) VALUES (?, ?, ?, ?, 1, ?, ?, ?)
-    `).run(
-      eventId,
-      input.taskId,
-      input.type,
-      JSON.stringify(input.data),
-      input.author ?? null,
-      input.agentId ?? null,
-      input.timestamp
-    );
-
-    const row = db.prepare('SELECT id FROM events WHERE event_id = ?').get(eventId) as { id: number };
-    projectionEngine.applyEvent({ ...payload, rowid: row.id });
-  }
-
-  function seedCompletedTask(input: {
-    taskId: string;
-    title: string;
-    project: string;
-    agent: string;
-    readyAt: string;
-    startedAt: string;
-    doneAt: string;
-  }): void {
-    seedEvent({
-      taskId: input.taskId,
-      type: EventType.TaskCreated,
-      timestamp: input.readyAt,
-      data: {
-        title: input.title,
-        project: input.project,
-        agent: input.agent,
-      },
-    });
-    seedEvent({
-      taskId: input.taskId,
-      type: EventType.StatusChanged,
-      timestamp: input.readyAt,
-      author: input.agent,
-      data: {
-        from: TaskStatus.Backlog,
-        to: TaskStatus.Ready,
-      },
-    });
-    seedEvent({
-      taskId: input.taskId,
-      type: EventType.StatusChanged,
-      timestamp: input.startedAt,
-      author: input.agent,
-      data: {
-        from: TaskStatus.Ready,
-        to: TaskStatus.InProgress,
-        agent: input.agent,
-      },
-    });
-    seedEvent({
-      taskId: input.taskId,
-      type: EventType.StatusChanged,
-      timestamp: input.doneAt,
-      author: input.agent,
-      data: {
-        from: TaskStatus.InProgress,
-        to: TaskStatus.Done,
-      },
-    });
+  function seedCompletedTask(input: Parameters<typeof seedCompletedTaskShared>[2]): void {
+    seedCompletedTaskShared(db, projectionEngine, input);
   }
 
   describe('server configuration', () => {
