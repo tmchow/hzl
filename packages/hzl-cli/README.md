@@ -24,6 +24,17 @@ Full docs at **[hzl-tasks.com](https://www.hzl-tasks.com)**
 - [Architecture](https://www.hzl-tasks.com/reference/architecture/)
 - [Troubleshooting](https://www.hzl-tasks.com/troubleshooting/)
 
+## Orchestrator Primitives
+
+HZL stays on the ledger side of the boundary. OpenClaw or another orchestrator should subscribe, poll, and decide what to do:
+
+```bash
+hzl events --follow              # raw NDJSON lifecycle feed
+hzl stats --window 1h            # raw operational counters
+hzl task stuck --json --stale    # recovery polling surface
+hzl hook drain                   # deliver durable on_done hooks
+```
+
 ## Links
 
 - [Contributing](./CONTRIBUTING.md)

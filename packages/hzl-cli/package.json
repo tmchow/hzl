@@ -1,6 +1,6 @@
 {
   "name": "hzl-cli",
-  "version": "2.10.0",
+  "version": "3.0.0",
   "description": "CLI for HZL - External task ledger for coding agents and OpenClaw.",
   "type": "module",
   "bin": {
