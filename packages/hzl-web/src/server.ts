@@ -6,8 +6,10 @@ import {
   EventType,
   AmbiguousPrefixError,
   SearchService,
+  StatsService,
   type TaskListItem as CoreTaskListItem,
 } from 'hzl-core';
+import { normalizeDurationLabel, parseDurationToMinutes } from 'hzl-core/utils/duration.js';
 import { UI_FILES, LEGACY_DASHBOARD_HTML, type EmbeddedFile } from './ui-embed.js';
 
 export interface ServerOptions {
@@ -17,6 +19,7 @@ export interface ServerOptions {
   taskService: TaskService;
   eventStore: EventStore;
   searchService: SearchService;
+  statsService: StatsService;
 }
 
 export interface ServerHandle {
@@ -97,9 +100,31 @@ interface TaskEventResponse {
 }
 
 interface StatsResponse {
-  total: number;
-  by_status: Record<string, number>;
+  window: string;
+  generated_at: string;
   projects: string[];
+  queue: {
+    backlog: number;
+    ready: number;
+    in_progress: number;
+    blocked: number;
+    done: number;
+    archived: number;
+    available: number;
+    stale: number;
+    expired_leases: number;
+  };
+  completions: {
+    total: number;
+    by_agent: Record<string, number>;
+  };
+  execution_time_ms: {
+    count: number;
+    min: number | null;
+    max: number | null;
+    mean: number | null;
+    excluded_without_start: number;
+  };
 }
 
 interface StreamReadyResponse {
@@ -127,6 +152,12 @@ function parseStrictNonNegativeInt(value: string): number | null {
   const parsed = Number(value);
   if (!Number.isSafeInteger(parsed) || parsed < 0) return null;
   return parsed;
+}
+
+function parseDurationMinutes(value: string): number | null {
+  const minutes = parseDurationToMinutes(value);
+  if (minutes === null || !Number.isSafeInteger(minutes) || minutes < 1) return null;
+  return minutes;
 }
 
 function withLegacyAssigneeAlias(data: Record<string, unknown>): Record<string, unknown> {
@@ -208,7 +239,7 @@ function writeSseEvent<T extends object>(res: ServerResponse, event: string, dat
 }
 
 export function createWebServer(options: ServerOptions): ServerHandle {
-  const { port, host = '0.0.0.0', allowFraming = false, taskService, eventStore, searchService } = options;
+  const { port, host = '0.0.0.0', allowFraming = false, taskService, eventStore, searchService, statsService } = options;
   const sockets = new Set<Socket>();
   const activeStreamResponses = new Set<ServerResponse>();
 
@@ -447,13 +478,27 @@ export function createWebServer(options: ServerOptions): ServerHandle {
     json(res, { events });
   }
 
-  function handleStats(res: ServerResponse): void {
-    const stats = taskService.getStats();
+  function handleStats(params: URLSearchParams, res: ServerResponse): void {
+    const project = params.get('project') || undefined;
+    const windowParam = params.get('window') ?? '24h';
+    const windowMinutes = parseDurationMinutes(windowParam);
+    if (windowMinutes === null) {
+      json(res, { error: 'Invalid window value. Expected durations like 30, 30m, 2h, or 7d.' }, 400);
+      return;
+    }
 
+    const stats = statsService.getStats({
+      project,
+      windowMinutes,
+      windowLabel: normalizeDurationLabel(windowParam) ?? '24h',
+    });
     const response: StatsResponse = {
-      total: stats.total,
-      by_status: stats.byStatus,
+      window: stats.window,
+      generated_at: stats.generated_at,
       projects: stats.projects,
+      queue: stats.queue,
+      completions: stats.completions,
+      execution_time_ms: stats.execution_time_ms,
     };
 
     json(res, response);
@@ -701,7 +746,7 @@ export function createWebServer(options: ServerOptions): ServerHandle {
       }
 
       if (pathname === '/api/stats') {
-        handleStats(res);
+        handleStats(params, res);
         return;
       }
 

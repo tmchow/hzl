@@ -1,4 +1,5 @@
 import { TaskStatus } from 'hzl-core/events/types.js';
+import { parseDurationToMinutes } from 'hzl-core/utils/duration.js';
 import { CLIError, ExitCode } from './errors.js';
 
 interface IntBounds {
@@ -81,19 +82,14 @@ export function parseDurationMinutes(
     return parseInteger(raw, fieldName, bounds);
   }
 
-  const trimmed = raw.trim();
-  const match = trimmed.match(/^(\d+)([mhd])?$/i);
-  if (!match) {
+  const minutes = parseDurationToMinutes(raw);
+  if (minutes === null) {
     throw new CLIError(
       `${fieldName} must be a duration like 30, 30m, 2h, or 7d`,
       ExitCode.InvalidInput
     );
   }
-
-  const value = Number(match[1]);
-  const suffix = (match[2] ?? 'm').toLowerCase();
-  const multiplier = suffix === 'h' ? 60 : suffix === 'd' ? 1_440 : 1;
-  return parseInteger(value * multiplier, fieldName, bounds);
+  return parseInteger(minutes, fieldName, bounds);
 }
 
 export function parseOptionalDurationMinutes(

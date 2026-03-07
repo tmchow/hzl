@@ -140,6 +140,15 @@ export {
 } from './services/task-service.js';
 
 export {
+  StatsService,
+  type StatsQueryOptions,
+  type QueueStats,
+  type CompletionStats,
+  type ExecutionTimeStats,
+  type StatsSnapshot,
+} from './services/stats-service.js';
+
+export {
   ProjectService,
   ProjectNotFoundError,
   ProtectedProjectError,

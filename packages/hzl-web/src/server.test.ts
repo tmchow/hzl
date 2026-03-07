@@ -13,6 +13,7 @@ import { TagsProjector } from 'hzl-core/projections/tags';
 import { TaskService } from 'hzl-core/services/task-service';
 import { ProjectService } from 'hzl-core/services/project-service';
 import { SearchService } from 'hzl-core/services/search-service';
+import { StatsService } from 'hzl-core/services/stats-service';
 import { TaskStatus } from 'hzl-core/events/types';
 import Database from 'libsql';
 
@@ -23,6 +24,7 @@ describe('hzl-web server', () => {
   let taskService: TaskService;
   let projectService: ProjectService;
   let searchService: SearchService;
+  let statsService: StatsService;
   let server: ServerHandle;
 
   beforeEach(() => {
@@ -42,6 +44,7 @@ describe('hzl-web server', () => {
 
     taskService = new TaskService(db, eventStore, projectionEngine, projectService, db);
     searchService = new SearchService(db);
+    statsService = new StatsService(db, db, taskService);
   });
 
   afterEach(async () => {
@@ -52,7 +55,7 @@ describe('hzl-web server', () => {
   });
 
   function createServer(port: number, host = '127.0.0.1', allowFraming = false): ServerHandle {
-    server = createWebServer({ port, host, allowFraming, taskService, eventStore, searchService });
+    server = createWebServer({ port, host, allowFraming, taskService, eventStore, searchService, statsService });
     return server;
   }
 
@@ -577,8 +580,11 @@ describe('hzl-web server', () => {
 
       expect(status).toBe(200);
       expect(data).toMatchObject({
-        total: 2,
+        window: '24h',
         projects: expect.arrayContaining(['test-project']),
+        queue: {
+          backlog: 2,
+        },
       });
     });
 
@@ -589,7 +595,15 @@ describe('hzl-web server', () => {
       createServer(4541);
       const { data } = await fetchJson('/api/stats');
 
-      expect((data as { by_status: Record<string, number> }).by_status.ready).toBe(1);
+      expect((data as { queue: Record<string, number> }).queue.ready).toBe(1);
+    });
+
+    it('returns 400 for invalid window values', async () => {
+      createServer(4542);
+      const { status, data } = await fetchJson('/api/stats?window=abc');
+
+      expect(status).toBe(400);
+      expect((data as { error: string }).error).toContain('Invalid window value');
     });
   });
 

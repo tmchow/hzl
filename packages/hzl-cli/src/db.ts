@@ -16,6 +16,7 @@ import { ProjectsProjector } from 'hzl-core/projections/projects.js';
 import { TaskService } from 'hzl-core/services/task-service.js';
 import { ProjectService } from 'hzl-core/services/project-service.js';
 import { SearchService } from 'hzl-core/services/search-service.js';
+import { StatsService } from 'hzl-core/services/stats-service.js';
 import { ValidationService } from 'hzl-core/services/validation-service.js';
 import { readConfig } from './config.js';
 
@@ -175,6 +176,7 @@ export interface Services {
   taskService: TaskService;
   projectService: ProjectService;
   searchService: SearchService;
+  statsService: StatsService;
   validationService: ValidationService;
 }
 
@@ -225,6 +227,7 @@ export function initializeDb(options: InitializeDbOptions): Services {
     { onDone: config.hooks?.on_done }
   );
   const searchService = new SearchService(cacheDb);
+  const statsService = new StatsService(cacheDb, eventsDb, taskService);
   const validationService = new ValidationService(cacheDb);
 
   projectService.ensureInboxExists();
@@ -238,6 +241,7 @@ export function initializeDb(options: InitializeDbOptions): Services {
     taskService,
     projectService,
     searchService,
+    statsService,
     validationService,
   };
 }

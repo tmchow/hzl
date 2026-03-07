@@ -336,7 +336,7 @@ describe('CLI Integration Tests', { timeout: 30000 }, () => {
   });
 
   describe('stats command', () => {
-    it('returns task counts by status', () => {
+    it('returns the canonical stats payload', () => {
       const t1 = addTask('inbox', 'Backlog task');
       const t2 = addTask('inbox', 'Ready task');
       const t3 = addTask('inbox', 'In progress task');
@@ -349,12 +349,25 @@ describe('CLI Integration Tests', { timeout: 30000 }, () => {
       hzlJson(ctx, `task claim ${t4.task_id} --agent agent-1`);
       hzlJson(ctx, `task complete ${t4.task_id} --author agent-1`);
 
-      const stats = hzlJson<{ by_status: Record<string, number> }>(ctx, 'stats --project inbox');
+      const stats = hzlJson<{
+        window: string;
+        queue: {
+          backlog: number;
+          ready: number;
+          in_progress: number;
+          done: number;
+          available: number;
+        };
+        completions: { total: number };
+      }>(ctx, 'stats --project inbox');
 
-      expect(stats.by_status.backlog).toBe(1);
-      expect(stats.by_status.ready).toBe(1);
-      expect(stats.by_status.in_progress).toBe(1);
-      expect(stats.by_status.done).toBe(1);
+      expect(stats.window).toBe('24h');
+      expect(stats.queue.backlog).toBe(1);
+      expect(stats.queue.ready).toBe(1);
+      expect(stats.queue.in_progress).toBe(1);
+      expect(stats.queue.done).toBe(1);
+      expect(stats.queue.available).toBe(1);
+      expect(stats.completions.total).toBe(1);
     });
   });
 
