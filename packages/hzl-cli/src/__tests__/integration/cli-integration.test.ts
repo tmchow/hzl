@@ -369,17 +369,16 @@ describe('CLI Integration Tests', { timeout: 30000 }, () => {
     });
   });
 
-  describe('export-events command', () => {
-    it('exports events to JSONL file', () => {
+  describe('events command', () => {
+    it('prints NDJSON events to stdout', () => {
       addTask('inbox', 'Task 1');
       addTask('inbox', 'Task 2');
 
-      const exportPath = path.join(ctx.tempDir, 'events.jsonl');
-      hzlJson(ctx, `export-events ${exportPath}`);
-
-      expect(fs.existsSync(exportPath)).toBe(true);
-      const content = fs.readFileSync(exportPath, 'utf-8');
-      const lines = content.trim().split('\n').filter((line) => line.length > 0);
+      const output = execSync(`node "${cliBinaryPath}" --db "${ctx.dbPath}" events`, {
+        encoding: 'utf-8',
+        env: { ...process.env, HZL_CONFIG: ctx.configPath },
+      }).trim();
+      const lines = output.split('\n').filter((line) => line.length > 0);
       // 1 project_created (inbox) + 2 task_created events
       expect(lines).toHaveLength(3);
 
