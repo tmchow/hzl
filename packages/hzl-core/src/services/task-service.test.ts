@@ -3534,6 +3534,27 @@ describe('TaskService', () => {
   });
 
   describe('stale task detection', () => {
+    it('stores stale_after_minutes on created tasks', () => {
+      const task = taskService.createTask({
+        title: 'Slow task',
+        project: 'project-a',
+        stale_after_minutes: 45,
+      });
+
+      expect(task.stale_after_minutes).toBe(45);
+      expect(taskService.getTaskById(task.task_id)?.stale_after_minutes).toBe(45);
+    });
+
+    it('updates stale_after_minutes through task updates', () => {
+      const task = taskService.createTask({ title: 'Task', project: 'project-a' });
+
+      taskService.updateTask(task.task_id, { stale_after_minutes: 30 });
+      expect(taskService.getTaskById(task.task_id)?.stale_after_minutes).toBe(30);
+
+      taskService.updateTask(task.task_id, { stale_after_minutes: null });
+      expect(taskService.getTaskById(task.task_id)?.stale_after_minutes).toBeNull();
+    });
+
     it('returns empty set when no in-progress tasks', () => {
       const result = taskService.getStaleTasks({ thresholdMinutes: 10 });
       expect(result).toEqual(new Map());
@@ -3570,6 +3591,32 @@ describe('TaskService', () => {
       expect(result.has(task.task_id)).toBe(false);
     });
 
+    it('uses task-specific stale_after_minutes when present', () => {
+      const task = taskService.createTask({
+        title: 'Long running task',
+        project: 'project-a',
+        stale_after_minutes: 120,
+      });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+      taskService.claimTask(task.task_id, { author: 'agent-1' });
+
+      const result = taskService.getStaleTasks({ thresholdMinutes: 0 });
+      expect(result.has(task.task_id)).toBe(false);
+    });
+
+    it('disables stale detection when stale_after_minutes is zero', () => {
+      const task = taskService.createTask({
+        title: 'Never stale task',
+        project: 'project-a',
+        stale_after_minutes: 0,
+      });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+      taskService.claimTask(task.task_id, { author: 'agent-1' });
+
+      const result = taskService.getStaleTasks({ thresholdMinutes: 0 });
+      expect(result.has(task.task_id)).toBe(false);
+    });
+
     it('does not flag non-in-progress tasks', () => {
       const task = taskService.createTask({ title: 'Ready task', project: 'project-a' });
       taskService.setStatus(task.task_id, TaskStatus.Ready);
@@ -3591,5 +3638,6 @@ describe('TaskService', () => {
       expect(result.has(t1.task_id)).toBe(true);
       expect(result.has(t2.task_id)).toBe(false);
     });
+
   });
 });

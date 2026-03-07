@@ -91,6 +91,7 @@ const reasonString = z.string().max(FIELD_LIMITS.REASON);
 const commentString = z.string().min(1).max(FIELD_LIMITS.COMMENT);
 const checkpointNameString = z.string().min(1).max(FIELD_LIMITS.CHECKPOINT_NAME);
 const priorityNumber = z.number().int().min(0).max(3);
+const staleAfterMinutesNumber = z.number().int().min(0);
 
 // Arrays with item limits
 const linksArray = z.array(linkString).max(FIELD_LIMITS.ARRAY_MAX_ITEMS);
@@ -132,6 +133,7 @@ const TaskCreatedSchema = z.object({
   priority: priorityNumber.optional(),
   due_at: isoDateTime.optional(),
   metadata: metadataRecord.optional(),
+  stale_after_minutes: staleAfterMinutesNumber.optional(),
   // Canonical v2 field.
   agent: z.string().max(FIELD_LIMITS.IDENTIFIER).optional(),
   // Legacy v1 field accepted for backward compatibility during replay/interop.
@@ -173,6 +175,7 @@ export const UPDATABLE_TASK_FIELDS = [
   'priority',
   'due_at',
   'metadata',
+  'stale_after_minutes',
   'parent_id',
   'agent',
   // Legacy alias kept so historical events with field=assignee still validate.
@@ -190,6 +193,7 @@ const updatableFieldValidators: Record<UpdatableTaskField, z.ZodSchema<unknown>>
   priority: priorityNumber,
   due_at: isoDateTime.nullable(),
   metadata: metadataRecord,
+  stale_after_minutes: staleAfterMinutesNumber.nullable(),
   parent_id: nonEmptyString.nullable(),
   agent: z.string().max(FIELD_LIMITS.IDENTIFIER).nullable(),
   assignee: z.string().max(FIELD_LIMITS.IDENTIFIER).nullable(),

@@ -64,6 +64,19 @@ describe('runAdd', () => {
     expect(task?.links).toEqual(['docs/design.md', 'https://example.com/spec']);
   });
 
+  it('creates a task with stale_after_minutes override', () => {
+    const result = runAdd({
+      services,
+      project: 'inbox',
+      title: 'Slow task',
+      staleAfterMinutes: 45,
+      json: false,
+    });
+
+    const task = services.taskService.getTaskById(result.task_id);
+    expect(task?.stale_after_minutes).toBe(45);
+  });
+
   it('creates a task with agent in backlog', () => {
     const result = runAdd({
       services,

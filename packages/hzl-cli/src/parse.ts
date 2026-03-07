@@ -72,6 +72,39 @@ export function parseIntegerWithDefault(
   return parseInteger(raw, fieldName, bounds);
 }
 
+export function parseDurationMinutes(
+  raw: string | number,
+  fieldName: string,
+  bounds: IntBounds = {}
+): number {
+  if (typeof raw === 'number') {
+    return parseInteger(raw, fieldName, bounds);
+  }
+
+  const trimmed = raw.trim();
+  const match = trimmed.match(/^(\d+)([mhd])?$/i);
+  if (!match) {
+    throw new CLIError(
+      `${fieldName} must be a duration like 30, 30m, 2h, or 7d`,
+      ExitCode.InvalidInput
+    );
+  }
+
+  const value = Number(match[1]);
+  const suffix = (match[2] ?? 'm').toLowerCase();
+  const multiplier = suffix === 'h' ? 60 : suffix === 'd' ? 1_440 : 1;
+  return parseInteger(value * multiplier, fieldName, bounds);
+}
+
+export function parseOptionalDurationMinutes(
+  raw: string | number | undefined,
+  fieldName: string,
+  bounds: IntBounds = {}
+): number | undefined {
+  if (raw === undefined) return undefined;
+  return parseDurationMinutes(raw, fieldName, bounds);
+}
+
 export function parseEnumValue<T extends string>(
   raw: string | undefined,
   fieldName: string,

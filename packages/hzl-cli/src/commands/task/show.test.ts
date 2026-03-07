@@ -45,6 +45,7 @@ describe('runShow', () => {
       description: 'A description',
       tags: ['urgent'],
       priority: 2,
+      stale_after_minutes: 45,
     });
 
     const result = runShow({ services, taskId: task.task_id, json: false });
@@ -53,6 +54,7 @@ describe('runShow', () => {
     expect(fullTask.title).toBe('Test task');
     expect(fullTask.description).toBe('A description');
     expect(fullTask.priority).toBe(2);
+    expect(fullTask.stale_after_minutes).toBe(45);
   });
 
   it('includes comments and checkpoints', () => {
@@ -108,6 +110,7 @@ describe('runShow', () => {
       expect(fullTask.links).toEqual([]);
       expect(fullTask.metadata).toEqual({});
       expect(fullTask.due_at).toBeNull();
+      expect(fullTask.stale_after_minutes).toBeNull();
       expect(fullTask.claimed_at).toBeNull();
       expect(fullTask.lease_until).toBeNull();
     });
@@ -121,6 +124,17 @@ describe('runShow', () => {
       const result = runShow({ services, taskId: task.task_id, json: false });
       const fullTask = result.task as Task;
       expect(fullTask.links).toEqual(['docs/spec.md', 'https://example.com']);
+    });
+
+    it('includes stale_after_minutes when set', () => {
+      const task = services.taskService.createTask({
+        title: 'Slow task',
+        project: 'inbox',
+        stale_after_minutes: 45,
+      });
+      const result = runShow({ services, taskId: task.task_id, json: false });
+      const fullTask = result.task as Task;
+      expect(fullTask.stale_after_minutes).toBe(45);
     });
   });
 

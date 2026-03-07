@@ -468,6 +468,7 @@ describe('hzl-web server', () => {
         project: 'test-project',
         priority: 3,
         description: 'A detailed description',
+        stale_after_minutes: 45,
       });
 
       createServer(4520);
@@ -479,6 +480,7 @@ describe('hzl-web server', () => {
         title: 'Detailed Task',
         description: 'A detailed description',
         priority: 3,
+        stale_after_minutes: 45,
       });
     });
 

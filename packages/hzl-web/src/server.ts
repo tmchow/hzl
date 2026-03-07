@@ -60,6 +60,7 @@ interface TaskDetailResponse {
   tags: string[];
   due_at: string | null;
   metadata: Record<string, unknown>;
+  stale_after_minutes: number | null;
   claimed_at: string | null;
   assignee: string | null;
   progress: number | null;
@@ -329,6 +330,7 @@ export function createWebServer(options: ServerOptions): ServerHandle {
       tags: task.tags,
       due_at: task.due_at,
       metadata: task.metadata,
+      stale_after_minutes: task.stale_after_minutes,
       claimed_at: task.claimed_at,
       assignee: task.agent ?? null,
       progress: task.progress,

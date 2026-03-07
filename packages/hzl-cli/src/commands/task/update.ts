@@ -6,7 +6,7 @@ import { handleError, CLIError, ExitCode } from '../../errors.js';
 import type { TaskUpdates } from 'hzl-core/services/task-service.js';
 import { GlobalOptionsSchema } from '../../types.js';
 import { resolveId } from '../../resolve-id.js';
-import { parseInteger } from '../../parse.js';
+import { parseDurationMinutes, parseInteger } from '../../parse.js';
 
 export interface UpdateResult {
   task_id: string;
@@ -27,6 +27,8 @@ interface UpdateCommandOptions {
   tags?: string;
   parent?: string;
   author?: string;
+  staleAfter?: string;
+  clearStaleAfter?: boolean;
 }
 
 export function runUpdate(options: {
@@ -99,6 +101,8 @@ export function createUpdateCommand(): Command {
     .option('-t, --tags <tags>', 'New tags (comma-separated)')
     .option('--parent <taskId>', 'Set parent task (use "" to remove)')
     .option('--author <name>', 'Author name')
+    .option('--stale-after <duration>', 'Set task stale threshold override (e.g. 30m, 2h, 7d)')
+    .option('--clear-stale-after', 'Clear any task-specific stale threshold override')
     .action(function (this: Command, rawTaskId: string, opts: UpdateCommandOptions) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
@@ -106,6 +110,9 @@ export function createUpdateCommand(): Command {
       try {
         const taskId = resolveId(services, rawTaskId);
         const updates: UpdateInput = {};
+        if (opts.staleAfter !== undefined && opts.clearStaleAfter) {
+          throw new CLIError('Cannot use --stale-after and --clear-stale-after together', ExitCode.InvalidInput);
+        }
         if (opts.title) updates.title = opts.title;
         if (opts.desc !== undefined) {
           updates.description = opts.desc === '' ? null : opts.desc;
@@ -121,6 +128,12 @@ export function createUpdateCommand(): Command {
         }
         if (opts.parent !== undefined) {
           updates.parent_id = opts.parent === '' ? null : resolveId(services, opts.parent);
+        }
+        if (opts.staleAfter !== undefined) {
+          updates.stale_after_minutes = parseDurationMinutes(opts.staleAfter, 'stale-after', { min: 0 });
+        }
+        if (opts.clearStaleAfter) {
+          updates.stale_after_minutes = null;
         }
 
         runUpdate({ services, taskId, updates, author: opts.author, json: globalOpts.json ?? false });

@@ -53,6 +53,7 @@ describe('TasksCurrentProjector', () => {
           priority: 2,
           links: ['doc.md'],
           metadata: { key: 'value' },
+          stale_after_minutes: 30,
         },
       });
 
@@ -64,6 +65,7 @@ describe('TasksCurrentProjector', () => {
       expect(task.priority).toBe(2);
       expect(JSON.parse(task.links)).toEqual(['doc.md']);
       expect(JSON.parse(task.metadata)).toEqual({ key: 'value' });
+      expect(task.stale_after_minutes).toBe(30);
     });
   });
 
@@ -355,6 +357,27 @@ describe('TasksCurrentProjector', () => {
 
       const task = db.prepare('SELECT * FROM tasks_current WHERE task_id = ?').get('TASK1') as any;
       expect(JSON.parse(task.tags)).toEqual(['new-tag']);
+    });
+
+    it('updates stale_after_minutes', () => {
+      const createEvent = eventStore.append({
+        task_id: 'TASK1',
+        type: EventType.TaskCreated,
+        data: { title: 'Test', project: 'inbox' },
+      });
+      projector.apply(createEvent, db);
+
+      const updateEvent = eventStore.append({
+        task_id: 'TASK1',
+        type: EventType.TaskUpdated,
+        data: { field: 'stale_after_minutes', old_value: null, new_value: 45 },
+      });
+      projector.apply(updateEvent, db);
+
+      const task = db.prepare('SELECT stale_after_minutes FROM tasks_current WHERE task_id = ?').get('TASK1') as {
+        stale_after_minutes: number | null;
+      };
+      expect(task.stale_after_minutes).toBe(45);
     });
 
     it('skips invalid field names defensively', () => {

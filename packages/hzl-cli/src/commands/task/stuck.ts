@@ -17,6 +17,7 @@ export interface StuckTask {
   expired_for_ms: number | null;
   reason: 'lease_expired' | 'stale';
   stale_minutes?: number;
+  stale_after_minutes: number | null;
 }
 
 export interface StuckResult {
@@ -50,11 +51,12 @@ export function runStuck(options: {
     agent: string | null;
     claimed_at: string | null;
     lease_until: string;
+    stale_after_minutes: number | null;
   };
 
   // Find tasks with expired leases
   let query = `
-    SELECT task_id, title, project, agent, claimed_at, lease_until
+    SELECT task_id, title, project, agent, claimed_at, lease_until, stale_after_minutes
     FROM tasks_current
     WHERE status = 'in_progress'
       AND lease_until IS NOT NULL
@@ -91,6 +93,7 @@ export function runStuck(options: {
       lease_until: row.lease_until,
       expired_for_ms: expiredForMs,
       reason: 'lease_expired',
+      stale_after_minutes: row.stale_after_minutes,
     });
   }
 
@@ -104,8 +107,15 @@ export function runStuck(options: {
     for (const [taskId, staleMinutes] of staleTasks) {
       if (existingIds.has(taskId)) continue;
       const taskRow = db.prepare(
-        'SELECT task_id, title, project, agent, claimed_at FROM tasks_current WHERE task_id = ?'
-      ).get(taskId) as { task_id: string; title: string; project: string; agent: string | null; claimed_at: string | null } | undefined;
+        'SELECT task_id, title, project, agent, claimed_at, stale_after_minutes FROM tasks_current WHERE task_id = ?'
+      ).get(taskId) as {
+        task_id: string;
+        title: string;
+        project: string;
+        agent: string | null;
+        claimed_at: string | null;
+        stale_after_minutes: number | null;
+      } | undefined;
       if (taskRow) {
         tasks.push({
           task_id: taskRow.task_id,
@@ -117,6 +127,7 @@ export function runStuck(options: {
           expired_for_ms: null,
           reason: 'stale',
           stale_minutes: staleMinutes,
+          stale_after_minutes: taskRow.stale_after_minutes,
         });
       }
     }

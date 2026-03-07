@@ -75,6 +75,38 @@ describe('runUpdate', () => {
     expect(result.description).toBe('New description');
   });
 
+  it('updates stale_after_minutes', () => {
+    const task = services.taskService.createTask({ title: 'Test', project: 'inbox' });
+
+    runUpdate({
+      services,
+      taskId: task.task_id,
+      updates: { stale_after_minutes: 90 },
+      json: false,
+    });
+
+    const updated = services.taskService.getTaskById(task.task_id);
+    expect(updated?.stale_after_minutes).toBe(90);
+  });
+
+  it('clears stale_after_minutes when set to null', () => {
+    const task = services.taskService.createTask({
+      title: 'Test',
+      project: 'inbox',
+      stale_after_minutes: 90,
+    });
+
+    runUpdate({
+      services,
+      taskId: task.task_id,
+      updates: { stale_after_minutes: null },
+      json: false,
+    });
+
+    const updated = services.taskService.getTaskById(task.task_id);
+    expect(updated?.stale_after_minutes).toBeNull();
+  });
+
   it('records author on task_updated events', () => {
     const task = services.taskService.createTask({ title: 'Test', project: 'inbox' });
 

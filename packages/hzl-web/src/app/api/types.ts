@@ -40,6 +40,7 @@ export interface TaskDetail {
   tags: string[];
   due_at: string | null;
   metadata: Record<string, unknown>;
+  stale_after_minutes: number | null;
   claimed_at: string | null;
   assignee: string | null;
   progress: number | null;

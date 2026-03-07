@@ -91,6 +91,7 @@ describe('runStuck', () => {
       const found = result.tasks.find(t => t.task_id === task.task_id);
       expect(found).toBeDefined();
       expect(found!.reason).toBe('stale');
+      expect(found!.stale_after_minutes).toBeNull();
     });
 
     it('separates stuck and stale tasks in result', () => {
@@ -122,6 +123,29 @@ describe('runStuck', () => {
       const result = runStuck({ services, json: false, stale: true, staleThresholdMinutes: 0 });
       const found = result.tasks.find(t => t.task_id === task.task_id);
       expect(found).toBeUndefined();
+    });
+
+    it('respects task-specific stale_after_minutes overrides', () => {
+      const slowTask = services.taskService.createTask({
+        title: 'Slow task',
+        project: 'inbox',
+        stale_after_minutes: 30,
+      });
+      services.taskService.setStatus(slowTask.task_id, TaskStatus.Ready);
+      services.taskService.claimTask(slowTask.task_id, { author: 'agent-1' });
+
+      const neverStale = services.taskService.createTask({
+        title: 'Never stale',
+        project: 'inbox',
+        stale_after_minutes: 0,
+      });
+      services.taskService.setStatus(neverStale.task_id, TaskStatus.Ready);
+      services.taskService.claimTask(neverStale.task_id, { author: 'agent-2' });
+
+      const result = runStuck({ services, json: false, stale: true, staleThresholdMinutes: 0 });
+
+      expect(result.tasks.find((task) => task.task_id === slowTask.task_id)).toBeUndefined();
+      expect(result.tasks.find((task) => task.task_id === neverStale.task_id)).toBeUndefined();
     });
   });
 });

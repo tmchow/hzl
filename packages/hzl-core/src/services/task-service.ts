@@ -25,6 +25,7 @@ export interface CreateTaskInput {
   priority?: number;
   due_at?: string;
   metadata?: Record<string, unknown>;
+  stale_after_minutes?: number;
   agent?: string;
   /** @deprecated Use `agent` */
   assignee?: string;
@@ -270,6 +271,7 @@ export interface Task {
   priority: number;
   due_at: string | null;
   metadata: Record<string, unknown>;
+  stale_after_minutes: number | null;
   claimed_at: string | null;
   agent: string | null;
   /** @deprecated Use `agent` */
@@ -286,6 +288,7 @@ export interface TaskUpdates {
   links?: string[];
   priority?: number;
   tags?: string[];
+  stale_after_minutes?: number | null;
 }
 
 type TaskRow = {
@@ -300,6 +303,7 @@ type TaskRow = {
   priority: number;
   due_at: string | null;
   metadata: string;
+  stale_after_minutes: number | null;
   claimed_at: string | null;
   agent: string | null;
   progress: number | null;
@@ -399,7 +403,7 @@ export class TaskService {
     this.pruneJournalPath = this.resolvePruneJournalPath(options?.pruneJournalPath);
     this.getSubtasksStmt = db.prepare(`
       SELECT task_id, title, project, status, parent_id, description,
-             links, tags, priority, due_at, metadata,
+             links, tags, priority, due_at, metadata, stale_after_minutes,
              claimed_at, agent, progress, lease_until,
              created_at, updated_at
       FROM tasks_current
@@ -409,7 +413,7 @@ export class TaskService {
 
     this.getTaskByIdStmt = db.prepare(`
       SELECT task_id, title, project, status, parent_id, description,
-             links, tags, priority, due_at, metadata,
+             links, tags, priority, due_at, metadata, stale_after_minutes,
              claimed_at, agent, progress, lease_until,
              created_at, updated_at
       FROM tasks_current
@@ -517,6 +521,7 @@ export class TaskService {
       priority: input.priority,
       due_at: input.due_at,
       metadata: input.metadata,
+      stale_after_minutes: input.stale_after_minutes,
       agent: input.agent ?? input.assignee,
     };
 
@@ -1614,13 +1619,7 @@ export class TaskService {
       't.claimed_at IS NOT NULL',
       'NOT EXISTS (SELECT 1 FROM task_checkpoints c WHERE c.task_id = t.task_id)',
     ];
-    const params: (string | number)[] = [];
-
-    if (thresholdMinutes > 0) {
-      const cutoff = new Date(now - thresholdMinutes * 60_000).toISOString();
-      conditions.push('t.claimed_at < ?');
-      params.push(cutoff);
-    }
+    const params: string[] = [];
 
     if (project) {
       conditions.push('t.project = ?');
@@ -1628,17 +1627,29 @@ export class TaskService {
     }
 
     const sql = `
-      SELECT t.task_id, t.claimed_at
+      SELECT t.task_id, t.claimed_at, t.stale_after_minutes
       FROM tasks_current t
       WHERE ${conditions.join(' AND ')}
     `;
 
-    const rows = this.db.prepare(sql).all(...params) as Array<{ task_id: string; claimed_at: string }>;
+    const rows = this.db.prepare(sql).all(...params) as Array<{
+      task_id: string;
+      claimed_at: string;
+      stale_after_minutes: number | null;
+    }>;
 
     const result = new Map<string, number>();
     for (const row of rows) {
+      if (row.stale_after_minutes === 0) {
+        continue;
+      }
+
       const claimedMs = new Date(row.claimed_at).getTime();
       const staleMinutes = Math.round((now - claimedMs) / 60_000);
+      const effectiveThreshold = row.stale_after_minutes ?? thresholdMinutes;
+      if (staleMinutes < effectiveThreshold) {
+        continue;
+      }
       result.set(row.task_id, staleMinutes);
     }
     return result;
@@ -2129,7 +2140,7 @@ export class TaskService {
       if (!task) throw new TaskNotFoundError(taskId);
 
       const emitFieldUpdate = (
-        field: 'title' | 'description' | 'priority' | 'tags' | 'links',
+        field: 'title' | 'description' | 'priority' | 'tags' | 'links' | 'stale_after_minutes',
         oldValue: string | number | string[] | null,
         newValue: string | number | string[] | null
       ): void => {
@@ -2164,6 +2175,10 @@ export class TaskService {
 
       if (updates.links !== undefined && !arraysEqual(updates.links, task.links)) {
         emitFieldUpdate('links', task.links, updates.links);
+      }
+
+      if (updates.stale_after_minutes !== undefined && updates.stale_after_minutes !== task.stale_after_minutes) {
+        emitFieldUpdate('stale_after_minutes', task.stale_after_minutes, updates.stale_after_minutes);
       }
 
       return this.getTaskById(taskId)!;
@@ -2701,6 +2716,7 @@ export class TaskService {
       priority: row.priority,
       due_at: row.due_at,
       metadata: JSON.parse(row.metadata) as Record<string, unknown>,
+      stale_after_minutes: row.stale_after_minutes,
       claimed_at: row.claimed_at,
       agent: row.agent,
       assignee: row.agent,
