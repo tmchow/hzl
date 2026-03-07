@@ -253,12 +253,6 @@ export interface TaskListItem {
   tags: string[];
 }
 
-export interface TaskStats {
-  total: number;
-  byStatus: Record<string, number>;
-  projects: string[];
-}
-
 export interface Task {
   task_id: string;
   title: string;
@@ -1645,11 +1639,12 @@ export class TaskService {
       }
 
       const claimedMs = new Date(row.claimed_at).getTime();
-      const staleMinutes = Math.round((now - claimedMs) / 60_000);
+      const ageMs = Math.max(0, now - claimedMs);
       const effectiveThreshold = row.stale_after_minutes ?? thresholdMinutes;
-      if (staleMinutes < effectiveThreshold) {
+      if (ageMs < effectiveThreshold * 60_000) {
         continue;
       }
+      const staleMinutes = Math.floor(ageMs / 60_000);
       result.set(row.task_id, staleMinutes);
     }
     return result;
@@ -1963,35 +1958,6 @@ export class TaskService {
     }>;
 
     return new Map(rows.map((r) => [r.parent_id, r.count]));
-  }
-
-  /**
-   * Get task statistics: total count, count by status, and list of projects.
-   */
-  getStats(): TaskStats {
-    const statusRows = this.db.prepare(`
-      SELECT status, COUNT(*) as count
-      FROM tasks_current
-      WHERE status != 'archived'
-      GROUP BY status
-    `).all() as Array<{ status: string; count: number }>;
-
-    const projectRows = this.db.prepare(`
-      SELECT name FROM projects ORDER BY name
-    `).all() as Array<{ name: string }>;
-
-    const byStatus: Record<string, number> = {};
-    let total = 0;
-    for (const row of statusRows) {
-      byStatus[row.status] = row.count;
-      total += row.count;
-    }
-
-    return {
-      total,
-      byStatus,
-      projects: projectRows.map((r) => r.name),
-    };
   }
 
   /**

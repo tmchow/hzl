@@ -6,6 +6,7 @@ import { GlobalOptionsSchema } from '../types.js';
 import { parseOptionalInteger } from '../parse.js';
 
 const DEFAULT_POLL_INTERVAL_MS = 2_000;
+const DEFAULT_READ_BATCH_SIZE = 500;
 
 export interface EventsResult {
   count: number;
@@ -26,7 +27,7 @@ interface RunEventsOptions {
   pollIntervalMs?: number;
   signal?: AbortSignal;
   sleep?: (ms: number, signal?: AbortSignal) => Promise<void>;
-  writeLine?: (line: string) => void;
+  writeLine?: (line: string) => void | Promise<void>;
 }
 
 function createAbortError(): Error {
@@ -37,6 +38,15 @@ function createAbortError(): Error {
 
 function isAbortError(error: unknown): boolean {
   return error instanceof Error && error.name === 'AbortError';
+}
+
+function isBrokenPipeError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code?: string }).code === 'EPIPE'
+  );
 }
 
 function defaultSleep(ms: number, signal?: AbortSignal): Promise<void> {
@@ -60,6 +70,22 @@ function defaultSleep(ms: number, signal?: AbortSignal): Promise<void> {
   });
 }
 
+function defaultWriteLine(line: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    try {
+      process.stdout.write(`${line}\n`, (error?: Error | null) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve();
+      });
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
 export async function streamEvents(options: RunEventsOptions): Promise<EventsResult> {
   const {
     services,
@@ -69,28 +95,54 @@ export async function streamEvents(options: RunEventsOptions): Promise<EventsRes
     pollIntervalMs = DEFAULT_POLL_INTERVAL_MS,
     signal,
     sleep = defaultSleep,
-    writeLine = (line: string) => {
-      process.stdout.write(`${line}\n`);
-    },
+    writeLine = defaultWriteLine,
   } = options;
 
   let count = 0;
   let lastEventId = fromId ?? (follow ? services.eventStore.getLatestEventId() : 0);
 
-  const emitBatch = (batchLimit?: number): void => {
-    const events = services.eventStore.getEvents({
-      afterId: lastEventId,
-      limit: batchLimit,
-    });
+  const emitBatch = async (maxEvents?: number): Promise<boolean> => {
+    let remaining = maxEvents ?? Number.POSITIVE_INFINITY;
 
-    for (const event of events) {
-      writeLine(JSON.stringify(event));
-      count += 1;
-      lastEventId = event.rowid;
+    while (remaining > 0 && !signal?.aborted) {
+      const pageSize = Number.isFinite(remaining)
+        ? Math.min(remaining, DEFAULT_READ_BATCH_SIZE)
+        : DEFAULT_READ_BATCH_SIZE;
+      const events = services.eventStore.getEvents({
+        afterId: lastEventId,
+        limit: pageSize,
+      });
+
+      if (events.length === 0) {
+        return true;
+      }
+
+      for (const event of events) {
+        try {
+          await writeLine(JSON.stringify(event));
+        } catch (error) {
+          if (isAbortError(error) || isBrokenPipeError(error)) {
+            return false;
+          }
+          throw error;
+        }
+        count += 1;
+        lastEventId = event.rowid;
+      }
+
+      remaining -= events.length;
+      if (events.length < pageSize) {
+        return true;
+      }
     }
+
+    return !signal?.aborted;
   };
 
-  emitBatch(limit);
+  const initialCompleted = await emitBatch(limit);
+  if (!initialCompleted) {
+    return { count, lastEventId };
+  }
 
   if (!follow) {
     return { count, lastEventId };
@@ -99,7 +151,8 @@ export async function streamEvents(options: RunEventsOptions): Promise<EventsRes
   while (!signal?.aborted) {
     await sleep(pollIntervalMs, signal);
     if (signal?.aborted) break;
-    emitBatch();
+    const completed = await emitBatch();
+    if (!completed) break;
   }
 
   return { count, lastEventId };
@@ -117,18 +170,19 @@ export function createEventsCommand(): Command {
     .option('--follow', 'Keep polling for new events', false)
     .action(async function (this: Command, opts: EventsCommandOptions) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
-      if (globalOpts.format !== 'json') {
-        throw new CLIError('hzl events only supports JSON output', ExitCode.InvalidInput);
-      }
-
-      const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
-      const services = initializeDb({ eventsDbPath, cacheDbPath });
+      let services: Services | null = null;
       const controller = new AbortController();
       const onSigint = () => controller.abort();
 
-      process.on('SIGINT', onSigint);
-
       try {
+        if (globalOpts.format !== 'json') {
+          throw new CLIError('hzl events only supports JSON output', ExitCode.InvalidInput);
+        }
+
+        const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
+        services = initializeDb({ eventsDbPath, cacheDbPath });
+        process.on('SIGINT', onSigint);
+
         await runEvents({
           services,
           fromId: parseOptionalInteger(opts.from, 'from', { min: 0 }),
@@ -137,12 +191,14 @@ export function createEventsCommand(): Command {
           signal: controller.signal,
         });
       } catch (e) {
-        if (!isAbortError(e)) {
+        if (!isAbortError(e) && !isBrokenPipeError(e)) {
           handleError(e, globalOpts.json);
         }
       } finally {
         process.off('SIGINT', onSigint);
-        closeDb(services);
+        if (services) {
+          closeDb(services);
+        }
       }
     });
 }

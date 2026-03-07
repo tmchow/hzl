@@ -3,6 +3,7 @@ import type { TaskService } from './task-service.js';
 
 const DEFAULT_STALE_THRESHOLD_MINUTES = 10;
 const DEFAULT_WINDOW_MINUTES = 24 * 60;
+const TASK_CHUNK_SIZE = 500;
 
 type TaskMetadataRow = {
   task_id: string;
@@ -15,10 +16,10 @@ type StatusCountRow = {
   count: number;
 };
 
-type StatusChangedRow = {
+type CompletionRow = {
   task_id: string;
-  timestamp: string;
-  to_status: string;
+  done_at: string;
+  started_at: string | null;
 };
 
 export interface StatsQueryOptions {
@@ -81,6 +82,7 @@ export class StatsService {
     const historical = this.getHistoricalStats({
       trackedTasks,
       windowStart,
+      windowEnd: generatedAt,
     });
 
     return {
@@ -169,6 +171,7 @@ export class StatsService {
   private getHistoricalStats(options: {
     trackedTasks: Map<string, TaskMetadataRow>;
     windowStart: string;
+    windowEnd: string;
   }): {
     completions: CompletionStats;
     execution_time_ms: ExecutionTimeStats;
@@ -180,8 +183,6 @@ export class StatsService {
 
     const durations: number[] = [];
     let excludedWithoutStart = 0;
-    const windowStartMs = new Date(options.windowStart).getTime();
-    const lastStartedAtByTask = new Map<string, string>();
 
     if (options.trackedTasks.size === 0) {
       return {
@@ -196,54 +197,55 @@ export class StatsService {
       };
     }
 
-    const rows = this.eventsDb.prepare(`
-      SELECT
-        task_id,
-        timestamp,
-        json_extract(data, '$.to') AS to_status
-      FROM events
-      WHERE type = 'status_changed'
-      ORDER BY id ASC
-    `).all() as StatusChangedRow[];
+    const taskIds = [...options.trackedTasks.keys()];
+    for (let index = 0; index < taskIds.length; index += TASK_CHUNK_SIZE) {
+      const chunk = taskIds.slice(index, index + TASK_CHUNK_SIZE);
+      const placeholders = chunk.map(() => '?').join(', ');
+      const rows = this.eventsDb.prepare(`
+        SELECT
+          e.task_id,
+          e.timestamp AS done_at,
+          (
+            SELECT start.timestamp
+            FROM events start
+            WHERE start.task_id = e.task_id
+              AND start.type = 'status_changed'
+              AND json_extract(start.data, '$.to') = 'in_progress'
+              AND start.id < e.id
+            ORDER BY start.id DESC
+            LIMIT 1
+          ) AS started_at
+        FROM events e
+        WHERE e.type = 'status_changed'
+          AND json_extract(e.data, '$.to') = 'done'
+          AND e.timestamp >= ?
+          AND e.timestamp <= ?
+          AND e.task_id IN (${placeholders})
+        ORDER BY e.id ASC
+      `).all(options.windowStart, options.windowEnd, ...chunk) as CompletionRow[];
 
-    for (const row of rows) {
-      const task = options.trackedTasks.get(row.task_id);
-      if (!task) {
-        continue;
-      }
+      for (const row of rows) {
+        const task = options.trackedTasks.get(row.task_id);
+        if (!task) {
+          continue;
+        }
 
-      if (row.to_status === 'in_progress') {
-        lastStartedAtByTask.set(row.task_id, row.timestamp);
-        continue;
-      }
+        completions.total += 1;
+        if (task.agent) {
+          completions.by_agent[task.agent] = (completions.by_agent[task.agent] ?? 0) + 1;
+        }
 
-      if (row.to_status !== 'done') {
-        continue;
-      }
+        if (!row.started_at) {
+          excludedWithoutStart += 1;
+          continue;
+        }
 
-      if (new Date(row.timestamp).getTime() < windowStartMs) {
-        lastStartedAtByTask.delete(row.task_id);
-        continue;
-      }
-
-      completions.total += 1;
-      if (task.agent) {
-        completions.by_agent[task.agent] = (completions.by_agent[task.agent] ?? 0) + 1;
-      }
-
-      const startedAt = lastStartedAtByTask.get(row.task_id);
-      lastStartedAtByTask.delete(row.task_id);
-
-      if (!startedAt) {
-        excludedWithoutStart += 1;
-        continue;
-      }
-
-      const duration = new Date(row.timestamp).getTime() - new Date(startedAt).getTime();
-      if (Number.isFinite(duration) && duration >= 0) {
-        durations.push(duration);
-      } else {
-        excludedWithoutStart += 1;
+        const duration = new Date(row.done_at).getTime() - new Date(row.started_at).getTime();
+        if (Number.isFinite(duration) && duration >= 0) {
+          durations.push(duration);
+        } else {
+          excludedWithoutStart += 1;
+        }
       }
     }
 

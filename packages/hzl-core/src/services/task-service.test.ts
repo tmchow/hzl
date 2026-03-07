@@ -1470,41 +1470,6 @@ describe('TaskService', () => {
     });
   });
 
-  describe('getStats', () => {
-    it('returns total count and status breakdown', () => {
-      taskService.createTask({ title: 'Backlog', project: 'inbox' });
-      const ready = taskService.createTask({ title: 'Ready', project: 'inbox' });
-      taskService.setStatus(ready.task_id, TaskStatus.Ready);
-
-      const stats = taskService.getStats();
-      expect(stats.total).toBe(2);
-      expect(stats.byStatus.backlog).toBe(1);
-      expect(stats.byStatus.ready).toBe(1);
-    });
-
-    it('returns all projects including those without tasks', () => {
-      projectService.createProject('empty-project');
-      taskService.createTask({ title: 'A', project: 'project-a' });
-
-      const stats = taskService.getStats();
-      expect(stats.projects).toContain('inbox');
-      expect(stats.projects).toContain('project-a');
-      expect(stats.projects).toContain('project-b');
-      expect(stats.projects).toContain('empty-project');
-    });
-
-    it('excludes archived tasks from counts', () => {
-      const task = taskService.createTask({ title: 'Archived', project: 'inbox' });
-      taskService.setStatus(task.task_id, TaskStatus.Ready);
-      taskService.claimTask(task.task_id);
-      taskService.completeTask(task.task_id);
-      taskService.archiveTask(task.task_id);
-
-      const stats = taskService.getStats();
-      expect(stats.total).toBe(0);
-    });
-  });
-
   describe('getBlockingDependencies', () => {
     it('returns empty array when task has no dependencies', () => {
       const task = taskService.createTask({ title: 'Task', project: 'inbox' });
@@ -3597,6 +3562,39 @@ describe('TaskService', () => {
       taskService.claimTask(task.task_id, { author: 'agent-1' });
 
       const result = taskService.getStaleTasks({ thresholdMinutes: 0 });
+      expect(result.has(task.task_id)).toBe(false);
+    });
+
+    it('can make a task stale earlier than the global threshold', () => {
+      const task = taskService.createTask({
+        title: 'Short leash task',
+        project: 'project-a',
+        stale_after_minutes: 5,
+      });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+      taskService.claimTask(task.task_id, { author: 'agent-1' });
+      db.prepare('UPDATE tasks_current SET claimed_at = ? WHERE task_id = ?').run(
+        new Date(Date.now() - 5 * 60_000).toISOString(),
+        task.task_id
+      );
+
+      const result = taskService.getStaleTasks({ thresholdMinutes: 60 });
+      expect(result.get(task.task_id)).toBe(5);
+    });
+
+    it('does not round into staleness before the threshold elapses', () => {
+      const task = taskService.createTask({
+        title: 'Boundary task',
+        project: 'project-a',
+      });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+      taskService.claimTask(task.task_id, { author: 'agent-1' });
+      db.prepare('UPDATE tasks_current SET claimed_at = ? WHERE task_id = ?').run(
+        new Date(Date.now() - (10 * 60_000 - 500)).toISOString(),
+        task.task_id
+      );
+
+      const result = taskService.getStaleTasks({ thresholdMinutes: 10 });
       expect(result.has(task.task_id)).toBe(false);
     });
 

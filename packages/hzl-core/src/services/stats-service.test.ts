@@ -11,7 +11,7 @@ import { ProjectsProjector } from '../projections/projects.js';
 import { ProjectService } from './project-service.js';
 import { StatsService } from './stats-service.js';
 import { TaskService } from './task-service.js';
-import { TaskStatus } from '../events/types.js';
+import { EventType, TaskStatus } from '../events/types.js';
 
 describe('StatsService', () => {
   let datastore: Datastore;
@@ -22,6 +22,7 @@ describe('StatsService', () => {
   let statsService: StatsService;
 
   beforeEach(() => {
+    seededEventCounter = 0;
     datastore = createDatastore({
       events: { path: ':memory:', syncMode: 'offline', readYourWrites: true },
       cache: { path: ':memory:' },
@@ -51,6 +52,102 @@ describe('StatsService', () => {
   afterEach(() => {
     datastore.close();
   });
+
+  let seededEventCounter = 0;
+
+  function seedEvent(input: {
+    taskId: string;
+    type: EventType;
+    data: Record<string, unknown>;
+    timestamp: string;
+    author?: string;
+    agentId?: string;
+  }): void {
+    seededEventCounter += 1;
+    const eventId = `seed-event-${seededEventCounter}`;
+    const payload = {
+      rowid: 0,
+      event_id: eventId,
+      task_id: input.taskId,
+      type: input.type,
+      data: input.data,
+      author: input.author,
+      agent_id: input.agentId,
+      timestamp: input.timestamp,
+    };
+
+    datastore.eventsDb.prepare(`
+      INSERT INTO events (
+        event_id, task_id, type, data, schema_version, author, agent_id, timestamp
+      ) VALUES (?, ?, ?, ?, 1, ?, ?, ?)
+    `).run(
+      eventId,
+      input.taskId,
+      input.type,
+      JSON.stringify(input.data),
+      input.author ?? null,
+      input.agentId ?? null,
+      input.timestamp
+    );
+
+    const row = datastore.eventsDb
+      .prepare('SELECT id FROM events WHERE event_id = ?')
+      .get(eventId) as { id: number };
+
+    projectionEngine.applyEvent({ ...payload, rowid: row.id });
+  }
+
+  function seedCompletedTask(input: {
+    taskId: string;
+    title: string;
+    project: string;
+    agent: string;
+    readyAt: string;
+    startedAt: string;
+    doneAt: string;
+  }): void {
+    seedEvent({
+      taskId: input.taskId,
+      type: EventType.TaskCreated,
+      timestamp: input.readyAt,
+      data: {
+        title: input.title,
+        project: input.project,
+        agent: input.agent,
+      },
+    });
+    seedEvent({
+      taskId: input.taskId,
+      type: EventType.StatusChanged,
+      timestamp: input.readyAt,
+      author: input.agent,
+      data: {
+        from: TaskStatus.Backlog,
+        to: TaskStatus.Ready,
+      },
+    });
+    seedEvent({
+      taskId: input.taskId,
+      type: EventType.StatusChanged,
+      timestamp: input.startedAt,
+      author: input.agent,
+      data: {
+        from: TaskStatus.Ready,
+        to: TaskStatus.InProgress,
+        agent: input.agent,
+      },
+    });
+    seedEvent({
+      taskId: input.taskId,
+      type: EventType.StatusChanged,
+      timestamp: input.doneAt,
+      author: input.agent,
+      data: {
+        from: TaskStatus.InProgress,
+        to: TaskStatus.Done,
+      },
+    });
+  }
 
   it('returns the canonical empty stats shape', () => {
     const stats = statsService.getStats();
@@ -185,5 +282,37 @@ describe('StatsService', () => {
     expect(stats.execution_time_ms.min).not.toBeNull();
     expect(stats.execution_time_ms.max).not.toBeNull();
     expect(stats.execution_time_ms.mean).not.toBeNull();
+  });
+
+  it('excludes completions and durations outside the requested window', () => {
+    seedCompletedTask({
+      taskId: 'old-task',
+      title: 'Old completion',
+      project: 'inbox',
+      agent: 'agent-1',
+      readyAt: '2026-03-06T07:40:00.000Z',
+      startedAt: '2026-03-06T07:45:00.000Z',
+      doneAt: '2026-03-06T08:00:00.000Z',
+    });
+    seedCompletedTask({
+      taskId: 'recent-task',
+      title: 'Recent completion',
+      project: 'inbox',
+      agent: 'agent-2',
+      readyAt: '2026-03-07T07:10:00.000Z',
+      startedAt: '2026-03-07T07:20:00.000Z',
+      doneAt: '2026-03-07T07:30:00.000Z',
+    });
+
+    const stats = statsService.getStats({
+      asOf: '2026-03-07T08:00:00.000Z',
+      windowMinutes: 60,
+      windowLabel: '1h',
+    });
+
+    expect(stats.window).toBe('1h');
+    expect(stats.completions.total).toBe(1);
+    expect(stats.completions.by_agent).toEqual({ 'agent-2': 1 });
+    expect(stats.execution_time_ms.count).toBe(1);
   });
 });

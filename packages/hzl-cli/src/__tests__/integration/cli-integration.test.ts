@@ -7,6 +7,7 @@ import Database from 'libsql';
 import { initializeDbFromPath, closeDb } from '../../db.js';
 import {
   createTestContext,
+  hzlExec,
   hzlJson,
   hzlMayFail,
   type TestContext,
@@ -369,6 +370,7 @@ describe('CLI Integration Tests', { timeout: 30000 }, () => {
       expect(stats.queue.available).toBe(1);
       expect(stats.completions.total).toBe(1);
     });
+
   });
 
   describe('validate command', () => {
@@ -402,6 +404,27 @@ describe('CLI Integration Tests', { timeout: 30000 }, () => {
       for (const event of events) {
         expect(event.event_id).toBeDefined();
       }
+    });
+
+    it('supports from and limit options', () => {
+      addTask('inbox', 'Task 1');
+      addTask('inbox', 'Task 2');
+      addTask('inbox', 'Task 3');
+
+      const output = execSync(`node "${cliBinaryPath}" --db "${ctx.dbPath}" events --from 1 --limit 2`, {
+        encoding: 'utf-8',
+        env: { ...process.env, HZL_CONFIG: ctx.configPath },
+      }).trim();
+
+      const events = output.split('\n').map((line) => JSON.parse(line) as { rowid: number });
+      expect(events.map((event) => event.rowid)).toEqual([2, 3]);
+    });
+
+    it('returns a normal CLI error for unsupported formats', () => {
+      const result = hzlExec(ctx, '--format md events');
+      expect(result.success).toBe(false);
+      expect(result.stderr).toContain('hzl events only supports JSON output');
+      expect(result.stderr).not.toContain('Fatal error');
     });
   });
 

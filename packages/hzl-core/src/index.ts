@@ -125,7 +125,6 @@ export {
   type Comment,
   type Checkpoint,
   type TaskListItem,
-  type TaskStats,
   type AgentRosterItem,
   type AgentRosterTask,
   type AgentRosterTaskCounts,
