@@ -194,6 +194,69 @@ describe('EventStore', () => {
     });
   });
 
+  describe('getEvents', () => {
+    it('returns all events in rowid order', () => {
+      const first = store.append({
+        task_id: 'TASK1',
+        type: EventType.TaskCreated,
+        data: { title: 'First', project: 'inbox' },
+      });
+      const second = store.append({
+        task_id: 'TASK2',
+        type: EventType.TaskCreated,
+        data: { title: 'Second', project: 'inbox' },
+      });
+
+      const events = store.getEvents();
+
+      expect(events.map((event) => event.rowid)).toEqual([first.rowid, second.rowid]);
+    });
+
+    it('supports reading after a cursor with a limit', () => {
+      const first = store.append({
+        task_id: 'TASK1',
+        type: EventType.TaskCreated,
+        data: { title: 'First', project: 'inbox' },
+      });
+      const second = store.append({
+        task_id: 'TASK2',
+        type: EventType.TaskCreated,
+        data: { title: 'Second', project: 'inbox' },
+      });
+      store.append({
+        task_id: 'TASK3',
+        type: EventType.TaskCreated,
+        data: { title: 'Third', project: 'inbox' },
+      });
+
+      const events = store.getEvents({ afterId: first.rowid, limit: 1 });
+
+      expect(events).toHaveLength(1);
+      expect(events[0].rowid).toBe(second.rowid);
+    });
+  });
+
+  describe('getLatestEventId', () => {
+    it('returns zero when the store is empty', () => {
+      expect(store.getLatestEventId()).toBe(0);
+    });
+
+    it('returns the highest event rowid', () => {
+      store.append({
+        task_id: 'TASK1',
+        type: EventType.TaskCreated,
+        data: { title: 'First', project: 'inbox' },
+      });
+      const latest = store.append({
+        task_id: 'TASK2',
+        type: EventType.TaskCreated,
+        data: { title: 'Second', project: 'inbox' },
+      });
+
+      expect(store.getLatestEventId()).toBe(latest.rowid);
+    });
+  });
+
   describe('appendIdempotent', () => {
     it('inserts new event', () => {
       const result = store.appendIdempotent({

@@ -1,101 +1,74 @@
-// packages/hzl-cli/src/commands/stats.ts
 import { Command } from 'commander';
+import { normalizeDurationLabel } from 'hzl-core/utils/duration.js';
+import type { StatsSnapshot } from 'hzl-core/services/stats-service.js';
 import { resolveDbPaths } from '../config.js';
 import { initializeDb, closeDb, type Services } from '../db.js';
 import { handleError } from '../errors.js';
+import { parseDurationMinutes } from '../parse.js';
 import { GlobalOptionsSchema } from '../types.js';
 
-export interface StatsResult {
-  total: number;
-  by_status: Record<string, number>;
-  by_project: Record<string, number>;
-  events_count: number;
-}
+export type StatsResult = StatsSnapshot;
 
 interface StatsCommandOptions {
   project?: string;
+  window?: string;
 }
 
 export function runStats(options: {
   services: Services;
   project?: string;
+  windowMinutes?: number;
+  windowLabel?: string;
   json: boolean;
 }): StatsResult {
-  const { services, project, json } = options;
-  const { db: eventsDb, cacheDb } = services;
+  const stats = options.services.statsService.getStats({
+    project: options.project,
+    windowMinutes: options.windowMinutes,
+    windowLabel: options.windowLabel,
+  });
 
-  // Count by status (from cache database)
-  const statusRows = cacheDb.prepare(`
-    SELECT status, COUNT(*) as count 
-    FROM tasks_current 
-    ${project ? 'WHERE project = ?' : ''}
-    GROUP BY status
-  `).all(project ? [project] : []) as { status: string; count: number }[];
-  
-  const byStatus: Record<string, number> = {
-    backlog: 0,
-    ready: 0,
-    in_progress: 0,
-    done: 0,
-    archived: 0,
-  };
-  for (const row of statusRows) {
-    byStatus[row.status] = row.count;
-  }
-  
-  // Count by project (from cache database)
-  const projectRows = cacheDb.prepare(`
-    SELECT project, COUNT(*) as count
-    FROM tasks_current
-    GROUP BY project
-  `).all() as { project: string; count: number }[];
-  
-  const byProject: Record<string, number> = {};
-  for (const row of projectRows) {
-    byProject[row.project] = row.count;
-  }
-  
-  // Total tasks
-  const total = Object.values(byStatus).reduce((a, b) => a + b, 0);
-  
-  // Events count (from events database)
-  const eventsRow = eventsDb.prepare('SELECT COUNT(*) as count FROM events').get() as { count: number };
-  const eventsCount = eventsRow.count;
-
-  const result: StatsResult = {
-    total,
-    by_status: byStatus,
-    by_project: byProject,
-    events_count: eventsCount,
-  };
-
-  if (json) {
-    console.log(JSON.stringify(result));
+  if (options.json) {
+    console.log(JSON.stringify(stats));
   } else {
-    console.log(`Tasks: ${total} total`);
-    console.log(`  Status: ${byStatus.backlog} backlog, ${byStatus.ready} ready, ${byStatus.in_progress} in_progress, ${byStatus.done} done, ${byStatus.archived} archived`);
-    console.log(`  Projects: ${Object.keys(byProject).length}`);
-    for (const [proj, count] of Object.entries(byProject)) {
-      console.log(`    ${proj}: ${count}`);
+    console.log(`Stats window: ${stats.window}`);
+    console.log(`Generated: ${stats.generated_at}`);
+    console.log(`Projects: ${stats.projects.length}`);
+    console.log(
+      `Queue: backlog ${stats.queue.backlog}, ready ${stats.queue.ready}, in_progress ${stats.queue.in_progress}, blocked ${stats.queue.blocked}, done ${stats.queue.done}, archived ${stats.queue.archived}`
+    );
+    console.log(
+      `Primitives: available ${stats.queue.available}, stale ${stats.queue.stale}, expired_leases ${stats.queue.expired_leases}`
+    );
+    console.log(`Completions: ${stats.completions.total}`);
+    if (Object.keys(stats.completions.by_agent).length > 0) {
+      for (const [agent, count] of Object.entries(stats.completions.by_agent)) {
+        console.log(`  ${agent}: ${count}`);
+      }
     }
-    console.log(`Events: ${eventsCount} total`);
+    console.log(
+      `Execution time ms: count ${stats.execution_time_ms.count}, mean ${stats.execution_time_ms.mean ?? 'n/a'}, min ${stats.execution_time_ms.min ?? 'n/a'}, max ${stats.execution_time_ms.max ?? 'n/a'}, excluded_without_start ${stats.execution_time_ms.excluded_without_start}`
+    );
   }
 
-  return result;
+  return stats;
 }
 
 export function createStatsCommand(): Command {
   return new Command('stats')
-    .description('Show database statistics')
-    .option('-P, --project <project>', 'Filter by project')
+    .description('Show operational reporting statistics')
+    .option('-P, --project <project>', 'Filter by current project')
+    .option('--window <duration>', 'Historical window for completions and execution time (default: 24h)', '24h')
     .action(function (this: Command, opts: StatsCommandOptions) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
       const services = initializeDb({ eventsDbPath, cacheDbPath });
       try {
+        const windowMinutes = parseDurationMinutes(opts.window ?? '24h', 'window', { min: 1 });
         runStats({
           services,
           project: opts.project,
+          windowMinutes,
+          windowLabel: normalizeDurationLabel(opts.window ?? '24h') ?? '24h',
           json: globalOpts.json ?? false,
         });
       } catch (e) {

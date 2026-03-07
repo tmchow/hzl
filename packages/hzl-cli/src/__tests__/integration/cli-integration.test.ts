@@ -7,6 +7,7 @@ import Database from 'libsql';
 import { initializeDbFromPath, closeDb } from '../../db.js';
 import {
   createTestContext,
+  hzlExec,
   hzlJson,
   hzlMayFail,
   type TestContext,
@@ -336,7 +337,7 @@ describe('CLI Integration Tests', { timeout: 30000 }, () => {
   });
 
   describe('stats command', () => {
-    it('returns task counts by status', () => {
+    it('returns the canonical stats payload', () => {
       const t1 = addTask('inbox', 'Backlog task');
       const t2 = addTask('inbox', 'Ready task');
       const t3 = addTask('inbox', 'In progress task');
@@ -349,13 +350,27 @@ describe('CLI Integration Tests', { timeout: 30000 }, () => {
       hzlJson(ctx, `task claim ${t4.task_id} --agent agent-1`);
       hzlJson(ctx, `task complete ${t4.task_id} --author agent-1`);
 
-      const stats = hzlJson<{ by_status: Record<string, number> }>(ctx, 'stats --project inbox');
+      const stats = hzlJson<{
+        window: string;
+        queue: {
+          backlog: number;
+          ready: number;
+          in_progress: number;
+          done: number;
+          available: number;
+        };
+        completions: { total: number };
+      }>(ctx, 'stats --project inbox');
 
-      expect(stats.by_status.backlog).toBe(1);
-      expect(stats.by_status.ready).toBe(1);
-      expect(stats.by_status.in_progress).toBe(1);
-      expect(stats.by_status.done).toBe(1);
+      expect(stats.window).toBe('24h');
+      expect(stats.queue.backlog).toBe(1);
+      expect(stats.queue.ready).toBe(1);
+      expect(stats.queue.in_progress).toBe(1);
+      expect(stats.queue.done).toBe(1);
+      expect(stats.queue.available).toBe(1);
+      expect(stats.completions.total).toBe(1);
     });
+
   });
 
   describe('validate command', () => {
@@ -369,17 +384,16 @@ describe('CLI Integration Tests', { timeout: 30000 }, () => {
     });
   });
 
-  describe('export-events command', () => {
-    it('exports events to JSONL file', () => {
+  describe('events command', () => {
+    it('prints NDJSON events to stdout', () => {
       addTask('inbox', 'Task 1');
       addTask('inbox', 'Task 2');
 
-      const exportPath = path.join(ctx.tempDir, 'events.jsonl');
-      hzlJson(ctx, `export-events ${exportPath}`);
-
-      expect(fs.existsSync(exportPath)).toBe(true);
-      const content = fs.readFileSync(exportPath, 'utf-8');
-      const lines = content.trim().split('\n').filter((line) => line.length > 0);
+      const output = execSync(`node "${cliBinaryPath}" --db "${ctx.dbPath}" events`, {
+        encoding: 'utf-8',
+        env: { ...process.env, HZL_CONFIG: ctx.configPath },
+      }).trim();
+      const lines = output.split('\n').filter((line) => line.length > 0);
       // 1 project_created (inbox) + 2 task_created events
       expect(lines).toHaveLength(3);
 
@@ -390,6 +404,27 @@ describe('CLI Integration Tests', { timeout: 30000 }, () => {
       for (const event of events) {
         expect(event.event_id).toBeDefined();
       }
+    });
+
+    it('supports from and limit options', () => {
+      addTask('inbox', 'Task 1');
+      addTask('inbox', 'Task 2');
+      addTask('inbox', 'Task 3');
+
+      const output = execSync(`node "${cliBinaryPath}" --db "${ctx.dbPath}" events --from 1 --limit 2`, {
+        encoding: 'utf-8',
+        env: { ...process.env, HZL_CONFIG: ctx.configPath },
+      }).trim();
+
+      const events = output.split('\n').map((line) => JSON.parse(line) as { rowid: number });
+      expect(events.map((event) => event.rowid)).toEqual([2, 3]);
+    });
+
+    it('returns a normal CLI error for unsupported formats', () => {
+      const result = hzlExec(ctx, '--format md events');
+      expect(result.success).toBe(false);
+      expect(result.stderr).toContain('hzl events only supports JSON output');
+      expect(result.stderr).not.toContain('Fatal error');
     });
   });
 

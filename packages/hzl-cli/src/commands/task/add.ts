@@ -7,7 +7,7 @@ import { TaskStatus } from 'hzl-core/events/types.js';
 import { GlobalOptionsSchema } from '../../types.js';
 import { resolveId } from '../../resolve-id.js';
 import { stripEmptyCollections } from '../../strip-empty.js';
-import { parseIntegerWithDefault, parseTaskStatus } from '../../parse.js';
+import { parseDurationMinutes, parseIntegerWithDefault, parseTaskStatus } from '../../parse.js';
 
 export interface AddResult {
   task_id: string;
@@ -34,6 +34,7 @@ export interface AddOptions {
   agent?: string;
   author?: string;
   comment?: string;
+  staleAfterMinutes?: number;
   json: boolean;
 }
 
@@ -49,10 +50,11 @@ interface AddCommandOptions {
   agent?: string;
   author?: string;
   comment?: string;
+  staleAfter?: string;
 }
 
 export function runAdd(options: AddOptions): AddResult {
-  const { services, title, description, links, tags, priority, dependsOn, parent, status, agent, author, comment, json } = options;
+  const { services, title, description, links, tags, priority, dependsOn, parent, status, agent, author, comment, staleAfterMinutes, json } = options;
   let project = options.project;
 
   // Validate status flag
@@ -98,6 +100,7 @@ export function runAdd(options: AddOptions): AddResult {
     depends_on: dependsOn,
     parent_id: parent,
     agent: agent,
+    stale_after_minutes: staleAfterMinutes,
     initial_status: initialStatus,
     comment,
   }, {
@@ -139,6 +142,7 @@ export function createAddCommand(): Command {
     .option('--agent <name>', 'Agent identity for task ownership')
     .option('--author <name>', 'Who is performing this create/assignment action')
     .option('--comment <comment>', 'Comment explaining the status (recommended for blocked)')
+    .option('--stale-after <duration>', 'Override stale detection threshold for this task (e.g. 30m, 2h, 7d)')
     .action(function (this: Command, title: string, opts: AddCommandOptions) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const { eventsDbPath, cacheDbPath } = resolveDbPaths(globalOpts.db);
@@ -160,6 +164,9 @@ export function createAddCommand(): Command {
           agent: opts.agent,
           author: opts.author,
           comment: opts.comment,
+          staleAfterMinutes: opts.staleAfter
+            ? parseDurationMinutes(opts.staleAfter, 'stale-after', { min: 0 })
+            : undefined,
           json: globalOpts.json ?? false,
         });
       } catch (e) {

@@ -40,6 +40,7 @@ export interface TaskDetail {
   tags: string[];
   due_at: string | null;
   metadata: Record<string, unknown>;
+  stale_after_minutes: number | null;
   claimed_at: string | null;
   assignee: string | null;
   progress: number | null;
@@ -91,9 +92,31 @@ export interface TaskEventListResponse {
 
 /** Stats as returned by GET /api/stats */
 export interface Stats {
-  total: number;
-  by_status: Record<string, number>;
+  window: string;
+  generated_at: string;
   projects: string[];
+  queue: {
+    backlog: number;
+    ready: number;
+    in_progress: number;
+    blocked: number;
+    done: number;
+    archived: number;
+    available: number;
+    stale: number;
+    expired_leases: number;
+  };
+  completions: {
+    total: number;
+    by_agent: Record<string, number>;
+  };
+  execution_time_ms: {
+    count: number;
+    min: number | null;
+    max: number | null;
+    mean: number | null;
+    excluded_without_start: number;
+  };
 }
 
 /** SSE event payloads */

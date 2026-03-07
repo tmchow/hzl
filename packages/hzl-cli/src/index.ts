@@ -12,7 +12,7 @@ import { createAgentCommand } from './commands/agent/index.js';
 import { createTaskCommand } from './commands/task/index.js';
 import { createValidateCommand } from './commands/validate.js';
 import { createStatsCommand } from './commands/stats.js';
-import { createExportEventsCommand } from './commands/export-events.js';
+import { createEventsCommand } from './commands/events.js';
 import { createSyncCommand } from './commands/sync.js';
 import { createStatusCommand } from './commands/status.js';
 import { createDoctorCommand } from './commands/doctor.js';
@@ -86,7 +86,7 @@ Examples:
   program.addCommand(createTaskCommand());
   program.addCommand(createValidateCommand());
   program.addCommand(createStatsCommand());
-  program.addCommand(createExportEventsCommand());
+  program.addCommand(createEventsCommand());
   program.addCommand(createSampleProjectCommand());
   program.addCommand(createSyncCommand());
   program.addCommand(createStatusCommand());

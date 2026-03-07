@@ -75,6 +75,38 @@ describe('runUpdate', () => {
     expect(result.description).toBe('New description');
   });
 
+  it('updates stale_after_minutes', () => {
+    const task = services.taskService.createTask({ title: 'Test', project: 'inbox' });
+
+    runUpdate({
+      services,
+      taskId: task.task_id,
+      updates: { stale_after_minutes: 90 },
+      json: false,
+    });
+
+    const updated = services.taskService.getTaskById(task.task_id);
+    expect(updated?.stale_after_minutes).toBe(90);
+  });
+
+  it('clears stale_after_minutes when set to null', () => {
+    const task = services.taskService.createTask({
+      title: 'Test',
+      project: 'inbox',
+      stale_after_minutes: 90,
+    });
+
+    runUpdate({
+      services,
+      taskId: task.task_id,
+      updates: { stale_after_minutes: null },
+      json: false,
+    });
+
+    const updated = services.taskService.getTaskById(task.task_id);
+    expect(updated?.stale_after_minutes).toBeNull();
+  });
+
   it('records author on task_updated events', () => {
     const task = services.taskService.createTask({ title: 'Test', project: 'inbox' });
 
@@ -256,6 +288,25 @@ describe('runUpdate', () => {
       updates: { parent_id: parent.task_id },
       json: false,
     })).toThrow(/max.*level|subtask of a subtask/i);
+  });
+
+  it('last stale_after_minutes wins when both set and clear are provided', () => {
+    const task = services.taskService.createTask({
+      title: 'Test',
+      project: 'inbox',
+      stale_after_minutes: 90,
+    });
+
+    // When stale_after_minutes: null is the final value, it clears
+    runUpdate({
+      services,
+      taskId: task.task_id,
+      updates: { stale_after_minutes: null },
+      json: false,
+    });
+
+    const updated = services.taskService.getTaskById(task.task_id);
+    expect(updated?.stale_after_minutes).toBeNull();
   });
 
   it('errors when task has children (cannot make parent into subtask)', () => {

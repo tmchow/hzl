@@ -8,6 +8,7 @@
 import type Database from 'libsql';
 import { ADD_TERMINAL_AT_COLUMN, CREATE_TERMINAL_AT_INDEX } from './v2.js';
 import { ADD_AGENT_COLUMN, BACKFILL_AGENT_FROM_ASSIGNEE, CREATE_AGENT_INDEX } from './v3.js';
+import { ADD_STALE_AFTER_MINUTES_COLUMN } from './v5.js';
 
 export const ADD_EVENTS_SCHEMA_VERSION_COLUMN = `
 ALTER TABLE events ADD COLUMN schema_version INTEGER NOT NULL DEFAULT 1
@@ -122,6 +123,11 @@ export function runCacheMigrations(db: Database.Database): void {
 
   if (columnExists(db, 'tasks_current', 'agent')) {
     db.exec(CREATE_AGENT_INDEX);
+  }
+
+  // Migration V5: add task-specific stale override column.
+  if (tableExists(db, 'tasks_current') && !columnExists(db, 'tasks_current', 'stale_after_minutes')) {
+    db.exec(ADD_STALE_AFTER_MINUTES_COLUMN);
   }
 
   // Migration V4: durable foundation tables for hooks/workflow idempotency.

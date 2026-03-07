@@ -25,6 +25,11 @@ export interface GetByTaskIdOptions {
   limit?: number;
 }
 
+export interface GetEventsOptions {
+  afterId?: number;
+  limit?: number;
+}
+
 type EventRow = {
   id: number;
   event_id: string;
@@ -45,6 +50,8 @@ export class EventStore {
   private insertIgnoreStmt: Database.Statement;
   private selectByTaskStmt: Database.Statement;
   private selectByEventIdStmt: Database.Statement;
+  private selectAllEventsStmt: Database.Statement;
+  private selectLatestEventIdStmt: Database.Statement;
 
   constructor(
     private db: Database.Database,
@@ -73,6 +80,17 @@ export class EventStore {
 
     this.selectByEventIdStmt = db.prepare(`
       SELECT * FROM events WHERE event_id = ?
+    `);
+
+    this.selectAllEventsStmt = db.prepare(`
+      SELECT * FROM events
+      WHERE id > COALESCE(?, 0)
+      ORDER BY id ASC
+      LIMIT COALESCE(?, -1)
+    `);
+
+    this.selectLatestEventIdStmt = db.prepare(`
+      SELECT COALESCE(MAX(id), 0) AS latest_id FROM events
     `);
   }
 
@@ -145,6 +163,19 @@ export class EventStore {
       opts?.limit ?? null
     ) as EventRow[];
     return rows.map(row => this.rowToEnvelope(row));
+  }
+
+  getEvents(opts: GetEventsOptions = {}): PersistedEventEnvelope[] {
+    const rows = this.selectAllEventsStmt.all(
+      opts.afterId ?? null,
+      opts.limit ?? null
+    ) as EventRow[];
+    return rows.map((row) => this.rowToEnvelope(row));
+  }
+
+  getLatestEventId(): number {
+    const row = this.selectLatestEventIdStmt.get() as { latest_id: number };
+    return row.latest_id;
   }
 
   /**

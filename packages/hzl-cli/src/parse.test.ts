@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { parseEnumValue, parseInteger, parseIntegerWithDefault, parseOptionalInteger, parseTaskStatus } from './parse.js';
+import {
+  parseDurationMinutes,
+  parseEnumValue,
+  parseInteger,
+  parseIntegerWithDefault,
+  parseOptionalDurationMinutes,
+  parseOptionalInteger,
+  parseTaskStatus,
+} from './parse.js';
 import { TaskStatus } from 'hzl-core/events/types.js';
 
 describe('parseInteger', () => {
@@ -36,6 +44,33 @@ describe('parseIntegerWithDefault', () => {
 
   it('uses provided value when present', () => {
     expect(parseIntegerWithDefault('10', 'Limit', 20, { min: 1 })).toBe(10);
+  });
+});
+
+describe('parseDurationMinutes', () => {
+  it('treats bare integers as minutes', () => {
+    expect(parseDurationMinutes('30', 'window')).toBe(30);
+  });
+
+  it('parses minute, hour, and day suffixes', () => {
+    expect(parseDurationMinutes('30m', 'window')).toBe(30);
+    expect(parseDurationMinutes('2h', 'window')).toBe(120);
+    expect(parseDurationMinutes('7d', 'window')).toBe(10_080);
+  });
+
+  it('rejects invalid duration strings', () => {
+    expect(() => parseDurationMinutes('1w', 'window')).toThrow(/must be a duration/);
+    expect(() => parseDurationMinutes('abc', 'window')).toThrow(/must be a duration/);
+  });
+});
+
+describe('parseOptionalDurationMinutes', () => {
+  it('returns undefined for missing values', () => {
+    expect(parseOptionalDurationMinutes(undefined, 'window')).toBeUndefined();
+  });
+
+  it('parses provided durations', () => {
+    expect(parseOptionalDurationMinutes('2h', 'window')).toBe(120);
   });
 });
 

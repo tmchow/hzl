@@ -53,10 +53,10 @@ export class TasksCurrentProjector extends CachingProjector {
     this.stmt(db, 'taskCreated', `
       INSERT INTO tasks_current (
         task_id, title, project, status, parent_id, description,
-        links, tags, priority, due_at, metadata,
+        links, tags, priority, due_at, metadata, stale_after_minutes,
         agent,
         created_at, updated_at, last_event_id
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       event.task_id,
       data.title,
@@ -69,6 +69,7 @@ export class TasksCurrentProjector extends CachingProjector {
       data.priority ?? 0,
       data.due_at ?? null,
       JSON.stringify(data.metadata ?? {}),
+      data.stale_after_minutes ?? null,
       data.agent ?? data.assignee ?? null,
       event.timestamp,
       event.timestamp,

@@ -187,6 +187,7 @@ describe('Field size limits', () => {
       expect(UPDATABLE_TASK_FIELDS).toContain('title');
       expect(UPDATABLE_TASK_FIELDS).toContain('description');
       expect(UPDATABLE_TASK_FIELDS).toContain('tags');
+      expect(UPDATABLE_TASK_FIELDS).toContain('stale_after_minutes');
       expect(UPDATABLE_TASK_FIELDS).not.toContain('status');
     });
   });
@@ -253,6 +254,24 @@ describe('Field size limits', () => {
       ).toThrow();
     });
 
+    it('accepts stale_after_minutes on task creation', () => {
+      expect(() =>
+        validateEventData(EventType.TaskCreated, {
+          ...validTask,
+          stale_after_minutes: 30,
+        })
+      ).not.toThrow();
+    });
+
+    it('rejects negative stale_after_minutes on task creation', () => {
+      expect(() =>
+        validateEventData(EventType.TaskCreated, {
+          ...validTask,
+          stale_after_minutes: -1,
+        })
+      ).toThrow();
+    });
+
     it('should accept links array at exactly max items', () => {
       const links = Array(FIELD_LIMITS.ARRAY_MAX_ITEMS).fill('https://example.com');
       expect(() =>
@@ -287,6 +306,33 @@ describe('Field size limits', () => {
       const depends_on = Array(FIELD_LIMITS.ARRAY_MAX_ITEMS + 1).fill('task_123');
       expect(() =>
         validateEventData(EventType.TaskCreated, { ...validTask, depends_on })
+      ).toThrow();
+    });
+  });
+
+  describe('TaskUpdated stale_after_minutes', () => {
+    it('accepts integer and null updates', () => {
+      expect(() =>
+        validateEventData(EventType.TaskUpdated, {
+          field: 'stale_after_minutes',
+          new_value: 45,
+        })
+      ).not.toThrow();
+
+      expect(() =>
+        validateEventData(EventType.TaskUpdated, {
+          field: 'stale_after_minutes',
+          new_value: null,
+        })
+      ).not.toThrow();
+    });
+
+    it('rejects invalid stale_after_minutes updates', () => {
+      expect(() =>
+        validateEventData(EventType.TaskUpdated, {
+          field: 'stale_after_minutes',
+          new_value: -5,
+        })
       ).toThrow();
     });
   });

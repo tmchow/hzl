@@ -281,5 +281,27 @@ describe('runList', () => {
       expect(found?.stale).toBeUndefined();
       expect(found?.stale_minutes).toBeUndefined();
     });
+
+    it('respects task-specific stale_after_minutes overrides', () => {
+      const slowTask = services.taskService.createTask({
+        title: 'Slow task',
+        project: 'inbox',
+        stale_after_minutes: 30,
+      });
+      services.taskService.setStatus(slowTask.task_id, TaskStatus.Ready);
+      services.taskService.claimTask(slowTask.task_id, { author: 'agent-1' });
+
+      const neverStale = services.taskService.createTask({
+        title: 'Never stale',
+        project: 'inbox',
+        stale_after_minutes: 0,
+      });
+      services.taskService.setStatus(neverStale.task_id, TaskStatus.Ready);
+      services.taskService.claimTask(neverStale.task_id, { author: 'agent-2' });
+
+      const result = runList({ services, json: true, staleThreshold: 0 });
+      expect(result.tasks.find((task) => task.task_id === slowTask.task_id)?.stale).toBe(false);
+      expect(result.tasks.find((task) => task.task_id === neverStale.task_id)?.stale).toBe(false);
+    });
   });
 });

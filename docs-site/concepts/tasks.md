@@ -40,6 +40,11 @@ Keep tasks focused on the work itself. Use `--links` to reference supporting doc
 ```bash
 hzl task add "Implement auth flow per design" -P myapp \
   --links docs/designs/auth-flow.md,https://example.com/spec
+
+# Long-running work can opt into a wider stale window
+hzl task add "Run external security review" -P myapp \
+  -s ready \
+  --stale-after 2h
 ```
 
 Descriptions can be multiline Markdown. Use shell quoting or a heredoc:
@@ -171,9 +176,16 @@ hzl task list --stale-threshold 0
 
 # Include stale tasks in stuck report
 hzl task stuck --stale
+
+# Override stale detection for a single slow task
+hzl task update <id> --stale-after 45m
+
+# Clear the task-specific override and fall back to the query default
+hzl task update <id> --clear-stale-after
 ```
 
 In `task list` output, stale tasks show a warning indicator and `[stale Nm]` suffix. In JSON output, each task includes `stale` (boolean) and `stale_minutes` (number or null).
+Task detail and stale-task JSON surfaces also include the stored `stale_after_minutes` override when present.
 
 ## Completing Tasks
 
@@ -233,6 +245,8 @@ hzl task update <id> --desc "Updated description"
 hzl task update <id> --links doc1.md,doc2.md
 hzl task update <id> --tags bug,urgent
 hzl task update <id> --priority 2
+hzl task update <id> --stale-after 30m
+hzl task update <id> --clear-stale-after
 hzl task update <id> --title "New title" --author clara
 hzl task move <id> my-project --author clara
 hzl task add-dep <id> <depends-on-id> --author clara

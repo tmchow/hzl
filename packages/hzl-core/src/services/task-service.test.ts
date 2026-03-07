@@ -1470,45 +1470,6 @@ describe('TaskService', () => {
     });
   });
 
-  describe('getStats', () => {
-    it('returns total count and status breakdown', () => {
-      taskService.createTask({ title: 'Backlog', project: 'inbox' });
-      const ready = taskService.createTask({ title: 'Ready', project: 'inbox' });
-      taskService.setStatus(ready.task_id, TaskStatus.Ready);
-
-      const stats = taskService.getStats();
-      expect(stats.total).toBe(2);
-      expect(stats.byStatus.backlog).toBe(1);
-      expect(stats.byStatus.ready).toBe(1);
-    });
-
-    it('returns all projects including those without tasks', () => {
-      // Create an additional empty project
-      projectService.createProject('empty-project');
-
-      // Create tasks only in some projects
-      taskService.createTask({ title: 'A', project: 'project-a' });
-
-      const stats = taskService.getStats();
-      // All projects should be listed, not just those with tasks
-      expect(stats.projects).toContain('inbox');
-      expect(stats.projects).toContain('project-a');
-      expect(stats.projects).toContain('project-b'); // No tasks in this project
-      expect(stats.projects).toContain('empty-project'); // Explicitly empty
-    });
-
-    it('excludes archived tasks from counts', () => {
-      const task = taskService.createTask({ title: 'Archived', project: 'inbox' });
-      taskService.setStatus(task.task_id, TaskStatus.Ready);
-      taskService.claimTask(task.task_id);
-      taskService.completeTask(task.task_id);
-      taskService.archiveTask(task.task_id);
-
-      const stats = taskService.getStats();
-      expect(stats.total).toBe(0);
-    });
-  });
-
   describe('getBlockingDependencies', () => {
     it('returns empty array when task has no dependencies', () => {
       const task = taskService.createTask({ title: 'Task', project: 'inbox' });
@@ -3534,6 +3495,27 @@ describe('TaskService', () => {
   });
 
   describe('stale task detection', () => {
+    it('stores stale_after_minutes on created tasks', () => {
+      const task = taskService.createTask({
+        title: 'Slow task',
+        project: 'project-a',
+        stale_after_minutes: 45,
+      });
+
+      expect(task.stale_after_minutes).toBe(45);
+      expect(taskService.getTaskById(task.task_id)?.stale_after_minutes).toBe(45);
+    });
+
+    it('updates stale_after_minutes through task updates', () => {
+      const task = taskService.createTask({ title: 'Task', project: 'project-a' });
+
+      taskService.updateTask(task.task_id, { stale_after_minutes: 30 });
+      expect(taskService.getTaskById(task.task_id)?.stale_after_minutes).toBe(30);
+
+      taskService.updateTask(task.task_id, { stale_after_minutes: null });
+      expect(taskService.getTaskById(task.task_id)?.stale_after_minutes).toBeNull();
+    });
+
     it('returns empty set when no in-progress tasks', () => {
       const result = taskService.getStaleTasks({ thresholdMinutes: 10 });
       expect(result).toEqual(new Map());
@@ -3570,6 +3552,65 @@ describe('TaskService', () => {
       expect(result.has(task.task_id)).toBe(false);
     });
 
+    it('uses task-specific stale_after_minutes when present', () => {
+      const task = taskService.createTask({
+        title: 'Long running task',
+        project: 'project-a',
+        stale_after_minutes: 120,
+      });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+      taskService.claimTask(task.task_id, { author: 'agent-1' });
+
+      const result = taskService.getStaleTasks({ thresholdMinutes: 0 });
+      expect(result.has(task.task_id)).toBe(false);
+    });
+
+    it('can make a task stale earlier than the global threshold', () => {
+      const task = taskService.createTask({
+        title: 'Short leash task',
+        project: 'project-a',
+        stale_after_minutes: 5,
+      });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+      taskService.claimTask(task.task_id, { author: 'agent-1' });
+      db.prepare('UPDATE tasks_current SET claimed_at = ? WHERE task_id = ?').run(
+        new Date(Date.now() - 5 * 60_000).toISOString(),
+        task.task_id
+      );
+
+      const result = taskService.getStaleTasks({ thresholdMinutes: 60 });
+      expect(result.get(task.task_id)).toBe(5);
+    });
+
+    it('does not round into staleness before the threshold elapses', () => {
+      const task = taskService.createTask({
+        title: 'Boundary task',
+        project: 'project-a',
+      });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+      taskService.claimTask(task.task_id, { author: 'agent-1' });
+      db.prepare('UPDATE tasks_current SET claimed_at = ? WHERE task_id = ?').run(
+        new Date(Date.now() - (10 * 60_000 - 500)).toISOString(),
+        task.task_id
+      );
+
+      const result = taskService.getStaleTasks({ thresholdMinutes: 10 });
+      expect(result.has(task.task_id)).toBe(false);
+    });
+
+    it('disables stale detection when stale_after_minutes is zero', () => {
+      const task = taskService.createTask({
+        title: 'Never stale task',
+        project: 'project-a',
+        stale_after_minutes: 0,
+      });
+      taskService.setStatus(task.task_id, TaskStatus.Ready);
+      taskService.claimTask(task.task_id, { author: 'agent-1' });
+
+      const result = taskService.getStaleTasks({ thresholdMinutes: 0 });
+      expect(result.has(task.task_id)).toBe(false);
+    });
+
     it('does not flag non-in-progress tasks', () => {
       const task = taskService.createTask({ title: 'Ready task', project: 'project-a' });
       taskService.setStatus(task.task_id, TaskStatus.Ready);
@@ -3591,5 +3632,6 @@ describe('TaskService', () => {
       expect(result.has(t1.task_id)).toBe(true);
       expect(result.has(t2.task_id)).toBe(false);
     });
+
   });
 });

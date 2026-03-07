@@ -125,7 +125,6 @@ export {
   type Comment,
   type Checkpoint,
   type TaskListItem,
-  type TaskStats,
   type AgentRosterItem,
   type AgentRosterTask,
   type AgentRosterTaskCounts,
@@ -138,6 +137,15 @@ export {
   type AgentStatusItem,
   type AgentStatusResult,
 } from './services/task-service.js';
+
+export {
+  StatsService,
+  type StatsQueryOptions,
+  type QueueStats,
+  type CompletionStats,
+  type ExecutionTimeStats,
+  type StatsSnapshot,
+} from './services/stats-service.js';
 
 export {
   ProjectService,

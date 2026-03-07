@@ -85,6 +85,7 @@ CREATE TABLE IF NOT EXISTS tasks_current (
     priority           INTEGER NOT NULL DEFAULT 0 CHECK (priority BETWEEN 0 AND 3),
     due_at             TEXT,
     metadata           TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(metadata)),
+    stale_after_minutes INTEGER CHECK (stale_after_minutes >= 0),
     claimed_at         TEXT,
     agent             TEXT,
     progress           INTEGER CHECK (progress >= 0 AND progress <= 100),

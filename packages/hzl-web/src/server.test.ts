@@ -13,7 +13,9 @@ import { TagsProjector } from 'hzl-core/projections/tags';
 import { TaskService } from 'hzl-core/services/task-service';
 import { ProjectService } from 'hzl-core/services/project-service';
 import { SearchService } from 'hzl-core/services/search-service';
+import { StatsService } from 'hzl-core/services/stats-service';
 import { TaskStatus } from 'hzl-core/events/types';
+import { resetSeedCounter, seedCompletedTask as seedCompletedTaskShared } from 'hzl-core/db/test-seed';
 import Database from 'libsql';
 
 describe('hzl-web server', () => {
@@ -23,9 +25,11 @@ describe('hzl-web server', () => {
   let taskService: TaskService;
   let projectService: ProjectService;
   let searchService: SearchService;
+  let statsService: StatsService;
   let server: ServerHandle;
 
   beforeEach(() => {
+    resetSeedCounter();
     db = createTestDb();
     eventStore = new EventStore(db);
     projectionEngine = new ProjectionEngine(db);
@@ -42,6 +46,7 @@ describe('hzl-web server', () => {
 
     taskService = new TaskService(db, eventStore, projectionEngine, projectService, db);
     searchService = new SearchService(db);
+    statsService = new StatsService(db, db, taskService);
   });
 
   afterEach(async () => {
@@ -52,7 +57,7 @@ describe('hzl-web server', () => {
   });
 
   function createServer(port: number, host = '127.0.0.1', allowFraming = false): ServerHandle {
-    server = createWebServer({ port, host, allowFraming, taskService, eventStore, searchService });
+    server = createWebServer({ port, host, allowFraming, taskService, eventStore, searchService, statsService });
     return server;
   }
 
@@ -66,6 +71,10 @@ describe('hzl-web server', () => {
     const res = await globalThis.fetch(`${server.url}${path}`);
     const body = await res.text();
     return { status: res.status, body };
+  }
+
+  function seedCompletedTask(input: Parameters<typeof seedCompletedTaskShared>[2]): void {
+    seedCompletedTaskShared(db, projectionEngine, input);
   }
 
   describe('server configuration', () => {
@@ -468,6 +477,7 @@ describe('hzl-web server', () => {
         project: 'test-project',
         priority: 3,
         description: 'A detailed description',
+        stale_after_minutes: 45,
       });
 
       createServer(4520);
@@ -479,6 +489,7 @@ describe('hzl-web server', () => {
         title: 'Detailed Task',
         description: 'A detailed description',
         priority: 3,
+        stale_after_minutes: 45,
       });
     });
 
@@ -575,8 +586,11 @@ describe('hzl-web server', () => {
 
       expect(status).toBe(200);
       expect(data).toMatchObject({
-        total: 2,
+        window: '24h',
         projects: expect.arrayContaining(['test-project']),
+        queue: {
+          backlog: 2,
+        },
       });
     });
 
@@ -587,7 +601,53 @@ describe('hzl-web server', () => {
       createServer(4541);
       const { data } = await fetchJson('/api/stats');
 
-      expect((data as { by_status: Record<string, number> }).by_status.ready).toBe(1);
+      expect((data as { queue: Record<string, number> }).queue.ready).toBe(1);
+    });
+
+    it('respects the requested stats window', async () => {
+      const now = Date.now();
+      const oldDoneAt = new Date(now - 26 * 60 * 60_000).toISOString();
+      const oldStartedAt = new Date(now - 26 * 60 * 60_000 - 10 * 60_000).toISOString();
+      const oldReadyAt = new Date(now - 26 * 60 * 60_000 - 20 * 60_000).toISOString();
+      const recentDoneAt = new Date(now - 30 * 60_000).toISOString();
+      const recentStartedAt = new Date(now - 40 * 60_000).toISOString();
+      const recentReadyAt = new Date(now - 50 * 60_000).toISOString();
+
+      seedCompletedTask({
+        taskId: 'old-task',
+        title: 'Old Task',
+        project: 'test-project',
+        agent: 'agent-1',
+        readyAt: oldReadyAt,
+        startedAt: oldStartedAt,
+        doneAt: oldDoneAt,
+      });
+      seedCompletedTask({
+        taskId: 'recent-task',
+        title: 'Recent Task',
+        project: 'test-project',
+        agent: 'agent-2',
+        readyAt: recentReadyAt,
+        startedAt: recentStartedAt,
+        doneAt: recentDoneAt,
+      });
+
+      createServer(4542);
+      const { data } = await fetchJson('/api/stats?window=1h');
+
+      expect((data as { window: string }).window).toBe('1h');
+      expect((data as { completions: { total: number; by_agent: Record<string, number> } }).completions).toEqual({
+        total: 1,
+        by_agent: { 'agent-2': 1 },
+      });
+    });
+
+    it('returns 400 for invalid window values', async () => {
+      createServer(4543);
+      const { status, data } = await fetchJson('/api/stats?window=abc');
+
+      expect(status).toBe(400);
+      expect((data as { error: string }).error).toContain('Invalid window value');
     });
   });
 

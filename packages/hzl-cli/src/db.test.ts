@@ -63,7 +63,7 @@ describe('db.ts schema migration', () => {
         services = initializeDbFromPath(dbPath);
 
         // Schema version should be set to current (3)
-        expect(getSchemaVersion(cachePath)).toBe(4);
+        expect(getSchemaVersion(cachePath)).toBe(5);
 
         // Note: initializeDb creates the inbox project, so 1 event exists after init
         // The point is that BEFORE any events existed (during checkAndMigrateSchema),
@@ -150,11 +150,12 @@ describe('db.ts schema migration', () => {
         services = initializeDbFromPath(dbPath);
 
         // Schema version should now be current
-        expect(getSchemaVersion(cachePath)).toBe(4);
+        expect(getSchemaVersion(cachePath)).toBe(5);
 
-        // Cache schema should include terminal_at after rebuild
+        // Cache schema should include rebuilt projection columns
         const columns = getColumns(cachePath, 'tasks_current');
         expect(columns).toContain('terminal_at');
+        expect(columns).toContain('stale_after_minutes');
 
         // Zero-event path should NOT print migration/replay messages
         const migrationCalls = stderrSpy.mock.calls.filter(
@@ -288,7 +289,7 @@ describe('db.ts schema migration', () => {
         services = initializeDbFromPath(dbPath);
 
         // Schema version should now be set
-        expect(getSchemaVersion(cachePath)).toBe(4);
+        expect(getSchemaVersion(cachePath)).toBe(5);
 
         // Migration message should have been printed
         const migrationCalls = stderrSpy.mock.calls.filter(
@@ -433,7 +434,7 @@ describe('db.ts schema migration', () => {
         services = initializeDbFromPath(dbPath);
 
         // Schema version should be upgraded to current
-        expect(getSchemaVersion(cachePath)).toBe(4);
+        expect(getSchemaVersion(cachePath)).toBe(5);
 
         // Migration message should be printed
         const migrationCalls = stderrSpy.mock.calls.filter(
