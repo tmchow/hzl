@@ -81,7 +81,8 @@ Inspect likely causes:
 hzl status
 hzl doctor
 hzl validate
-hzl stats
+hzl stats --window 1h
+hzl events --follow
 hzl which-db
 ```
 

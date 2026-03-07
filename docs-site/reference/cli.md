@@ -34,6 +34,7 @@ hzl sync
 hzl doctor
 hzl validate
 hzl stats
+hzl stats --window 1h
 ```
 
 ## Projects
@@ -68,6 +69,7 @@ hzl agent log <agent> --format md         # Human-readable output
 hzl task add "<title>"
 hzl task add "<title>" -P <project>
 hzl task add "<title>" --parent <taskId>
+hzl task add "<title>" --stale-after 2h
 ```
 
 Common options:
@@ -80,6 +82,7 @@ Common options:
 - `--agent <name>`
 - `--author <name>`
 - `--comment <comment>`
+- `--stale-after <duration>` (`30`, `30m`, `2h`, `7d`)
 
 ### List and show
 
@@ -157,6 +160,8 @@ hzl task block <taskId> --comment "<reason>"
 hzl task unblock <taskId>
 
 hzl task update <taskId> --title "<title>"
+hzl task update <taskId> --stale-after 30m
+hzl task update <taskId> --clear-stale-after
 hzl task move <taskId> <project>
 hzl task add-dep <taskId> <dependsOnId>
 hzl task remove-dep <taskId> <dependsOnId>
@@ -258,7 +263,10 @@ Agent routing: when claiming, tasks assigned to other agents are skipped. Tasks 
 
 ```bash
 hzl serve
-hzl export-events [output.jsonl]
+hzl events
+hzl events --from 100 --limit 50
+hzl events --follow
+hzl events --from 0 > events.jsonl
 hzl sample-project create
 hzl sample-project reset
 hzl lock status

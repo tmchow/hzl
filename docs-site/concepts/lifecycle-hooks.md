@@ -13,7 +13,7 @@ How HZL notifies external systems when tasks change state.
 
 Tasks have a lifecycle: created, ready, claimed, done. Orchestrators coordinating agents need to know when meaningful transitions happen — particularly when a task completes — so they can trigger follow-up work, update dashboards, or release resources.
 
-Without hooks, the orchestrator must poll `hzl task list` or `hzl task stuck` on a schedule to detect changes. Polling works and is always available, but it introduces latency and wasted calls for transitions where timing matters.
+Without hooks, the orchestrator must poll `hzl task list`, `hzl task stuck --json --stale`, or read the raw ledger feed via `hzl events`. Polling works and is always available, but it introduces latency and wasted calls for transitions where timing matters.
 
 Hooks solve this for the transitions that matter most. When a task reaches `done`, HZL pushes a notification to a configured URL. The orchestrator gets a signal without polling.
 
@@ -25,7 +25,7 @@ HZL is a ledger, not an orchestrator. It doesn't run cron jobs, manage agent pro
 - **Host-process delivery, not a daemon.** HZL doesn't run a background service to deliver hooks. The host runtime (OpenClaw, cron, systemd) runs `hzl hook drain` on a schedule. This keeps HZL simple and avoids duplicating scheduler infrastructure that already exists in the orchestration layer.
 - **Durable, not fire-and-forget.** Hook payloads are persisted in an outbox table before delivery is attempted. If the target is down, HZL retries with backoff. Nothing is lost between drain runs.
 
-This is a deliberate balance. Pure polling misses time-sensitive completions. A full event firehose couples HZL to orchestrator internals and generates noise. Hooks provide the middle ground: push a signal when something meaningful happens, let the orchestrator decide how to handle everything else.
+This is a deliberate balance. Pure polling misses time-sensitive completions. Hooks provide the immediate `done` signal, while `hzl events` provides a raw machine-facing ledger feed for orchestrators that want to derive their own policies.
 
 ## Supported triggers
 
@@ -33,7 +33,7 @@ This is a deliberate balance. Pure polling misses time-sensitive completions. A 
 |---------|-----------|-----------------|
 | `on_done` | Task status transitions to `done` | Task snapshot, transition details, event context |
 
-Additional triggers (e.g., `on_blocked`, `on_status_changed`) may be added in future versions. For transitions not covered by hooks, use polling via `hzl task list --json` or `hzl task stuck --json`.
+Additional triggers (e.g., `on_blocked`, `on_status_changed`) may be added in future versions. For transitions not covered by hooks, use `hzl events` or polling via `hzl task list --json` and `hzl task stuck --json --stale`.
 
 ## How delivery works
 
@@ -55,16 +55,19 @@ A typical orchestrator setup combines hooks with targeted polling:
 │                                         │
 │  Receives:                              │
 │    • on_done webhooks → trigger next    │
+│    • hzl events --follow                │
+│      → raw lifecycle feed               │
 │    • Periodic poll of hzl task stuck    │
-│      → detect and recover stale work    │
+│      --json --stale → recovery scan     │
 │                                         │
 │  Schedules:                             │
 │    • hzl hook drain (every 2-5 min)     │
-│    • hzl task stuck --json (as needed)  │
+│    • hzl task stuck --json --stale      │
+│      (as needed)                        │
 └─────────────────────────────────────────┘
 ```
 
-Hooks handle the time-sensitive signal (task completed, kick off the next step). Polling handles the rest (stuck detection, progress monitoring, dashboard updates). Agents are smart enough to check `hzl task list` themselves — the orchestrator doesn't need to micromanage every state change.
+Hooks handle the time-sensitive completion signal. `hzl events` handles raw lifecycle reads. Polling handles recovery and health checks. Agents are smart enough to check `hzl task list` themselves — the orchestrator doesn't need to micromanage every state change.
 
 ## Routing and filtering
 
@@ -82,6 +85,6 @@ HZL doesn't need to know about any of this. It pushes one signal per trigger wit
 ## Best practices
 
 1. **Always schedule `hzl hook drain`.** Without it, outbox rows queue indefinitely. A 2–5 minute interval is typical.
-2. **Use hooks for completion, polling for health.** Don't wait for a hook to detect stuck tasks — poll `hzl task stuck` on a schedule appropriate to your SLA.
+2. **Use hooks for completion, polling for health.** Don't wait for a hook to detect stale or expired work — poll `hzl task stuck --json --stale` on a schedule appropriate to your SLA.
 3. **Make hook endpoints idempotent.** Deliveries can retry on transient failures. Design receivers to handle duplicate payloads safely.
 4. **Monitor the outbox.** If `hzl hook drain --json` consistently reports failures, check your endpoint availability and review `last_error` in the outbox table.

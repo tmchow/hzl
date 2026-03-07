@@ -50,7 +50,7 @@ If `hooks.on_done.url` is not set, no outbox rows are created and `hzl hook drai
 |---------|-------|--------|
 | `on_done` | Task transitions to `done` | Supported |
 
-Only `on_done` is currently supported. Other lifecycle events (creation, blocking, lease expiry) are not hooked — use polling for those.
+Only `on_done` is currently supported. Other lifecycle events (creation, blocking, lease expiry, stale detection) are not hooked. Use `hzl events` for raw lifecycle reads, and `hzl task stuck --json --stale` for recovery polling.
 
 ## Payload format
 

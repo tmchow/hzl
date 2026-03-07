@@ -214,16 +214,9 @@
       "hasSubcommands": false
     },
     {
-      "path": "hzl export-events",
-      "description": "Export events to JSONL file",
-      "arguments": [
-        {
-          "name": "output",
-          "required": false,
-          "variadic": false,
-          "defaultValue": "-"
-        }
-      ],
+      "path": "hzl events",
+      "description": "Stream raw ledger events as NDJSON",
+      "arguments": [],
       "options": [
         {
           "flags": "--from <id>",
@@ -233,7 +226,27 @@
           "mandatory": false,
           "optional": false,
           "defaultValue": null,
-          "description": "Export events starting from rowid"
+          "description": "Read events after rowid"
+        },
+        {
+          "flags": "--limit <n>",
+          "short": null,
+          "long": "--limit",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Limit initial events emitted"
+        },
+        {
+          "flags": "--follow",
+          "short": null,
+          "long": "--follow",
+          "required": false,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": false,
+          "description": "Keep polling for new events"
         }
       ],
       "hasSubcommands": false
@@ -599,7 +612,7 @@
     },
     {
       "path": "hzl stats",
-      "description": "Show database statistics",
+      "description": "Show operational reporting statistics",
       "arguments": [],
       "options": [
         {
@@ -610,7 +623,17 @@
           "mandatory": false,
           "optional": false,
           "defaultValue": null,
-          "description": "Filter by project"
+          "description": "Filter by current project"
+        },
+        {
+          "flags": "--window <duration>",
+          "short": null,
+          "long": "--window",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": "24h",
+          "description": "Historical window for completions and execution time (default: 24h)"
         }
       ],
       "hasSubcommands": false
@@ -788,6 +811,16 @@
           "optional": false,
           "defaultValue": null,
           "description": "Comment explaining the status (recommended for blocked)"
+        },
+        {
+          "flags": "--stale-after <duration>",
+          "short": null,
+          "long": "--stale-after",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Override stale detection threshold for this task (e.g. 30m, 2h, 7d)"
         }
       ],
       "hasSubcommands": false
@@ -1944,6 +1977,26 @@
           "optional": false,
           "defaultValue": null,
           "description": "Author name"
+        },
+        {
+          "flags": "--stale-after <duration>",
+          "short": null,
+          "long": "--stale-after",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Set task stale threshold override (e.g. 30m, 2h, 7d)"
+        },
+        {
+          "flags": "--clear-stale-after",
+          "short": null,
+          "long": "--clear-stale-after",
+          "required": false,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "Clear any task-specific stale threshold override"
         }
       ],
       "hasSubcommands": false
@@ -2328,7 +2381,7 @@
     "hzl config",
     "hzl dep list",
     "hzl doctor",
-    "hzl export-events",
+    "hzl events",
     "hzl guide",
     "hzl hook drain",
     "hzl init",
