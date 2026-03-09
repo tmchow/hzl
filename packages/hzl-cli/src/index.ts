@@ -641,7 +641,7 @@ export async function run(argv: string[] = process.argv): Promise<void> {
     await program.parseAsync(normalizedArgv);
   } catch (error) {
     if (isCommanderExitError(error)) {
-      const successfulCommanderExit = (error.exitCode ?? ExitCode.GeneralError) === ExitCode.Success;
+      const successfulCommanderExit = (error.exitCode ?? ExitCode.GeneralError) === 0;
       if (successfulCommanderExit) {
         return;
       }

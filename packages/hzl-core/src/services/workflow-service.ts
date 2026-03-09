@@ -3,6 +3,7 @@ import type Database from 'libsql';
 import { EventType, TaskStatus } from '../events/types.js';
 import type { EventStore } from '../events/store.js';
 import type { ProjectionEngine } from '../projections/engine.js';
+import { parseJsonObject } from '../utils/json.js';
 import {
   TaskNotFoundError,
   type Task,
@@ -199,7 +200,7 @@ export class WorkflowService {
   ) {}
 
   listWorkflows(): WorkflowSummary[] {
-    return (Object.values(WORKFLOW_DEFINITIONS) as WorkflowDefinition[]).map((definition) => ({
+    return Object.values(WORKFLOW_DEFINITIONS).map((definition) => ({
       name: definition.name,
       description: definition.description,
     }));
@@ -898,19 +899,6 @@ export class WorkflowService {
       `
       )
       .run(JSON.stringify(payload), now, opId);
-  }
-}
-
-function parseJsonObject(raw: string | null): Record<string, unknown> | null {
-  if (!raw) return null;
-  try {
-    const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-      return parsed as Record<string, unknown>;
-    }
-    return null;
-  } catch {
-    return null;
   }
 }
 

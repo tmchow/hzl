@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { fileURLToPath } from 'url';
+import { isRecord } from 'hzl-core/utils/json.js';
 import { z } from 'zod';
 import type { Config } from './types.js';
 
@@ -42,10 +43,6 @@ const ConfigFileSchema = z.object({
   authToken: z.string().optional(),
   encryptionKey: z.string().optional(),
 }).partial();
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
 
 // Detect if running from source repo (development mode)
 // Walks up from this file to find monorepo root
