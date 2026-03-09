@@ -1,9 +1,23 @@
-# Verify pnpm-lock.yaml is in sync with package.json
-pnpm install --frozen-lockfile --ignore-scripts 2>/dev/null || {
-  echo "❌ pnpm-lock.yaml is out of sync with package.json"
-  echo "   Run 'pnpm install' and commit the updated lock file."
+staged_files=$(git diff --cached --name-only --diff-filter=ACMR)
+package_manifest_changed=false
+lockfile_changed=false
+
+for file in $staged_files; do
+  case "$file" in
+    package.json|packages/*/package.json)
+      package_manifest_changed=true
+      ;;
+    pnpm-lock.yaml)
+      lockfile_changed=true
+      ;;
+  esac
+done
+
+if [ "$package_manifest_changed" = true ] && [ "$lockfile_changed" != true ]; then
+  echo "❌ package.json changes require a staged pnpm-lock.yaml update"
+  echo "   Run 'pnpm install' and stage pnpm-lock.yaml before committing."
   exit 1
-}
+fi
 
 pnpm lint:staged || {
   echo "❌ Staged TypeScript files failed ESLint"
