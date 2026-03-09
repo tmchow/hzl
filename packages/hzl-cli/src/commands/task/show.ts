@@ -86,7 +86,7 @@ export function runShow(options: {
   taskId: string;
   showSubtasks?: boolean;
   deep?: boolean;
-  view?: ShowView | string;
+  view?: string;
   json: boolean;
 }): ShowResult {
   const { services, taskId, showSubtasks = true, deep = false, view, json } = options;

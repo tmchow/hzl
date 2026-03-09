@@ -209,6 +209,13 @@ export {
 // ============================================================================
 
 export { generateId, isValidId } from './utils/id.js';
+export {
+  getNumberProperty,
+  getStringProperty,
+  isRecord,
+  parseJsonObject,
+  parseJsonValue,
+} from './utils/json.js';
 
 // ============================================================================
 // Fixtures

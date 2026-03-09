@@ -1,3 +1,9 @@
+import {
+  getNumberProperty,
+  isRecord,
+  parseJsonValue,
+} from 'hzl-core/utils/json.js';
+
 export interface SSEClient {
   connect: () => void;
   disconnect: () => void;
@@ -5,6 +11,23 @@ export interface SSEClient {
 
 const MIN_RETRY_MS = 1000;
 const MAX_RETRY_MS = 30000;
+
+function parseLatestEventId(raw: unknown): number | null {
+  if (typeof raw !== 'string') {
+    return null;
+  }
+
+  try {
+    const parsed = parseJsonValue(raw);
+    if (isRecord(parsed)) {
+      return getNumberProperty(parsed, 'latest_event_id');
+    }
+  } catch {
+    // ignore parse errors
+  }
+
+  return null;
+}
 
 /**
  * Creates an SSE client that listens to /api/events/stream.
@@ -17,12 +40,10 @@ export function createSSEClient(onUpdate: (eventId: number) => void): SSEClient 
   let retryTimer: ReturnType<typeof setTimeout> | null = null;
   let stopped = false;
 
-  function handleEventData(e: MessageEvent): void {
-    try {
-      const data = JSON.parse(e.data) as { latest_event_id: number };
-      onUpdate(data.latest_event_id);
-    } catch {
-      // ignore parse errors
+  function handleEventData(e: MessageEvent<unknown>): void {
+    const latestEventId = parseLatestEventId(e.data);
+    if (latestEventId !== null) {
+      onUpdate(latestEventId);
     }
   }
 
@@ -41,9 +62,11 @@ export function createSSEClient(onUpdate: (eventId: number) => void): SSEClient 
 
     es = new EventSource('/api/events/stream');
 
-    es.addEventListener('ready', (e: MessageEvent) => {
+    es.addEventListener('ready', (e: Event) => {
       retryMs = MIN_RETRY_MS;
-      handleEventData(e);
+      if (e instanceof MessageEvent) {
+        handleEventData(e);
+      }
     });
 
     es.addEventListener('update', handleEventData);

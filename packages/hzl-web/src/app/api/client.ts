@@ -1,4 +1,7 @@
-import type { ApiError } from './types';
+import {
+  getStringProperty,
+  isRecord,
+} from 'hzl-core/utils/json.js';
 
 export class FetchError extends Error {
   constructor(
@@ -8,6 +11,14 @@ export class FetchError extends Error {
     super(message);
     this.name = 'FetchError';
   }
+}
+
+function getApiErrorMessage(value: unknown): string | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  return getStringProperty(value, 'error');
 }
 
 /**
@@ -31,9 +42,10 @@ export async function fetchJson<T>(
   if (!response.ok) {
     let message = `HTTP ${response.status}`;
     try {
-      const body = (await response.json()) as ApiError;
-      if (body.error) {
-        message = body.error;
+      const body: unknown = await response.json();
+      const apiErrorMessage = getApiErrorMessage(body);
+      if (apiErrorMessage !== null) {
+        message = apiErrorMessage;
       }
     } catch {
       // ignore parse errors
