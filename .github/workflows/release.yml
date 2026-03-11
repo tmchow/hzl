@@ -75,7 +75,7 @@ jobs:
         with:
           ref: ${{ github.ref_name }}
           fetch-depth: 0
-          persist-credentials: false
+          token: ${{ secrets.RELEASE_TOKEN }}
 
       - name: Validate release branch
         run: |
@@ -168,7 +168,7 @@ jobs:
       - name: Release
         id: release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
           # No NPM_TOKEN: using OIDC Trusted Publishing (id-token: write + npm config)
         run: |
           # Capture semantic-release output to detect if a new release was made
