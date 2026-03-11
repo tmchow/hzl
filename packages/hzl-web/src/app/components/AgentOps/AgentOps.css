@@ -94,12 +94,6 @@
   50% { opacity: 0.3; }
 }
 
-.gateway-modal-error {
-  font-size: 12px;
-  color: var(--status-blocked);
-  padding: 0 16px;
-}
-
 .agent-ops-panels {
   display: flex;
   flex: 1;
@@ -972,106 +966,7 @@
   padding: 6px 0 0;
 }
 
-/* Cron Modal */
-.cron-modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.65);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 300;
-}
-
-.cron-modal {
-  width: min(560px, calc(100vw - 24px));
-  max-height: calc(100vh - 48px);
-  overflow-y: auto;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
-}
-
-.cron-modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--border);
-}
-
-.cron-modal-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.cron-modal-close {
-  border: none;
-  background: transparent;
-  color: var(--text-muted);
-  font-size: 18px;
-  cursor: pointer;
-  line-height: 1;
-}
-
-.cron-modal-close:hover { color: var(--text-primary); }
-
-.cron-modal-body {
-  padding: 14px 16px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.cron-modal-field {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.cron-modal-label {
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: var(--text-muted);
-}
-
-.cron-modal-input {
-  padding: 6px 10px;
-  height: 32px;
-  box-sizing: border-box;
-  background: var(--bg-primary);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  color: var(--text-primary);
-  font-size: 12px;
-  font-family: var(--font-mono);
-}
-
-.cron-modal-input:focus {
-  outline: none;
-  border-color: var(--accent);
-}
-
-.cron-modal-textarea {
-  padding: 6px 10px;
-  background: var(--bg-primary);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  color: var(--text-primary);
-  font-size: 12px;
-  font-family: var(--font-mono);
-  resize: vertical;
-  min-height: 80px;
-}
-
-.cron-modal-textarea:focus {
-  outline: none;
-  border-color: var(--accent);
-}
+/* Cron Modal — cron-specific styles (base modal styles in Modal.css) */
 
 .cron-modal-row {
   display: flex;
@@ -1116,90 +1011,11 @@
   margin-top: 4px;
 }
 
-.cron-modal-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
-}
+/* Shortcuts Modal — shortcuts-specific styles (base modal styles in Modal.css) */
 
-.cron-modal-btn {
-  padding: 6px 16px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  border: 1px solid var(--border);
-}
-
-.cron-modal-btn-cancel {
-  background: transparent;
-  color: var(--text-secondary);
-}
-
-.cron-modal-btn-cancel:hover {
-  color: var(--text-primary);
-}
-
-.cron-modal-btn-save {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
-}
-
-.cron-modal-btn-save:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* Shortcuts Modal */
-.shortcuts-modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.65);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 300;
-}
-
+/* Override: narrower width for shortcuts modal */
 .shortcuts-modal {
   width: min(460px, calc(100vw - 24px));
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
-  overflow: hidden;
-}
-
-.shortcuts-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--border);
-}
-
-.shortcuts-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.shortcuts-close {
-  border: none;
-  background: transparent;
-  color: var(--text-muted);
-  font-size: 18px;
-  cursor: pointer;
-  line-height: 1;
-}
-
-.shortcuts-close:hover { color: var(--text-primary); }
-
-.shortcuts-body {
-  padding: 14px 16px 16px;
 }
 
 .shortcuts-list {

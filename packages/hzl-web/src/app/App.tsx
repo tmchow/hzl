@@ -22,6 +22,7 @@ import ActivityPanel from './components/ActivityPanel/ActivityPanel';
 import ConnectionStatus from './components/ConnectionStatus/ConnectionStatus';
 import type { SSEState } from './components/ConnectionStatus/types';
 import MobileTabs from './components/MobileTabs/MobileTabs';
+import './Modal.css';
 
 function normalizeSearchQuery(value: string): string {
   return value.trim().replace(/\s+/g, ' ').slice(0, 120);
@@ -546,27 +547,27 @@ export default function App() {
       )}
 
       {gatewayPopoverOpen && (
-        <div className="cron-modal-overlay" onClick={() => setGatewayPopoverOpen(false)}>
-          <div className="cron-modal" ref={gatewayPopoverRef} onClick={e => e.stopPropagation()}>
-            <div className="cron-modal-header">
-              <span className="cron-modal-title">Connect to OpenClaw Gateway</span>
-              <button className="cron-modal-close" onClick={() => setGatewayPopoverOpen(false)}>&times;</button>
+        <div className="hzl-modal-overlay" onClick={() => setGatewayPopoverOpen(false)}>
+          <div className="hzl-modal" ref={gatewayPopoverRef} onClick={e => e.stopPropagation()}>
+            <div className="hzl-modal-header">
+              <span className="hzl-modal-title">Connect to OpenClaw Gateway</span>
+              <button className="hzl-modal-close" onClick={() => setGatewayPopoverOpen(false)}>&times;</button>
             </div>
-            <div className="cron-modal-body">
-              <div className="cron-modal-field">
-                <label className="cron-modal-label">WebSocket URL</label>
+            <div className="hzl-modal-body">
+              <div className="hzl-modal-field">
+                <label className="hzl-modal-label">WebSocket URL</label>
                 <input
-                  className="cron-modal-input"
+                  className="hzl-modal-input"
                   type="text"
                   value={gatewayFormUrl}
                   onChange={e => setGatewayFormUrl(e.target.value)}
                   placeholder="ws://127.0.0.1:18789"
                 />
               </div>
-              <div className="cron-modal-field">
-                <label className="cron-modal-label">Auth token (optional)</label>
+              <div className="hzl-modal-field">
+                <label className="hzl-modal-label">Auth token (optional)</label>
                 <input
-                  className="cron-modal-input"
+                  className="hzl-modal-input"
                   type="text"
                   value={gatewayFormToken}
                   onChange={e => setGatewayFormToken(e.target.value)}
@@ -574,17 +575,17 @@ export default function App() {
                 />
               </div>
               {gatewayConfigError && (
-                <div className="gateway-modal-error">{gatewayConfigError}</div>
+                <div className="hzl-modal-error">{gatewayConfigError}</div>
               )}
-              <div className="cron-modal-footer">
+              <div className="hzl-modal-footer">
                 <button
-                  className="cron-modal-btn cron-modal-btn-cancel"
+                  className="hzl-modal-btn hzl-modal-btn-cancel"
                   onClick={() => setGatewayPopoverOpen(false)}
                 >
                   Cancel
                 </button>
                 <button
-                  className="cron-modal-btn cron-modal-btn-save"
+                  className="hzl-modal-btn hzl-modal-btn-primary"
                   onClick={handleGatewaySubmit}
                   disabled={gatewayConfiguring || !gatewayFormUrl.trim()}
                 >
@@ -610,23 +611,23 @@ export default function App() {
 
       {shortcutsOpen && (
         <div
-          className="shortcuts-modal-overlay open"
+          className="hzl-modal-overlay"
           onClick={(e) => {
             if (e.target === e.currentTarget) setShortcutsOpen(false);
           }}
         >
-          <div className="shortcuts-modal">
-            <div className="shortcuts-header">
-              <span className="shortcuts-title">Keyboard Shortcuts</span>
+          <div className="hzl-modal shortcuts-modal">
+            <div className="hzl-modal-header">
+              <span className="hzl-modal-title">Keyboard Shortcuts</span>
               <button
                 type="button"
-                className="shortcuts-close"
+                className="hzl-modal-close"
                 onClick={() => setShortcutsOpen(false)}
               >
                 &times;
               </button>
             </div>
-            <div className="shortcuts-body">
+            <div className="hzl-modal-body">
               <div className="shortcuts-list">
                 <span className="shortcut-key">/</span>
                 <span className="shortcut-desc">Focus task search</span>
