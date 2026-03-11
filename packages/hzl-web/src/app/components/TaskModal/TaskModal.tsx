@@ -7,6 +7,7 @@ import CommentsSection from './CommentsSection';
 import CheckpointsSection from './CheckpointsSection';
 import EventTimeline from './EventTimeline';
 import { getTagColor } from '../../utils/tag-color';
+import '../../Modal.css';
 import './TaskModal.css';
 
 interface Comment {
@@ -98,15 +99,15 @@ export default function TaskModal({ taskId, onClose }: TaskModalProps) {
 
   return (
     <div
-      className="modal-overlay open"
+      className="hzl-modal-overlay modal-overlay open"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="modal">
-        <div className="modal-header">
+      <div className="hzl-modal modal">
+        <div className="hzl-modal-header modal-header">
           <div className="modal-title-wrap">
-            <span className="modal-title">{task?.title || 'Loading...'}</span>
+            <span className="hzl-modal-title modal-title">{task?.title || 'Loading...'}</span>
             <div className="modal-task-id-row">
               <span>Task ID</span>
               <span className="modal-task-id-value">{task?.task_id || '-'}</span>
@@ -120,9 +121,9 @@ export default function TaskModal({ taskId, onClose }: TaskModalProps) {
               </button>
             </div>
           </div>
-          <button className="modal-close" onClick={onClose}>&times;</button>
+          <button className="hzl-modal-close modal-close" onClick={onClose}>&times;</button>
         </div>
-        <div className="modal-body">
+        <div className="hzl-modal-body modal-body">
           {loading && !task ? (
             <div className="empty-column">Loading...</div>
           ) : task ? (

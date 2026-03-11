@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { CronJob, CronJobCreateParams, CronJobUpdatePatch, GatewayAgent } from '../../api/types';
+import '../../Modal.css';
 
 interface CronJobModalProps {
   job: CronJob | null;
@@ -150,31 +151,31 @@ export default function CronJobModal({ job, agentId, gatewayAgents, onSave, onCl
   }, [onClose]);
 
   return (
-    <div className="cron-modal-overlay" onClick={onClose}>
-      <div className="cron-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="cron-modal-header">
-          <span className="cron-modal-title">{isEdit ? 'Edit Cron Job' : 'Create Cron Job'}</span>
-          <button className="cron-modal-close" onClick={onClose}>&times;</button>
+    <div className="hzl-modal-overlay" onClick={onClose}>
+      <div className="hzl-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="hzl-modal-header">
+          <span className="hzl-modal-title">{isEdit ? 'Edit Cron Job' : 'Create Cron Job'}</span>
+          <button className="hzl-modal-close" onClick={onClose}>&times;</button>
         </div>
 
-        <form className="cron-modal-body" onSubmit={handleSubmit}>
+        <form className="hzl-modal-body" onSubmit={handleSubmit}>
           {error && <div className="cron-error">{error}</div>}
 
           {/* Name + Enabled on same row */}
           <div className="cron-modal-row">
-            <div className="cron-modal-field" style={{ flex: 1 }}>
-              <label className="cron-modal-label">Name</label>
+            <div className="hzl-modal-field" style={{ flex: 1 }}>
+              <label className="hzl-modal-label">Name</label>
               <input
                 type="text"
-                className="cron-modal-input"
+                className="hzl-modal-input"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g., Daily standup summary"
                 required
               />
             </div>
-            <div className="cron-modal-field cron-modal-toggle-field">
-              <label className="cron-modal-label">Enabled</label>
+            <div className="hzl-modal-field cron-modal-toggle-field">
+              <label className="hzl-modal-label">Enabled</label>
               <label className="cron-job-toggle">
                 <input
                   type="checkbox"
@@ -186,11 +187,11 @@ export default function CronJobModal({ job, agentId, gatewayAgents, onSave, onCl
             </div>
           </div>
 
-          <div className="cron-modal-field">
-            <label className="cron-modal-label">Schedule Expression</label>
+          <div className="hzl-modal-field">
+            <label className="hzl-modal-label">Schedule Expression</label>
             <input
               type="text"
-              className="cron-modal-input"
+              className="hzl-modal-input"
               value={scheduleExpr}
               onChange={(e) => setScheduleExpr(e.target.value)}
               placeholder="e.g., 0 8 * * *"
@@ -198,10 +199,10 @@ export default function CronJobModal({ job, agentId, gatewayAgents, onSave, onCl
             />
           </div>
 
-          <div className="cron-modal-field">
-            <label className="cron-modal-label">Timezone</label>
+          <div className="hzl-modal-field">
+            <label className="hzl-modal-label">Timezone</label>
             <select
-              className="cron-modal-input"
+              className="hzl-modal-input"
               value={timezone}
               onChange={(e) => setTimezone(e.target.value)}
             >
@@ -211,10 +212,10 @@ export default function CronJobModal({ job, agentId, gatewayAgents, onSave, onCl
             </select>
           </div>
 
-          <div className="cron-modal-field">
-            <label className="cron-modal-label">Payload Message</label>
+          <div className="hzl-modal-field">
+            <label className="hzl-modal-label">Payload Message</label>
             <textarea
-              className="cron-modal-textarea"
+              className="hzl-modal-textarea"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               placeholder="Message to send to the agent"
@@ -222,11 +223,11 @@ export default function CronJobModal({ job, agentId, gatewayAgents, onSave, onCl
             />
           </div>
 
-          <div className="cron-modal-field">
-            <label className="cron-modal-label">Model (optional)</label>
+          <div className="hzl-modal-field">
+            <label className="hzl-modal-label">Model (optional)</label>
             <input
               type="text"
-              className="cron-modal-input"
+              className="hzl-modal-input"
               value={model}
               onChange={(e) => setModel(e.target.value)}
               placeholder="e.g., claude-sonnet-4-20250514"
@@ -244,11 +245,11 @@ export default function CronJobModal({ job, agentId, gatewayAgents, onSave, onCl
 
           {showAdvanced && (
             <div className="cron-modal-advanced">
-              <div className="cron-modal-field">
-                <label className="cron-modal-label">Description</label>
+              <div className="hzl-modal-field">
+                <label className="hzl-modal-label">Description</label>
                 <input
                   type="text"
-                  className="cron-modal-input"
+                  className="hzl-modal-input"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Job description"
@@ -256,10 +257,10 @@ export default function CronJobModal({ job, agentId, gatewayAgents, onSave, onCl
               </div>
 
               <div className="cron-modal-row">
-                <div className="cron-modal-field" style={{ flex: 1 }}>
-                  <label className="cron-modal-label">Schedule Kind</label>
+                <div className="hzl-modal-field" style={{ flex: 1 }}>
+                  <label className="hzl-modal-label">Schedule Kind</label>
                   <select
-                    className="cron-modal-input"
+                    className="hzl-modal-input"
                     value={scheduleKind}
                     onChange={(e) => setScheduleKind(e.target.value)}
                   >
@@ -267,10 +268,10 @@ export default function CronJobModal({ job, agentId, gatewayAgents, onSave, onCl
                     <option value="interval">interval</option>
                   </select>
                 </div>
-                <div className="cron-modal-field" style={{ flex: 1 }}>
-                  <label className="cron-modal-label">Session Target</label>
+                <div className="hzl-modal-field" style={{ flex: 1 }}>
+                  <label className="hzl-modal-label">Session Target</label>
                   <select
-                    className="cron-modal-input"
+                    className="hzl-modal-input"
                     value={sessionTarget}
                     onChange={(e) => setSessionTarget(e.target.value)}
                   >
@@ -282,10 +283,10 @@ export default function CronJobModal({ job, agentId, gatewayAgents, onSave, onCl
               </div>
 
               <div className="cron-modal-row">
-                <div className="cron-modal-field" style={{ flex: 1 }}>
-                  <label className="cron-modal-label">Wake Mode</label>
+                <div className="hzl-modal-field" style={{ flex: 1 }}>
+                  <label className="hzl-modal-label">Wake Mode</label>
                   <select
-                    className="cron-modal-input"
+                    className="hzl-modal-input"
                     value={wakeMode}
                     onChange={(e) => setWakeMode(e.target.value)}
                   >
@@ -294,11 +295,11 @@ export default function CronJobModal({ job, agentId, gatewayAgents, onSave, onCl
                     ))}
                   </select>
                 </div>
-                <div className="cron-modal-field" style={{ flex: 1 }}>
-                  <label className="cron-modal-label">Timeout (seconds)</label>
+                <div className="hzl-modal-field" style={{ flex: 1 }}>
+                  <label className="hzl-modal-label">Timeout (seconds)</label>
                   <input
                     type="number"
-                    className="cron-modal-input"
+                    className="hzl-modal-input"
                     value={timeout}
                     onChange={(e) => setTimeout_(e.target.value)}
                     placeholder="300"
@@ -307,10 +308,10 @@ export default function CronJobModal({ job, agentId, gatewayAgents, onSave, onCl
                 </div>
               </div>
 
-              <div className="cron-modal-field">
-                <label className="cron-modal-label">Agent ID</label>
+              <div className="hzl-modal-field">
+                <label className="hzl-modal-label">Agent ID</label>
                 <select
-                  className="cron-modal-input"
+                  className="hzl-modal-input"
                   value={jobAgentId}
                   onChange={(e) => setJobAgentId(e.target.value)}
                 >
@@ -320,12 +321,12 @@ export default function CronJobModal({ job, agentId, gatewayAgents, onSave, onCl
                 </select>
               </div>
 
-              <div className="cron-modal-field">
-                <label className="cron-modal-label">Delivery</label>
+              <div className="hzl-modal-field">
+                <label className="hzl-modal-label">Delivery</label>
                 <div className="cron-modal-row">
                   <input
                     type="text"
-                    className="cron-modal-input"
+                    className="hzl-modal-input"
                     value={deliveryMode}
                     onChange={(e) => setDeliveryMode(e.target.value)}
                     placeholder="Mode"
@@ -333,7 +334,7 @@ export default function CronJobModal({ job, agentId, gatewayAgents, onSave, onCl
                   />
                   <input
                     type="text"
-                    className="cron-modal-input"
+                    className="hzl-modal-input"
                     value={deliveryChannel}
                     onChange={(e) => setDeliveryChannel(e.target.value)}
                     placeholder="Channel"
@@ -341,7 +342,7 @@ export default function CronJobModal({ job, agentId, gatewayAgents, onSave, onCl
                   />
                   <input
                     type="text"
-                    className="cron-modal-input"
+                    className="hzl-modal-input"
                     value={deliveryTo}
                     onChange={(e) => setDeliveryTo(e.target.value)}
                     placeholder="To"
@@ -360,11 +361,11 @@ export default function CronJobModal({ job, agentId, gatewayAgents, onSave, onCl
             </div>
           )}
 
-          <div className="cron-modal-footer">
-            <button type="button" className="cron-modal-btn cron-modal-btn-cancel" onClick={onClose}>
+          <div className="hzl-modal-footer">
+            <button type="button" className="hzl-modal-btn hzl-modal-btn-cancel" onClick={onClose}>
               Cancel
             </button>
-            <button type="submit" className="cron-modal-btn cron-modal-btn-save" disabled={saving}>
+            <button type="submit" className="hzl-modal-btn hzl-modal-btn-primary" disabled={saving}>
               {saving ? 'Saving...' : isEdit ? 'Update' : 'Create'}
             </button>
           </div>

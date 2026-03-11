@@ -1,0 +1,146 @@
+/* Shared modal base styles — used by task modal, cron modal, shortcuts modal, gateway modal */
+
+.hzl-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 300;
+}
+
+.hzl-modal {
+  width: min(560px, calc(100vw - 24px));
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+}
+
+.hzl-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.hzl-modal-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.hzl-modal-close {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 18px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.hzl-modal-close:hover {
+  color: var(--text-primary);
+}
+
+.hzl-modal-body {
+  padding: 14px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.hzl-modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.hzl-modal-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+}
+
+.hzl-modal-input {
+  padding: 6px 10px;
+  height: 32px;
+  box-sizing: border-box;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-family: var(--font-mono);
+}
+
+.hzl-modal-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.hzl-modal-textarea {
+  padding: 6px 10px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-family: var(--font-mono);
+  resize: vertical;
+  min-height: 80px;
+}
+
+.hzl-modal-textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.hzl-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.hzl-modal-btn {
+  padding: 6px 16px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--border);
+}
+
+.hzl-modal-btn-cancel {
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.hzl-modal-btn-cancel:hover {
+  color: var(--text-primary);
+}
+
+.hzl-modal-btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.hzl-modal-btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.hzl-modal-error {
+  font-size: 12px;
+  color: var(--status-blocked);
+  padding: 0 16px;
+}
