@@ -263,6 +263,7 @@ Agent routing: when claiming, tasks assigned to other agents are skipped. Tasks 
 
 ```bash
 hzl serve
+hzl serve --gateway-url ws://127.0.0.1:18789 --gateway-token <token>
 hzl events
 hzl events --from 100 --limit 50
 hzl events --follow

@@ -347,6 +347,8 @@ hzl serve                                     # Start on port 3456
 hzl serve --host 127.0.0.1                    # Restrict to localhost
 hzl serve --background                        # Fork to background
 hzl serve --status / --stop
+hzl serve --gateway-url ws://host:18789       # Connect to OpenClaw gateway
+hzl serve --gateway-token <token>             # Gateway auth token
 
 # Raw reporting surfaces
 hzl events                                    # NDJSON event feed

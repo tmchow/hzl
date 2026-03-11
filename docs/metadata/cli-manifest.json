@@ -606,6 +606,26 @@
           "optional": false,
           "defaultValue": null,
           "description": "Print systemd unit file"
+        },
+        {
+          "flags": "--gateway-url <url>",
+          "short": null,
+          "long": "--gateway-url",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "OpenClaw gateway WebSocket URL"
+        },
+        {
+          "flags": "--gateway-token <token>",
+          "short": null,
+          "long": "--gateway-token",
+          "required": true,
+          "mandatory": false,
+          "optional": false,
+          "defaultValue": null,
+          "description": "OpenClaw gateway auth token"
         }
       ],
       "hasSubcommands": false
