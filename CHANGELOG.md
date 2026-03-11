@@ -1,3 +1,10 @@
+# [3.2.0](https://github.com/tmchow/hzl/compare/v3.1.0...v3.2.0) (2026-03-11)
+
+
+### Features
+
+* **web:** gateway status chip with config modal in fleet summary ([#199](https://github.com/tmchow/hzl/issues/199)) ([345dace](https://github.com/tmchow/hzl/commit/345dace5f13e7e9704aab334d0a7c8f170118015))
+
 # [3.1.0](https://github.com/tmchow/hzl/compare/v3.0.0...v3.1.0) (2026-03-11)
 
 
