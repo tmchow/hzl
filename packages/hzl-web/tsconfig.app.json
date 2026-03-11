@@ -10,7 +10,14 @@
     "skipLibCheck": true,
     "noEmit": true,
     "isolatedModules": true,
-    "allowImportingTsExtensions": true
+    "allowImportingTsExtensions": true,
+    "baseUrl": ".",
+    "paths": {
+      "hzl-core/*": ["../hzl-core/src/*"]
+    }
   },
+  "references": [
+    { "path": "../hzl-core" }
+  ],
   "include": ["src/app/**/*"]
 }

@@ -1,0 +1,22 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "hzl-core/*": ["../hzl-core/src/*"]
+    },
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "types": ["node", "vitest"],
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "rootDir": "src",
+    "outDir": "dist",
+    "noEmit": true,
+    "allowImportingTsExtensions": true
+  },
+  "references": [
+    { "path": "../hzl-core" }
+  ],
+  "include": ["src/**/*"]
+}

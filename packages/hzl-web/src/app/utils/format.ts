@@ -66,8 +66,8 @@ export function getEventActor(event: {
   if (explicitAgent) return explicitAgent;
 
   const dataAuthor =
-    event.data && typeof event.data.author === 'string' && (event.data.author as string).trim()
-      ? (event.data.author as string)
+    event.data && typeof event.data.author === 'string' && event.data.author.trim()
+      ? event.data.author
       : null;
   return dataAuthor || 'system';
 }
