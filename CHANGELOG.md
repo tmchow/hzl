@@ -1,3 +1,17 @@
+# [3.1.0](https://github.com/tmchow/hzl/compare/v3.0.0...v3.1.0) (2026-03-11)
+
+
+### Bug Fixes
+
+* **ci:** accept ClawHub license terms during skill publish ([#196](https://github.com/tmchow/hzl/issues/196)) ([a43375e](https://github.com/tmchow/hzl/commit/a43375e91fac3a6a7862dacb78e732adadd8a34f))
+* **ci:** skip pre-commit hook in CI for semantic-release ([#197](https://github.com/tmchow/hzl/issues/197)) ([282aa0d](https://github.com/tmchow/hzl/commit/282aa0da9ce8ba5bfee45d7754c11d85d06d5c89))
+* **ci:** use RELEASE_TOKEN for semantic-release branch protection bypass ([#198](https://github.com/tmchow/hzl/issues/198)) ([4a2cd8f](https://github.com/tmchow/hzl/commit/4a2cd8f2a029186eeaed4b2abeeefeaa4a4e985b))
+
+
+### Features
+
+* add OpenClaw cron job management to dashboard ([#195](https://github.com/tmchow/hzl/issues/195)) ([e6e9752](https://github.com/tmchow/hzl/commit/e6e9752f354da0931986ebd47e12635bda27dd7d))
+
 # [3.0.0](https://github.com/tmchow/hzl/compare/v2.10.0...v3.0.0) (2026-03-07)
 
 # [2.10.0](https://github.com/tmchow/hzl/compare/v2.9.1...v2.10.0) (2026-03-06)
