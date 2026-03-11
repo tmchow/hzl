@@ -49,6 +49,10 @@ export interface Config {
   defaultAuthor?: string;
   leaseMinutes?: number;
   claimStaggerMs?: number;
+  gateway?: {
+    url?: string;
+    token?: string;
+  };
   syncUrl?: string;
   authToken?: string;
   encryptionKey?: string;

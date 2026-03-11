@@ -38,6 +38,10 @@ const ConfigFileSchema = z.object({
   defaultAuthor: z.string().optional(),
   leaseMinutes: z.number().positive().optional(),
   claimStaggerMs: z.number().int().min(0).optional(),
+  gateway: z.object({
+    url: z.string().optional(),
+    token: z.string().optional(),
+  }).optional(),
   // flatten top-level properties for backward compatibility read
   syncUrl: z.string().optional(),
   authToken: z.string().optional(),

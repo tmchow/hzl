@@ -263,6 +263,7 @@ Agent routing: when claiming, tasks assigned to other agents are skipped. Tasks 
 
 ```bash
 hzl serve
+hzl serve --gateway-url ws://127.0.0.1:18789 --gateway-token <token>
 hzl events
 hzl events --from 100 --limit 50
 hzl events --follow
@@ -274,6 +275,21 @@ hzl lock clear
 hzl lock clear --force
 hzl guide
 ```
+
+## Gateway configuration
+
+To avoid passing `--gateway-url` and `--gateway-token` on every `hzl serve`, set them once in your config file (`~/.config/hzl/config.json` or `.config/hzl/config.json` in dev mode):
+
+```json
+{
+  "gateway": {
+    "url": "ws://127.0.0.1:18789",
+    "token": "your-token"
+  }
+}
+```
+
+CLI flags override config values when both are present.
 
 ## Environment variables
 

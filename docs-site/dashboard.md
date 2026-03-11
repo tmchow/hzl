@@ -34,9 +34,14 @@ hzl serve --status
 # Stop the background server
 hzl serve --stop
 
+# Connect to an OpenClaw gateway for cron job management
+hzl serve --gateway-url ws://127.0.0.1:18789 --gateway-token <token>
+
 # Generate systemd unit file for always-on service
 hzl serve --print-systemd > ~/.config/systemd/user/hzl-web.service
 ```
+
+Gateway settings can also be set once in your config file — see [CLI Reference](/reference/cli#gateway-configuration).
 
 ## Navigation
 
@@ -103,10 +108,30 @@ A split-panel layout for monitoring your agent fleet.
 
 - Agent ID and status badge (active/idle)
 - Primary task title
-- **Activity** — paginated event timeline showing timestamped entries with event type badges (created, status, updated, commented, checkpoint, moved, dep added/removed, archived) and task context. Click any event to open the task detail modal.
-- **Metrics** — tasks owned count and total event count
+- **Metrics bar** — tasks owned count and total event count
+- **Tabbed content** with three tabs:
+  - **Tasks** — current task assignments for the agent
+  - **Activity** — paginated event timeline showing timestamped entries with event type badges (created, status, updated, commented, checkpoint, moved, dep added/removed, archived) and task context. Click any event to open the task detail modal.
+  - **Cron Jobs** — scheduled job management (only shown for agents connected via the OpenClaw gateway)
 
 Use this view for monitoring fleet health, investigating what an agent has been doing, or auditing agent activity.
+
+#### Cron Job Management
+
+The Cron Jobs tab appears for agents that are registered with an OpenClaw gateway. It provides full lifecycle management of scheduled jobs.
+
+**Setup:** If the gateway is not yet configured, the tab shows a connection form where you enter the gateway URL and optional auth token. Alternatively, pass `--gateway-url` and `--gateway-token` when starting `hzl serve`, or set them in your config file.
+
+**Job list:** Each row shows:
+
+- Enable/disable toggle
+- Job name and human-readable schedule (e.g., "Every 2 minutes")
+- Next run time (relative)
+- Last run duration
+- Error indicator with consecutive error count (only shown when errors exist)
+- Actions: run now, edit, delete
+
+**Create/edit modal:** A form with primary fields (name, schedule expression, timezone, payload message, model) and an expandable advanced section (description, schedule kind, session target, wake mode, timeout, agent ID, delivery settings). Client-side validation checks required fields and cron expression format before submitting.
 
 ### Graph View
 

@@ -16,7 +16,11 @@ export default [
       ecmaVersion: 2022,
       sourceType: "module",
       parserOptions: {
-        project: ["./tsconfig.json", "./packages/*/tsconfig.json"],
+        project: [
+          "./packages/hzl-core/tsconfig.json",
+          "./packages/hzl-cli/tsconfig.json",
+          "./packages/hzl-web/tsconfig.lint.json",
+        ],
         tsconfigRootDir,
       },
     },
