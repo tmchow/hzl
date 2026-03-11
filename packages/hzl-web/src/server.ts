@@ -266,6 +266,10 @@ export function createWebServer(options: ServerOptions): ServerHandle {
   }
 
   async function handleGatewayProxy(method: string, req: IncomingMessage, res: ServerResponse): Promise<void> {
+    if (!gatewayClient && !options.gatewayUrl) {
+      json(res, { error: 'gateway_unavailable', message: 'Gateway not configured' }, 503);
+      return;
+    }
     const client = getOrCreateGatewayClient();
 
     try {

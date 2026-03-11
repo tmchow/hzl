@@ -27,6 +27,79 @@
   margin: 0 0.15rem;
 }
 
+.gateway-status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  cursor: pointer;
+}
+
+.gateway-status-chip:hover {
+  border-color: var(--text-secondary);
+}
+
+.gateway-status-connected {
+  cursor: default;
+}
+.gateway-status-connected:hover {
+  border-color: var(--border-color);
+}
+
+.gateway-status-chip-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.gateway-status-connected {
+  color: var(--status-done);
+}
+.gateway-status-connected .gateway-status-chip-dot {
+  background: var(--status-done);
+}
+
+.gateway-status-connecting {
+  color: var(--text-secondary);
+}
+.gateway-status-connecting .gateway-status-chip-dot {
+  background: var(--text-secondary);
+  animation: pulse-dot 1.5s ease-in-out infinite;
+}
+
+.gateway-status-disconnected {
+  color: var(--status-blocked);
+}
+.gateway-status-disconnected .gateway-status-chip-dot {
+  background: var(--status-blocked);
+}
+
+.gateway-status-unconfigured {
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+}
+.gateway-status-unconfigured .gateway-status-chip-dot {
+  background: var(--status-ready, #f0c040);
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.gateway-modal-error {
+  font-size: 12px;
+  color: var(--status-blocked);
+  padding: 0 16px;
+}
+
 .agent-ops-panels {
   display: flex;
   flex: 1;
