@@ -7,6 +7,15 @@ on:
     paths:
       - 'skills/hzl/**'
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g. 3.2.0). If omitted, reads from packages/hzl-cli/package.json.'
+        required: false
+        type: string
+      changelog:
+        description: 'One-line changelog for this version.'
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -36,7 +45,13 @@ jobs:
         run: |
           set -euo pipefail
 
-          VERSION=$(node -p "require('./packages/hzl-cli/package.json').version")
+          if [[ -n "${{ inputs.version }}" ]]; then
+            VERSION="${{ inputs.version }}"
+            echo "::notice::Using version from workflow input: $VERSION"
+          else
+            VERSION=$(node -p "require('./packages/hzl-cli/package.json').version")
+            echo "::notice::Using version from package.json: $VERSION"
+          fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
           if [[ "${GITHUB_EVENT_NAME}" == "push" && "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]]; then
@@ -54,6 +69,17 @@ jobs:
           fi
 
           echo "bump=$BUMP" >> "$GITHUB_OUTPUT"
+
+          # Build changelog line
+          if [[ -n "${{ inputs.changelog }}" ]]; then
+            CHANGELOG="${{ inputs.changelog }}"
+          elif [[ -n "${{ inputs.version }}" ]]; then
+            CHANGELOG="Release v${{ inputs.version }}"
+          else
+            # Skill-only push: use first commit subject
+            CHANGELOG=$(git log -1 --format='%s' 2>/dev/null || echo "Skill update")
+          fi
+          echo "changelog=$CHANGELOG" >> "$GITHUB_OUTPUT"
 
       - name: Validate token
         shell: bash
@@ -79,6 +105,7 @@ jobs:
           set -euo pipefail
 
           BASE_VERSION="${{ steps.meta.outputs.version }}"
+          CHANGELOG="${{ steps.meta.outputs.changelog }}"
           PUBLISHED=false
           PUBLISHED_VERSION=""
           MAX_ATTEMPTS=30
@@ -91,7 +118,7 @@ jobs:
                 --slug hzl \
                 --name "HZL" \
                 --version "$version" \
-                --changelog "" \
+                --changelog "$CHANGELOG" \
                 --accept-license-terms \
                 --tags latest 2>&1
             )
@@ -156,6 +183,6 @@ jobs:
             echo "- Published version: \`${{ steps.publish.outputs.published_version }}\`"
             echo "- Commit-derived bump hint: \`${{ steps.meta.outputs.bump }}\`"
             echo "- Published this run: \`${{ steps.publish.outputs.published }}\`"
-            echo "- Changelog mode: \`--changelog \"\"\`"
+            echo "- Changelog: \`${{ steps.meta.outputs.changelog }}\`"
             echo "- Version policy: publish CLI base first, then fallback to \`<base>-skill.N\` if base already exists."
           } >> "$GITHUB_STEP_SUMMARY"

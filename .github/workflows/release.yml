@@ -200,3 +200,18 @@ jobs:
           VERSION="${{ needs.publish.outputs.version }}"
           echo "Triggering homebrew update for version $VERSION"
           gh workflow run update-homebrew.yml --repo "${{ github.repository }}" -f version="$VERSION"
+
+  trigger-skill-publish:
+    if: ${{ inputs.mode == 'publish' && needs.publish.outputs.new_release == 'true' }}
+    needs: publish
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger OpenClaw skill publish
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ needs.publish.outputs.version }}"
+          echo "Triggering OpenClaw skill publish for version $VERSION"
+          gh workflow run publish-openclaw-skill.yml --repo "${{ github.repository }}" \
+            -f version="$VERSION" \
+            -f changelog="Release v$VERSION"
