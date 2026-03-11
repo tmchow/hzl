@@ -9,6 +9,7 @@ import {
   StatsService,
   type TaskListItem as CoreTaskListItem,
 } from 'hzl-core';
+import { GatewayClient } from 'hzl-core/services/gateway-client.js';
 import { normalizeDurationLabel, parseDurationToMinutes } from 'hzl-core/utils/duration.js';
 import { UI_FILES, LEGACY_DASHBOARD_HTML, type EmbeddedFile } from './ui-embed.js';
 
@@ -20,6 +21,9 @@ export interface ServerOptions {
   eventStore: EventStore;
   searchService: SearchService;
   statsService: StatsService;
+  gatewayUrl?: string;
+  gatewayToken?: string;
+  configDir?: string;
 }
 
 export interface ServerHandle {
@@ -153,28 +157,6 @@ function json(res: ServerResponse, data: unknown, status = 200): void {
   res.end(JSON.stringify(data));
 }
 
-function text(
-  res: ServerResponse,
-  body: string,
-  contentType: string,
-  status = 200,
-  cacheControl?: string
-): void {
-  const bodyLength = Buffer.byteLength(body);
-  const headers: Record<string, string> = {
-    'Content-Type': contentType,
-    'X-Content-Type-Options': 'nosniff',
-    'Content-Length': String(bodyLength),
-  };
-
-  if (cacheControl) {
-    headers['Cache-Control'] = cacheControl;
-  }
-
-  res.writeHead(status, headers);
-  res.end(body);
-}
-
 function bytes(
   res: ServerResponse,
   body: Buffer,
@@ -210,10 +192,98 @@ function writeSseEvent<T extends object>(res: ServerResponse, event: string, dat
   res.write(`data: ${JSON.stringify(data)}\n\n`);
 }
 
+function parseBody(req: IncomingMessage): Promise<unknown> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    req.on('data', (chunk: Buffer) => chunks.push(chunk));
+    req.on('end', () => {
+      try {
+        const body = Buffer.concat(chunks).toString('utf-8');
+        resolve(body ? JSON.parse(body) : {});
+      } catch {
+        reject(new Error('Invalid JSON body'));
+      }
+    });
+    req.on('error', reject);
+  });
+}
+
 export function createWebServer(options: ServerOptions): ServerHandle {
   const { port, host = '0.0.0.0', allowFraming = false, taskService, eventStore, searchService, statsService } = options;
   const sockets = new Set<Socket>();
   const activeStreamResponses = new Set<ServerResponse>();
+
+  // Gateway client (lazy-init)
+  let gatewayClient: GatewayClient | null = null;
+
+  function getOrCreateGatewayClient(): GatewayClient {
+    if (!gatewayClient) {
+      const configDir = options.configDir ?? '.';
+      const url = options.gatewayUrl ?? 'ws://127.0.0.1:18789';
+      gatewayClient = new GatewayClient({ url, token: options.gatewayToken, configDir });
+    }
+    return gatewayClient;
+  }
+
+  // Gateway API route handlers
+  async function handleGatewayStatus(_req: IncomingMessage, res: ServerResponse): Promise<void> {
+    if (!gatewayClient && !options.gatewayUrl) {
+      json(res, { status: 'unconfigured' });
+      return;
+    }
+    const client = getOrCreateGatewayClient();
+
+    // If configured but not yet connected, trigger a connection attempt
+    if (client.getStatus() === 'disconnected') {
+      try {
+        await client.call('ping');
+      } catch {
+        // Connection failed — status will reflect 'disconnected'
+      }
+    }
+
+    json(res, { status: client.getStatus() });
+  }
+
+  async function handleGatewayConfig(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    const body = await parseBody(req) as { url?: string; token?: string };
+    if (!body.url) {
+      json(res, { error: 'url is required' }, 400);
+      return;
+    }
+
+    const client = getOrCreateGatewayClient();
+    client.configure(body.url, body.token);
+
+    // Try to connect
+    try {
+      await client.call('ping').catch(() => {});
+    } catch {
+      // Connection attempt may fail, that's ok — status reflects it
+    }
+
+    json(res, { status: client.getStatus() });
+  }
+
+  async function handleGatewayProxy(method: string, req: IncomingMessage, res: ServerResponse): Promise<void> {
+    const client = getOrCreateGatewayClient();
+
+    try {
+      const body = req.method === 'POST' ? await parseBody(req) : undefined;
+      const params = body && typeof body === 'object' && Object.keys(body).length > 0
+        ? body
+        : undefined;
+      const result = await client.call(method, params);
+      json(res, result ?? {});
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Gateway error';
+      if (message.includes('not configured') || message.includes('disconnected')) {
+        json(res, { error: 'gateway_unavailable', message }, 503);
+      } else {
+        json(res, { error: message }, 502);
+      }
+    }
+  }
 
   // Route handlers
   function handleTasks(params: URLSearchParams, res: ServerResponse): void {
@@ -767,6 +837,52 @@ export function createWebServer(options: ServerOptions): ServerHandle {
         return;
       }
 
+      // Gateway API routes
+      if (pathname === '/api/gateway/status' && req.method === 'GET') {
+        void handleGatewayStatus(req, res).catch((e) => serverError(res, e));
+        return;
+      }
+
+      if (pathname === '/api/gateway/config' && req.method === 'POST') {
+        void handleGatewayConfig(req, res).catch((e) => serverError(res, e));
+        return;
+      }
+
+      if (pathname === '/api/gateway/agents' && req.method === 'POST') {
+        void handleGatewayProxy('agents.list', req, res).catch((e) => serverError(res, e));
+        return;
+      }
+
+      if (pathname === '/api/gateway/cron/list' && req.method === 'POST') {
+        void handleGatewayProxy('cron.list', req, res).catch((e) => serverError(res, e));
+        return;
+      }
+
+      if (pathname === '/api/gateway/cron/add' && req.method === 'POST') {
+        void handleGatewayProxy('cron.add', req, res).catch((e) => serverError(res, e));
+        return;
+      }
+
+      if (pathname === '/api/gateway/cron/update' && req.method === 'POST') {
+        void handleGatewayProxy('cron.update', req, res).catch((e) => serverError(res, e));
+        return;
+      }
+
+      if (pathname === '/api/gateway/cron/remove' && req.method === 'POST') {
+        void handleGatewayProxy('cron.remove', req, res).catch((e) => serverError(res, e));
+        return;
+      }
+
+      if (pathname === '/api/gateway/cron/run' && req.method === 'POST') {
+        void handleGatewayProxy('cron.run', req, res).catch((e) => serverError(res, e));
+        return;
+      }
+
+      if (pathname === '/api/gateway/cron/status' && req.method === 'GET') {
+        void handleGatewayProxy('cron.status', req, res).catch((e) => serverError(res, e));
+        return;
+      }
+
       // Catch-all for unknown /api/ paths
       if (pathname.startsWith('/api/')) {
         notFound(res);
@@ -794,6 +910,14 @@ export function createWebServer(options: ServerOptions): ServerHandle {
     }
   }
 
+  // Eagerly connect to gateway if configured (don't wait for frontend to poll)
+  if (options.gatewayUrl) {
+    const client = getOrCreateGatewayClient();
+    client.call('ping').catch(() => {
+      // Connection or handshake failed — pairing message already printed if needed
+    });
+  }
+
   const server = createServer(handleRequest);
   server.on('connection', (socket) => {
     sockets.add(socket);
@@ -807,6 +931,12 @@ export function createWebServer(options: ServerOptions): ServerHandle {
   return {
     close: () =>
       new Promise((resolve, reject) => {
+        // Dispose gateway client
+        if (gatewayClient) {
+          gatewayClient.dispose();
+          gatewayClient = null;
+        }
+
         for (const streamRes of activeStreamResponses) {
           if (!streamRes.writableEnded && !streamRes.destroyed) {
             streamRes.end();

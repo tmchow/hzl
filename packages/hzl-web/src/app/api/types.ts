@@ -202,6 +202,107 @@ export interface AgentTasksResponse {
   counts: AgentRosterTaskCounts;
 }
 
+/** Gateway status */
+export type GatewayStatus = 'connected' | 'connecting' | 'disconnected' | 'unconfigured';
+
+/** Agent as returned by the gateway's agents.list RPC */
+export interface GatewayAgent {
+  id: string;
+  name?: string;
+  model?: string;
+  status?: string;
+  [key: string]: unknown;
+}
+
+/** Cron job schedule */
+export interface CronSchedule {
+  kind: string;
+  expr: string;
+  tz?: string;
+  staggerMs?: number;
+}
+
+/** Cron job payload */
+export interface CronPayload {
+  kind: string;
+  message?: string;
+  text?: string;
+  model?: string;
+  thinking?: boolean;
+  timeoutSeconds?: number;
+  lightContext?: boolean;
+}
+
+/** Cron job delivery */
+export interface CronDelivery {
+  mode?: string;
+  channel?: string;
+  to?: string;
+  bestEffort?: boolean;
+}
+
+/** Cron job state (runtime info) */
+export interface CronJobState {
+  nextRunAtMs?: number | null;
+  lastRunAtMs?: number | null;
+  lastStatus?: string | null;
+  lastDurationMs?: number | null;
+  consecutiveErrors?: number;
+  lastError?: string | null;
+  lastDelivered?: boolean | null;
+  lastDeliveryStatus?: string | null;
+}
+
+/** Cron job as returned by the gateway */
+export interface CronJob {
+  id: string;
+  agentId?: string;
+  name: string;
+  description?: string;
+  enabled: boolean;
+  schedule: CronSchedule;
+  sessionTarget?: string;
+  wakeMode?: string;
+  payload: CronPayload;
+  delivery?: CronDelivery;
+  state?: CronJobState;
+  createdAtMs?: number;
+  updatedAtMs?: number;
+}
+
+/** Params for creating a cron job */
+export interface CronJobCreateParams {
+  name: string;
+  enabled?: boolean;
+  schedule: CronSchedule;
+  payload: CronPayload;
+  description?: string;
+  sessionTarget?: string;
+  wakeMode?: string;
+  agentId?: string;
+  delivery?: CronDelivery;
+}
+
+/** Params for updating a cron job */
+export interface CronJobUpdatePatch {
+  name?: string;
+  enabled?: boolean;
+  schedule?: CronSchedule;
+  payload?: CronPayload;
+  description?: string;
+  sessionTarget?: string;
+  wakeMode?: string;
+  agentId?: string;
+  delivery?: CronDelivery;
+}
+
+/** Cron scheduler status */
+export interface CronStatus {
+  enabled: boolean;
+  running?: boolean;
+  jobCount?: number;
+}
+
 /** Search result item as returned by GET /api/search */
 export interface SearchTaskResult {
   task_id: string;

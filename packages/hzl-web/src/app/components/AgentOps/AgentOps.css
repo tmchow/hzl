@@ -399,11 +399,64 @@
   font-weight: 500;
 }
 
+/* Agent Detail — Segmented Control */
+.agent-detail-tabs {
+  display: flex;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-secondary);
+  padding: 0 16px;
+  gap: 0;
+}
+
+.agent-detail-tab {
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+  font-family: inherit;
+}
+
+.agent-detail-tab:hover {
+  color: var(--text-primary);
+}
+
+.agent-detail-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.agent-detail-tab-badge {
+  display: inline-block;
+  margin-left: 5px;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: var(--bg-primary);
+  padding: 1px 6px;
+  border-radius: 8px;
+}
+
+.agent-detail-tab.active .agent-detail-tab-badge {
+  color: var(--accent);
+}
+
+/* Agent Detail — Tab Content */
+.agent-detail-tab-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
 /* Agent Detail — Assigned Tasks */
 .agent-detail-tasks {
-  flex-shrink: 0;
   padding: 12px 16px;
-  border-bottom: 1px solid var(--border);
 }
 
 .agent-detail-tasks-list {
@@ -540,6 +593,491 @@
   font-size: 16px;
   font-weight: 600;
   color: var(--text-primary);
+}
+
+/* Cron Jobs Section */
+.cron-section {
+  padding: 12px 16px;
+}
+
+.cron-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.cron-section-header-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cron-section-header-left .agent-detail-section-label {
+  margin-bottom: 0;
+}
+
+.cron-section-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.cron-job-count {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: var(--bg-secondary);
+  padding: 1px 6px;
+  border-radius: 8px;
+}
+
+.cron-status-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.cron-status-dot-connected { background: var(--status-done); }
+.cron-status-dot-connecting { background: var(--status-in-progress); }
+.cron-status-dot-disconnected { background: var(--status-blocked); }
+
+/* Cron setup UI (unconfigured state) */
+.cron-setup-ui {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cron-setup-message {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.cron-setup-form {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.cron-setup-input {
+  flex: 1;
+  min-width: 140px;
+  padding: 6px 10px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-family: var(--font-mono);
+}
+
+.cron-setup-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.cron-setup-button {
+  padding: 6px 14px;
+  background: var(--accent);
+  border: none;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.cron-setup-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Cron action buttons */
+.cron-action-btn {
+  padding: 3px 8px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.cron-action-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.cron-create-btn {
+  color: var(--accent);
+  border-color: var(--accent);
+  font-weight: 500;
+}
+
+.cron-delete-btn {
+  color: var(--status-blocked);
+}
+
+.cron-delete-btn:hover {
+  border-color: var(--status-blocked);
+  color: var(--status-blocked);
+}
+
+/* Cron job list */
+.cron-job-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.cron-job-row {
+  border-bottom: 1px solid var(--border);
+  padding: 6px 0;
+}
+
+.cron-job-row.disabled {
+  opacity: 0.5;
+}
+
+.cron-job-row-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Toggle switch */
+.cron-job-toggle {
+  position: relative;
+  display: inline-block;
+  width: 28px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.cron-job-toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.cron-job-toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background: var(--border);
+  border-radius: 16px;
+  transition: background 0.2s;
+}
+
+.cron-job-toggle-slider::before {
+  content: '';
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  left: 2px;
+  bottom: 2px;
+  background: white;
+  border-radius: 50%;
+  transition: transform 0.2s;
+}
+
+.cron-job-toggle input:checked + .cron-job-toggle-slider {
+  background: var(--accent);
+}
+
+.cron-job-toggle input:checked + .cron-job-toggle-slider::before {
+  transform: translateX(12px);
+}
+
+.cron-job-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.cron-job-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cron-job-schedule {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.cron-job-next-inline {
+  color: var(--text-muted);
+}
+
+.cron-job-state {
+  flex-shrink: 0;
+}
+
+.cron-job-status-indicator {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.cron-job-status-indicator.status-ok {
+  color: var(--status-done);
+}
+
+.cron-job-status-indicator.status-error {
+  color: var(--status-blocked);
+}
+
+.cron-job-error-count {
+  margin-left: 2px;
+  font-size: 9px;
+  color: var(--status-blocked);
+}
+
+.cron-job-timing {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  flex-shrink: 0;
+}
+
+.cron-job-next,
+.cron-job-duration {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.cron-job-actions {
+  display: flex;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.cron-delete-confirm {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0 2px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+/* Cron empty/loading/error states */
+.cron-loading,
+.cron-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.cron-error {
+  font-size: 11px;
+  color: var(--status-blocked);
+  padding: 4px 0;
+}
+
+.cron-scheduler-warning {
+  font-size: 11px;
+  color: var(--status-in-progress);
+  padding: 6px 0 0;
+}
+
+/* Cron Modal */
+.cron-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 300;
+}
+
+.cron-modal {
+  width: min(560px, calc(100vw - 24px));
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+}
+
+.cron-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.cron-modal-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.cron-modal-close {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 18px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.cron-modal-close:hover { color: var(--text-primary); }
+
+.cron-modal-body {
+  padding: 14px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cron-modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cron-modal-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+}
+
+.cron-modal-input {
+  padding: 6px 10px;
+  height: 32px;
+  box-sizing: border-box;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-family: var(--font-mono);
+}
+
+.cron-modal-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.cron-modal-textarea {
+  padding: 6px 10px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-family: var(--font-mono);
+  resize: vertical;
+  min-height: 80px;
+}
+
+.cron-modal-textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.cron-modal-row {
+  display: flex;
+  gap: 8px;
+}
+
+.cron-modal-toggle-field {
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  min-width: 60px;
+}
+
+.cron-modal-advanced-toggle {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 4px 0;
+  text-align: left;
+}
+
+.cron-modal-advanced-toggle:hover {
+  color: var(--text-primary);
+}
+
+.cron-modal-advanced {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 8px 0 0;
+  border-top: 1px solid var(--border);
+}
+
+.cron-modal-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.cron-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.cron-modal-btn {
+  padding: 6px 16px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--border);
+}
+
+.cron-modal-btn-cancel {
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.cron-modal-btn-cancel:hover {
+  color: var(--text-primary);
+}
+
+.cron-modal-btn-save {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.cron-modal-btn-save:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* Shortcuts Modal */

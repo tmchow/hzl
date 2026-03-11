@@ -4,7 +4,7 @@ import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { resolveDbPaths, isDevMode } from '../config.js';
+import { resolveDbPaths, isDevMode, readConfig, getConfigPath } from '../config.js';
 import { initializeDb, closeDb } from '../db.js';
 import { handleError } from '../errors.js';
 import { GlobalOptionsSchema } from '../types.js';
@@ -21,6 +21,8 @@ interface ServeCommandOptions {
   stop?: boolean;
   status?: boolean;
   printSystemd?: boolean;
+  gatewayUrl?: string;
+  gatewayToken?: string;
 }
 
 // Get the directory for PID and log files
@@ -205,7 +207,21 @@ function runBackground(port: number, host: string, dbOption?: string, allowFrami
   console.log(`Run 'hzl serve --stop' to stop`);
 }
 
-async function runForeground(port: number, host: string, dbOption?: string, allowFraming = false): Promise<void> {
+// Resolve gateway config from CLI flags, config file, or defaults
+function resolveGatewayConfig(opts: ServeCommandOptions): { gatewayUrl?: string; gatewayToken?: string } {
+  const config = readConfig(getConfigPath());
+  return {
+    gatewayUrl: opts.gatewayUrl ?? config.gateway?.url,
+    gatewayToken: opts.gatewayToken ?? config.gateway?.token,
+  };
+}
+
+// Get the config directory path (for device identity persistence)
+function getConfigDir(): string {
+  return path.dirname(getConfigPath());
+}
+
+async function runForeground(port: number, host: string, dbOption?: string, allowFraming = false, gatewayOpts?: { gatewayUrl?: string; gatewayToken?: string }): Promise<void> {
   const { eventsDbPath, cacheDbPath } = resolveDbPaths(dbOption);
   const services = initializeDb({ eventsDbPath, cacheDbPath });
 
@@ -217,6 +233,9 @@ async function runForeground(port: number, host: string, dbOption?: string, allo
     eventStore: services.eventStore,
     searchService: services.searchService,
     statsService: services.statsService,
+    gatewayUrl: gatewayOpts?.gatewayUrl,
+    gatewayToken: gatewayOpts?.gatewayToken,
+    configDir: getConfigDir(),
   });
 
   // Write PID file for --status to detect
@@ -259,6 +278,8 @@ export function createServeCommand(): Command {
     .option('--stop', 'Stop the background server')
     .option('--status', 'Check if server is running')
     .option('--print-systemd', 'Print systemd unit file')
+    .option('--gateway-url <url>', 'OpenClaw gateway WebSocket URL')
+    .option('--gateway-token <token>', 'OpenClaw gateway auth token')
     .action(async function (this: Command, opts: ServeCommandOptions) {
       const globalOpts = GlobalOptionsSchema.parse(this.optsWithGlobals());
       const port = parseIntegerWithDefault(opts.port, 'Port', DEFAULT_PORT, { min: 1, max: 65535 });
@@ -280,10 +301,12 @@ export function createServeCommand(): Command {
           return;
         }
 
+        const gatewayOpts = resolveGatewayConfig(opts);
+
         if (opts.background) {
           // Don't re-fork if we're already the background process
           if (process.env.HZL_SERVE_BACKGROUND === '1') {
-            await runForeground(port, host, globalOpts.db, opts.allowFraming);
+            await runForeground(port, host, globalOpts.db, opts.allowFraming, gatewayOpts);
           } else {
             runBackground(port, host, globalOpts.db, opts.allowFraming);
           }
@@ -291,7 +314,7 @@ export function createServeCommand(): Command {
         }
 
         // Default: foreground mode
-        await runForeground(port, host, globalOpts.db, opts.allowFraming);
+        await runForeground(port, host, globalOpts.db, opts.allowFraming, gatewayOpts);
       } catch (e) {
         handleError(e, globalOpts.json);
       }
