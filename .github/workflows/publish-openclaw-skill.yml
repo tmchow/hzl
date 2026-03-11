@@ -92,6 +92,7 @@ jobs:
                 --name "HZL" \
                 --version "$version" \
                 --changelog "" \
+                --accept-license-terms \
                 --tags latest 2>&1
             )
             STATUS=$?
