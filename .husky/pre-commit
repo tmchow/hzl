@@ -1,3 +1,6 @@
+# Skip in CI — semantic-release manages its own commit integrity
+[ "$CI" = "true" ] && exit 0
+
 staged_files=$(git diff --cached --name-only --diff-filter=ACMR)
 package_manifest_changed=false
 lockfile_changed=false
