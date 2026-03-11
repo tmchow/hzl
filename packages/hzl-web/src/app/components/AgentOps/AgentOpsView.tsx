@@ -17,6 +17,8 @@ interface AgentOpsViewProps {
   project: string;
   refreshKey: number;
   onAgentCounts?: (active: number, idle: number) => void;
+  onGatewayStatus?: (status: string) => void;
+  onConfigureGateway?: (fn: (url: string, token?: string) => Promise<void>) => void;
   onTaskClick?: (taskId: string) => void;
 }
 
@@ -27,6 +29,8 @@ export default function AgentOpsView({
   project,
   refreshKey,
   onAgentCounts,
+  onGatewayStatus,
+  onConfigureGateway,
   onTaskClick,
 }: AgentOpsViewProps) {
   // Data fetching — only runs when this component is mounted (agents view active)
@@ -175,6 +179,15 @@ export default function AgentOpsView({
     const active = mergedAgents.filter((a) => a.isActive).length;
     onAgentCounts(active, mergedAgents.length - active);
   }, [mergedAgents, onAgentCounts]);
+
+  // Report gateway status and configureGateway to parent for top-bar display
+  useEffect(() => {
+    if (onGatewayStatus) onGatewayStatus(gatewayStatus);
+  }, [gatewayStatus, onGatewayStatus]);
+
+  useEffect(() => {
+    if (onConfigureGateway) onConfigureGateway(configureGateway);
+  }, [configureGateway, onConfigureGateway]);
 
   const selectedAgentData = useMemo(() => {
     if (!selectedAgent) return null;

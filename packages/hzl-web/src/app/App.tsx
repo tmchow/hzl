@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useTasks } from './hooks/useTasks';
 import { useEvents } from './hooks/useEvents';
 import { useStats } from './hooks/useStats';
@@ -66,6 +66,47 @@ export default function App() {
   const [sseState, setSseState] = useState<SSEState>('connecting');
   const [railCollapsed, setRailCollapsed] = useState(initialPrefs.railCollapsed);
   const [agentCounts, setAgentCounts] = useState<{ active: number; idle: number } | null>(null);
+  const [gatewayStatus, setGatewayStatus] = useState<string>('unconfigured');
+  const [gatewayPopoverOpen, setGatewayPopoverOpen] = useState(false);
+  const [gatewayFormUrl, setGatewayFormUrl] = useState('ws://127.0.0.1:18789');
+  const [gatewayFormToken, setGatewayFormToken] = useState('');
+  const [gatewayConfiguring, setGatewayConfiguring] = useState(false);
+  const [gatewayConfigError, setGatewayConfigError] = useState<string | null>(null);
+  const gatewayPopoverRef = useRef<HTMLDivElement>(null);
+  const configureGatewayRef = useRef<((url: string, token?: string) => Promise<void>) | null>(null);
+
+  // Close gateway popover on click outside
+  useEffect(() => {
+    if (!gatewayPopoverOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (gatewayPopoverRef.current && !gatewayPopoverRef.current.contains(e.target as Node)) {
+        setGatewayPopoverOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [gatewayPopoverOpen]);
+
+  // Close popover when gateway connects
+  useEffect(() => {
+    if (gatewayStatus === 'connected') {
+      setGatewayPopoverOpen(false);
+      setGatewayConfigError(null);
+    }
+  }, [gatewayStatus]);
+
+  const handleGatewaySubmit = useCallback(async () => {
+    if (!gatewayFormUrl.trim() || !configureGatewayRef.current) return;
+    setGatewayConfiguring(true);
+    setGatewayConfigError(null);
+    try {
+      await configureGatewayRef.current(gatewayFormUrl.trim(), gatewayFormToken.trim() || undefined);
+    } catch {
+      setGatewayConfigError('Could not connect. Check URL and try again.');
+    } finally {
+      setGatewayConfiguring(false);
+    }
+  }, [gatewayFormUrl, gatewayFormToken]);
 
   // Calendar state
   const parsedMonth = useMemo(() => {
@@ -389,6 +430,18 @@ export default function App() {
                 style={{ background: 'var(--status-backlog)' }}
               />
               {agentCounts.idle} idle
+              <span className="agent-ops-fleet-separator">&middot;</span>
+              <button
+                className={`gateway-status-chip gateway-status-${gatewayStatus}`}
+                onClick={() => gatewayStatus !== 'connected' && setGatewayPopoverOpen(true)}
+                title={gatewayStatus === 'connected' ? 'Gateway connected' : 'Configure gateway connection'}
+              >
+                <span className="gateway-status-chip-dot" />
+                {gatewayStatus === 'connected' ? 'Gateway' :
+                 gatewayStatus === 'connecting' ? 'Connecting...' :
+                 gatewayStatus === 'disconnected' ? 'Reconnect Gateway' :
+                 'Connect Gateway'}
+              </button>
             </span>
           )}
           <FilterBar
@@ -478,6 +531,8 @@ export default function App() {
             project={project}
             refreshKey={refreshKey}
             onAgentCounts={(active, idle) => setAgentCounts({ active, idle })}
+            onGatewayStatus={setGatewayStatus}
+            onConfigureGateway={(fn) => { configureGatewayRef.current = fn; }}
             onTaskClick={setSelectedTaskId}
           />
         )}
@@ -488,6 +543,57 @@ export default function App() {
           taskId={selectedTaskId}
           onClose={() => setSelectedTaskId(null)}
         />
+      )}
+
+      {gatewayPopoverOpen && (
+        <div className="cron-modal-overlay" onClick={() => setGatewayPopoverOpen(false)}>
+          <div className="cron-modal" ref={gatewayPopoverRef} onClick={e => e.stopPropagation()}>
+            <div className="cron-modal-header">
+              <span className="cron-modal-title">Connect to OpenClaw Gateway</span>
+              <button className="cron-modal-close" onClick={() => setGatewayPopoverOpen(false)}>&times;</button>
+            </div>
+            <div className="cron-modal-body">
+              <div className="cron-modal-field">
+                <label className="cron-modal-label">WebSocket URL</label>
+                <input
+                  className="cron-modal-input"
+                  type="text"
+                  value={gatewayFormUrl}
+                  onChange={e => setGatewayFormUrl(e.target.value)}
+                  placeholder="ws://127.0.0.1:18789"
+                />
+              </div>
+              <div className="cron-modal-field">
+                <label className="cron-modal-label">Auth token (optional)</label>
+                <input
+                  className="cron-modal-input"
+                  type="text"
+                  value={gatewayFormToken}
+                  onChange={e => setGatewayFormToken(e.target.value)}
+                  placeholder="Token"
+                />
+              </div>
+              {gatewayConfigError && (
+                <div className="gateway-modal-error">{gatewayConfigError}</div>
+              )}
+              <div className="cron-modal-footer">
+                <button
+                  className="cron-modal-btn cron-modal-btn-cancel"
+                  onClick={() => setGatewayPopoverOpen(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="cron-modal-btn cron-modal-btn-save"
+                  onClick={handleGatewaySubmit}
+                  disabled={gatewayConfiguring || !gatewayFormUrl.trim()}
+                >
+                  {gatewayConfiguring ? 'Connecting...' : 'Connect'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       <ActivityPanel
