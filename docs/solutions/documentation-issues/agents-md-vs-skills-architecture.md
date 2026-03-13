@@ -70,23 +70,17 @@ This means:
 
 Files always loaded, kept brief without duplicating skill content.
 
-**`docs/snippets/agent-policy.md`** (syncs to AGENTS.md, README.md):
-- When to use HZL (decision criteria)
-- Anti-pattern warning with minimal wrong/right example
+**`AGENTS.md`**:
+- Build/test commands, architecture overview
+- When to use HZL and anti-pattern guidance
 - Workflow steps (high-level process)
-- Destructive command warning
 - **No command reference** (belongs in skill)
-
-**`docs/openclaw/tools-prompt.md`**:
-- Single `openclaw` project model (OpenClaw-specific)
-- References skill for command syntax
-- Completability test for parent task naming
 
 ### Tier 2: On-Demand Skills (Detailed)
 
 Files loaded only when HZL skill becomes relevant.
 
-**`skills/hzl/SKILL.md`** and **`docs/openclaw/skills/hzl/SKILL.md`**:
+**`skills/hzl/SKILL.md`**:
 - Full "Anti-pattern: Project Sprawl" section with detailed examples
 - "Sizing Parent Tasks" section with completability test
 - Complete command reference (where it belongs)
@@ -96,8 +90,8 @@ Files loaded only when HZL skill becomes relevant.
 
 | Layer | Purpose | Content |
 |-------|---------|---------|
-| AGENTS.md / tools-prompt.md | Always-present context | When to use, anti-patterns, workflow (high-level) |
-| SKILL.md | On-demand when relevant | Command syntax, detailed patterns, scenarios |
+| AGENTS.md | Always-present context | When to use, anti-patterns, workflow (high-level) |
+| skills/hzl/SKILL.md | On-demand when relevant | Command syntax, detailed patterns, scenarios |
 
 **Why this works:** Claude discovers skills via description matching. No need to explicitly mention skills in AGENTS.md—this happens automatically.
 
@@ -130,8 +124,7 @@ Shape Up methodology. A full-stack feature (frontend + backend + tests) is usual
 ### Structural Prevention
 
 1. **Two-tier architecture** - Separates concerns between always-present guidance and on-demand reference
-2. **Snippet sync system** - Automation keeps policy consistent across AGENTS.md, README.md via `node scripts/sync-snippets.js`
-3. **Single source of truth** - Edit `docs/snippets/agent-policy.md`, not synced files
+2. **Single source of truth** - AGENTS.md for always-present guidance, skills/hzl/SKILL.md for detailed reference
 
 ### Documentation Checklist
 
@@ -139,9 +132,8 @@ When adding or modifying CLI commands:
 
 | Document | What to update |
 |----------|----------------|
-| `docs/snippets/agent-policy.md` | High-level workflow only |
+| `AGENTS.md` | High-level workflow and architecture only |
 | `skills/hzl/SKILL.md` | Full command reference |
-| `docs/openclaw/skills/hzl/SKILL.md` | OpenClaw-specific version |
 
 ## Implementation
 
@@ -157,17 +149,11 @@ When adding or modifying CLI commands:
 
 ## Files Changed
 
-- `docs/snippets/agent-policy.md` - Anti-pattern warning, workflow, removed commands
-- `docs/openclaw/tools-prompt.md` - Single project model, skill reference
+- `AGENTS.md` - High-level workflow and anti-pattern guidance
 - `skills/hzl/SKILL.md` - Full anti-pattern + sizing sections
-- `docs/openclaw/skills/hzl/SKILL.md` - OpenClaw-specific framing
-- `AGENTS.md`, `README.md` - Auto-synced from snippet
 
 ## Related Documentation
 
-- [Anti-Sprawl Design Doc](../plans/2026-02-03-anti-sprawl-docs-design.md) - Original design document
-- [Coding Agent Support Patterns](best-practices/coding-agent-support-patterns.md) - Multi-agent patterns
-- [Snippet Sync System](documentation/snippet-sync-system-design.md) - Automation details
 - [Anthropic Skill Best Practices](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices) - Source guidance
 
 ## Lessons Learned

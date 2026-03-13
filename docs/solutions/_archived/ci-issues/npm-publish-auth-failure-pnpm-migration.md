@@ -8,6 +8,9 @@ symptoms:
   - npm error code ENEEDAUTH when publishing packages
   - semantic-release fails during pnpm exec invocation
   - NPM_TOKEN not properly passed through pnpm execution context
+archived_date: 2026-03-13
+archive_reason: Superseded by OIDC Trusted Publishing — NPM_TOKEN no longer used in release workflow
+superseded_by: /docs/solutions/ci-issues/npm-oidc-trusted-publishing-failure.md
 related_issues: []
 ---
 
