@@ -1,3 +1,8 @@
+---
+archived_date: 2026-03-13
+archive_reason: "Most referenced infrastructure removed (.claude-plugin/, .codex/, docs/openclaw/skills/, snippet sync scripts). Plugin distribution now uses ClawHub workflow."
+---
+
 # Supporting Multiple Coding Agents: Claude Code, Codex, and OpenClaw
 
 **Date:** 2026-02-02
