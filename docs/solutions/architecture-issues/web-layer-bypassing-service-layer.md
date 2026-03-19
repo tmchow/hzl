@@ -42,14 +42,18 @@ listTasks(opts: { sinceDays?: number; project?: string } = {}): TaskListItem[]
 // Get blocked dependencies map for all ready tasks
 getBlockedByMap(): Map<string, string[]>
 
-// Get task statistics by status
-getStats(): TaskStats
-
 // Get blocking dependencies for a specific task
 getBlockingDependencies(taskId: string): string[]
 
 // Batch fetch task titles (avoids N+1 queries)
 getTaskTitlesByIds(taskIds: string[]): Map<string, string>
+```
+
+And **adding StatsService** (`packages/hzl-core/src/services/stats-service.ts`):
+
+```typescript
+// Get task statistics by status (extracted to its own service)
+getStats(): TaskStats
 ```
 
 2. **Adding getRecentEvents to EventStore** (`packages/hzl-core/src/events/store.ts`):
@@ -71,6 +75,8 @@ export interface ServerOptions {
   host?: string;
   taskService: TaskService;  // Not cacheDb
   eventStore: EventStore;    // Not eventsDb
+  statsService: StatsService;  // Extracted from TaskService
+  searchService: SearchService;
 }
 
 function handleTasks(params: URLSearchParams, res: ServerResponse): void {

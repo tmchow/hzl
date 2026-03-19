@@ -1,3 +1,8 @@
+---
+archived_date: 2026-03-13
+archive_reason: "Entire snippet sync system removed — no scripts, workflows, or snippet source files remain. Documentation is now maintained directly."
+---
+
 # Markdown Snippet Sync System Design
 
 **Date:** 2026-02-02
