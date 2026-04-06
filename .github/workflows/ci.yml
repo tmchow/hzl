@@ -135,7 +135,7 @@ jobs:
         run: pnpm test:ci
 
       - name: Upload coverage
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           files: ./packages/hzl-core/coverage/lcov.info,./packages/hzl-cli/coverage/lcov.info,./packages/hzl-web/coverage/lcov.info
           fail_ci_if_error: false
