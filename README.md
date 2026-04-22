@@ -43,3 +43,7 @@ hzl hook drain                   # deliver durable on_done hooks
 ## License
 
 MIT
+
+## Download History
+
+[![Download History](https://skill-history.com/chart/tmchow/hzl.svg)](https://skill-history.com/tmchow/hzl)
