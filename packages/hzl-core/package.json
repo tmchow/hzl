@@ -107,16 +107,16 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "libsql": "^0.5.0",
+    "libsql": "^0.5.29",
     "ulid": "^3.0.2",
-    "zod": "^4.3.6"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^25.3.5",
-    "@vitest/coverage-v8": "^4.0.18",
-    "fast-check": "^4.5.3",
-    "tsx": "^4.19.2",
+    "@vitest/coverage-v8": "^4.1.6",
+    "fast-check": "^4.8.0",
+    "tsx": "^4.22.0",
     "vitest": "^4.0.18"
   }
 }
